@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Globe2,
   LayoutDashboard,
@@ -15,7 +15,9 @@ import {
   Settings,
   Home,
   PlusCircle,
-  Sparkles,
+  Crown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 
@@ -26,7 +28,7 @@ type SidebarProps = {
 
 const navigation = [
   {
-    title: 'CIVILISATION',
+    title: 'SETTLEMENT',
     items: [
       { name: 'Overview', icon: LayoutDashboard },
       { name: 'World Explorer', icon: Globe2, badge: '3D' },
@@ -37,7 +39,7 @@ const navigation = [
     ],
   },
   {
-    title: 'DEVELOPMENT & SCIENCE',
+    title: 'GOVERNANCE & SCIENCE',
     items: [
       { name: 'Technology', icon: GitBranch },
       { name: 'Policy Laboratory', icon: FlaskConical },
@@ -46,7 +48,7 @@ const navigation = [
     ],
   },
   {
-    title: 'PROGRESSION & EXPEDITION',
+    title: 'PROGRESSION',
     items: [
       { name: 'Research Wallet', icon: Coins },
       { name: 'Achievements', icon: Trophy },
@@ -58,46 +60,56 @@ const navigation = [
 
 export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
   const { civilization } = useGameState();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <aside className="w-[245px] shrink-0 bg-[#171d18] border-r border-[#39443a] flex flex-col h-screen select-none text-[#e8e9e3] z-40">
+    <aside
+      className={`shrink-0 bg-[#14181b] border-r border-[#242c32] flex flex-col h-screen select-none text-[#ede8dc] z-40 shadow-xl relative transition-all duration-200 ease-out ${
+        isCollapsed ? 'w-[60px]' : 'w-[210px]'
+      }`}
+    >
       {/* Brand Header */}
-      <div className="px-5 py-5 border-b border-[#39443a] bg-[#141914]">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#405439] to-[#253323] border border-[#5d7754] flex items-center justify-center shadow-lg">
-            <Globe2 size={22} className="text-[#dce9ca]" />
+      <div className="px-3 py-3 border-b border-[#242c32] bg-[#111417] flex items-center justify-between">
+        <div
+          onClick={() => onNavigate('Overview')}
+          className="flex items-center gap-2.5 overflow-hidden cursor-pointer group"
+          title={`${civilization.name} (Level ${civilization.level})`}
+        >
+          <div className="w-8 h-8 rounded-md bg-[#1f262c] border border-[#8f7742]/50 flex items-center justify-center text-[#c29b38] shrink-0 group-hover:border-[#c29b38] transition-colors">
+            <Crown size={15} />
           </div>
 
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-base font-black tracking-[3px] text-[#f3f5ef]">GENESIS</h1>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#c6a76a]" />
+          {!isCollapsed && (
+            <div className="min-w-0">
+              <h1 className="text-xs font-bold tracking-wider text-[#ede8dc] uppercase truncate leading-none">
+                GENESIS
+              </h1>
+              <p className="text-[9px] font-mono text-[#8a8376] mt-0.5 truncate uppercase">
+                Strategy Engine
+              </p>
             </div>
-            <p className="text-[9px] font-mono tracking-[1.8px] text-[#9da99b]">
-              CIVILISATION ENGINE
-            </p>
-          </div>
+          )}
         </div>
 
-        {/* Civilisation Quick Bar */}
-        <div className="mt-3 pt-3 border-t border-[#2a362b] flex items-center justify-between text-xs">
-          <div>
-            <p className="text-[10px] text-[#9da99b] uppercase font-mono">ACTIVE ENTITY</p>
-            <p className="font-semibold text-[#f0f3eb] truncate max-w-[120px]">{civilization.name}</p>
-          </div>
-          <span className="text-[10px] font-mono font-bold text-[#c6a76a] px-2 py-0.5 rounded bg-[#272317] border border-[#4d3e20]">
-            LVL {civilization.level}
-          </span>
-        </div>
+        {/* Collapse Button */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-1 rounded text-[#7e8e7c] hover:text-[#ede8dc] hover:bg-[#1f262c] transition-colors"
+          title={isCollapsed ? 'Expand Navigation Sidebar' : 'Collapse Sidebar'}
+        >
+          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
       </div>
 
       {/* Nav List */}
-      <div className="px-3 py-4 flex-1 overflow-y-auto custom-scrollbar space-y-6">
+      <div className="px-2 py-3 flex-1 overflow-y-auto custom-scrollbar space-y-3.5">
         {navigation.map((section) => (
           <div key={section.title}>
-            <p className="text-[10px] font-mono tracking-widest text-[#7f8f7c] px-3 mb-2 uppercase">
-              {section.title}
-            </p>
+            {!isCollapsed && (
+              <p className="text-[9px] font-mono font-bold tracking-wider text-[#6c767e] uppercase px-2 mb-1 truncate">
+                {section.title}
+              </p>
+            )}
 
             <div className="space-y-0.5">
               {section.items.map((item) => {
@@ -108,22 +120,31 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
                   <button
                     key={item.name}
                     onClick={() => onNavigate(item.name)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    title={isCollapsed ? item.name : undefined}
+                    className={`w-full flex items-center ${
+                      isCollapsed ? 'justify-center px-0' : 'justify-between px-2.5'
+                    } py-1.5 rounded-md text-xs font-medium transition-all relative ${
                       active
-                        ? 'bg-[#334230] text-[#dce9ca] border border-[#5a7251] shadow-md'
-                        : 'text-[#a2aca0] hover:bg-[#202920] hover:text-white'
+                        ? 'bg-[#222a31] text-[#ffffff] font-semibold shadow-xs'
+                        : 'text-[#aba393] hover:bg-[#1a2025] hover:text-[#ede8dc]'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5">
+                    {active && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-r bg-[#c29b38]" />
+                    )}
+
+                    <div className="flex items-center gap-2 min-w-0">
                       <Icon
-                        size={16}
-                        className={active ? 'text-[#c6a76a]' : 'text-[#7e8e7c]'}
+                        size={15}
+                        className={active ? 'text-[#c29b38]' : 'text-[#79858f]'}
                       />
-                      <span>{item.name}</span>
+                      {!isCollapsed && (
+                        <span className="truncate text-[12px]">{item.name}</span>
+                      )}
                     </div>
 
-                    {item.badge && (
-                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#293628] text-[#a6bd82] border border-[#445b42]">
+                    {!isCollapsed && item.badge && (
+                      <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-[#101416] text-[#7ea376] border border-[#2b353b]">
                         {item.badge}
                       </span>
                     )}
@@ -135,18 +156,17 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
         ))}
       </div>
 
-      {/* Footer Settings */}
-      <div className="p-3 border-t border-[#39443a] bg-[#141914]">
+      {/* Footer Settings Row */}
+      <div className="p-2 border-t border-[#242c32] bg-[#111417]">
         <button
           onClick={() => onNavigate('Settings')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
-            activePage === 'Settings'
-              ? 'bg-[#334230] text-[#dce9ca] border border-[#5a7251]'
-              : 'text-[#9da99b] hover:bg-[#202920] hover:text-white'
-          }`}
+          className={`w-full flex items-center ${
+            isCollapsed ? 'justify-center' : 'gap-2 px-2'
+          } py-1.5 rounded-md text-xs text-[#8a8376] hover:text-[#ede8dc] hover:bg-[#1a2025] transition-colors`}
+          title="Settings & Simulation Controls"
         >
-          <Settings size={16} />
-          <span>System Settings</span>
+          <Settings size={14} />
+          {!isCollapsed && <span className="text-[11px]">System Preferences</span>}
         </button>
       </div>
     </aside>

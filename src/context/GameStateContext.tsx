@@ -30,9 +30,70 @@ import {
   initialAchievements,
   initialEvents,
 } from '../data/initialGameData';
+import { soundFx } from '../services/soundFx';
 
 export type MapLayer = 'all' | 'infrastructure' | 'population' | 'resources' | 'environment' | 'economy';
 export type ActiveDrawer = 'none' | 'notifications' | 'codex' | 'timeline' | 'construction' | 'buildingInspector';
+
+export interface GameToast {
+  id: string;
+  type: 'reward' | 'eureka' | 'build' | 'levelup' | 'info';
+  title: string;
+  subtitle?: string;
+  icon?: string;
+}
+
+export interface GameQuest {
+  id: string;
+  title: string;
+  category: 'Expansion' | 'Science' | 'Economy' | 'Ecology';
+  target: string;
+  progress: number;
+  maxProgress: number;
+  rewardGrc: number;
+  rewardXp: number;
+  isCompleted: boolean;
+  isClaimed: boolean;
+}
+
+export const initialQuests: GameQuest[] = [
+  {
+    id: 'quest-1',
+    title: 'Agrisector Expansion',
+    category: 'Expansion',
+    target: 'Maintain 2 Operational Bio-Dome Facilities',
+    progress: 2,
+    maxProgress: 2,
+    rewardGrc: 150,
+    rewardXp: 250,
+    isCompleted: true,
+    isClaimed: false,
+  },
+  {
+    id: 'quest-2',
+    title: 'Renewable Power Dominance',
+    category: 'Ecology',
+    target: 'Generate over 100 MW of renewable power',
+    progress: 85,
+    maxProgress: 100,
+    rewardGrc: 200,
+    rewardXp: 300,
+    isCompleted: false,
+    isClaimed: false,
+  },
+  {
+    id: 'quest-3',
+    title: 'Quantum Uplift',
+    category: 'Science',
+    target: 'Unlock Quantum AI in Technology Tree',
+    progress: 1,
+    maxProgress: 1,
+    rewardGrc: 300,
+    rewardXp: 450,
+    isCompleted: true,
+    isClaimed: false,
+  },
+];
 
 interface GameStateContextType {
   civilization: CivilizationProfile;
@@ -49,6 +110,9 @@ interface GameStateContextType {
   experiments: Experiment[];
   achievements: Achievement[];
   events: GameEvent[];
+  quests: GameQuest[];
+  toasts: GameToast[];
+  levelUpCelebration: { level: number; era: string; perks: string[] } | null;
   
   // Simulation controls
   isPlaying: boolean;
@@ -72,11 +136,16 @@ interface GameStateContextType {
   upgradeBuilding: (buildingId: string) => boolean;
   demolishBuilding: (buildingId: string) => void;
   startResearch: (techId: string) => boolean;
+  triggerEureka: (techId: string) => void;
   togglePolicy: (policyId: string) => void;
   updatePolicySlider: (policyId: string, value: number) => void;
   runScenario: (scenarioId: string) => boolean;
   startExperiment: (experimentId: string) => boolean;
   claimAchievement: (achievementId: string) => void;
+  claimQuest: (questId: string) => void;
+  triggerToast: (toast: Omit<GameToast, 'id'>) => void;
+  dismissToast: (id: string) => void;
+  dismissLevelUp: () => void;
   createNewCivilization: (data: Partial<CivilizationProfile>) => void;
   loadCivilization: (civId: string) => void;
   markEventRead: (eventId: string) => void;
@@ -101,6 +170,30 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [achievements, setAchievements] = useState<Achievement[]>(initialAchievements);
   const [events, setEvents] = useState<GameEvent[]>(initialEvents);
+  const [quests, setQuests] = useState<GameQuest[]>(initialQuests);
+  const [toasts, setToasts] = useState<GameToast[]>([]);
+  const [levelUpCelebration, setLevelUpCelebration] = useState<{
+    level: number;
+    era: string;
+    perks: string[];
+  } | null>(null);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const triggerToast = useCallback((toast: Omit<GameToast, 'id'>) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const newToast: GameToast = { ...toast, id };
+    setToasts((prev) => [newToast, ...prev.slice(0, 4)]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4500);
+  }, []);
+
+  const dismissLevelUp = useCallback(() => {
+    setLevelUpCelebration(null);
+  }, []);
   
   const [taxRate, setTaxRate] = useState<number>(18); // %
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -297,6 +390,12 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       isRead: false,
     };
     setEvents((prev) => [event, ...prev]);
+    soundFx.playHammerBuild();
+    triggerToast({
+      type: 'build',
+      title: `COMMISSIONED: ${item.name}`,
+      subtitle: `Erected in Sector ${districtId}. +5 GRC Treasury Grant`,
+    });
     setIsConstructionMode(false);
     setSelectedCatalogItem(null);
     return true;
@@ -327,6 +426,13 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
           : b
       )
     );
+
+    soundFx.playHammerBuild();
+    triggerToast({
+      type: 'build',
+      title: `UPGRADED: ${building.name}`,
+      subtitle: `Promoted to Level ${building.level + 1}. +25 GRC awarded!`,
+    });
 
     const event: GameEvent = {
       id: `ev-${Date.now()}`,
@@ -373,6 +479,8 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     const tech = technologies.find((t) => t.id === techId);
     if (!tech || tech.isResearched) return false;
 
+    soundFx.playResearchStart();
+
     setTechnologies((prev) =>
       prev.map((t) => {
         if (t.id === techId) {
@@ -382,6 +490,29 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       })
     );
     return true;
+  };
+
+  const triggerEureka = (techId: string) => {
+    const tech = technologies.find((t) => t.id === techId);
+    soundFx.playEureka();
+    triggerToast({
+      type: 'eureka',
+      title: '⚡ EUREKA BREAKTHROUGH!',
+      subtitle: tech ? `${tech.name}: 50% Research Cost Discount!` : '50% Research Discount Applied!',
+    });
+    setTechnologies((prev) =>
+      prev.map((t) => {
+        if (t.id === techId) {
+          const discount = Math.round(t.costResearchPoints * 0.5);
+          return {
+            ...t,
+            isEurekaBoosted: true,
+            progress: Math.min(t.costResearchPoints, t.progress + discount),
+          };
+        }
+        return t;
+      })
+    );
   };
 
   const togglePolicy = (policyId: string) => {
@@ -491,6 +622,64 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setEvents((prev) => [event, ...prev]);
   };
 
+  const claimQuest = (questId: string) => {
+    const q = quests.find((quest) => quest.id === questId);
+    if (!q || !q.isCompleted || q.isClaimed) return;
+
+    soundFx.playRewardClaim();
+    triggerToast({
+      type: 'reward',
+      title: `🎯 QUEST REWARD CLAIMED!`,
+      subtitle: `+${q.rewardGrc} GRC & +${q.rewardXp} Civilisation XP`,
+    });
+
+    setResources((prev) => ({
+      ...prev,
+      grc: prev.grc + q.rewardGrc,
+    }));
+
+    setCivilization((prev) => {
+      const nextXp = prev.xp + q.rewardXp;
+      if (nextXp >= prev.xpToNextLevel) {
+        soundFx.playRewardClaim();
+        const nextLevel = prev.level + 1;
+        setLevelUpCelebration({
+          level: nextLevel,
+          era: prev.era,
+          perks: [
+            '+500 GRC Sovereign Treasury Grant',
+            'District Grid Tier Expansion Unlocked',
+            '+15% Civilisation Happiness & Production Output',
+          ],
+        });
+        setResources((r) => ({ ...r, grc: r.grc + 500 }));
+        return {
+          ...prev,
+          level: nextLevel,
+          xp: nextXp - prev.xpToNextLevel,
+          xpToNextLevel: Math.round(prev.xpToNextLevel * 1.5),
+        };
+      }
+      return { ...prev, xp: nextXp };
+    });
+
+    setQuests((prev) =>
+      prev.map((quest) => (quest.id === questId ? { ...quest, isClaimed: true } : quest))
+    );
+
+    const event: GameEvent = {
+      id: `ev-${Date.now()}`,
+      year: civilization.currentYear,
+      day: civilization.currentDay,
+      title: `Quest Victory: ${q.title}!`,
+      description: `Claimed +${q.rewardGrc} GRC and +${q.rewardXp} Civilisation XP!`,
+      category: 'breakthrough',
+      severity: 'success',
+      isRead: false,
+    };
+    setEvents((prev) => [event, ...prev]);
+  };
+
   const createNewCivilization = (data: Partial<CivilizationProfile>) => {
     const newCiv: CivilizationProfile = {
       id: `civ-${Date.now().toString().slice(-4)}`,
@@ -566,6 +755,14 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         runScenario,
         startExperiment,
         claimAchievement,
+        quests,
+        claimQuest,
+        triggerEureka,
+        toasts,
+        triggerToast,
+        dismissToast,
+        levelUpCelebration,
+        dismissLevelUp,
         createNewCivilization,
         loadCivilization,
         markEventRead,

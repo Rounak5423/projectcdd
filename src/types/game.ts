@@ -95,6 +95,10 @@ export interface District {
   population: number;
   efficiency: number;
   specialization: string;
+  defenseRating?: number;
+  currentProduction?: string;
+  productionTurnsLeft?: number;
+  loyalty?: number;
 }
 
 export interface Citizen {
@@ -110,6 +114,15 @@ export interface Citizen {
   income: number; // annual
   aiAssistanceUsage: number; // 0 - 100 %
   status: 'Optimal' | 'Content' | 'Stressed' | 'Critical';
+  avatarUrl?: string;
+  needs?: {
+    food: number;
+    water: number;
+    energy: number;
+    luxury: number;
+    order: number;
+  };
+  taxContribution?: number;
 }
 
 export type TechEra = 'Foundational' | 'Industrial' | 'Digital' | 'Synthetic / AI';
@@ -137,6 +150,10 @@ export interface Technology {
   prerequisites: string[]; // tech IDs
   unlocks: string[]; // tech IDs
   iconName: string;
+  eurekaCondition?: string;
+  isEurekaBoosted?: boolean;
+  turnsToComplete?: number;
+  unlockedIcons?: string[];
 }
 
 export interface Policy {

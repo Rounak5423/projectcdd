@@ -17,7 +17,7 @@ import { useGameState } from '../context/GameStateContext';
 import { Achievement } from '../types/game';
 
 export default function AchievementsPage() {
-  const { achievements, events } = useGameState();
+  const { achievements, events, claimAchievement, triggerToast } = useGameState();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const filteredAchievements = achievements.filter((a) =>
@@ -100,20 +100,22 @@ export default function AchievementsPage() {
             <div className="mt-4 pt-3 border-t border-[#283429]">
               {ach.isUnlocked ? (
                 <div className="flex items-center justify-between text-[11px] font-mono text-[#a6bd82]">
-                  <span>RECORDED IN CHRONICLE</span>
-                  <span>{ach.unlockedAtDate || 'Achieved'}</span>
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 size={13} /> RECORDED IN CHRONICLE
+                  </span>
+                  <span className="font-bold text-[#d4af37]">+{ach.rewardGrc} GRC</span>
                 </div>
               ) : (
-                <div>
-                  <div className="flex justify-between text-[10px] font-mono mb-1">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px] font-mono">
                     <span className="text-[#9da99b]">PROGRESSION</span>
-                    <span className="text-[#c6a76a]">
+                    <span className="text-[#c6a76a] font-bold">
                       {Math.round((ach.progress / ach.maxProgress) * 100)}%
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full bg-[#121612] overflow-hidden">
                     <div
-                      className="h-full bg-[#c6a76a] rounded-full"
+                      className="h-full bg-gradient-to-r from-[#4ade80] to-[#d4af37] rounded-full transition-all duration-300"
                       style={{
                         width: `${Math.min(100, (ach.progress / ach.maxProgress) * 100)}%`,
                       }}

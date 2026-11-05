@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Play,
   Pause,
-  SkipForward,
   FastForward,
   Calendar,
   History,
-  Activity,
-  Layers,
+  RotateCw,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
+import { soundFx } from '../../services/soundFx';
 
 export default function BottomControls() {
   const {
@@ -23,60 +24,96 @@ export default function BottomControls() {
     setActiveDrawer,
   } = useGameState();
 
+  const [isMuted, setIsMuted] = useState(soundFx.getIsMuted());
+
+  const handleToggleMute = () => {
+    const muted = soundFx.toggleMute();
+    setIsMuted(muted);
+    if (!muted) soundFx.playClick();
+  };
+
+  const handleNextTurn = () => {
+    soundFx.playTurnAdvance();
+    advanceTick();
+  };
+
+  const handleNextYear = () => {
+    soundFx.playTurnAdvance();
+    advanceYear();
+  };
+
   return (
-    <footer className="h-[68px] shrink-0 bg-[#161c17] border-t border-[#39443a] flex items-center justify-between px-4 lg:px-6 select-none text-[#e8e9e3] shadow-lg z-30">
-      {/* Date & Timeline shortcut */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded bg-[#202921] border border-[#344435] flex items-center justify-center text-[#a6bd82]">
-            <Calendar size={16} />
-          </div>
+    <footer className="h-[50px] shrink-0 bg-[#14181b] border-t border-[#262f35] flex items-center justify-between px-3 lg:px-5 select-none text-[#ede8dc] shadow-lg z-30">
+      {/* Left: Date & Chronicle */}
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 bg-[#0f1214] px-3 py-1 rounded-md border border-[#232b30] text-xs font-mono">
+          <Calendar size={13} className="text-[#c29b38]" />
           <div>
-            <span className="text-[9px] font-mono tracking-wider text-[#9da99b] block uppercase">
-              SIMULATED CALENDAR
-            </span>
-            <span className="text-xs lg:text-sm font-mono font-bold text-[#f3f5ef]">
-              Year {civilization.currentYear.toString().padStart(3, '0')} · Day {civilization.currentDay.toString().padStart(3, '0')}
+            <span className="text-[11px] font-bold text-[#ede8dc]">
+              Year {civilization.currentYear.toString().padStart(3, '0')}, Day {civilization.currentDay.toString().padStart(3, '0')}
             </span>
           </div>
         </div>
 
+        {/* Chronicle Archive Drawer */}
         <button
-          onClick={() => setActiveDrawer('timeline')}
-          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#202921] hover:bg-[#2c382d] border border-[#344435] text-xs text-[#a6bd82] transition-colors"
-          title="Open Historical Timeline Chronology"
+          onClick={() => {
+            soundFx.playClick();
+            setActiveDrawer('timeline');
+          }}
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#192025] hover:bg-[#222a30] border border-[#2b353b] text-xs text-[#aba393] hover:text-[#ede8dc] transition-colors"
+          title="Open Civilisation Chronicle Log"
         >
-          <History size={13} />
-          <span>Chronicle</span>
+          <History size={12} className="text-[#c29b38]" />
+          <span className="text-[11px]">Chronicle</span>
+        </button>
+
+        {/* Audio Mute/Unmute */}
+        <button
+          onClick={handleToggleMute}
+          className={`p-1.5 rounded-md border transition-colors ${
+            isMuted
+              ? 'bg-[#201515] border-[#442828] text-[#c94c4c]'
+              : 'bg-[#192025] border-[#2b353b] text-[#7ea376] hover:text-[#ede8dc]'
+          }`}
+          title={isMuted ? 'Sound SFX Muted' : 'Sound SFX Active'}
+        >
+          {isMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
         </button>
       </div>
 
-      {/* Main Playback HUD */}
-      <div className="flex items-center gap-2.5">
+      {/* Center: Playback Speed Controls */}
+      <div className="flex items-center gap-2">
         {/* Play/Pause Button */}
         <button
-          onClick={togglePlay}
-          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-md ${
+          onClick={() => {
+            soundFx.playClick();
+            togglePlay();
+          }}
+          className={`w-7 h-7 rounded-md flex items-center justify-center transition-all ${
             isPlaying
-              ? 'bg-[#c6a76a] hover:bg-[#d6b77a] text-[#151916]'
-              : 'bg-[#405439] hover:bg-[#526c49] text-[#dce9ca] border border-[#6b8563]'
+              ? 'bg-[#c29b38] hover:bg-[#dfb74a] text-[#111416]'
+              : 'bg-[#20272d] hover:bg-[#29323a] text-[#ede8dc] border border-[#3b4750]'
           }`}
           aria-label={isPlaying ? 'Pause simulation' : 'Play simulation'}
-          title={isPlaying ? 'Pause simulation [Space]' : 'Start simulation [Space]'}
+          title={isPlaying ? 'Pause [Space]' : 'Start [Space]'}
         >
-          {isPlaying ? <Pause size={17} className="fill-current" /> : <Play size={17} className="fill-current ml-0.5" />}
+          {isPlaying ? <Pause size={13} className="fill-current" /> : <Play size={13} className="fill-current ml-0.5" />}
         </button>
 
-        {/* Speed Multipliers */}
-        <div className="flex items-center bg-[#141914] p-1 rounded-lg border border-[#2b352c] gap-0.5">
+        {/* Speed Multipier Pips */}
+        <div className="flex items-center bg-[#0f1214] p-0.5 rounded-md border border-[#232b30] gap-0.5">
           {(['1x', '2x', '5x', '10x'] as const).map((val) => (
             <button
               key={val}
-              onClick={() => setSpeed(val)}
-              className={`px-2.5 py-1 rounded text-xs font-mono font-semibold transition-all ${
+              onClick={() => {
+                soundFx.playClick();
+                setSpeed(val);
+              }}
+              className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-all ${
                 speed === val
-                  ? 'bg-[#394b35] text-[#dce9ca] border border-[#5d7754]'
-                  : 'text-[#9da99b] hover:text-white hover:bg-[#1f2820]'
+                  ? 'bg-[#27323b] text-[#ede8dc] border border-[#445563]'
+                  : 'text-[#6c767e] hover:text-[#ede8dc]'
               }`}
             >
               {val}
@@ -84,37 +121,29 @@ export default function BottomControls() {
           ))}
         </div>
 
-        {/* Step 1 Tick */}
+        {/* Advance 1 Year Button */}
         <button
-          onClick={advanceTick}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#202921] hover:bg-[#2b372c] border border-[#344435] text-xs font-medium text-[#c4cbbd] transition-colors"
-          title="Advance by single simulation tick (+1 Day)"
+          onClick={handleNextYear}
+          className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#192025] hover:bg-[#222a30] border border-[#2b353b] text-xs text-[#aba393] hover:text-[#ede8dc] transition-colors"
+          title="Advance full year (+365 Days)"
         >
-          <SkipForward size={14} />
-          <span className="hidden sm:inline">+1 Day</span>
-        </button>
-
-        {/* Step 1 Year */}
-        <button
-          onClick={advanceYear}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#202921] hover:bg-[#2b372c] border border-[#344435] text-xs font-medium text-[#c6a76a] transition-colors"
-          title="Advance by 1 Simulated Year"
-        >
-          <FastForward size={14} />
-          <span className="hidden sm:inline">+1 Year</span>
+          <FastForward size={11} className="text-[#c29b38]" />
+          <span className="text-[11px] font-medium">+1 Year</span>
         </button>
       </div>
 
-      {/* Simulation Engine Status */}
-      <div className="flex items-center gap-2 text-xs font-mono">
-        <div
-          className={`w-2 h-2 rounded-full ${
-            isPlaying ? 'bg-[#a6bd82] animate-pulse shadow-[0_0_8px_#a6bd82]' : 'bg-[#c6a76a]'
-          }`}
-        />
-        <span className="text-[#9da99b] hidden lg:inline">
-          ENGINE: {isPlaying ? `SIMULATING (${speed})` : 'PAUSED'}
-        </span>
+      {/* Right: Integrated Turn Advancement Button */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleNextTurn}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-md btn-game-gold text-xs transition-all"
+          title="Advance to Next Simulated Day [Space / Enter]"
+        >
+          <RotateCw size={13} />
+          <span className="font-bold tracking-wide uppercase text-[11px]">
+            Advance Turn
+          </span>
+        </button>
       </div>
     </footer>
   );

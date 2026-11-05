@@ -82,72 +82,72 @@ export default function InfrastructurePage({
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 overflow-y-auto custom-scrollbar text-[#e8e9e3] max-w-7xl mx-auto">
+    <div className="p-6 lg:p-8 space-y-6 overflow-y-auto custom-scrollbar text-[#ede8dc] max-w-7xl mx-auto">
       {/* Header & Infrastructure Network Vitals */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[#39443a] gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[#252f36] gap-4">
         <div>
-          <span className="eyebrow text-[#c6a76a]">CIVILISATIONAL WORKS & URBAN MATRIX</span>
-          <h1 className="text-2xl font-bold text-[#f3f5ef] mt-0.5">Construction & Infrastructure</h1>
-          <p className="text-xs text-[#9da99b] mt-1">
+          <span className="eyebrow text-[#c29b38]">CIVILISATIONAL WORKS & URBAN MATRIX</span>
+          <h1 className="text-2xl font-bold text-[#ede8dc] mt-0.5">Construction & Infrastructure</h1>
+          <p className="text-xs text-[#8a8376] mt-1">
             Manage heavy civil assets, power grids, arcologies, and deploy new technological structures across 10 architectural disciplines.
           </p>
         </div>
 
         {/* Global Grid Metrics */}
-        <div className="flex items-center gap-4 bg-[#182119] p-3 rounded-xl border border-[#2e3c2f] text-xs font-mono">
+        <div className="flex items-center gap-4 bg-[#161c20] p-3 rounded-lg border border-[#2b353b] text-xs font-mono">
           <div>
-            <span className="text-[#9da99b] block text-[10px]">POWER GRID</span>
-            <span className="text-[#e5c97b] font-bold">11,200 MW (+85)</span>
+            <span className="text-[#8a8376] block text-[10px]">POWER GRID</span>
+            <span className="text-[#dfb74a] font-bold">11,200 MW (+85)</span>
           </div>
-          <div className="w-px h-6 bg-[#2c392d]" />
+          <div className="w-px h-6 bg-[#252f36]" />
           <div>
-            <span className="text-[#9da99b] block text-[10px]">FACILITIES</span>
-            <span className="text-[#f3f5ee] font-bold">{placedBuildings.length} Operational</span>
+            <span className="text-[#8a8376] block text-[10px]">FACILITIES</span>
+            <span className="text-[#ede8dc] font-bold">{placedBuildings.length} Operational</span>
           </div>
-          <div className="w-px h-6 bg-[#2c392d]" />
+          <div className="w-px h-6 bg-[#252f36]" />
           <div>
-            <span className="text-[#9da99b] block text-[10px]">GRID STABILITY</span>
-            <span className="text-[#a6bd82] font-bold">98.4%</span>
+            <span className="text-[#8a8376] block text-[10px]">GRID STABILITY</span>
+            <span className="text-[#7ea376] font-bold">98.4%</span>
           </div>
         </div>
       </div>
 
       {/* Mode Switcher Tabs */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center bg-[#151c16] p-1 rounded-xl border border-[#2d3a2e]">
+        <div className="flex items-center bg-[#101416] p-1 rounded-lg border border-[#232b30]">
           <button
             onClick={() => setActiveTab('catalog')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
+            className={`px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-2 transition-all ${
               activeTab === 'catalog'
-                ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#5d7756] shadow-sm'
-                : 'text-[#9da99b] hover:text-white'
+                ? 'bg-[#252f36] text-[#ffffff] font-bold border border-[#3b4952] shadow-xs'
+                : 'text-[#8a8376] hover:text-[#ede8dc]'
             }`}
           >
-            <Hammer size={14} />
+            <Hammer size={14} className="text-[#c29b38]" />
             Architectural Catalog ({catalog.length})
           </button>
           <button
             onClick={() => setActiveTab('active')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
+            className={`px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-2 transition-all ${
               activeTab === 'active'
-                ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#5d7756] shadow-sm'
-                : 'text-[#9da99b] hover:text-white'
+                ? 'bg-[#252f36] text-[#ffffff] font-bold border border-[#3b4952] shadow-xs'
+                : 'text-[#8a8376] hover:text-[#ede8dc]'
             }`}
           >
-            <Building2 size={14} />
+            <Building2 size={14} className="text-[#7ea376]" />
             Commissioned Facilities ({placedBuildings.length})
           </button>
         </div>
 
         {/* Search Input */}
         <div className="relative w-full sm:w-64">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#798877]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a8376]" />
           <input
             type="text"
             placeholder="Search architectures..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#161d17] border border-[#2f3d30] rounded-lg pl-9 pr-3 py-1.5 text-xs text-[#e8e9e3] placeholder-[#798877] outline-none focus:border-[#a6bd82]"
+            className="w-full bg-[#101416] border border-[#252f36] rounded-md pl-9 pr-3 py-1.5 text-xs text-[#ede8dc] placeholder-[#8a8376] outline-none focus:border-[#445663]"
           />
         </div>
       </div>
@@ -158,10 +158,10 @@ export default function InfrastructurePage({
           <button
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
-            className={`px-3 py-1 rounded-lg text-xs font-mono font-medium whitespace-nowrap transition-colors ${
+            className={`px-3 py-1 rounded-md text-xs font-mono font-medium whitespace-nowrap transition-colors ${
               selectedCategory === cat.id
-                ? 'bg-[#354332] text-[#dce9ca] border border-[#587052] font-semibold'
-                : 'bg-[#182019] text-[#8e9c8c] hover:bg-[#202920]'
+                ? 'bg-[#29353e] text-[#ffffff] border border-[#445663] font-semibold'
+                : 'bg-[#161c20] text-[#8a8376] hover:bg-[#1e252a] hover:text-[#ede8dc]'
             }`}
           >
             {cat.label}
@@ -178,26 +178,26 @@ export default function InfrastructurePage({
             return (
               <div
                 key={item.id}
-                className="panel p-5 bg-[#182119] border-[#313f32] flex flex-col justify-between hover:border-[#4d614e] transition-all"
+                className="panel p-5 bg-[#161c20] border-[#2b353b] flex flex-col justify-between hover:border-[#8f7742] transition-all"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-[10px] font-mono uppercase text-[#a6bd82] font-semibold">
+                      <span className="text-[10px] font-mono uppercase text-[#7ea376] font-semibold">
                         {item.category}
                       </span>
-                      <h3 className="text-base font-bold text-[#f3f5ee] mt-0.5">{item.name}</h3>
+                      <h3 className="text-base font-bold text-[#ede8dc] mt-0.5">{item.name}</h3>
                     </div>
-                    <span className="text-xs font-mono font-bold text-[#c6a76a] px-2 py-0.5 rounded bg-[#272216] border border-[#4d3f23]">
+                    <span className="text-xs font-mono font-bold text-[#c29b38] px-2 py-0.5 rounded bg-[#221f15] border border-[#4d3f1d]">
                       Lvl {item.minTechLevel}+
                     </span>
                   </div>
 
-                  <p className="text-xs text-[#9da99b] mt-2 leading-relaxed">{item.description}</p>
+                  <p className="text-xs text-[#8a8376] mt-2 leading-relaxed">{item.description}</p>
 
                   {/* Spec Sheet */}
-                  <div className="mt-4 pt-3 border-t border-[#29342a] grid grid-cols-2 gap-2 text-xs font-mono">
-                    <div className="p-2 rounded bg-[#131914] border border-[#242f25]">
+                  <div className="mt-4 pt-3 border-t border-[#232b30] grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="p-2 rounded bg-[#101416] border border-[#232b30]">
                       <span className="text-[#8e9b8b] text-[10px] block">MATERIAL COST</span>
                       <span className="font-bold text-[#c6a76a]">{item.costMaterials} Units</span>
                     </div>

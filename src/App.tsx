@@ -5,6 +5,7 @@ import Topbar from './components/layout/Topbar';
 import BottomControls from './components/layout/BottomControls';
 import RightInfoPanel from './components/layout/RightInfoPanel';
 import GameModals from './components/layout/GameModals';
+import FloatingRewardBanner from './components/game/FloatingRewardBanner';
 
 // Pages
 import WorldDashboard from './pages/WorldDashboard';
@@ -25,8 +26,15 @@ import SettingsPage from './pages/SettingsPage';
 
 function GameApp() {
   const [activePage, setActivePage] = useState<string>('Overview');
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
-  const { togglePlay, setSpeed } = useGameState();
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(false);
+  const { togglePlay, setSpeed, selectedBuilding } = useGameState();
+
+  // Auto-open tactical inspector when a building is selected in 3D world
+  useEffect(() => {
+    if (selectedBuilding) {
+      setIsRightPanelOpen(true);
+    }
+  }, [selectedBuilding]);
 
   // Keyboard Hotkeys (Space to Pause/Play, 1-4 for Speed)
   useEffect(() => {
@@ -119,6 +127,9 @@ function GameApp() {
         {/* Bottom Simulation Bar */}
         <BottomControls />
       </main>
+
+      {/* Floating Rewards & Level Up Celebrations */}
+      <FloatingRewardBanner />
 
       {/* Game Modals & Drawers */}
       <GameModals />
