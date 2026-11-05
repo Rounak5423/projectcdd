@@ -295,96 +295,147 @@ function BuildingObject({
 }
 
 // Procedural Low-Poly Terrain & River
-function WorldTerrain({ activeLayer }: { activeLayer: MapLayer }) {
-  const terrainGeo = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(110, 110, 48, 48);
-    const pos = geo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const vx = pos.getX(i);
-      const vy = pos.getY(i);
-      
-      // River trench cutting along curved path
-      const riverCenter = Math.sin(vx * 0.06) * 12;
-      const distFromRiver = Math.abs(vy - riverCenter);
 
-      let height = 0;
-      if (distFromRiver < 6) {
-        // River bed
-        height = -1.2 + (distFromRiver / 6) * 0.8;
-      } else {
-        // Natural rolling hills & mountain ridges
-        const hill1 = Math.sin(vx * 0.08) * Math.cos(vy * 0.08) * 2.2;
-        const mountainRidge = Math.sin(vx * 0.03 + 2.0) * Math.cos(vy * 0.03) * 4.5;
-        height = Math.max(0.1, hill1 + mountainRidge);
-      }
-      pos.setZ(i, height);
-    }
-    geo.computeVertexNormals();
-    return geo;
-  }, []);
+function WorldTerrain({ activeLayer }: { activeLayer: MapLayer }) {
+  const trees: [number, number][] = [
+    [-42, -38], [-36, -32], [-45, -25],
+    [38, -38], [44, -30], [35, -25],
+    [-42, 35], [-35, 42], [-28, 36],
+    [38, 35], [44, 42], [30, 40],
+    [-45, 5], [-40, 12], [42, 8], [46, 15],
+    [-35, -42], [35, -43]
+  ];
+
+  const treeColor =
+    activeLayer === "environment" ? "#236b37" : "#27603a";
 
   return (
     <group>
-      {/* Land Surface */}
-      <mesh geometry={terrainGeo} rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0, 0]}>
+      {/* Main green terrain */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.15, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[110, 110]} />
         <meshStandardMaterial
-          color={activeLayer === 'environment' ? '#2e4530' : '#222b23'}
-          roughness={0.85}
-          metalness={0.1}
-          flatShading
+          color={activeLayer === "environment" ? "#548d50" : "#467b45"}
+          roughness={1}
         />
       </mesh>
 
-      {/* River Water Surface */}
-      <mesh position={[0, -0.4, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[110, 20]} />
+      {/* River */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.02, 0]}
+      >
+        <planeGeometry args={[110, 13]} />
         <meshStandardMaterial
-          color="#385b63"
-          roughness={0.15}
-          metalness={0.8}
-          transparent
-          opacity={0.85}
+          color="#278ca8"
+          roughness={0.2}
+          metalness={0.25}
         />
       </mesh>
 
-      {/* Stone River Bridges */}
-      {[-15, 12].map((bx, i) => (
-        <mesh key={i} position={[bx, 0.4, 0]} rotation={[0, 0, 0]}>
-          <boxGeometry args={[4.2, 0.4, 14]} />
-          <meshStandardMaterial color="#475449" roughness={0.7} />
+      {/* River banks */}
+      {[-7.2, 7.2].map((z, i) => (
+        <mesh key={i} position={[0, 0.02, z]}>
+          <boxGeometry args={[110, 0.12, 0.8]} />
+          <meshStandardMaterial color="#b4a078" />
         </mesh>
       ))}
 
-      {/* Procedural Pine Forest Clusters */}
-      {useMemo(() => {
-        const trees = [
-          [-40, 32], [-36, 36], [-44, 28], [-42, 38],
-          [38, 30], [42, 34], [35, 26], [40, 22],
-          [-12, -38], [-18, -34], [-10, -42],
-        ];
-        return trees.map(([tx, tz], i) => (
-          <group key={i} position={[tx, 1.2, tz]}>
-            {/* Trunk */}
-            <mesh position={[0, 0.4, 0]}>
-              <cylinderGeometry args={[0.1, 0.15, 0.8, 6]} />
-              <meshStandardMaterial color="#2d2218" />
+      {/* Horizontal roads */}
+      {[-25, 25].map((z, i) => (
+        <group key={i}>
+          <mesh position={[0, 0.12, z]} receiveShadow>
+            <boxGeometry args={[110, 0.2, 5]} />
+            <meshStandardMaterial color="#555b57" roughness={0.9} />
+          </mesh>
+
+          {/* Road center marking */}
+          <mesh position={[0, 0.23, z]}>
+            <boxGeometry args={[110, 0.02, 0.12]} />
+            <meshBasicMaterial color="#e9dcae" />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Vertical roads */}
+      {[-25, 25].map((x, i) => (
+        <group key={i}>
+          <mesh position={[x, 0.12, 0]}>
+            <boxGeometry args={[5, 0.2, 110]} />
+            <meshStandardMaterial color="#555b57" roughness={0.9} />
+          </mesh>
+
+          {/* Road center marking */}
+          <mesh position={[x, 0.23, 0]}>
+            <boxGeometry args={[0.12, 0.02, 110]} />
+            <meshBasicMaterial color="#e9dcae" />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Bridges over the river */}
+      {[-25, 25].map((x, i) => (
+        <group key={i}>
+          <mesh position={[x, 0.32, 0]} castShadow receiveShadow>
+            <boxGeometry args={[6, 0.5, 17]} />
+            <meshStandardMaterial color="#a59b83" roughness={0.8} />
+          </mesh>
+
+          {/* Bridge railings */}
+          {[-2.8, 2.8].map((offset, j) => (
+            <mesh key={j} position={[x + offset, 0.85, 0]}>
+              <boxGeometry args={[0.2, 0.7, 17]} />
+              <meshStandardMaterial color="#d0c5a6" />
             </mesh>
-            {/* Foliage Cone 1 */}
-            <mesh position={[0, 1.2, 0]}>
-              <coneGeometry args={[0.9, 1.4, 6]} />
-              <meshStandardMaterial color="#1e3422" roughness={0.8} />
-            </mesh>
-            {/* Foliage Cone 2 */}
-            <mesh position={[0, 2.0, 0]}>
-              <coneGeometry args={[0.65, 1.1, 6]} />
-              <meshStandardMaterial color="#28422c" roughness={0.8} />
-            </mesh>
-          </group>
-        ));
-      }, [])}
+          ))}
+        </group>
+      ))}
+
+      {/* Forest trees */}
+      {trees.map(([x, z], i) => (
+        <group key={i} position={[x, 0, z]}>
+          {/* Tree trunk */}
+          <mesh position={[0, 0.8, 0]} castShadow>
+            <cylinderGeometry args={[0.15, 0.25, 1.6, 7]} />
+            <meshStandardMaterial color="#704a2d" />
+          </mesh>
+
+          {/* Lower leaves */}
+          <mesh position={[0, 2, 0]} castShadow>
+            <coneGeometry args={[1.3, 2.3, 7]} />
+            <meshStandardMaterial color={treeColor} flatShading />
+          </mesh>
+
+          {/* Upper leaves */}
+          <mesh position={[0, 3.2, 0]} castShadow>
+            <coneGeometry args={[0.9, 1.8, 7]} />
+            <meshStandardMaterial color="#397c42" flatShading />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Small decorative hills */}
+      {(
+  [
+    [-45, -15],
+    [45, -15],
+    [-45, 20],
+    [45, 20]
+  ] as [number, number][]
+).map(([x, z], i) => (
+        <mesh key={i} position={[x, 1.5, z]} castShadow>
+          <coneGeometry args={[5, 3, 6]} />
+          <meshStandardMaterial color="#56814a" flatShading />
+        </mesh>
+      ))}
     </group>
   );
 }
+
 
 // District Boundary Projection Rings
 function DistrictOverlays() {
@@ -511,20 +562,38 @@ export default function CivilizationWorld3D() {
           }
         }}
       >
-        <color attach="background" args={['#151916']} />
-        <fog attach="fog" args={['#151916', 55, 110]} />
-
+        <color attach="background" args={['#a9c9b4']} />
+        <fog attach="fog" args={['#a9c9b4', 100, 180]} />
         {/* Cinematic Game Lighting */}
-        <ambientLight intensity={0.7} color="#d4ded0" />
-        <directionalLight
-          position={[45, 60, 25]}
-          intensity={1.8}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-          color="#fdfbee"
-        />
-        <directionalLight position={[-35, 25, -35]} intensity={0.4} color="#7ba085" />
+        
+{/* Improved Natural Daylight */}
+
+<ambientLight
+  intensity={1.2}
+  color="#ffffff"
+/>
+
+<hemisphereLight
+  color="#d8f1ff"
+  groundColor="#55734c"
+  intensity={1.1}
+/>
+
+<directionalLight
+  position={[30, 50, 25]}
+  intensity={2.2}
+  castShadow
+  shadow-mapSize-width={2048}
+  shadow-mapSize-height={2048}
+  color="#fff4dc"
+/>
+
+<directionalLight
+  position={[-30, 25, -20]}
+  intensity={0.8}
+  color="#b8d9ff"
+/>
+
 
         {/* Low-Poly Landscape & River */}
         <WorldTerrain activeLayer={activeLayer} />
