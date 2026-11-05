@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+:root {
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    color: #e8e9e3;
+    background: #151916;
+
+    --bg-main: #151916;
+    --bg-panel: #202720;
+    --bg-panel-light: #293229;
+    --border: #39443a;
+    --text-primary: #e8e9e3;
+    --text-muted: #9da99b;
+    --accent: #a6bd82;
+    --accent-dark: #667e4d;
+    --gold: #c6a76a;
+    --danger: #d47e69;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background: var(--bg-main);
+}
+
+button {
+    font: inherit;
+    cursor: pointer;
+}
+
+button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+::selection {
+    background: #758d5c;
+    color: white;
+}
+
+.panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.muted {
+    color: var(--text-muted);
+}
+
+.eyebrow {
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #4b5948;
+    border-radius: 10px;
+}
+
+.world-placeholder {
+    background:
+        radial-gradient(ellipse at 50% 50%, #526348 0%, transparent 65%),
+        linear-gradient(135deg, #344532, #25372d 48%, #182820);
+}
+
+.world-grid {
+    opacity: 0.18;
+    background-image:
+        linear-gradient(rgba(220, 235, 200, .2) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(220, 235, 200, .2) 1px, transparent 1px);
+    background-size: 36px 36px;
+    mask-image: linear-gradient(to bottom, black, transparent);
+}
