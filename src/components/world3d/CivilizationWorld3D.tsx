@@ -12,6 +12,8 @@ import BuildingObject from './BuildingObject';
 import PlacementSystem from './PlacementSystem';
 import CameraManager from './CameraManager';
 import WorldHUD from './WorldHUD';
+import { PerformanceSampler } from './PerformanceTelemetry';
+import WorldLabelManager, { triggerRoadSelection } from './WorldLabelManager';
 
 export function CameraHUD() {
   return <CameraManager />;
@@ -49,9 +51,10 @@ export default function CivilizationWorld3D() {
             powerPreference: 'high-performance',
           }}
           onPointerDown={(e) => {
-            // Deselect building if clicking on empty terrain canvas directly
+            // Deselect active building and road if clicking on empty canvas directly
             if ((e.target as HTMLElement).tagName === 'CANVAS') {
-              // Allows deselecting when clicking empty areas
+              selectBuilding(null);
+              triggerRoadSelection(null);
             }
           }}
         >
@@ -87,11 +90,17 @@ export default function CivilizationWorld3D() {
             />
           ))}
 
+          {/* Centralized 3D World Label & Selection Manager */}
+          <WorldLabelManager />
+
           {/* Real-time Holographic Placement & Grid System */}
           <PlacementSystem />
 
           {/* Smooth Camera Navigation & Building Focus Controls */}
           <CameraManager />
+
+          {/* High-Performance 3D Engine Telemetry Sampler */}
+          <PerformanceSampler />
         </Canvas>
 
         {/* In-World Tactical Time, Camera & District Teleport HUD */}

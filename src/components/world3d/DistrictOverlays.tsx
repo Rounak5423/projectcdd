@@ -3,7 +3,7 @@ import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameState } from '../../context/GameStateContext';
 
-export default function DistrictOverlays() {
+export default React.memo(function DistrictOverlays() {
   const { districts, activeLayer } = useGameState();
 
   if (activeLayer !== 'all' && activeLayer !== 'population' && activeLayer !== 'economy') {
@@ -11,12 +11,12 @@ export default function DistrictOverlays() {
   }
 
   return (
-    <group>
+    <group raycast={() => null}>
       {districts.map((dist) => (
         <group key={dist.id} position={[dist.x, 0.16, dist.z]}>
           {/* Subtle Outer Boundary Ring */}
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[dist.radius - 0.45, dist.radius, 64]} />
+            <ringGeometry args={[dist.radius - 0.45, dist.radius, 48]} />
             <meshBasicMaterial
               color={dist.color}
               transparent
@@ -27,7 +27,7 @@ export default function DistrictOverlays() {
 
           {/* Dotted Inner Ring */}
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[dist.radius - 1.2, dist.radius - 1.0, 48]} />
+            <ringGeometry args={[dist.radius - 1.2, dist.radius - 1.0, 36]} />
             <meshBasicMaterial
               color={dist.color}
               transparent
@@ -51,5 +51,4 @@ export default function DistrictOverlays() {
       ))}
     </group>
   );
-}
-
+});
