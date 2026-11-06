@@ -94,8 +94,8 @@ export default function CivilizationWorld3D() {
           <CameraManager />
         </Canvas>
 
-        {/* In-World Tactical Time & District Teleport HUD */}
-        <WorldHUD onFocusDistrict={handleFocusDistrict} />
+        {/* In-World Tactical Time, Camera & District Teleport HUD */}
+        <WorldHUD />
       </div>
     </DayNightProvider>
   );
