@@ -73,6 +73,7 @@ export interface BuildingCatalogItem {
     | 'hydroponic'
     | 'hospital'
     | 'academy'
+    | 'windmill'
     | 'power_plant'
     | 'water_treatment'
     | 'warehouse'
