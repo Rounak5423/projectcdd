@@ -1,6 +1,6 @@
 import React from 'react';
 import * as THREE from 'three';
-import { useDayNight } from '../DayNightController';
+import { useIsNight } from '../DayNightController';
 import {
   ArchitecturalDoor,
   ArchitecturalWindow,
@@ -16,7 +16,7 @@ interface ModelProps {
 
 // 1. Primary & Secondary School
 export function SchoolModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
 
   return (
     <group>
@@ -86,7 +86,7 @@ export function SchoolModel({ isSelected, level }: ModelProps) {
 
 // 2. Polytechnic Technical College
 export function CollegeModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
 
   return (
     <group>
@@ -142,7 +142,7 @@ export function CollegeModel({ isSelected, level }: ModelProps) {
 
 // 3. University / Academy of Applied Sciences
 export function UniversityAcademyModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
 
   return (
     <group>

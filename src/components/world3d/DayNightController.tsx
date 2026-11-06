@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useGameState } from '../../context/GameStateContext';
 
@@ -19,8 +18,13 @@ export interface DayNightState {
 }
 
 const DayNightContext = createContext<DayNightState | undefined>(undefined);
+const IsNightContext = createContext<boolean>(false);
 
-export function useDayNight() {
+export function useIsNight(): boolean {
+  return useContext(IsNightContext);
+}
+
+export function useDayNight(): DayNightState {
   const context = useContext(DayNightContext);
   if (!context) {
     // Fallback if rendered outside provider
@@ -54,7 +58,7 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     const multMap = { '1x': 1, '2x': 2, '5x': 5, '10x': 10 };
     const mult = multMap[speed] || 1;
     // Advance 1 hour every 4 seconds at 1x
-    const intervalMs = 100;
+    const intervalMs = 200; // 5Hz is plenty smooth for simulation clocks while cutting React ticks by 50%
     const hourPerTick = (0.25 * mult * intervalMs) / 1000;
 
     const timer = setInterval(() => {
@@ -118,7 +122,7 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     fogColor = '#0d1820';
   }
 
-  const value: DayNightState = {
+  const value = useMemo<DayNightState>(() => ({
     timeOfDay,
     setTimeOfDay,
     isAutoCycle,
@@ -131,13 +135,19 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     fogColor,
     ambientColor,
     directionalColor,
-  };
+  }), [timeOfDay, isAutoCycle, isNight, sunIntensity, sunX, sunY, sunZ, moonX, moonY, moonZ, skyColor, fogColor, ambientColor, directionalColor]);
 
-  return <DayNightContext.Provider value={value}>{children}</DayNightContext.Provider>;
+  return (
+    <IsNightContext.Provider value={isNight}>
+      <DayNightContext.Provider value={value}>
+        {children}
+      </DayNightContext.Provider>
+    </IsNightContext.Provider>
+  );
 }
 
 // 3D Scene Lighting component driven by DayNightContext
-export function WorldLighting() {
+export const WorldLighting = React.memo(function WorldLighting() {
   const {
     isNight,
     sunIntensity,
@@ -178,16 +188,16 @@ export function WorldLighting() {
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
-        shadow-camera-near={10}
-        shadow-camera-far={220}
-        shadow-camera-left={-75}
-        shadow-camera-right={75}
-        shadow-camera-top={75}
-        shadow-camera-bottom={-75}
-        shadow-bias={-0.0004}
+        shadow-camera-near={15}
+        shadow-camera-far={200}
+        shadow-camera-left={-65}
+        shadow-camera-right={65}
+        shadow-camera-top={65}
+        shadow-camera-bottom={-65}
+        shadow-bias={-0.0003}
       />
 
-      {/* Secondary fill light for soft shadows */}
+      {/* Secondary fill light for soft shadows without shadow casting pass */}
       <directionalLight
         position={[-35, 30, -35]}
         intensity={isNight ? 0.2 : 0.55}
@@ -195,4 +205,4 @@ export function WorldLighting() {
       />
     </>
   );
-}
+});
