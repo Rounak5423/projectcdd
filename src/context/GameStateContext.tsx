@@ -13,6 +13,7 @@ import {
   Achievement,
   GameEvent,
   Citizen,
+  ProtestEvent,
 } from '../types/game';
 import {
   initialCivilization,
@@ -30,6 +31,7 @@ import {
   initialAchievements,
   initialEvents,
 } from '../data/initialGameData';
+import { historicalTwinProtests } from '../data/protestData';
 import { soundFx } from '../services/soundFx';
 
 export type MapLayer = 'all' | 'infrastructure' | 'population' | 'resources' | 'environment' | 'economy';
@@ -152,6 +154,18 @@ interface GameStateContextType {
   setActiveDrawer: (drawer: ActiveDrawer) => void;
   taxRate: number;
   setTaxRate: (rate: number) => void;
+  activeProtest: ProtestEvent | null;
+  isProtestModalOpen: boolean;
+  setIsProtestModalOpen: (open: boolean) => void;
+  resolveProtest: (optionId: string) => void;
+  triggerNextProtest: () => void;
+  isDemoModalOpen: boolean;
+  setIsDemoModalOpen: (open: boolean) => void;
+  loadMaxDemoWorld: () => void;
+  showFireworks: boolean;
+  triggerFireworks: () => void;
+  isCinematicTour: boolean;
+  setIsCinematicTour: (val: boolean | ((prev: boolean) => boolean)) => void;
 }
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -203,6 +217,123 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [isConstructionMode, setIsConstructionMode] = useState<boolean>(false);
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<BuildingCatalogItem | null>(null);
   const [activeDrawer, setActiveDrawer] = useState<ActiveDrawer>('none');
+
+  // Fun Historical Twin Citizen Protests & Unrest System
+  const [activeProtest, setActiveProtest] = useState<ProtestEvent | null>(historicalTwinProtests[0]);
+  const [isProtestModalOpen, setIsProtestModalOpen] = useState<boolean>(false);
+  const [protestIndex, setProtestIndex] = useState<number>(0);
+
+  const resolveProtest = useCallback(
+    (optionId: string) => {
+      if (!activeProtest) return;
+      const option = activeProtest.options.find((o) => o.id === optionId) || activeProtest.options[0];
+      const cost = option.costGrc || 0;
+
+      setResources((prev) => ({
+        ...prev,
+        grc: Math.max(0, prev.grc - cost),
+        happiness: Math.min(100, Math.max(0, prev.happiness + option.happinessDelta)),
+        stability: Math.min(100, Math.max(0, prev.stability + option.stabilityDelta)),
+      }));
+
+      if (option.outcomeType === 'carnival') {
+        soundFx.playCarnivalCheer();
+      } else {
+        soundFx.playGavel();
+      }
+
+      triggerToast({
+        type: 'reward',
+        title: `📢 EDICT RATIFIED: ${activeProtest.title}`,
+        subtitle: `${option.label} enacted! +${option.happinessDelta}% Citizen Happiness.`,
+        icon: '🎉',
+      });
+
+      setIsProtestModalOpen(false);
+      setActiveProtest(null);
+
+      // Cycle next protest after 45 seconds for continuous fun
+      setTimeout(() => {
+        setProtestIndex((idx) => {
+          const next = (idx + 1) % historicalTwinProtests.length;
+          setActiveProtest(historicalTwinProtests[next]);
+          return next;
+        });
+      }, 45000);
+    },
+    [activeProtest, triggerToast]
+  );
+
+  const triggerNextProtest = useCallback(() => {
+    soundFx.playCrowdChant();
+    setProtestIndex((idx) => {
+      const next = (idx + 1) % historicalTwinProtests.length;
+      setActiveProtest(historicalTwinProtests[next]);
+      setIsProtestModalOpen(true);
+      return next;
+    });
+  }, []);
+
+  // Demo Showcase & Capabilities Suite
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState<boolean>(false);
+  const [showFireworks, setShowFireworks] = useState<boolean>(false);
+  const [isCinematicTour, setIsCinematicTour] = useState<boolean>(false);
+
+  const loadMaxDemoWorld = useCallback(() => {
+    soundFx.playRewardClaim();
+    setCivilization({
+      id: 'civ-kyoto-demo',
+      name: 'Kyoto Prime · Nexus Metropole',
+      planet: 'Genesis Terra-IV',
+      era: 'Synthetic / AI',
+      level: 12,
+      xp: 18400,
+      xpToNextLevel: 20000,
+      leaderTitle: 'High Strategist & Archon',
+      governanceModel: 'Techno-Democratic Federation',
+      foundingYear: 1,
+      currentYear: 142,
+      currentDay: 288,
+      terrainType: 'Verdant River Valley',
+      climateType: 'Temperate',
+    });
+    setResources({
+      food: 42500,
+      water: 58000,
+      energy: 36400,
+      materials: 28500,
+      researchPoints: 14200,
+      grc: 8450,
+      population: 2840000,
+      gdp: 148.65,
+      happiness: 94,
+      health: 96,
+      stability: 95,
+      environmentalIndex: 89,
+      educationIndex: 96,
+      politicalCapital: 1450,
+    });
+    setPlacedBuildings(initialPlacedBuildings);
+    triggerToast({
+      type: 'reward',
+      title: '🌟 MAX CAPABILITIES DEMO INITIALIZED',
+      subtitle: 'Kyoto Prime Nexus loaded with complete 16-structure district architecture and Tier-V resources.',
+      icon: '🏛️',
+    });
+  }, [triggerToast]);
+
+  const triggerFireworks = useCallback(() => {
+    soundFx.playFireworksExplosion();
+    soundFx.playCarnivalCheer();
+    setShowFireworks(true);
+    setTimeout(() => setShowFireworks(false), 8500);
+    triggerToast({
+      type: 'reward',
+      title: '🎆 GRAND CARNIVAL SPECTACLE',
+      subtitle: 'Fireworks illuminate the Citadel spire! Stability +3%, Happiness +5%',
+      icon: '🎆',
+    });
+  }, [triggerToast]);
 
   const speedMultipliers = { '1x': 1, '2x': 2, '5x': 5, '10x': 10 };
   const mult = speedMultipliers[speed];
@@ -769,6 +900,18 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         setActiveDrawer,
         taxRate,
         setTaxRate,
+        activeProtest,
+        isProtestModalOpen,
+        setIsProtestModalOpen,
+        resolveProtest,
+        triggerNextProtest,
+        isDemoModalOpen,
+        setIsDemoModalOpen,
+        loadMaxDemoWorld,
+        showFireworks,
+        triggerFireworks,
+        isCinematicTour,
+        setIsCinematicTour,
       }}
     >
       {children}

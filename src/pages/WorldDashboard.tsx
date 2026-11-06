@@ -25,8 +25,10 @@ import { soundFx } from '../services/soundFx';
 
 export default function WorldDashboard({
   onNavigate,
+  onClose,
 }: {
   onNavigate: (page: string) => void;
+  onClose?: () => void;
 }) {
   const {
     civilization,
@@ -104,27 +106,43 @@ export default function WorldDashboard({
           </div>
         </div>
 
-        {/* Level XP Progress */}
-        <div className="bg-[#101416] p-3 rounded-md border border-[#232b30] lg:w-72 space-y-1.5">
-          <div className="flex justify-between text-xs font-mono">
-            <span className="text-[#8a8376] text-[11px]">Command XP</span>
-            <span className="text-[#dfb74a] font-bold text-[11px]">
-              {civilization.xp} / {civilization.xpToNextLevel} XP
-            </span>
+        <div className="flex items-center gap-3">
+          {/* Level XP Progress */}
+          <div className="bg-[#101416] p-3 rounded-md border border-[#232b30] lg:w-72 space-y-1.5">
+            <div className="flex justify-between text-xs font-mono">
+              <span className="text-[#8a8376] text-[11px]">Command XP</span>
+              <span className="text-[#dfb74a] font-bold text-[11px]">
+                {civilization.xp} / {civilization.xpToNextLevel} XP
+              </span>
+            </div>
+
+            <div className="h-2 rounded-full bg-[#1b2227] overflow-hidden p-0.5">
+              <div
+                className="h-full bg-gradient-to-r from-[#7ea376] to-[#c29b38] rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(100, (civilization.xp / civilization.xpToNextLevel) * 100)}%`,
+                }}
+              />
+            </div>
+
+            <p className="text-[10px] font-mono text-[#7ea376]">
+              ★ Next Level Unlock: Tier {civilization.level + 1} Arcology & Clean Fusion
+            </p>
           </div>
 
-          <div className="h-2 rounded-full bg-[#1b2227] overflow-hidden p-0.5">
-            <div
-              className="h-full bg-gradient-to-r from-[#7ea376] to-[#c29b38] rounded-full transition-all duration-300"
-              style={{
-                width: `${Math.min(100, (civilization.xp / civilization.xpToNextLevel) * 100)}%`,
+          {onClose && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onClose();
               }}
-            />
-          </div>
-
-          <p className="text-[10px] font-mono text-[#7ea376]">
-            ★ Next Level Unlock: Tier {civilization.level + 1} Arcology & Clean Fusion
-          </p>
+              className="px-3 py-2 rounded-md bg-[#222b31] hover:bg-[#c94c4c] border border-[#3d4b55] text-xs font-bold text-[#ede8dc] transition-colors flex items-center gap-1.5 shrink-0 shadow-md"
+              title="Return to 3D World Viewport (ESC)"
+            >
+              <span>🌲</span>
+              <span className="hidden sm:inline">3D World [ESC]</span>
+            </button>
+          )}
         </div>
       </div>
 

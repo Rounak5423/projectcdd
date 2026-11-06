@@ -62,7 +62,7 @@ export interface BuildingCatalogItem {
   maintenanceCost: number;
   constructionDurationDays: number;
   minTechLevel: number;
-  modelType: 'tower' | 'dome' | 'factory' | 'solar' | 'turbine' | 'observatory' | 'citadel' | 'hydroponic' | 'hospital' | 'academy';
+  modelType: 'tower' | 'dome' | 'factory' | 'solar' | 'turbine' | 'observatory' | 'citadel' | 'hydroponic' | 'hospital' | 'academy' | 'windmill';
 }
 
 export interface PlacedBuilding {
@@ -278,4 +278,32 @@ export interface CivilizationProfile {
   terrainType: 'Verdant River Valley' | 'Highland Plateau' | 'Archipelago' | 'Boreal Basin' | 'Arid Oasis';
   climateType: 'Temperate' | 'Subtropical' | 'Subpolar' | 'Continental';
 }
+
+export interface ProtestOption {
+  id: string;
+  label: string;
+  flavorQuote: string;
+  costGrc?: number;
+  effectDescription: string;
+  outcomeType: 'carnival' | 'reform' | 'bribe' | 'speech';
+  happinessDelta: number;
+  stabilityDelta: number;
+}
+
+export interface ProtestEvent {
+  id: string;
+  title: string;
+  historicalTwin: string;
+  historicalContext: string;
+  faction: string;
+  leaderName: string;
+  leaderTitle: string;
+  leaderAvatar: string;
+  demands: string;
+  slogans: string[];
+  districtId: string;
+  districtName: string;
+  options: ProtestOption[];
+}
+
 

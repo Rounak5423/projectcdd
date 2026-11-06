@@ -1,678 +1,678 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
-  GitBranch,
+  Search,
+  Filter,
+  Key,
+  Sparkles,
   CheckCircle2,
   Lock,
-  Sparkles,
-  ArrowRight,
-  FlaskConical,
-  X,
+  Play,
   Zap,
   Wheat,
   Bot,
-  Microscope,
-  BrainCircuit,
-  Building2,
-  Cpu,
-  Search,
-  Filter,
-  Check,
-  ChevronRight,
-  Flame,
-  Sun,
-  Droplets,
+  FlaskConical,
+  X,
+  Compass,
   Layers,
-  LayoutGrid,
-  Network,
-  Clock,
-  Play,
+  ChevronRight,
+  ArrowRight,
+  Crown,
 } from 'lucide-react';
 import { useGameState } from '../context/GameStateContext';
 import { Technology, TechEra } from '../types/game';
+import { soundFx } from '../services/soundFx';
 
-const eraColumns: { era: TechEra; label: string; turns: string }[] = [
-  { era: 'Foundational', label: 'ERA I · FOUNDATIONAL', turns: 'Turns 1 - 25' },
-  { era: 'Industrial', label: 'ERA II · INDUSTRIAL', turns: 'Turns 26 - 55' },
-  { era: 'Digital', label: 'ERA III · DIGITAL & QUANTUM', turns: 'Turns 56 - 90' },
-  { era: 'Synthetic / AI', label: 'ERA IV · SYNTHETIC', turns: 'Turns 91+' },
-];
-
-interface ConnectorLine {
+interface CivTechItem {
   id: string;
-  fromId: string;
-  toId: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  isUnlocked: boolean;
+  name: string;
+  era: TechEra;
+  turns: number;
+  icon: string;
+  isBoosted: boolean;
+  boostText: string;
+  description: string;
+  unlockedEffects: string[];
+  prerequisites: string[];
+  unlocks: string[];
+  category: string;
+  costPoints: number;
 }
 
-export default function TechnologyPage() {
-  const { technologies, resources, startResearch, triggerEureka } = useGameState();
-  const [selectedTech, setSelectedTech] = useState<Technology | null>(null);
-  const [hoveredTechId, setHoveredTechId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedEraTab, setSelectedEraTab] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'timeline'>('grid');
-  const [connectors, setConnectors] = useState<ConnectorLine[]>([]);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+const civTechData: CivTechItem[] = [
+  // Foundational Era
+  {
+    id: 'tech-masonry',
+    name: 'Masonry',
+    era: 'Foundational',
+    turns: 2,
+    icon: '🧱',
+    isBoosted: true,
+    boostText: 'BOOSTED: Built a Quarry',
+    description: 'Carved stone blocks and hydraulic mortar enabling durable city walls and aqueducts.',
+    unlockedEffects: ['+25% City Defense', 'Unlocks Stone Walls & Paved Roads'],
+    prerequisites: [],
+    unlocks: ['tech-construction'],
+    category: 'Engineering',
+    costPoints: 200,
+  },
+  {
+    id: 'tech-bronze',
+    name: 'Bronze Working',
+    era: 'Foundational',
+    turns: 4,
+    icon: '🛡️',
+    isBoosted: false,
+    boostText: 'To Boost: Slay 3 barbarian raiders',
+    description: 'Smelting copper and tin into resilient bronze alloys for armaments and metal tools.',
+    unlockedEffects: ['Unlocks Spearmen & Foundries', '+15% Mining Yield'],
+    prerequisites: [],
+    unlocks: ['tech-iron'],
+    category: 'Military & Metallurgic',
+    costPoints: 280,
+  },
+  {
+    id: 'tech-wheel',
+    name: 'The Wheel',
+    era: 'Foundational',
+    turns: 3,
+    icon: '☸️',
+    isBoosted: true,
+    boostText: 'BOOSTED: Mined raw copper vein',
+    description: 'Rotational axle mechanics revolutionizing logistics, chariots, and grain mills.',
+    unlockedEffects: ['Unlocks Watermills & Carts', '+20% Trade Logistics'],
+    prerequisites: [],
+    unlocks: ['tech-horseback', 'tech-currency'],
+    category: 'Logistics',
+    costPoints: 240,
+  },
+  {
+    id: 'tech-celestial',
+    name: 'Celestial Navigation',
+    era: 'Foundational',
+    turns: 5,
+    icon: '⛵',
+    isBoosted: false,
+    boostText: 'To Boost: Improve 2 sea resources',
+    description: 'Astrolabes and star charting enabling coastal exploration and ocean fishing.',
+    unlockedEffects: ['Unlocks Harbors & Fishing Fleets', 'Deep Ocean Visibility'],
+    prerequisites: [],
+    unlocks: ['tech-mathematics'],
+    category: 'Naval Exploration',
+    costPoints: 320,
+  },
 
-  const getTechIcon = (name: string, size = 18) => {
-    switch (name) {
-      case 'Droplets':
-      case 'Wheat':
-        return <Wheat size={size} />;
-      case 'Zap':
-      case 'Sun':
-      case 'Flame':
-        return <Zap size={size} />;
-      case 'Bot':
-      case 'Sparkles':
-        return <Bot size={size} />;
-      case 'Cpu':
-        return <Cpu size={size} />;
-      case 'Microscope':
-      case 'BrainCircuit':
-        return <BrainCircuit size={size} />;
-      default:
-        return <FlaskConical size={size} />;
+  // Classical / Industrial Era
+  {
+    id: 'tech-horseback',
+    name: 'Horseback Riding',
+    era: 'Industrial',
+    turns: 4,
+    icon: '🐎',
+    isBoosted: true,
+    boostText: 'BOOSTED: Built a Pasture',
+    description: 'Equine domestication and saddle craftsmanship granting rapid overland cavalry movement.',
+    unlockedEffects: ['Unlocks Cavalry & Mounted Scouts', '+2 Movement across Plains'],
+    prerequisites: ['tech-wheel'],
+    unlocks: ['tech-engineering'],
+    category: 'Exploration',
+    costPoints: 480,
+  },
+  {
+    id: 'tech-currency',
+    name: 'Currency & Minting',
+    era: 'Industrial',
+    turns: 5,
+    icon: '🪙',
+    isBoosted: false,
+    boostText: 'To Boost: Establish 2 trade routes',
+    description: 'Standardized precious coin mints and ledger accounting facilitating commercial markets.',
+    unlockedEffects: ['Unlocks Marketplace & Imperial Banks', '+35% Tax Revenue'],
+    prerequisites: ['tech-wheel'],
+    unlocks: ['tech-mathematics'],
+    category: 'Economy',
+    costPoints: 520,
+  },
+  {
+    id: 'tech-iron',
+    name: 'Iron Working',
+    era: 'Industrial',
+    turns: 6,
+    icon: '⚔️',
+    isBoosted: false,
+    boostText: 'To Boost: Build an Iron Mine',
+    description: 'Blast furnace metallurgy forging high-carbon steel blades and heavy plowshares.',
+    unlockedEffects: ['Unlocks Swordsmen & Blast Furnaces', '+30% Heavy Industry'],
+    prerequisites: ['tech-bronze'],
+    unlocks: ['tech-construction'],
+    category: 'Metallurgy',
+    costPoints: 600,
+  },
+  {
+    id: 'tech-construction',
+    name: 'Construction',
+    era: 'Industrial',
+    turns: 5,
+    icon: '🏛️',
+    isBoosted: true,
+    boostText: 'BOOSTED: Built a Water Mill',
+    description: 'Arch engineering, crane hoists, and terracotta kiln masonry for monumental works.',
+    unlockedEffects: ['Unlocks Terracotta Palaces & Lumber Mills', '+2 Housing per City'],
+    prerequisites: ['tech-masonry', 'tech-iron'],
+    unlocks: ['tech-engineering'],
+    category: 'Engineering',
+    costPoints: 640,
+  },
+  {
+    id: 'tech-mathematics',
+    name: 'Mathematics',
+    era: 'Industrial',
+    turns: 7,
+    icon: '📐',
+    isBoosted: false,
+    boostText: 'To Boost: Build 3 specialty districts',
+    description: 'Geometry, algebraic notation, and celestial geometry for advanced architecture.',
+    unlockedEffects: ['Unlocks Academies & Amphitheaters', '+40% Science Generation'],
+    prerequisites: ['tech-celestial', 'tech-currency'],
+    unlocks: ['tech-engineering'],
+    category: 'Science',
+    costPoints: 720,
+  },
+  {
+    id: 'tech-engineering',
+    name: 'Engineering',
+    era: 'Industrial',
+    turns: 6,
+    icon: '⚙️',
+    isBoosted: true,
+    boostText: 'BOOSTED: Built Ancient Walls',
+    description: 'Geared machinery, aqueduct siphons, and fortified stone catapult bastions.',
+    unlockedEffects: ['Unlocks Aqueducts, Stone Bridges & Catapults', '+50% Siege Power'],
+    prerequisites: ['tech-construction', 'tech-horseback', 'tech-mathematics'],
+    unlocks: ['tech-steam'],
+    category: 'Engineering',
+    costPoints: 850,
+  },
+
+  // Digital / Modern Era
+  {
+    id: 'tech-steam',
+    name: 'Steam & Power Grid',
+    era: 'Digital',
+    turns: 8,
+    icon: '⚡',
+    isBoosted: true,
+    boostText: 'BOOSTED: Built 2 Coal Foundries',
+    description: 'High-pressure steam boilers and electromagnetic dynamo generators.',
+    unlockedEffects: ['Unlocks Factories & Power Grids', '+85MW Base Output'],
+    prerequisites: ['tech-engineering'],
+    unlocks: ['tech-quantum'],
+    category: 'Energy',
+    costPoints: 1200,
+  },
+  {
+    id: 'tech-quantum',
+    name: 'Quantum Telemetry',
+    era: 'Digital',
+    turns: 10,
+    icon: '🔬',
+    isBoosted: false,
+    boostText: 'To Boost: Commission Space Observatory',
+    description: 'Superconducting cryostats and cryogenic quantum entanglement sensors.',
+    unlockedEffects: ['Unlocks Quantum Observatories', '+50% All Science Yields'],
+    prerequisites: ['tech-steam'],
+    unlocks: ['tech-synthetic'],
+    category: 'High Tech',
+    costPoints: 1800,
+  },
+
+  // Synthetic Era
+  {
+    id: 'tech-synthetic',
+    name: 'Autonomous Synthesis',
+    era: 'Synthetic / AI',
+    turns: 12,
+    icon: '🤖',
+    isBoosted: false,
+    boostText: 'To Boost: Automate 5 Heavy Industries',
+    description: 'Self-replicating robotic assemblies and neural governance algorithms.',
+    unlockedEffects: ['Unlocks Synthetic Android Labor', '+100% Civilization Productivity'],
+    prerequisites: ['tech-quantum'],
+    unlocks: [],
+    category: 'Artificial Intelligence',
+    costPoints: 2600,
+  },
+];
+
+export default function TechnologyPage({ onClose }: { onClose?: () => void }) {
+  const { technologies, startResearch, triggerEureka, resources } = useGameState();
+  const [techList, setTechList] = useState<CivTechItem[]>(civTechData);
+  const [activeResearchId, setActiveResearchId] = useState<string>('tech-iron');
+  const [researchProgress, setResearchProgress] = useState<number>(340);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTech, setSelectedTech] = useState<CivTechItem | null>(null);
+  const [filterEra, setFilterEra] = useState<string>('all');
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+
+  const activeTech = techList.find((t) => t.id === activeResearchId) || techList[1];
+
+  const handleCommenceResearch = (tech: CivTechItem) => {
+    soundFx.playResearchStart();
+    setActiveResearchId(tech.id);
+    setResearchProgress(0);
+    const matchingGlobal = technologies.find((t) => t.name.toLowerCase().includes(tech.name.toLowerCase()));
+    if (matchingGlobal) {
+      startResearch(matchingGlobal.id);
     }
   };
 
-  // Find currently researching tech
-  const activeResearchTech = useMemo(() => {
-    return technologies.find((t) => !t.isResearched && t.isAvailable);
-  }, [technologies]);
+  const handleTriggerEureka = (techId: string) => {
+    soundFx.playEureka();
+    setTechList((prev) =>
+      prev.map((t) =>
+        t.id === techId
+          ? {
+              ...t,
+              isBoosted: true,
+              turns: Math.max(1, Math.round(t.turns * 0.5)),
+              boostText: `BOOSTED! (-50% Turns Left)`,
+            }
+          : t
+      )
+    );
+  };
 
-  const filteredTechnologies = useMemo(() => {
-    return technologies.filter((t) => {
-      const matchEra = selectedEraTab === 'all' || t.era === selectedEraTab;
-      const matchQuery =
+  const filteredTechs = useMemo(() => {
+    return techList.filter((t) => {
+      const matchesSearch =
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.category.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchEra && matchQuery;
+      const matchesEra = filterEra === 'all' || t.era === filterEra;
+      return matchesSearch && matchesEra;
     });
-  }, [technologies, selectedEraTab, searchQuery]);
-
-  // Compute connectors for timeline mode
-  useEffect(() => {
-    if (viewMode !== 'timeline') return;
-
-    const updateConnectors = () => {
-      const container = scrollContainerRef.current;
-      if (!container) return;
-
-      const containerRect = container.getBoundingClientRect();
-      const lines: ConnectorLine[] = [];
-
-      technologies.forEach((tech) => {
-        if (!tech.unlocks || tech.unlocks.length === 0) return;
-
-        const fromElem = document.getElementById(`timeline-card-${tech.id}`);
-        if (!fromElem) return;
-        const fromRect = fromElem.getBoundingClientRect();
-
-        tech.unlocks.forEach((unlockId) => {
-          const toElem = document.getElementById(`timeline-card-${unlockId}`);
-          if (!toElem) return;
-          const toRect = toElem.getBoundingClientRect();
-
-          const x1 = fromRect.right - containerRect.left + container.scrollLeft;
-          const y1 = fromRect.top + fromRect.height / 2 - containerRect.top + container.scrollTop;
-          const x2 = toRect.left - containerRect.left + container.scrollLeft;
-          const y2 = toRect.top + toRect.height / 2 - containerRect.top + container.scrollTop;
-
-          lines.push({
-            id: `${tech.id}->${unlockId}`,
-            fromId: tech.id,
-            toId: unlockId,
-            x1,
-            y1,
-            x2,
-            y2,
-            isUnlocked: tech.isResearched,
-          });
-        });
-      });
-
-      setConnectors(lines);
-    };
-
-    const timer = setTimeout(updateConnectors, 150);
-    window.addEventListener('resize', updateConnectors);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', updateConnectors);
-    };
-  }, [technologies, viewMode, filteredTechnologies]);
+  }, [techList, searchQuery, filterEra]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#111417] text-[#ede8dc] select-none overflow-hidden">
-      {/* ================= CLEAN HEADER BAR ================= */}
-      <div className="shrink-0 bg-[#161c20] border-b border-[#252f36] px-5 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="eyebrow text-[#aba393]">Settlement Progress</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#7ea376]" />
-          </div>
-          <h1 className="text-lg font-bold text-[#ede8dc] mt-0.5">Technology & Paradigms</h1>
+    <div className="relative w-full h-full flex flex-col select-none overflow-hidden bg-[#e0d3bc] text-[#2c2419]">
+      {/* ================= CIV VI PARCHMENT CANVAS BACKGROUND ================= */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-85 z-0"
+        style={{
+          backgroundColor: '#dfd2b9',
+          backgroundImage: `
+            radial-gradient(circle at 15% 25%, rgba(184, 158, 114, 0.25) 0%, transparent 60%),
+            radial-gradient(circle at 85% 75%, rgba(145, 120, 80, 0.22) 0%, transparent 60%),
+            linear-gradient(to right, rgba(120, 95, 60, 0.08) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(120, 95, 60, 0.08) 1px, transparent 1px)
+          `,
+          backgroundSize: '100% 100%, 100% 100%, 60px 60px, 60px 60px',
+        }}
+      >
+        <div className="absolute top-12 right-24 opacity-15 pointer-events-none text-[#735939]">
+          <Compass size={220} strokeWidth={1} />
         </div>
+      </div>
 
-        {/* View Mode Switcher + Search */}
-        <div className="flex items-center gap-2.5">
-          {/* Search Box */}
+      {/* ================= TOP CIVILIZATION RIBBON BANNER ================= */}
+      <div className="relative z-10 shrink-0 bg-gradient-to-r from-[#0d4f54] via-[#09393e] to-[#0d4f54] border-b-2 border-[#caa455] px-6 py-2.5 flex items-center justify-between text-white shadow-xl">
+        {/* Left: Civ Style Options Ribbon */}
+        <div className="flex items-center gap-2">
+          <div className="px-3 py-1 rounded bg-[#092b2f] border border-[#1b6b72] flex items-center gap-2 text-xs font-serif font-bold text-[#f5ebd2] shadow-inner">
+            <Filter size={13} className="text-[#caa455]" />
+            <select
+              value={filterEra}
+              onChange={(e) => {
+                soundFx.playClick();
+                setFilterEra(e.target.value);
+              }}
+              className="bg-transparent text-xs text-[#f5ebd2] font-serif font-semibold outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-[#092b2f] text-white">Filter: All Eras</option>
+              <option value="Foundational" className="bg-[#092b2f] text-white">Foundational Era</option>
+              <option value="Industrial" className="bg-[#092b2f] text-white">Industrial Era</option>
+              <option value="Digital" className="bg-[#092b2f] text-white">Digital Era</option>
+              <option value="Synthetic / AI" className="bg-[#092b2f] text-white">Synthetic Era</option>
+            </select>
+          </div>
+
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8a8376]" />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#87aeb0]" />
             <input
               type="text"
-              placeholder="Search technologies..."
+              placeholder="Search Technology..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-[#101416] border border-[#232b30] rounded-md pl-8 pr-2.5 py-1 text-xs text-[#ede8dc] placeholder-[#8a8376] outline-none focus:border-[#445663] w-44 transition-colors"
+              className="bg-[#092b2f] border border-[#1b6b72] rounded pl-8 pr-3 py-1 text-xs text-[#f5ebd2] placeholder-[#87aeb0] outline-none font-serif w-44 focus:border-[#caa455]"
             />
           </div>
 
-          {/* View Toggle */}
-          <div className="flex items-center bg-[#101416] p-0.5 rounded-md border border-[#232b30] gap-0.5">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                viewMode === 'grid'
-                  ? 'bg-[#252f36] text-[#ffffff] font-semibold shadow-xs'
-                  : 'text-[#8a8376] hover:text-[#ede8dc]'
-              }`}
-              title="Catalog Grid View"
-            >
-              <LayoutGrid size={13} />
-              <span>Grid</span>
-            </button>
-            <button
-              onClick={() => setViewMode('timeline')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                viewMode === 'timeline'
-                  ? 'bg-[#252f36] text-[#ffffff] font-semibold shadow-xs'
-                  : 'text-[#8a8376] hover:text-[#ede8dc]'
-              }`}
-              title="Era Timeline View"
-            >
-              <Network size={13} />
-              <span>Timeline</span>
-            </button>
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setIsKeyModalOpen(true);
+            }}
+            className="px-2.5 py-1 rounded bg-[#092b2f] hover:bg-[#124247] border border-[#1b6b72] text-xs font-serif font-semibold text-[#caa455] transition-colors flex items-center gap-1.5"
+          >
+            <Key size={12} />
+            <span>Show Key</span>
+          </button>
+        </div>
+
+        {/* Center: Grand Title Banner */}
+        <div className="text-center font-serif">
+          <div className="flex items-center justify-center gap-2">
+            <span className="w-8 h-px bg-[#caa455]" />
+            <h1 className="text-base sm:text-lg font-bold tracking-widest text-[#f8edd6] uppercase drop-shadow">
+              TECHNOLOGY TREE
+            </h1>
+            <span className="w-8 h-px bg-[#caa455]" />
           </div>
+          <span className="text-[10px] font-sans font-semibold tracking-wider text-[#98b8ba] uppercase">
+            Civilisation Science & Technological Horizons
+          </span>
+        </div>
+
+        {/* Right: Research Output Status + Close Button */}
+        <div className="flex items-center gap-3 font-serif">
+          <div className="text-right hidden sm:block">
+            <span className="text-[10px] text-[#98b8ba] block leading-none">SCIENCE PER TURN</span>
+            <span className="text-xs font-bold font-mono text-[#caa455]">+36.0 🧪</span>
+          </div>
+          <div className="w-8 h-8 rounded-full border-2 border-[#caa455] bg-[#092b2f] flex items-center justify-center text-[#caa455] shadow-md font-mono text-xs font-bold">
+            {activeTech.turns}T
+          </div>
+
+          {onClose && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onClose();
+              }}
+              className="ml-2 px-3 py-1.5 rounded-md bg-[#c94c4c] hover:bg-[#a33838] border border-[#f08b8b] text-xs font-serif font-bold text-white transition-colors flex items-center gap-1.5 shadow-md"
+              title="Return to 3D World Viewport (ESC)"
+            >
+              <X size={13} />
+              <span className="hidden md:inline">Return to World [ESC]</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ================= ACTIVE RESEARCH BANNER ================= */}
-      <div className="shrink-0 px-5 py-2.5 bg-[#14181b] border-b border-[#252f36]">
-        {activeResearchTech ? (
-          <div className="p-2.5 rounded-md bg-[#182025] border border-[#2d3840] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-md bg-[#222b31] border border-[#3b4952] flex items-center justify-center text-[#c29b38] shrink-0">
-                {getTechIcon(activeResearchTech.iconName, 16)}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="eyebrow text-[#7ea376]">Active Research Project</span>
-                  <span className="text-[10px] font-mono text-[#aba393]">
-                    ({activeResearchTech.era} Era)
-                  </span>
-                </div>
-                <h3 className="text-xs font-bold text-[#ede8dc]">{activeResearchTech.name}</h3>
-              </div>
+      {/* ================= ACTIVE RESEARCH PROJECT BANNER ================= */}
+      <div className="relative z-10 px-6 py-2 bg-[#d2c3a5] border-b border-[#bda984] flex items-center justify-between text-xs font-serif shadow-xs">
+        <div className="flex items-center gap-3">
+          <span className="text-lg">{activeTech.icon}</span>
+          <div>
+            <span className="text-[9px] uppercase font-sans font-bold tracking-wider text-[#69553b]">
+              CURRENTLY RESEARCHING ({activeTech.era} ERA)
+            </span>
+            <h3 className="text-xs font-bold text-[#201912] font-sans flex items-center gap-2">
+              <span>{activeTech.name}</span>
+              <span className="text-[#caa455] text-xs">★</span>
+            </h3>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="flex items-center gap-3 w-1/2 max-w-md font-sans">
+          <div className="flex-1 space-y-0.5">
+            <div className="flex justify-between text-[10px] font-mono">
+              <span className="text-[#69553b] font-semibold">{researchProgress} / {activeTech.costPoints} Science</span>
+              <span className="text-[#201912] font-bold">{activeTech.turns} Turns Remaining</span>
             </div>
-
-            {/* Progress Bar & Turns */}
-            <div className="flex items-center gap-3 sm:w-1/2 max-w-md">
-              <div className="flex-1 space-y-1">
-                <div className="flex justify-between text-[10px] font-mono">
-                  <span className="text-[#8a8376]">
-                    {activeResearchTech.progress} / {activeResearchTech.costResearchPoints} Points
-                  </span>
-                  <span className="text-[#c29b38] font-bold">
-                    {Math.max(1, Math.ceil((activeResearchTech.costResearchPoints - activeResearchTech.progress) / 36))} Turns Left
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-[#101416] overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#7ea376] to-[#c29b38] rounded-full transition-all duration-300"
-                    style={{
-                      width: `${Math.min(100, (activeResearchTech.progress / activeResearchTech.costResearchPoints) * 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={() => setSelectedTech(activeResearchTech)}
-                className="px-2.5 py-1 rounded bg-[#202930] hover:bg-[#2b3740] text-xs font-semibold text-[#ede8dc] border border-[#374652] shrink-0 transition-colors"
-              >
-                Inspect
-              </button>
+            <div className="h-2 rounded-full bg-[#baa682] overflow-hidden border border-[#9b8560]">
+              <div
+                className="h-full bg-gradient-to-r from-[#0d4f54] via-[#1b7e87] to-[#caa455] rounded-full transition-all duration-300"
+                style={{ width: `${Math.min(100, (researchProgress / activeTech.costPoints) * 100)}%` }}
+              />
             </div>
           </div>
-        ) : (
-          <div className="p-2.5 rounded-md bg-[#161c20] border border-[#252f36] flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 text-[#8a8376]">
-              <FlaskConical size={14} className="text-[#c29b38]" />
-              <span>No research in progress. Select an available paradigm below.</span>
-            </div>
-            <span className="text-[10px] font-mono text-[#7ea376] font-bold">+36 Points / Turn</span>
-          </div>
-        )}
-      </div>
 
-      {/* ================= ERA FILTER TABS ================= */}
-      <div className="shrink-0 px-6 pt-3 pb-2 flex items-center gap-2 overflow-x-auto custom-scrollbar border-b border-[#1b261d]">
-        <button
-          onClick={() => setSelectedEraTab('all')}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-            selectedEraTab === 'all'
-              ? 'bg-[#2b3d2d] text-[#f1f5f2] border border-[#4a684e] shadow-sm'
-              : 'text-[#8e9c8c] hover:bg-[#151e17] hover:text-white'
-          }`}
-        >
-          All Eras ({technologies.length})
-        </button>
-
-        {eraColumns.map((col) => {
-          const count = technologies.filter((t) => t.era === col.era).length;
-          const isSelected = selectedEraTab === col.era;
-
-          return (
+          {!activeTech.isBoosted && (
             <button
-              key={col.era}
-              onClick={() => setSelectedEraTab(col.era)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                isSelected
-                  ? 'bg-[#2b3d2d] text-[#f1f5f2] border border-[#4a684e] shadow-sm'
-                  : 'text-[#8e9c8c] hover:bg-[#151e17] hover:text-white'
-              }`}
+              onClick={() => handleTriggerEureka(activeTech.id)}
+              className="px-2.5 py-1 rounded bg-[#0d4f54] hover:bg-[#156066] text-[#dfb74a] border border-[#caa455] text-[10px] font-bold flex items-center gap-1 shrink-0 transition-colors shadow-xs"
+              title="Trigger 50% Breakthrough Eureka discount"
             >
-              {col.era} ({count})
+              <Sparkles size={11} className="text-[#dfb74a]" />
+              <span>Eureka!</span>
             </button>
-          );
-        })}
+          )}
+        </div>
       </div>
 
-      {/* ================= CONTENT: GRID VIEW OR TIMELINE VIEW ================= */}
-      {viewMode === 'grid' ? (
-        /* ================= USER-FRIENDLY CARD GRID VIEW ================= */
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-7xl mx-auto">
-            {filteredTechnologies.map((tech) => {
-              const Icon = getTechIcon(tech.iconName);
-              const isResearching = !tech.isResearched && tech.isAvailable && tech.progress > 0;
+      {/* ================= HORIZONTAL SCROLLING CIV TECH CANVAS ================= */}
+      <div className="relative z-10 flex-1 overflow-x-auto overflow-y-auto custom-scrollbar p-8">
+        <div className="min-w-[1400px] flex gap-12 relative pb-16">
+          {(['Foundational', 'Industrial', 'Digital', 'Synthetic / AI'] as TechEra[]).map((eraName) => {
+            const eraTechs = filteredTechs.filter((t) => t.era === eraName);
 
-              return (
-                <div
-                  key={tech.id}
-                  onClick={() => setSelectedTech(tech)}
-                  className={`p-4 rounded-xl border flex flex-col justify-between cursor-pointer transition-all duration-200 group ${
-                    tech.isResearched
-                      ? 'bg-[#152017] border-[#384e3a] hover:border-[#4ade80]'
-                      : isResearching
-                      ? 'bg-[#1e1c14] border-[#d4af37] ring-1 ring-[#d4af37]/40 shadow-lg'
-                      : tech.isAvailable
-                      ? 'bg-[#141c15] border-[#2b3a2d] hover:border-[#4ade80] hover:bg-[#18231a]'
-                      : 'bg-[#111712]/70 border-[#1f2921] opacity-60'
-                  }`}
-                >
-                  <div>
-                    {/* Top Status & Category */}
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-mono text-[#8e9c8c] uppercase">
-                        {tech.category}
-                      </span>
-                      {tech.isResearched ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1e2f20] text-[#4ade80] border border-[#3a583e] flex items-center gap-1">
-                          <CheckCircle2 size={11} /> Researched
-                        </span>
-                      ) : isResearching ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#2d2817] text-[#d4af37] border border-[#5c4f2b] animate-pulse">
-                          In Progress
-                        </span>
-                      ) : tech.isAvailable ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1d2b1f] text-[#a6bd82] border border-[#354f38]">
-                          Ready
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono text-[#6f8271] bg-[#141b15] flex items-center gap-1">
-                          <Lock size={10} /> Locked
-                        </span>
-                      )}
-                    </div>
+            return (
+              <div key={eraName} className="w-[310px] shrink-0 space-y-4 relative">
+                {/* Era Header Plaque */}
+                <div className="p-2 rounded bg-gradient-to-b from-[#241c14] to-[#14100c] border-2 border-[#caa455] text-center shadow-md">
+                  <span className="text-xs font-serif font-bold text-[#f5ebd2] tracking-wider uppercase block">
+                    {eraName} Era
+                  </span>
+                  <span className="text-[9px] font-mono font-semibold text-[#caa455]">
+                    {eraTechs.length} Paradigms
+                  </span>
+                </div>
 
-                    {/* Tech Name & Icon */}
-                    <div className="flex items-center gap-3 mt-3">
+                <div className="absolute top-12 bottom-0 -right-6 w-px border-r-2 border-dashed border-[#b39e78] pointer-events-none" />
+
+                {/* Civ Tech Node Capsules */}
+                <div className="space-y-4">
+                  {eraTechs.map((tech) => {
+                    const isActive = activeResearchId === tech.id;
+
+                    return (
                       <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                          tech.isResearched
-                            ? 'bg-[#213323] text-[#4ade80] border-[#3f5f43]'
-                            : isResearching
-                            ? 'bg-[#332b17] text-[#d4af37] border-[#5e4e27]'
-                            : 'bg-[#18221a] text-[#8e9c8c] border-[#293a2c]'
+                        key={tech.id}
+                        onClick={() => setSelectedTech(tech)}
+                        className={`rounded-lg border-2 transition-all cursor-pointer select-none overflow-hidden shadow-md flex flex-col justify-between group ${
+                          isActive
+                            ? 'bg-[#1b2327] border-[#caa455] ring-2 ring-[#caa455]/60 text-white shadow-xl'
+                            : 'bg-[#1f262b] border-[#3a4750] hover:border-[#caa455] hover:bg-[#252e35] text-[#ede8dc]'
                         }`}
                       >
-                        {Icon}
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-bold text-[#f1f5f2] group-hover:text-[#4ade80] transition-colors truncate">
-                          {tech.name}
-                        </h4>
-                        <span className="text-[11px] font-mono text-[#8e9c8c]">
-                          {tech.costResearchPoints} Points ({tech.turnsToComplete || 6} Turns)
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Description preview */}
-                    <p className="text-xs text-[#8e9c8c] mt-2.5 line-clamp-2 leading-relaxed">
-                      {tech.description}
-                    </p>
-
-                    {/* Eureka Boost Badge */}
-                    <div className="mt-3 p-2 rounded-lg bg-[#0e1410] border border-[#202b22] text-[10px] font-mono flex items-center justify-between gap-1.5">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Sparkles
-                          size={11}
-                          className={tech.isEurekaBoosted ? 'text-[#4ade80]' : 'text-[#6f8271]'}
-                        />
-                        <span
-                          className={`truncate ${
-                            tech.isEurekaBoosted ? 'text-[#4ade80] font-bold' : 'text-[#8e9c8c]'
-                          }`}
-                        >
-                          {tech.isEurekaBoosted ? 'BOOSTED (-50%): ' : 'Boost: '}
-                          {tech.eurekaCondition || 'Accomplish sector milestone'}
-                        </span>
-                      </div>
-                      {!tech.isEurekaBoosted && !tech.isResearched && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            triggerEureka(tech.id);
-                          }}
-                          className="px-2 py-0.5 rounded bg-[#332b17] hover:bg-[#4a3e20] text-[#fcd34d] border border-[#6b5828] text-[9px] font-bold flex items-center gap-1 shrink-0 transition-colors shadow-sm"
-                          title="Trigger Eureka! (50% instant discount)"
-                        >
-                          <Zap size={10} className="fill-current text-[#fcd34d]" />
-                          <span>Trigger Eureka</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Card Bottom Action */}
-                  <div className="mt-4 pt-3 border-t border-[#1f2c21] flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-[#6f8271]">
-                      Era: {tech.era}
-                    </span>
-
-                    {tech.isAvailable && !tech.isResearched && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startResearch(tech.id);
-                        }}
-                        className="px-3 py-1 rounded-lg text-xs font-semibold btn-game-gold flex items-center gap-1"
-                      >
-                        <Play size={11} className="fill-current" />
-                        <span>Research</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        /* ================= TIMELINE ERA MATRIX VIEW ================= */
-        <div
-          ref={scrollContainerRef}
-          className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar p-8 relative"
-        >
-          {/* SVG Dependency Arc Overlay */}
-          <svg
-            className="absolute inset-0 pointer-events-none z-0"
-            style={{ minWidth: '1500px', minHeight: '900px', width: '100%', height: '100%' }}
-          >
-            {connectors.map((c) => {
-              const isHighlighted =
-                hoveredTechId === c.fromId || hoveredTechId === c.toId;
-              const isAnyHovered = hoveredTechId !== null;
-              const dx = c.x2 - c.x1;
-              const midX1 = c.x1 + dx * 0.45;
-              const midX2 = c.x1 + dx * 0.55;
-              const pathD = `M ${c.x1} ${c.y1} C ${midX1} ${c.y1}, ${midX2} ${c.y2}, ${c.x2} ${c.y2}`;
-
-              return (
-                <path
-                  key={c.id}
-                  d={pathD}
-                  fill="none"
-                  stroke={
-                    isHighlighted
-                      ? '#d4af37'
-                      : isAnyHovered
-                      ? 'rgba(60, 85, 65, 0.15)'
-                      : c.isUnlocked
-                      ? 'rgba(212, 175, 55, 0.5)'
-                      : 'rgba(50, 70, 54, 0.3)'
-                  }
-                  strokeWidth={isHighlighted ? 3 : c.isUnlocked ? 2 : 1}
-                  strokeDasharray={c.isUnlocked ? undefined : '4,4'}
-                  className="transition-all duration-200"
-                />
-              );
-            })}
-          </svg>
-
-          {/* Horizontal Era Lanes Canvas */}
-          <div className="min-w-[1380px] flex gap-10 relative pb-12 z-10">
-            {eraColumns.map((col) => {
-              const eraTechs = filteredTechnologies.filter((t) => t.era === col.era);
-
-              return (
-                <div key={col.era} className="w-[320px] shrink-0 space-y-4 relative">
-                  {/* Era Header */}
-                  <div className="p-2.5 rounded-xl border border-[#2b3a2d] bg-[#141c15] text-center shadow-sm">
-                    <span className="text-xs font-bold text-[#f1f5f2] block">
-                      {col.label}
-                    </span>
-                    <span className="text-[10px] font-mono text-[#8e9c8c]">
-                      {col.turns}
-                    </span>
-                  </div>
-
-                  {/* Vertical Lane Divider Line */}
-                  <div className="absolute top-14 bottom-0 -right-5 w-px border-r border-dashed border-[#233325] pointer-events-none" />
-
-                  {/* Tech Pills Column */}
-                  <div className="space-y-3">
-                    {eraTechs.map((tech) => {
-                      const Icon = getTechIcon(tech.iconName);
-                      const isResearching = !tech.isResearched && tech.isAvailable && tech.progress > 0;
-                      const isHovered = hoveredTechId === tech.id;
-
-                      return (
-                        <div
-                          id={`timeline-card-${tech.id}`}
-                          key={tech.id}
-                          onMouseEnter={() => setHoveredTechId(tech.id)}
-                          onMouseLeave={() => setHoveredTechId(null)}
-                          onClick={() => setSelectedTech(tech)}
-                          className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer select-none transition-all duration-200 shadow-sm ${
-                            tech.isResearched
-                              ? 'bg-[#152017] border-[#384e3a] hover:border-[#4ade80]'
-                              : isResearching
-                              ? 'bg-[#1e1c14] border-[#d4af37] ring-1 ring-[#d4af37]/50 shadow-md'
-                              : tech.isAvailable
-                              ? 'bg-[#141c15] border-[#2b3a2d] hover:border-[#4ade80]'
-                              : 'bg-[#111712]/70 border-[#1f2921] opacity-60'
-                          } ${isHovered ? '-translate-y-0.5' : ''}`}
-                        >
-                          <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border ${
-                              tech.isResearched
-                                ? 'bg-[#213323] text-[#4ade80] border-[#3f5f43]'
-                                : isResearching
-                                ? 'bg-[#332b17] text-[#d4af37] border-[#5e4e27] animate-pulse'
-                                : 'bg-[#18221a] text-[#8e9c8c] border-[#293a2c]'
-                            }`}
-                          >
-                            {Icon}
+                        <div className="p-2.5 flex items-center justify-between gap-2.5 border-b border-[#2d3840]">
+                          <div className="w-10 h-10 rounded-full border-2 border-[#caa455] bg-gradient-to-b from-[#2c363d] to-[#13181a] flex items-center justify-center text-xl shrink-0 shadow-inner group-hover:scale-105 transition-transform">
+                            <span>{tech.icon}</span>
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-[#f1f5f2] truncate">
-                                {tech.name}
-                              </span>
-                              <span className="text-[10px] font-mono font-bold text-[#d4af37] ml-1 shrink-0">
-                                {tech.isResearched ? '✓' : `${tech.turnsToComplete || 6}T`}
-                              </span>
-                            </div>
+                            <h4 className="text-xs font-serif font-bold uppercase tracking-wide group-hover:text-[#caa455] transition-colors truncate">
+                              {tech.name}
+                            </h4>
+                            <span className="text-[9px] font-sans text-[#8f9ca6] block truncate">
+                              {tech.category}
+                            </span>
+                          </div>
 
-                            <p className="text-[10px] text-[#8e9c8c] truncate mt-0.5">
-                              {tech.eurekaCondition || 'Accomplish sector milestone'}
-                            </p>
+                          <div className="px-2 py-0.5 rounded bg-[#101416] border border-[#2e3940] text-[10px] font-mono font-bold text-[#caa455] shrink-0">
+                            {tech.turns} TURNS
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
-      {/* ================= CLEAN TECH DETAIL INSPECTION MODAL ================= */}
+                        {/* Eureka Boost Stripe */}
+                        <div
+                          onClick={(e) => {
+                            if (!tech.isBoosted) {
+                              e.stopPropagation();
+                              handleTriggerEureka(tech.id);
+                            }
+                          }}
+                          className={`px-2.5 py-1.5 text-[10px] font-sans flex items-center justify-between gap-1.5 transition-colors ${
+                            tech.isBoosted
+                              ? 'bg-[#142327] text-[#55b8bf] border-t border-[#1d3c42]'
+                              : 'bg-[#181d21] text-[#9ba8b2] hover:bg-[#20272c] hover:text-[#f5ebd2] cursor-pointer'
+                          }`}
+                          title={tech.isBoosted ? 'Eureka Bonus Active (-50%)' : 'Click to trigger Eureka boost!'}
+                        >
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Sparkles
+                              size={11}
+                              className={tech.isBoosted ? 'text-[#55b8bf] fill-current' : 'text-[#caa455]'}
+                            />
+                            <span className="truncate font-medium">{tech.boostText}</span>
+                          </div>
+
+                          {!tech.isBoosted && (
+                            <span className="text-[9px] font-bold text-[#caa455] uppercase shrink-0 font-mono">
+                              Boost!
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Bottom Research Trigger Action */}
+                        <div className="p-1.5 bg-[#121618] border-t border-[#232c32] flex items-center justify-between text-[10px] font-sans">
+                          <span className="text-[#6d7982] font-mono">{tech.costPoints} Science</span>
+
+                          {isActive ? (
+                            <span className="px-2 py-0.5 rounded bg-[#0d4f54] text-[#55b8bf] font-bold text-[9px] border border-[#1b6b72] flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#55b8bf] animate-ping" />
+                              RESEARCHING
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCommenceResearch(tech);
+                              }}
+                              className="px-2 py-0.5 rounded bg-[#2a343c] hover:bg-[#caa455] hover:text-[#14181b] text-[#f5ebd2] font-bold text-[9px] transition-all flex items-center gap-1"
+                            >
+                              <Play size={8} className="fill-current" />
+                              <span>RESEARCH</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ================= TECH DETAIL INSPECTOR MODAL ================= */}
       {selectedTech && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-[#3b513e] bg-[#141c15] shadow-2xl p-6 text-[#f1f5f2] select-none space-y-5">
-            {/* Modal Header */}
-            <div className="flex items-start justify-between pb-3 border-b border-[#253627]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 select-none font-serif">
+          <div className="w-full max-w-md rounded-lg border-2 border-[#caa455] bg-[#f5ecd8] text-[#2c2419] shadow-2xl p-5 space-y-4">
+            <div className="flex items-start justify-between pb-3 border-b-2 border-[#caa455]">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-[#202e22] border border-[#3e5a42] flex items-center justify-center text-[#d4af37]">
-                  {getTechIcon(selectedTech.iconName, 22)}
+                <div className="w-12 h-12 rounded-full border-2 border-[#caa455] bg-[#241c14] flex items-center justify-center text-2xl shadow-md">
+                  <span>{selectedTech.icon}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono text-[#d4af37] font-bold uppercase tracking-wider">
+                  <span className="text-[9px] font-sans font-bold uppercase tracking-wider text-[#69553b] block">
                     {selectedTech.era} Era · {selectedTech.category}
                   </span>
-                  <h3 className="text-lg font-bold text-[#f1f5f2] mt-0.5">
+                  <h3 className="text-base font-bold text-[#201912] uppercase tracking-wide">
                     {selectedTech.name}
                   </h3>
                 </div>
               </div>
 
               <button
-                onClick={() => setSelectedTech(null)}
-                className="p-1 rounded-lg text-[#8e9c8c] hover:text-white hover:bg-[#1f2b21] transition-colors"
+                onClick={() => {
+                  soundFx.playClick();
+                  setSelectedTech(null);
+                }}
+                className="p-1 rounded text-[#7a6b57] hover:text-[#201912] hover:bg-[#ede2cb] transition-colors"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="space-y-4 text-xs">
-              <p className="text-xs text-[#a2b29f] leading-relaxed">
-                {selectedTech.description}
-              </p>
+            <p className="text-xs font-sans text-[#4a3f32] leading-relaxed">
+              {selectedTech.description}
+            </p>
 
-              {/* Eureka Boost Box */}
-              <div className="p-3 rounded-xl bg-[#0e1510] border border-[#233325] space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-[#4ade80]">
-                  <Sparkles size={14} />
-                  <span>Eureka Acceleration</span>
-                </div>
-                <p className="text-[11px] text-[#8e9c8c]">
-                  {selectedTech.eurekaCondition || 'Accomplish sector milestone to trigger 50% research acceleration'}
-                </p>
-                <span className="text-[10px] font-mono text-[#4ade80] font-semibold block mt-1">
-                  Status: {selectedTech.isEurekaBoosted ? 'Eureka Triggered (+50% Complete)' : 'Pending Condition'}
-                </span>
+            <div className="p-2.5 rounded bg-[#ede2cb] border border-[#cbba98] space-y-1 font-sans">
+              <div className="flex items-center gap-1.5 font-bold text-xs text-[#0d4f54]">
+                <Sparkles size={13} className="text-[#caa455]" />
+                <span>Eureka Breakthrough Condition</span>
               </div>
-
-              {/* Discovery Rewards */}
-              <div>
-                <span className="text-[10px] font-mono uppercase text-[#d4af37] font-bold block mb-2">
-                  Discovery Rewards & Unlocks
+              <p className="text-[11px] text-[#69553b]">{selectedTech.boostText}</p>
+              <div className="pt-1 flex items-center justify-between text-[10px]">
+                <span className="text-[#0d4f54] font-semibold">
+                  Status: {selectedTech.isBoosted ? 'Triggered (-50% turns)' : 'Pending sector condition'}
                 </span>
-                <div className="space-y-1.5">
-                  {selectedTech.effects.map((eff, i) => (
-                    <div key={i} className="flex items-center gap-2 text-[#f1f5f2] font-medium text-xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80]" />
-                      <span>{eff}</span>
-                    </div>
-                  ))}
-                </div>
+                {!selectedTech.isBoosted && (
+                  <button
+                    onClick={() => handleTriggerEureka(selectedTech.id)}
+                    className="px-2 py-0.5 rounded bg-[#0d4f54] text-[#dfb74a] font-bold text-[9px] border border-[#caa455]"
+                  >
+                    Trigger Eureka
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Modal Footer / Research Action */}
-            <div className="pt-4 border-t border-[#253627] flex items-center justify-between">
-              <div className="font-mono text-xs">
-                <span className="text-[#8e9c8c]">Cost: </span>
-                <span className="text-[#d4af37] font-bold text-sm">
-                  {selectedTech.costResearchPoints} Points
-                </span>
-                <span className="text-[#8e9c8c] text-[11px] ml-1.5">
-                  ({selectedTech.turnsToComplete || 6} Turns)
-                </span>
+            <div className="font-sans space-y-1.5">
+              <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-[#69553b] block">
+                Discoveries & Unlocks
+              </span>
+              {selectedTech.unlockedEffects.map((eff, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs text-[#201912]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0d4f54]" />
+                  <span>{eff}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-3 border-t-2 border-[#caa455] flex items-center justify-between font-sans">
+              <div className="text-xs font-mono">
+                <span className="text-[#69553b]">Cost: </span>
+                <span className="font-bold text-[#201912]">{selectedTech.costPoints} Science</span>
+                <span className="text-[#69553b] ml-1">({selectedTech.turns} Turns)</span>
               </div>
 
-              {selectedTech.isResearched ? (
-                <span className="px-4 py-2 rounded-xl text-xs font-bold bg-[#1e2f20] text-[#4ade80] border border-[#3a583e] flex items-center gap-1.5">
-                  <CheckCircle2 size={15} /> Researched & Active
-                </span>
-              ) : selectedTech.isAvailable ? (
-                <div className="flex items-center gap-2">
-                  {!selectedTech.isEurekaBoosted && (
-                    <button
-                      onClick={() => {
-                        triggerEureka(selectedTech.id);
-                        setSelectedTech((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                isEurekaBoosted: true,
-                                progress: Math.min(
-                                  prev.costResearchPoints,
-                                  prev.progress + Math.round(prev.costResearchPoints * 0.5)
-                                ),
-                              }
-                            : null
-                        );
-                      }}
-                      className="px-3 py-2 rounded-xl text-xs font-bold bg-[#332b17] hover:bg-[#4a3e20] text-[#fcd34d] border border-[#6b5828] flex items-center gap-1.5 transition-colors"
-                      title="Trigger 50% Breakthrough Eureka discount"
-                    >
-                      <Zap size={13} className="text-[#fcd34d]" />
-                      <span>Trigger Eureka (-50%)</span>
-                    </button>
-                  )}
+              <button
+                onClick={() => {
+                  handleCommenceResearch(selectedTech);
+                  setSelectedTech(null);
+                }}
+                className="px-4 py-1.5 rounded text-xs font-bold btn-game-gold flex items-center gap-1.5"
+              >
+                <Play size={11} className="fill-current" />
+                <span>Commence Research</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                  <button
-                    onClick={() => {
-                      startResearch(selectedTech.id);
-                      setSelectedTech(null);
-                    }}
-                    className="px-5 py-2 rounded-xl text-xs font-bold btn-game-gold flex items-center gap-2"
-                  >
-                    <FlaskConical size={14} />
-                    <span>Commence Research</span>
-                  </button>
-                </div>
-              ) : (
-                <span className="text-xs text-[#6f8271] font-mono">
-                  Prerequisites Required: {selectedTech.prerequisites.join(', ')}
-                </span>
-              )}
+      {/* ================= SHOW KEY MODAL ================= */}
+      {isKeyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 select-none font-serif">
+          <div className="w-full max-w-sm rounded-lg border-2 border-[#caa455] bg-[#f5ecd8] text-[#2c2419] shadow-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-[#caa455]">
+              <h3 className="font-bold text-sm text-[#201912] uppercase tracking-wider">
+                Technology Tree Key
+              </h3>
+              <button
+                onClick={() => setIsKeyModalOpen(false)}
+                className="p-1 rounded text-[#7a6b57] hover:text-[#201912]"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className="space-y-2 text-xs font-sans">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#caa455]" />
+                <span>Gold Ribbon / Frame: Active Research Focus</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Sparkles size={13} className="text-[#0d4f54]" />
+                <span>Eureka: Instant 50% Research Cost Acceleration</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-[#1f262b] border border-[#3a4750]" />
+                <span>Slate Capsule: Available Paradigm to discover</span>
+              </div>
             </div>
           </div>
         </div>

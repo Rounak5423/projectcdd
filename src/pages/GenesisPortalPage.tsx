@@ -24,6 +24,7 @@ export default function GenesisPortalPage({
     civilization,
     savedWorlds,
     loadCivilization,
+    loadMaxDemoWorld,
     achievements,
     resources,
     events,
@@ -49,11 +50,22 @@ export default function GenesisPortalPage({
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
-              onClick={() => onNavigate('World Explorer')}
-              className="px-6 py-3 rounded-xl bg-[#405439] hover:bg-[#526b48] text-[#dce9ca] font-bold text-sm flex items-center gap-2.5 border border-[#6b875f] shadow-xl transition-all"
+              onClick={() => {
+                loadMaxDemoWorld();
+                onNavigate('World Explorer');
+              }}
+              className="px-6 py-3 rounded-xl bg-[#292212] hover:bg-[#3d3215] text-[#dfb74a] font-bold text-sm flex items-center gap-2.5 border border-[#a18131] shadow-xl transition-all"
             >
-              <Play size={16} className="fill-current" />
-              <span>Resume Active Simulation ({civilization.name})</span>
+              <Sparkles size={16} className="text-[#dfb74a] animate-pulse" />
+              <span>Launch Max-Capabilities Demo (Kyoto Prime)</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('World Explorer')}
+              className="px-5 py-3 rounded-xl bg-[#405439] hover:bg-[#526b48] text-[#dce9ca] font-semibold text-sm flex items-center gap-2 border border-[#6b875f] shadow-md transition-all"
+            >
+              <Play size={15} className="fill-current" />
+              <span>Resume Active Simulation</span>
             </button>
 
             <button

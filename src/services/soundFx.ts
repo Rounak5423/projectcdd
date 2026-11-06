@@ -193,6 +193,136 @@ class SoundFX {
       osc.stop(now + 0.2);
     } catch (e) {}
   }
+
+  // Street Protest Crowd Murmur & Whistle
+  public playCrowdChant() {
+    if (this.isMuted) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      // Rhythmic marching beat
+      const osc1 = this.ctx.createOscillator();
+      const gain1 = this.ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(90, now);
+      osc1.frequency.exponentialRampToValueAtTime(45, now + 0.15);
+      gain1.gain.setValueAtTime(0.25, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc1.connect(gain1);
+      gain1.connect(this.ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.22);
+
+      // Protest whistle
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(1400, now + 0.05);
+      osc2.frequency.exponentialRampToValueAtTime(1800, now + 0.22);
+      gain2.gain.setValueAtTime(0.12, now + 0.05);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      osc2.start(now + 0.05);
+      osc2.stop(now + 0.28);
+    } catch (e) {}
+  }
+
+  // Grand Carnival Fanfare & Festive Cheering
+  public playCarnivalCheer() {
+    if (this.isMuted) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const fanfareNotes = [392, 523.25, 659.25, 783.99, 1046.5]; // G4, C5, E5, G5, C6
+      fanfareNotes.forEach((freq, idx) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+        gain.gain.setValueAtTime(0.2, now + idx * 0.07);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.35);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(now + idx * 0.07);
+        osc.stop(now + idx * 0.07 + 0.4);
+      });
+    } catch (e) {}
+  }
+
+  // Imperial Gavel Edict Strike
+  public playGavel() {
+    if (this.isMuted) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(55, now + 0.15);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.28);
+    } catch (e) {}
+  }
+
+  // Celebratory 3D Fireworks Detonation
+  public playFireworksExplosion() {
+    if (this.isMuted) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+
+      // 1. Rising rocket whistle
+      const whistleOsc = this.ctx.createOscillator();
+      const whistleGain = this.ctx.createGain();
+      whistleOsc.type = 'sawtooth';
+      whistleOsc.frequency.setValueAtTime(400, now);
+      whistleOsc.frequency.exponentialRampToValueAtTime(1400, now + 0.25);
+      whistleGain.gain.setValueAtTime(0.08, now);
+      whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+      whistleOsc.connect(whistleGain);
+      whistleGain.connect(this.ctx.destination);
+      whistleOsc.start(now);
+      whistleOsc.stop(now + 0.27);
+
+      // 2. Deep aerial burst boom
+      const boomOsc = this.ctx.createOscillator();
+      const boomGain = this.ctx.createGain();
+      boomOsc.type = 'sine';
+      boomOsc.frequency.setValueAtTime(180, now + 0.25);
+      boomOsc.frequency.exponentialRampToValueAtTime(35, now + 0.55);
+      boomGain.gain.setValueAtTime(0.35, now + 0.25);
+      boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+      boomOsc.connect(boomGain);
+      boomGain.connect(this.ctx.destination);
+      boomOsc.start(now + 0.25);
+      boomOsc.stop(now + 0.7);
+
+      // 3. Crackling sparkle notes
+      const sparkles = [880, 1100, 1320, 1760];
+      sparkles.forEach((freq, idx) => {
+        const sOsc = this.ctx!.createOscillator();
+        const sGain = this.ctx!.createGain();
+        sOsc.type = 'triangle';
+        sOsc.frequency.setValueAtTime(freq, now + 0.35 + idx * 0.05);
+        sGain.gain.setValueAtTime(0.08, now + 0.35 + idx * 0.05);
+        sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45 + idx * 0.05);
+        sOsc.connect(sGain);
+        sGain.connect(this.ctx!.destination);
+        sOsc.start(now + 0.35 + idx * 0.05);
+        sOsc.stop(now + 0.5 + idx * 0.05);
+      });
+    } catch (e) {}
+  }
 }
 
 export const soundFx = new SoundFX();
