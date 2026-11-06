@@ -62,7 +62,22 @@ export interface BuildingCatalogItem {
   maintenanceCost: number;
   constructionDurationDays: number;
   minTechLevel: number;
-  modelType: 'tower' | 'dome' | 'factory' | 'solar' | 'turbine' | 'observatory' | 'citadel' | 'hydroponic' | 'hospital' | 'academy' | 'windmill';
+  modelType:
+    | 'tower'
+    | 'dome'
+    | 'factory'
+    | 'solar'
+    | 'turbine'
+    | 'observatory'
+    | 'citadel'
+    | 'hydroponic'
+    | 'hospital'
+    | 'academy'
+    | 'power_plant'
+    | 'water_treatment'
+    | 'warehouse'
+    | 'park'
+    | 'commercial';
 }
 
 export interface PlacedBuilding {
@@ -75,6 +90,7 @@ export interface PlacedBuilding {
   x: number;
   z: number;
   y: number;
+  rotation?: number;
   districtId: string;
   status: 'active' | 'constructing' | 'upgrading' | 'offline';
   health: number; // 0 - 100
