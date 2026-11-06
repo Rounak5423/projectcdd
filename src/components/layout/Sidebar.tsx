@@ -13,13 +13,13 @@ import {
   Coins,
   Trophy,
   Settings,
-  Home,
   PlusCircle,
   Crown,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
+import { CivoraIcon } from '../brand/CivoraLogo';
 
 type SidebarProps = {
   activePage: string;
@@ -52,7 +52,6 @@ const navigation = [
     items: [
       { name: 'Research Wallet', icon: Coins },
       { name: 'Achievements', icon: Trophy },
-      { name: 'Genesis Portal', icon: Home },
       { name: 'World Creation Studio', icon: PlusCircle },
     ],
   },
@@ -69,23 +68,24 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
       }`}
     >
       {/* Brand Header */}
-      <div className="px-3 py-3 border-b border-[#242c32] bg-[#111417] flex items-center justify-between">
+      <div className="px-2.5 py-3 border-b border-[#242c32] bg-[#0f1411] flex items-center justify-between">
         <div
           onClick={() => onNavigate('Overview')}
-          className="flex items-center gap-2.5 overflow-hidden cursor-pointer group"
-          title={`${civilization.name} (Level ${civilization.level})`}
+          className="flex items-center gap-2 overflow-hidden cursor-pointer group"
+          title="CIVORA — Civilisation Simulation Engine"
         >
-          <div className="w-8 h-8 rounded-md bg-[#1f262c] border border-[#8f7742]/50 flex items-center justify-center text-[#c29b38] shrink-0 group-hover:border-[#c29b38] transition-colors">
-            <Crown size={15} />
-          </div>
+          <CivoraIcon size={34} />
 
           {!isCollapsed && (
             <div className="min-w-0">
-              <h1 className="text-xs font-bold tracking-wider text-[#ede8dc] uppercase truncate leading-none">
-                GENESIS
+              <h1
+                className="text-xs font-serif font-black tracking-[0.2em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-[#faecd0] via-[#dfb74a] to-[#c6a23d] truncate leading-none"
+                style={{ fontFamily: "'Cinzel', serif" }}
+              >
+                CIVORA
               </h1>
-              <p className="text-[9px] font-mono text-[#8a8376] mt-0.5 truncate uppercase">
-                Strategy Engine
+              <p className="text-[8px] font-mono text-[#a18131] tracking-wider mt-1 truncate uppercase">
+                Sim Engine
               </p>
             </div>
           )}

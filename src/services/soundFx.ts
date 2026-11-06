@@ -323,6 +323,104 @@ class SoundFX {
       });
     } catch (e) {}
   }
+
+  // Heroic Overture: Cinematic bass impact + majestic imperial chord swell
+  public playHeroicOverture() {
+    if (this.isMuted) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+
+      // 1. Sub-bass tectonic impact (war drum)
+      const drumOsc = this.ctx.createOscillator();
+      const drumGain = this.ctx.createGain();
+      drumOsc.type = 'sine';
+      drumOsc.frequency.setValueAtTime(110, now);
+      drumOsc.frequency.exponentialRampToValueAtTime(32, now + 0.5);
+      drumGain.gain.setValueAtTime(0.4, now);
+      drumGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      drumOsc.connect(drumGain);
+      drumGain.connect(this.ctx.destination);
+      drumOsc.start(now);
+      drumOsc.stop(now + 0.65);
+
+      // 2. Imperial brass harmonic chord swell: C3 (130.81), G3 (196.00), C4 (261.63), E4 (329.63)
+      const chord = [130.81, 196.00, 261.63, 329.63];
+      chord.forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + 0.05);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.08 / (i + 1), now + 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(now + 0.05);
+        osc.stop(now + 1.3);
+      });
+
+      // 3. Ethereal celestial shimmer
+      const chimeOsc = this.ctx.createOscillator();
+      const chimeGain = this.ctx.createGain();
+      chimeOsc.type = 'sine';
+      chimeOsc.frequency.setValueAtTime(1046.5, now + 0.15); // C6
+      chimeOsc.frequency.exponentialRampToValueAtTime(2093, now + 0.45); // C7
+      chimeGain.gain.setValueAtTime(0.05, now + 0.15);
+      chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+      chimeOsc.connect(chimeGain);
+      chimeGain.connect(this.ctx.destination);
+      chimeOsc.start(now + 0.15);
+      chimeOsc.stop(now + 0.95);
+    } catch (e) {}
+  }
+
+  // Triumphant Royal Fanfare
+  public playHeroicFanfare() {
+    if (this.isMuted) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const fanfareNotes = [261.63, 329.63, 392.00, 523.25, 659.25]; // C4, E4, G4, C5, E5
+      fanfareNotes.forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + i * 0.09);
+        gain.gain.setValueAtTime(0.15, now + i * 0.09);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.4);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(now + i * 0.09);
+        osc.stop(now + i * 0.09 + 0.45);
+      });
+    } catch (e) {}
+  }
+
+  // Heavy Tectonic Stone Gate Parting Rumble
+  public playStoneGateRumble() {
+    if (this.isMuted) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(45, now);
+      osc.frequency.linearRampToValueAtTime(65, now + 0.4);
+      osc.frequency.linearRampToValueAtTime(30, now + 0.9);
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 1.05);
+    } catch (e) {}
+  }
 }
 
 export const soundFx = new SoundFX();

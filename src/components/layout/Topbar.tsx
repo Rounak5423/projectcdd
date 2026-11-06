@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
+import { CivoraIcon } from '../brand/CivoraLogo';
 
 export default function Topbar({
   isRightPanelOpen,
@@ -61,9 +62,7 @@ export default function Topbar({
         onClick={() => setActiveDrawer('codex')}
         title="View Civilisation Codex & Status"
       >
-        <div className="w-7 h-7 rounded-md border border-[#8f7742]/60 bg-[#1c2328] flex items-center justify-center text-[#c29b38] shadow-xs group-hover:border-[#c29b38] transition-colors">
-          <Crown size={14} />
-        </div>
+        <CivoraIcon size={30} />
 
         <div>
           <div className="flex items-center gap-1.5">

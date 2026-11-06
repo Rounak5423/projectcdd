@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Globe2,
   PlusCircle,
@@ -12,8 +12,11 @@ import {
   Calendar,
   Layers,
   Award,
+  Crown,
 } from 'lucide-react';
 import { useGameState } from '../context/GameStateContext';
+import { CivoraWordmark } from '../components/brand/CivoraLogo';
+import CivoraBrandShowcase from '../components/brand/CivoraBrandShowcase';
 
 export default function GenesisPortalPage({
   onNavigate,
@@ -30,22 +33,48 @@ export default function GenesisPortalPage({
     events,
   } = useGameState();
 
+  const [activeTab, setActiveTab] = useState<'portal' | 'brand'>('portal');
+
   return (
     <div className="p-6 lg:p-8 space-y-8 overflow-y-auto custom-scrollbar text-[#e8e9e3] max-w-7xl mx-auto">
-      {/* Hero Cinematic Section */}
-      <div className="relative rounded-2xl overflow-hidden border border-[#3e4f3f] shadow-2xl bg-gradient-to-br from-[#1a231b] via-[#141b15] to-[#0f1410] p-8 lg:p-12">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,#3d523a_0%,transparent_60%)] opacity-40 pointer-events-none" />
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#273628] border border-[#485d47] text-xs font-mono font-semibold text-[#c6a76a] mb-4">
-            <Sparkles size={13} />
-            GENESIS CIVILISATION ENGINE · VER 4.2.0
-          </div>
-          <h1 className="text-3xl lg:text-5xl font-black tracking-tight text-[#f4f7f0] leading-tight">
-            The Living Artificial Civilisation
-          </h1>
-          <p className="text-sm lg:text-base text-[#adb8a9] mt-3 leading-relaxed">
-            Architect, govern, and observe autonomous societal evolution. From foundational closed-loop
-            hydroponics to quantum AI governance, simulate real demographic, economic, and ecological frontiers.
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-3 border-b border-[#2d3a2e] pb-3">
+        <button
+          onClick={() => setActiveTab('portal')}
+          className={`px-4 py-2 rounded-lg font-serif text-xs uppercase tracking-wider font-bold transition-all ${
+            activeTab === 'portal'
+              ? 'bg-[#292212] text-[#dfb74a] border border-[#a18131] shadow-md'
+              : 'text-[#9da99b] hover:text-[#e8e9e3] hover:bg-[#1b251d]'
+          }`}
+        >
+          Civilisation Hub & Worlds
+        </button>
+        <button
+          onClick={() => setActiveTab('brand')}
+          className={`px-4 py-2 rounded-lg font-serif text-xs uppercase tracking-wider font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'brand'
+              ? 'bg-[#292212] text-[#dfb74a] border border-[#a18131] shadow-md'
+              : 'text-[#9da99b] hover:text-[#e8e9e3] hover:bg-[#1b251d]'
+          }`}
+        >
+          <Crown size={14} className="text-[#dfb74a]" />
+          <span>CIVORA Brand Identity Specs</span>
+        </button>
+      </div>
+
+      {activeTab === 'brand' ? (
+        <CivoraBrandShowcase />
+      ) : (
+        <>
+          {/* Hero Cinematic Section */}
+      <div className="relative rounded-2xl overflow-hidden border border-[#5e4e24] shadow-2xl bg-gradient-to-br from-[#121c15] via-[#0d140f] to-[#070b08] p-8 lg:p-12">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,#2a4231_0%,transparent_60%)] opacity-40 pointer-events-none" />
+        <div className="relative z-10 max-w-3xl space-y-4">
+          <CivoraWordmark emblemSize={72} />
+
+          <p className="text-sm lg:text-base text-[#cfc7b4] leading-relaxed max-w-2xl pt-2">
+            Architect, govern, and observe autonomous societal evolution. From classical foundations and Renaissance
+            cartography to quantum AI statecraft, simulate real demographic, economic, and civilisational frontiers.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -268,6 +297,8 @@ export default function GenesisPortalPage({
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

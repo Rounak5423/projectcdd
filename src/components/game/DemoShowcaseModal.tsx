@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
+import { CivoraEmblem, CivoraWordmark } from '../brand/CivoraLogo';
 
 export default function DemoShowcaseModal({
   onNavigate,
@@ -87,23 +88,16 @@ export default function DemoShowcaseModal({
         <div className="h-1.5 w-full bg-gradient-to-r from-[#5e4e24] via-[#dfb74a] to-[#5e4e24]" />
 
         {/* Header Ribbon */}
-        <div className="px-6 py-4 border-b border-[#2d3840] flex items-center justify-between bg-[#192025]">
+        <div className="px-6 py-3.5 border-b border-[#2d3840] flex items-center justify-between bg-[#0f1511]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#292212] border border-[#dfb74a] flex items-center justify-center text-[#dfb74a] shadow-inner">
-              <Sparkles size={20} className="animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-[#2e2617] text-[#dfb74a] border border-[#5e4e24]">
-                  PRESENTER SUITE · LIVE CAPABILITIES
-                </span>
-                <span className="text-xs font-mono text-[#8a8376]">
-                  BUILD v2.4-MAX
-                </span>
-              </div>
-              <h1 className="text-lg sm:text-xl font-serif font-bold text-white tracking-wide mt-0.5">
-                GENESIS ARTIFICIAL CIVILISATION ENGINE
-              </h1>
+            <CivoraWordmark emblemSize={42} showSubtitle={false} />
+            <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-[#2d3840]">
+              <span className="text-[10px] font-mono font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-[#2e2617] text-[#dfb74a] border border-[#5e4e24]">
+                PRESENTER SUITE
+              </span>
+              <span className="text-xs font-mono text-[#8a8376]">
+                BUILD v2.4-CIVORA
+              </span>
             </div>
           </div>
 

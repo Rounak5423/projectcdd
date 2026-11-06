@@ -25,11 +25,12 @@ import AchievementsPage from './pages/AchievementsPage';
 import GenesisPortalPage from './pages/GenesisPortalPage';
 import WorldCreationStudioPage from './pages/WorldCreationStudioPage';
 import SettingsPage from './pages/SettingsPage';
+import CivoraLanding from './pages/CivoraLanding';
 import { soundFx } from './services/soundFx';
 
 function GameApp() {
-  // Default to the 3D World Viewport immediately on launch
-  const [activePage, setActivePage] = useState<string>('World Explorer');
+  // Default to the cinematic CIVORA Landing Page immediately on launch
+  const [activePage, setActivePage] = useState<string>('Landing');
   const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(false);
   const { togglePlay, setSpeed, selectedBuilding, setConstructionMode } = useGameState();
 
@@ -40,12 +41,14 @@ function GameApp() {
     }
   }, [selectedBuilding]);
 
-  // Handle Infrastructure click: seamlessly trigger 3D Construction Mode
+  // Handle Infrastructure & Portal navigation
   const handleNavigate = (page: string) => {
     soundFx.playClick();
     if (page === 'Infrastructure') {
       setActivePage('World Explorer');
       setConstructionMode(true);
+    } else if (page === 'CIVORA Landing' || page === 'Genesis Portal') {
+      setActivePage('Landing');
     } else {
       setActivePage(page);
     }
@@ -128,6 +131,11 @@ function GameApp() {
         return null;
     }
   };
+
+  // Full-viewport Master Landing Page for CIVORA
+  if (activePage === 'Landing') {
+    return <CivoraLanding onNavigate={handleNavigate} />;
+  }
 
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-[#151916] text-[#e8e9e3] font-sans">
