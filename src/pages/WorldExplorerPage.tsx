@@ -76,41 +76,27 @@ export default function WorldExplorerPage() {
           ))}
         </div>
 
-        {/* TOP-RIGHT DISTRICT QUICK SELECTOR (HUD) */}
-        <div className="hidden lg:flex absolute top-4 right-4 z-10 flex-col gap-1.5 bg-[#171d18]/90 backdrop-blur-md p-2 rounded-xl border border-[#39443a] shadow-xl max-w-xs">
-          <span className="text-[10px] font-mono tracking-wider text-[#c6a76a] uppercase px-1">
-            DISTRICT REGISTERS
-          </span>
-          <div className="space-y-1">
-            {districts.map((d) => (
-              <div
-                key={d.id}
-                className="flex items-center justify-between gap-3 px-2 py-1 rounded bg-[#1e2620]/80 border border-[#2e3a2f] text-xs"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
-                  <span className="text-[#e8e9e3] font-medium">{d.name}</span>
-                </div>
-                <span className="font-mono text-[10px] text-[#a6bd82]">{d.efficiency}% eff.</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* CONSTRUCTION MODE BANNER (When active) */}
         {isConstructionMode && selectedCatalogItem && (
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-[#1d271e]/95 border border-[#a6bd82] px-5 py-2.5 rounded-full shadow-2xl backdrop-blur-md">
-            <div className="w-2.5 h-2.5 rounded-full bg-[#a6bd82] animate-ping" />
-            <span className="text-xs font-semibold text-[#e8e9e3]">
-              PLACING: <span className="text-[#c6a76a] font-bold">{selectedCatalogItem.name}</span>
-            </span>
-            <span className="text-xs text-[#9da99b]">| Cost: {selectedCatalogItem.costMaterials} Materials</span>
-            <button
-              onClick={() => setConstructionMode(false)}
-              className="ml-2 px-2.5 py-1 rounded-full bg-[#352523] text-[#d47e69] hover:bg-[#472f2c] text-xs font-semibold flex items-center gap-1 border border-[#633a34]"
-            >
-              <X size={12} /> Cancel Placement
-            </button>
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex flex-col sm:flex-row items-center gap-2 sm:gap-4 bg-[#1d271e]/95 border border-[#a6bd82] px-5 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#a6bd82] animate-ping" />
+              <span className="text-xs font-semibold text-[#e8e9e3]">
+                CONSTRUCTING: <span className="text-[#c6a76a] font-bold">{selectedCatalogItem.name}</span>
+              </span>
+              <span className="text-xs text-[#9da99b]">| {selectedCatalogItem.costMaterials} Mat.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono text-[#a6bd82] bg-[#141b16] px-2 py-0.5 rounded border border-[#2d382e]">
+                Press [R] to Rotate
+              </span>
+              <button
+                onClick={() => setConstructionMode(false)}
+                className="px-2.5 py-1 rounded-full bg-[#352523] text-[#d47e69] hover:bg-[#472f2c] text-xs font-semibold flex items-center gap-1 border border-[#633a34] transition-colors"
+              >
+                <X size={12} /> Cancel
+              </button>
+            </div>
           </div>
         )}
 
@@ -154,7 +140,19 @@ export default function WorldExplorerPage() {
 
             {/* Category Filter Pills */}
             <div className="flex items-center gap-1.5 py-2 overflow-x-auto custom-scrollbar">
-              {['all', 'residential', 'agriculture', 'energy', 'industrial', 'research', 'healthcare'].map((cat) => (
+              {[
+                'all',
+                'residential',
+                'commercial',
+                'agriculture',
+                'energy',
+                'industrial',
+                'research',
+                'healthcare',
+                'education',
+                'government',
+                'environment',
+              ].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}

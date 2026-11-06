@@ -68,7 +68,7 @@ interface GameStateContextType {
   selectBuilding: (id: string | null) => void;
   setActiveLayer: (layer: MapLayer) => void;
   setConstructionMode: (active: boolean, item?: BuildingCatalogItem | null) => void;
-  placeBuilding: (catalogId: string, x: number, z: number, districtId?: string) => boolean;
+  placeBuilding: (catalogId: string, x: number, z: number, districtId?: string, rotation?: number) => boolean;
   upgradeBuilding: (buildingId: string) => boolean;
   demolishBuilding: (buildingId: string) => void;
   startResearch: (techId: string) => boolean;
@@ -228,7 +228,13 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const placeBuilding = (catalogId: string, x: number, z: number, districtId: string = 'dist-citadel') => {
+  const placeBuilding = (
+    catalogId: string,
+    x: number,
+    z: number,
+    districtId: string = 'dist-citadel',
+    rotation: number = 0
+  ) => {
     const item = buildingCatalog.find((b) => b.id === catalogId);
     if (!item) return false;
 
@@ -264,6 +270,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       x: Math.round(x * 10) / 10,
       z: Math.round(z * 10) / 10,
       y: 0.6,
+      rotation: rotation || 0,
       districtId,
       status: 'active',
       health: 100,
