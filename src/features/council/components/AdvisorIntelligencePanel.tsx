@@ -230,3 +230,4 @@ export const AdvisorIntelligencePanel: React.FC<AdvisorIntelligencePanelProps> =
 };
 
 export default AdvisorIntelligencePanel;
+

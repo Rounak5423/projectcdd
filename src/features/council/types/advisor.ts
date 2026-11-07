@@ -76,3 +76,4 @@ export interface Advisor {
   currentBriefing: AdvisorBriefingData;
   identifiedRisks: AdvisorRisk[];
 }
+

@@ -1044,3 +1044,4 @@ export const initialCouncilSessions: CouncilSession[] = [
     dateConcluded: 'Year 10 · Day 215',
   },
 ];
+

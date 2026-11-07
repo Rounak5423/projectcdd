@@ -151,3 +151,4 @@ export const CouncilChamberPlaceholder: React.FC<CouncilChamberPlaceholderProps>
 };
 
 export default CouncilChamberPlaceholder;
+

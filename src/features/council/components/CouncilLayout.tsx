@@ -220,3 +220,4 @@ export const CouncilLayout: React.FC<CouncilLayoutProps> = ({
 };
 
 export default CouncilLayout;
+

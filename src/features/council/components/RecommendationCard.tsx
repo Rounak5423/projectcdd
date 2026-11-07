@@ -225,3 +225,4 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
 };
 
 export default RecommendationCard;
+

@@ -170,3 +170,4 @@ export const RecommendationPanel: React.FC<RecommendationPanelProps> = ({
 };
 
 export default RecommendationPanel;
+

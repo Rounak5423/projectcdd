@@ -36,3 +36,4 @@ export interface RecommendationReviewPayload {
   status: 'Accepted' | 'Rejected' | 'Under Review';
   notes?: string;
 }
+

@@ -52,3 +52,4 @@ export interface CouncilChamberProps {
   advisors: Advisor[];
   activeSession?: CouncilSession | null;
 }
+
