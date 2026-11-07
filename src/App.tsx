@@ -31,6 +31,7 @@ import SettingsPage from './pages/SettingsPage';
 import AdminConsolePage from './pages/AdminConsolePage';
 import CivoraLanding from './pages/CivoraLanding';
 import CivoraAuthPage from './pages/CivoraAuthPage';
+import CouncilPage from './features/council/pages/CouncilPage';
 import { soundFx } from './services/soundFx';
 
 // ============================================================
@@ -116,6 +117,10 @@ function GameApp() {
             <WorldDashboard onNavigate={handleNavigate} onClose={handleClose} />
           </div>
         );
+      case 'The Council':
+      case 'Council':
+      case 'Council of Advisors':
+        return <CouncilPage onNavigate={handleNavigate} onClose={handleClose} />;
       case 'Infrastructure':
         return <InfrastructurePage onNavigate={handleNavigate} onClose={handleClose} />;
       case 'Civilisation Chronicle':

@@ -18,6 +18,7 @@ import {
   BookOpen,
   Target,
   ChevronDown,
+  Crown,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { useAuth } from '../../context/AuthContext';
@@ -46,6 +47,12 @@ const baseNavigation: NavSection[] = [
       { name: 'Population', icon: Users },
       { name: 'Infrastructure', icon: Building2 },
       { name: 'Economy & Resources', icon: ChartNoAxesCombined },
+    ],
+  },
+  {
+    title: 'THE COUNCIL',
+    items: [
+      { name: 'Council of Advisors', icon: Crown, badge: '6' },
     ],
   },
   {
