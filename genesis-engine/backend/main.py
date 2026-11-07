@@ -20,7 +20,7 @@ from db.database import get_db_connection
 from api.v1.router import api_v1_router
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-FRONTEND_DIR = ROOT_DIR if os.path.exists(os.path.join(ROOT_DIR, "dist", "index.html")) else os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+FRONTEND_DIR = ROOT_DIR
 
 
 class ConnectionManager:

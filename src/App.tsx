@@ -15,7 +15,6 @@ import WorldDashboard from './pages/WorldDashboard';
 import WorldExplorerPage from './pages/WorldExplorerPage';
 import PopulationPage from './pages/PopulationPage';
 import EconomyPage from './pages/EconomyPage';
-import InfrastructurePage from './pages/InfrastructurePage';
 import ResourcesPage from './pages/ResourcesPage';
 import TechnologyPage from './pages/TechnologyPage';
 import PolicyLaboratoryPage from './pages/PolicyLaboratoryPage';
@@ -121,6 +120,8 @@ function GameApp() {
         return <TechnologyPage onClose={handleClose} />;
       case 'Economy':
         return <EconomyPage onClose={handleClose} />;
+      case 'Resources':
+        return <ResourcesPage />;
       case 'Population':
         return (
           <div className="relative w-full h-full flex flex-col justify-start">
