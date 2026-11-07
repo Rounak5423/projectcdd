@@ -124,6 +124,7 @@ async def serve_frontend():
 
 
 @app.get("/api/health")
+@app.get("/api/v1/health")
 async def health_check():
     return {
         "status": "online",
@@ -613,6 +614,8 @@ async def execute_experiment_alias(payload: Dict[str, Any]):
 
 @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
 async def serve_spa_fallback(full_path: str):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
     dist_dir = os.path.join(FRONTEND_DIR, "dist")
     candidate = os.path.join(dist_dir, full_path)
     if full_path and os.path.isfile(candidate):
