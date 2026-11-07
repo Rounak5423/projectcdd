@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { GraphicsProvider } from './context/GraphicsSettingsContext';
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import BottomControls from './components/layout/BottomControls';
@@ -207,7 +208,9 @@ export default function App() {
   return (
     <AuthProvider>
       <GameStateProvider>
-        <GameApp />
+        <GraphicsProvider>
+          <GameApp />
+        </GraphicsProvider>
       </GameStateProvider>
     </AuthProvider>
   );

@@ -17,6 +17,9 @@ import { PerformanceSampler } from './PerformanceTelemetry';
 import WorldLabelManager, { triggerRoadSelection } from './WorldLabelManager';
 import CS2ZoningAndInfoView3D from './CS2ZoningAndInfoView3D';
 import ErrorBoundary from '../common/ErrorBoundary';
+import WeatherSystem from './WeatherSystem';
+import PedestriansSystem from './PedestriansSystem';
+import { useGraphics } from '../../context/GraphicsSettingsContext';
 
 function WebGLContextWatcher({
   onContextLost,
@@ -57,6 +60,8 @@ export default function CivilizationWorld3D() {
     activeLayer,
     districts,
   } = useGameState();
+
+  const { shadows, dpr, weatherEffects, pedestriansEnabled } = useGraphics();
 
   const [contextLost, setContextLost] = useState(false);
   const [viewportKey, setViewportKey] = useState(0);
@@ -101,7 +106,8 @@ export default function CivilizationWorld3D() {
           <Canvas
             key={viewportKey}
             camera={{ position: [38, 34, 46], fov: 42, near: 0.5, far: 350 }}
-            shadows
+            shadows={shadows}
+            dpr={dpr}
             gl={{
               antialias: true,
               alpha: false,
@@ -122,6 +128,9 @@ export default function CivilizationWorld3D() {
             {/* Dynamic Sun, Moon, Ambient & Fog Environment */}
             <WorldLighting />
 
+            {/* Dynamic Atmospheric Clouds & Weather Particle Simulation */}
+            {weatherEffects && <WeatherSystem weather="rain" />}
+
             {/* Procedural Vertex-Colored Landscape */}
             <Terrain activeLayer={activeLayer} />
 
@@ -136,6 +145,9 @@ export default function CivilizationWorld3D() {
 
             {/* Autonomous Transit Vehicles & Freight Pods */}
             <VehiclesSystem />
+
+            {/* Real Agent-Based Pedestrians on Sidewalks */}
+            {pedestriansEnabled && <PedestriansSystem isRaining={weatherEffects} />}
 
             {/* Tactical District Projection Rings & Labels */}
             <DistrictOverlays />
