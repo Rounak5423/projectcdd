@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   Shield,
   Layers,
+  Eye,
+  ZoomIn,
 } from 'lucide-react';
 import { useGameState } from '../context/GameStateContext';
 
@@ -21,6 +23,31 @@ export default function SettingsPage() {
   const [ambientVolume, setAmbientVolume] = useState(85);
   const [autosaveInterval, setAutosaveInterval] = useState('90 Days');
   const [exportedStatus, setExportedStatus] = useState(false);
+  const [colorblindMode, setColorblindMode] = useState<string>(() => {
+    return localStorage.getItem('genesis_colorblind_mode') || 'Normal';
+  });
+  const [uiScale, setUiScale] = useState<string>(() => {
+    return localStorage.getItem('genesis_ui_scale') || '100%';
+  });
+
+  const handleColorblindChange = (mode: string) => {
+    setColorblindMode(mode);
+    localStorage.setItem('genesis_colorblind_mode', mode);
+  };
+
+  const handleUiScaleChange = (scale: string) => {
+    setUiScale(scale);
+    localStorage.setItem('genesis_ui_scale', scale);
+    const zoomMap: Record<string, string> = {
+      '85%': '0.85',
+      '100%': '1',
+      '115%': '1.15',
+      '130%': '1.30',
+    };
+    if (document.body) {
+      document.body.style.zoom = zoomMap[scale] || '1';
+    }
+  };
 
   const handleExportState = () => {
     const data = {
@@ -145,6 +172,60 @@ export default function SettingsPage() {
               onChange={(e) => setAmbientVolume(Number(e.target.value))}
               className="w-full accent-[#a6bd82]"
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Accessibility & Visual Calibration */}
+      <div className="panel p-5 bg-[#182119] border-[#313f32] space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b border-[#29342a]">
+          <Eye size={17} className="text-[#a6bd82]" />
+          <h3 className="font-bold text-sm text-[#f3f5ef]">ACCESSIBILITY & HUD CALIBRATION</h3>
+        </div>
+
+        <div className="space-y-4 text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span className="font-semibold text-[#f0f3eb] block">Colorblind-Safe Info View Palette</span>
+              <span className="text-[#9da99b]">Calibrate 3D heatmap shaders for color vision deficiency</span>
+            </div>
+            <div className="flex flex-wrap items-center bg-[#131914] p-1 rounded-lg border border-[#273328] gap-1">
+              {['Normal', 'Protanopia', 'Deuteranopia', 'Tritanopia', 'Monochrome'].map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => handleColorblindChange(mode)}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
+                    colorblindMode === mode
+                      ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#5d7756]'
+                      : 'text-[#8e9c8c] hover:text-white'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-[#232d24]">
+            <div>
+              <span className="font-semibold text-[#f0f3eb] block">Interface & HUD Scale Factor</span>
+              <span className="text-[#9da99b]">Scale interface text, buttons, and telemetry ribbons</span>
+            </div>
+            <div className="flex items-center bg-[#131914] p-1 rounded-lg border border-[#273328] gap-1">
+              {['85%', '100%', '115%', '130%'].map((scale) => (
+                <button
+                  key={scale}
+                  onClick={() => handleUiScaleChange(scale)}
+                  className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                    uiScale === scale
+                      ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#5d7756]'
+                      : 'text-[#8e9c8c] hover:text-white'
+                  }`}
+                >
+                  {scale}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

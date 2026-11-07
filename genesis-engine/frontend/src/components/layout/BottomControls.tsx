@@ -12,6 +12,8 @@ import {
   Trash2,
   Trophy,
   Grid,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import CS2RciDemandMeter from '../cs2/CS2RciDemandMeter';
@@ -32,6 +34,10 @@ export default function BottomControls() {
     isBulldozerActive,
     setIsBulldozerActive,
     setIsMilestonesModalOpen,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
   } = useGameState();
 
   const [isMuted, setIsMuted] = useState(soundFx.getIsMuted());
@@ -149,6 +155,34 @@ export default function BottomControls() {
 
       {/* Right: CS2 Tools & Integrated Turn Advancement Button */}
       <div className="flex items-center gap-2">
+        {/* Undo Action [Ctrl+Z] */}
+        <button
+          onClick={undo}
+          disabled={!canUndo}
+          className={`p-1.5 rounded-md border text-xs transition-all ${
+            canUndo
+              ? 'bg-[#192025] hover:bg-[#222a30] border-[#2b353b] text-[#aba393] hover:text-[#ede8dc]'
+              : 'bg-[#121619] border-[#1d2327] text-[#4d575f] cursor-not-allowed opacity-40'
+          }`}
+          title="Undo Recent Construction / Zoning [Ctrl + Z]"
+        >
+          <Undo2 size={13} />
+        </button>
+
+        {/* Redo Action [Ctrl+Y] */}
+        <button
+          onClick={redo}
+          disabled={!canRedo}
+          className={`p-1.5 rounded-md border text-xs transition-all ${
+            canRedo
+              ? 'bg-[#192025] hover:bg-[#222a30] border-[#2b353b] text-[#aba393] hover:text-[#ede8dc]'
+              : 'bg-[#121619] border-[#1d2327] text-[#4d575f] cursor-not-allowed opacity-40'
+          }`}
+          title="Redo Construction / Zoning [Ctrl + Y]"
+        >
+          <Redo2 size={13} />
+        </button>
+
         {/* CS2 Zoning Tool Button */}
         <button
           onClick={() => {

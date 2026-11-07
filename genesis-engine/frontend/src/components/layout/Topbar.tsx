@@ -16,6 +16,10 @@ import {
   Target,
   Sparkles,
   Gift,
+  Landmark,
+  TrendingUp,
+  HelpCircle,
+  Keyboard,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { useAuth } from '../../context/AuthContext';
@@ -41,6 +45,10 @@ export default function Topbar({
     activeProtest,
     setIsProtestModalOpen,
     setIsDemoModalOpen,
+    setIsBudgetOpen,
+    setIsStatisticsOpen,
+    setIsTutorialOpen,
+    setIsShortcutsOpen,
   } = useGameState();
   const { user, isAdmin, setIsAuthModalOpen } = useAuth();
   const unreadCount = events.filter((e) => !e.isRead).length;
@@ -91,10 +99,16 @@ export default function Topbar({
           return (
             <div
               key={res.label}
-              title={`${res.label}: ${res.val} (${res.rate}/cycle)`}
+              onClick={() => {
+                if (res.isTreasury) {
+                  soundFx.playClick();
+                  setIsBudgetOpen(true);
+                }
+              }}
+              title={res.isTreasury ? 'Treasury & Municipal Budget (Click to Manage)' : `${res.label}: ${res.val} (${res.rate}/cycle)`}
               className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs transition-colors ${
                 res.isTreasury
-                  ? 'bg-[#221f15] border border-[#5e4e24] text-[#dfb74a]'
+                  ? 'bg-[#221f15] border border-[#5e4e24] text-[#dfb74a] cursor-pointer hover:bg-[#332b18]'
                   : 'hover:bg-[#1a2024] text-[#ede8dc]'
               }`}
             >
@@ -187,6 +201,54 @@ export default function Topbar({
         >
           <Sparkles size={12} className="text-[#dfb74a] animate-pulse" />
           <span className="hidden sm:inline">Showcase Suite</span>
+        </button>
+
+        {/* CS2 Municipal Budget Action */}
+        <button
+          onClick={() => {
+            soundFx.playClick();
+            setIsBudgetOpen(true);
+          }}
+          className="p-1.5 rounded-md bg-[#192025] hover:bg-[#222a30] border border-[#2b353b] text-[#dfb74a] hover:text-white transition-colors"
+          title="Cities: Skylines II Municipal Budget & Fiscal Balances"
+        >
+          <Landmark size={14} />
+        </button>
+
+        {/* CS2 Statistics & Time Series Action */}
+        <button
+          onClick={() => {
+            soundFx.playClick();
+            setIsStatisticsOpen(true);
+          }}
+          className="p-1.5 rounded-md bg-[#192025] hover:bg-[#222a30] border border-[#2b353b] text-[#2ecc71] hover:text-white transition-colors"
+          title="City Statistics & Longitudinal Trends"
+        >
+          <TrendingUp size={14} />
+        </button>
+
+        {/* Keyboard Shortcuts Overlay [?] */}
+        <button
+          onClick={() => {
+            soundFx.playClick();
+            setIsShortcutsOpen(true);
+          }}
+          className="p-1.5 rounded-md bg-[#192025] hover:bg-[#222a30] border border-[#2b353b] text-[#aba393] hover:text-white transition-colors"
+          title="Keyboard Shortcuts Cheatsheet [?]"
+        >
+          <Keyboard size={14} />
+        </button>
+
+        {/* Interactive Tutorial Walkthrough */}
+        <button
+          onClick={() => {
+            soundFx.playClick();
+            setIsTutorialOpen(true);
+          }}
+          className="p-1.5 rounded-md bg-[#192025] hover:bg-[#222a30] border border-[#2b353b] text-[#3498db] hover:text-white transition-colors"
+          title="Simulation Tutorial & Onboarding Guide"
+        >
+          <HelpCircle size={14} />
         </button>
 
         {/* Codex Action */}

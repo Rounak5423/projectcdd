@@ -204,6 +204,22 @@ interface GameStateContextType {
   utilityStats: UtilityStats;
   inspectedCitizen: Citizen | null;
   setInspectedCitizen: (citizen: Citizen | null) => void;
+
+  // Undo & Redo History
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
+
+  // CS2 Modals & Overlays
+  isTutorialOpen: boolean;
+  setIsTutorialOpen: (open: boolean) => void;
+  isShortcutsOpen: boolean;
+  setIsShortcutsOpen: (open: boolean) => void;
+  isBudgetOpen: boolean;
+  setIsBudgetOpen: (open: boolean) => void;
+  isStatisticsOpen: boolean;
+  setIsStatisticsOpen: (open: boolean) => void;
 }
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -329,6 +345,26 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [isBulldozerActive, setIsBulldozerActive] = useState<boolean>(false);
   const [inspectedCitizen, setInspectedCitizen] = useState<Citizen | null>(null);
 
+  // Undo & Redo History Stacks
+  const [historyStack, setHistoryStack] = useState<Array<{
+    placedBuildings: PlacedBuilding[];
+    zonedTiles: ZonedTile[];
+    resources: ResourceState;
+  }>>([]);
+  const [redoStack, setRedoStack] = useState<Array<{
+    placedBuildings: PlacedBuilding[];
+    zonedTiles: ZonedTile[];
+    resources: ResourceState;
+  }>>([]);
+
+  // CS2 Modals & Overlays State
+  const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(() => {
+    return !localStorage.getItem('genesis_tutorial_seen');
+  });
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
+  const [isBudgetOpen, setIsBudgetOpen] = useState<boolean>(false);
+  const [isStatisticsOpen, setIsStatisticsOpen] = useState<boolean>(false);
+
   // Dynamic RCI Demand & Utility calculation state
   const [rciDemand, setRciDemand] = useState<RciDemand>(() =>
     calculateRciDemand(initialResources.population, initialPlacedBuildings, 18, 95)
@@ -347,7 +383,66 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const pushSnapshot = useCallback(() => {
+    setHistoryStack((prev) => [
+      ...prev.slice(-29),
+      {
+        placedBuildings,
+        zonedTiles,
+        resources,
+      },
+    ]);
+    setRedoStack([]);
+  }, [placedBuildings, zonedTiles, resources]);
+
+  const undo = useCallback(() => {
+    if (historyStack.length === 0) return;
+    const previous = historyStack[historyStack.length - 1];
+    setHistoryStack((prev) => prev.slice(0, prev.length - 1));
+    setRedoStack((prev) => [
+      ...prev,
+      {
+        placedBuildings,
+        zonedTiles,
+        resources,
+      },
+    ]);
+    setPlacedBuildings(previous.placedBuildings);
+    setZonedTiles(previous.zonedTiles);
+    setResources(previous.resources);
+    soundFx.playClick();
+    triggerToast({
+      type: 'info',
+      title: '↩️ ACTION UNDONE',
+      subtitle: 'Restored previous building and zoning layout.',
+    });
+  }, [historyStack, placedBuildings, zonedTiles, resources, triggerToast]);
+
+  const redo = useCallback(() => {
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setRedoStack((prev) => prev.slice(0, prev.length - 1));
+    setHistoryStack((prev) => [
+      ...prev,
+      {
+        placedBuildings,
+        zonedTiles,
+        resources,
+      },
+    ]);
+    setPlacedBuildings(next.placedBuildings);
+    setZonedTiles(next.zonedTiles);
+    setResources(next.resources);
+    soundFx.playClick();
+    triggerToast({
+      type: 'info',
+      title: '↪️ ACTION REDONE',
+      subtitle: 'Re-applied building and zoning action.',
+    });
+  }, [redoStack, placedBuildings, zonedTiles, resources, triggerToast]);
+
   const paintZoneTile = useCallback((x: number, z: number, zoneType: ZoneType) => {
+    pushSnapshot();
     const tileId = `tile-${Math.round(x)}-${Math.round(z)}`;
     setZonedTiles((prev) => {
       const existing = prev.find((t) => t.id === tileId);
@@ -509,10 +604,19 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setRciDemand(calculateRciDemand(resources.population, placedBuildings, taxRate, resources.health));
     setUtilityStats(calculateUtilityStats(placedBuildings, resources.population));
 
-    // 6. Real-time Citizen Chirper Network
-    if (Math.random() < 0.25) {
+    // 6. Real-time Citizen Chirper Network tied to real simulation events
+    if (Math.random() < 0.28) {
       const dName = districts[Math.floor(Math.random() * districts.length)].name;
-      const newChirp = generateRandomChirp(dName);
+      const simStatus = {
+        powerDeficit: utilityStats.powerConsumptionMW > utilityStats.powerCapacityMW,
+        waterDeficit: utilityStats.waterConsumptionM3 > utilityStats.waterCapacityM3,
+        highTaxes: taxRate > 20,
+        highPollution: utilityStats.pollutionIndex > 40 || resources.environmentalIndex < 40,
+        highHappiness: resources.happiness > 85,
+        techBreakthrough: Math.random() < 0.15,
+        materialsShortage: resources.materials < 500,
+      };
+      const newChirp = generateRandomChirp(dName, simStatus);
       setChirperFeed((prev) => [newChirp, ...prev.slice(0, 24)]);
     }
   }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts]);
@@ -581,6 +685,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setEvents((prev) => [errEvent, ...prev]);
       return false;
     }
+
+    // Save state snapshot for Undo/Redo
+    pushSnapshot();
 
     // Deduct materials
     setResources((prev) => ({
@@ -694,6 +801,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const demolishBuilding = (buildingId: string) => {
     const building = placedBuildings.find((b) => b.id === buildingId);
     if (!building) return;
+
+    // Save state snapshot for Undo/Redo
+    pushSnapshot();
 
     setPlacedBuildings((prev) => prev.filter((b) => b.id !== buildingId));
     setSelectedBuildingId(null);
@@ -1046,6 +1156,20 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         utilityStats,
         inspectedCitizen,
         setInspectedCitizen,
+        // Undo & Redo History
+        canUndo: historyStack.length > 0,
+        canRedo: redoStack.length > 0,
+        undo,
+        redo,
+        // CS2 Modals & Overlays
+        isTutorialOpen,
+        setIsTutorialOpen,
+        isShortcutsOpen,
+        setIsShortcutsOpen,
+        isBudgetOpen,
+        setIsBudgetOpen,
+        isStatisticsOpen,
+        setIsStatisticsOpen,
       }}
     >
       {children}
