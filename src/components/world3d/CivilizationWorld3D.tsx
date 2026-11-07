@@ -9,6 +9,7 @@ import RoadNetwork from './RoadNetwork';
 import VehiclesSystem from './VehiclesSystem';
 import DistrictOverlays from './DistrictOverlays';
 import BuildingObject from './BuildingObject';
+import CS2ZoningAndInfoView3D from './CS2ZoningAndInfoView3D';
 import PlacementSystem from './PlacementSystem';
 import CameraManager from './CameraManager';
 import WorldHUD from './WorldHUD';
@@ -90,6 +91,9 @@ export default function CivilizationWorld3D() {
               activeLayer={activeLayer}
             />
           ))}
+
+          {/* Cities: Skylines 2 - 3D Zoning Lots, Infoview Overlays & Bulldozer Targeter */}
+          <CS2ZoningAndInfoView3D />
 
           {/* Centralized 3D World Label & Selection Manager */}
           <WorldLabelManager />

@@ -21,6 +21,11 @@ import CivilizationWorld3D from '../components/world3d/CivilizationWorld3D';
 import BuildingInspectorPanel from '../components/world3d/BuildingInspectorPanel';
 import CivRegionsDrawer from '../components/game/CivRegionsDrawer';
 import AnnoCitizenCard from '../components/game/AnnoCitizenCard';
+import CS2InfoViewsPanel from '../components/cs2/CS2InfoViewsPanel';
+import CS2ZoningToolDock from '../components/cs2/CS2ZoningToolDock';
+import CS2BulldozerTool from '../components/cs2/CS2BulldozerTool';
+import CS2CitizenLifepathModal from '../components/cs2/CS2CitizenLifepathModal';
+import CS2MilestonesModal from '../components/cs2/CS2MilestonesModal';
 import { useGameState, MapLayer } from '../context/GameStateContext';
 import { Citizen } from '../types/game';
 import { soundFx } from '../services/soundFx';
@@ -67,11 +72,18 @@ export default function WorldExplorerPage({
     cancelRelocation,
     resources,
     placedBuildings,
+    activeZoneTool,
+    setActiveZoneTool,
+    isBulldozerActive,
+    setIsBulldozerActive,
+    isMilestonesModalOpen,
+    setIsMilestonesModalOpen,
+    inspectedCitizen,
+    setInspectedCitizen,
   } = useGameState();
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [inspectedCitizen, setInspectedCitizen] = useState<Citizen | null>(null);
   const [showLayerMenu, setShowLayerMenu] = useState(false);
 
   const handleSelectDistrict = (districtId: string) => {
@@ -149,6 +161,27 @@ export default function WorldExplorerPage({
 
         {/* TOP-RIGHT CIV REGIONS DRAWER */}
         <CivRegionsDrawer onSelectDistrict={handleSelectDistrict} />
+
+        {/* CITIES: SKYLINES II - FLOATING INFO VIEWS HEATMAP CONTROLS */}
+        <CS2InfoViewsPanel />
+
+        {/* CITIES: SKYLINES II - ACTIVE BULLDOZER DEMOLITION BANNER */}
+        <CS2BulldozerTool />
+
+        {/* CITIES: SKYLINES II - DEEP CITIZEN LIFEPATH INSPECTOR MODAL */}
+        <CS2CitizenLifepathModal
+          citizen={inspectedCitizen}
+          onClose={() => setInspectedCitizen(null)}
+        />
+
+        {/* CITIES: SKYLINES II - CITY MILESTONES & PROGRESSION ROAD */}
+        <CS2MilestonesModal
+          isOpen={isMilestonesModalOpen}
+          onClose={() => setIsMilestonesModalOpen(false)}
+        />
+
+        {/* CITIES: SKYLINES II - DYNAMIC ZONING TOOL DOCK */}
+        <CS2ZoningToolDock />
 
         {/* ANNO CITIZEN INSPECTOR CARD (Floats Contextually) */}
         {inspectedCitizen && (

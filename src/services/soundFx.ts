@@ -273,6 +273,11 @@ class SoundFX {
     } catch (e) {}
   }
 
+  // Demolition & Rubble Sound (Bulldozer)
+  public playExplosion() {
+    this.playFireworksExplosion();
+  }
+
   // Celebratory 3D Fireworks Detonation
   public playFireworksExplosion() {
     if (this.isMuted) return;

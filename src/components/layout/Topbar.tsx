@@ -16,17 +16,24 @@ import {
   Target,
   Sparkles,
   Gift,
+  LogOut,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
 import { CivoraIcon } from '../brand/CivoraLogo';
+import { AuthUser } from '../../services/authApi';
+import CS2ChirperWidget from '../cs2/CS2ChirperWidget';
 
 export default function Topbar({
   isRightPanelOpen,
   onToggleRightPanel,
+  user,
+  onLogout,
 }: {
   isRightPanelOpen: boolean;
   onToggleRightPanel: () => void;
+  user?: AuthUser | null;
+  onLogout?: () => void;
 }) {
   const {
     resources,
@@ -155,6 +162,9 @@ export default function Topbar({
           <span className="hidden sm:inline">Showcase Suite</span>
         </button>
 
+        {/* Live Citizen Chirper Social Feed */}
+        <CS2ChirperWidget />
+
         {/* Codex Action */}
         <button
           onClick={() => setActiveDrawer('codex')}
@@ -192,6 +202,23 @@ export default function Topbar({
           <span className="hidden sm:inline text-[11px]">Vitals</span>
           {isRightPanelOpen ? <PanelRightClose size={12} /> : <PanelRightOpen size={12} />}
         </button>
+
+        {/* User badge + Logout */}
+        {user && (
+          <div className="flex items-center gap-1.5 pl-1 border-l border-[#2b353b] ml-1">
+            <div className="hidden lg:flex flex-col items-end">
+              <span className="text-[10px] font-bold text-[#c5a66a] leading-none">{user.username}</span>
+              <span className="text-[9px] text-[#5a6456] font-mono uppercase">{user.role}</span>
+            </div>
+            <button
+              onClick={() => { soundFx.playClick(); onLogout?.(); }}
+              title="Sign Out"
+              className="p-1.5 rounded-md bg-[#192025] hover:bg-[#2b1c1a] border border-[#2b353b] hover:border-[#6b352e] text-[#aba393] hover:text-[#f87171] transition-all cursor-pointer"
+            >
+              <LogOut size={13} />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

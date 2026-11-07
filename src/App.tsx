@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import BottomControls from './components/layout/BottomControls';
@@ -25,14 +26,24 @@ import AchievementsPage from './pages/AchievementsPage';
 import GenesisPortalPage from './pages/GenesisPortalPage';
 import WorldCreationStudioPage from './pages/WorldCreationStudioPage';
 import SettingsPage from './pages/SettingsPage';
+import AdminConsolePage from './pages/AdminConsolePage';
 import CivoraLanding from './pages/CivoraLanding';
+import CivoraAuthPage from './pages/CivoraAuthPage';
 import { soundFx } from './services/soundFx';
 
+// ============================================================
+// App flow state type
+// ============================================================
+type AppStage = 'landing' | 'auth' | 'app';
+
 function GameApp() {
-  // Default to the cinematic CIVORA Landing Page immediately on launch
-  const [activePage, setActivePage] = useState<string>('Landing');
+  const [activePage, setActivePage] = useState<string>('World Explorer');
   const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(false);
   const { togglePlay, setSpeed, selectedBuilding, setConstructionMode } = useGameState();
+  const { isAuthenticated, isLoading, logout, user } = useAuth();
+
+  // App-level navigation stage: landing → auth → app
+  const [stage, setStage] = useState<AppStage>('landing');
 
   // Auto-open tactical inspector when a building is selected in 3D world
   useEffect(() => {
@@ -41,25 +52,32 @@ function GameApp() {
     }
   }, [selectedBuilding]);
 
+  // If the user is already authenticated on mount, skip landing & auth
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      setStage('app');
+    }
+  }, [isLoading, isAuthenticated]);
+
   // Handle Infrastructure & Portal navigation
   const handleNavigate = (page: string) => {
     soundFx.playClick();
     if (page === 'Infrastructure') {
       setActivePage('World Explorer');
       setConstructionMode(true);
-    } else if (page === 'CIVORA Landing' || page === 'Genesis Portal') {
-      setActivePage('Landing');
+    } else if (page === 'CIVORA Landing') {
+      setStage('landing');
+    } else if (page === 'Genesis Portal') {
+      setActivePage('Genesis Portal');
     } else {
       setActivePage(page);
     }
   };
 
-  // Keyboard Hotkeys: Space (Play/Pause), 1-4 (Speed), ESC (Return to 3D World)
+  // Keyboard Hotkeys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
-        return;
-      }
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) return;
       if (e.code === 'Escape') {
         e.preventDefault();
         soundFx.playClick();
@@ -82,12 +100,10 @@ function GameApp() {
         setSpeed('10x');
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [togglePlay, setSpeed, activePage, setConstructionMode]);
 
-  // Render modal overlays when not in pure World Explorer
   const renderOverlay = () => {
     const handleClose = () => {
       soundFx.playClick();
@@ -127,16 +143,47 @@ function GameApp() {
         return <WorldCreationStudioPage onNavigate={handleNavigate} />;
       case 'Settings':
         return <SettingsPage />;
+      case 'Admin Console':
+        return <AdminConsolePage />;
       default:
         return null;
     }
   };
 
-  // Full-viewport Master Landing Page for CIVORA
-  if (activePage === 'Landing') {
-    return <CivoraLanding onNavigate={handleNavigate} />;
+  // ── STAGE 1: LANDING PAGE ──────────────────────────────────
+  if (stage === 'landing') {
+    return (
+      <CivoraLanding
+        onNavigate={(page) => {
+          if (
+            page === 'World Explorer' ||
+            page === 'World Creation Studio' ||
+            page === 'Research Observatory' ||
+            page === 'Achievements'
+          ) {
+            // Require auth before entering the app
+            setStage('auth');
+            // Store the intended destination to navigate after auth
+            setActivePage(page);
+          } else {
+            handleNavigate(page);
+          }
+        }}
+      />
+    );
   }
 
+  // ── STAGE 2: AUTH PAGE ─────────────────────────────────────
+  if (stage === 'auth') {
+    return (
+      <CivoraAuthPage
+        onAuthenticated={() => setStage('app')}
+        onBackToLanding={() => setStage('landing')}
+      />
+    );
+  }
+
+  // ── STAGE 3: MAIN APPLICATION ──────────────────────────────
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-[#151916] text-[#e8e9e3] font-sans">
       {/* Global Compact Strategy Sidebar */}
@@ -144,10 +191,15 @@ function GameApp() {
 
       {/* Main Game Stage */}
       <main className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
-        {/* Top Resource HUD */}
+        {/* Top Resource HUD — includes user badge + logout */}
         <Topbar
           isRightPanelOpen={isRightPanelOpen}
           onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
+          user={user}
+          onLogout={() => {
+            logout();
+            setStage('auth');
+          }}
         />
 
         {/* 3D World Stage + Tactile Game Overlays */}
@@ -191,8 +243,10 @@ function GameApp() {
 
 export default function App() {
   return (
-    <GameStateProvider>
-      <GameApp />
-    </GameStateProvider>
+    <AuthProvider>
+      <GameStateProvider>
+        <GameApp />
+      </GameStateProvider>
+    </AuthProvider>
   );
 }

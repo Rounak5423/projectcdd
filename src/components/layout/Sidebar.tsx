@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Globe2,
   LayoutDashboard,
@@ -17,8 +17,10 @@ import {
   Crown,
   ChevronLeft,
   ChevronRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
+import { useAuth } from '../../context/AuthContext';
 import { CivoraIcon } from '../brand/CivoraLogo';
 
 type SidebarProps = {
@@ -59,7 +61,19 @@ const navigation = [
 
 export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
   const { civilization } = useGameState();
+  const { isAdmin } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const sections = useMemo(() => {
+    if (!isAdmin) return navigation;
+    return [
+      ...navigation,
+      {
+        title: 'ADMINISTRATION',
+        items: [{ name: 'Admin Console', icon: ShieldCheck, badge: 'RBAC' }],
+      },
+    ];
+  }, [isAdmin]);
 
   return (
     <aside
@@ -103,7 +117,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
 
       {/* Nav List */}
       <div className="px-2 py-3 flex-1 overflow-y-auto custom-scrollbar space-y-3.5">
-        {navigation.map((section) => (
+        {sections.map((section) => (
           <div key={section.title}>
             {!isCollapsed && (
               <p className="text-[9px] font-mono font-bold tracking-wider text-[#6c767e] uppercase px-2 mb-1 truncate">
