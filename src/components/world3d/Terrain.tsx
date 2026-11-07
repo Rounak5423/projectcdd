@@ -259,16 +259,100 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
         />
       </mesh>
 
-      {/* Citadel Grand Dais Civic Terrace (South of river, centered at [0, 13]) */}
-      <group position={[0, 0.82, 13]}>
-        <mesh position={[0, -0.05, 0]} receiveShadow>
-          <cylinderGeometry args={[11.8, 12.5, 0.2, 36]} />
-          <meshStandardMaterial color="#354038" roughness={0.7} />
+      {/* Elysium Grand Civic Forum & Ceremonial Plaza (Centered in front of Senate Citadel at [0, 11]) */}
+      <group position={[0, 0.82, 11]}>
+        {/* Tiered Paved Flagstone Forum Terrace */}
+        <mesh position={[0, -0.06, 0]} receiveShadow>
+          <boxGeometry args={[14.8, 0.28, 13.6]} />
+          <meshStandardMaterial color="#424c44" roughness={0.75} />
         </mesh>
         <mesh position={[0, 0.08, 0]} receiveShadow>
-          <cylinderGeometry args={[11.2, 11.6, 0.08, 36]} />
-          <meshStandardMaterial color="#4f5e52" roughness={0.6} />
+          <boxGeometry args={[14.2, 0.10, 13.0]} />
+          <meshStandardMaterial color="#556358" roughness={0.65} />
         </mesh>
+        {/* Central Inlaid Porphyry & Granite Plaza Medallion */}
+        <mesh position={[0, 0.14, -3.2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+          <ringGeometry args={[0.0, 3.4, 32]} />
+          <meshStandardMaterial color="#6a7a6e" roughness={0.5} />
+        </mesh>
+
+        {/* Central Cascading Monumental Civic Fountain */}
+        <group position={[0, 0.15, -3.2]}>
+          {/* Octagonal Stone Outer Basin Coping */}
+          <mesh position={[0, 0.18, 0]} castShadow receiveShadow>
+            <cylinderGeometry args={[2.2, 2.4, 0.36, 8]} />
+            <meshStandardMaterial color="#48544b" roughness={0.6} />
+          </mesh>
+          {/* Shimmering Clear Turquoise Basin Water */}
+          <mesh position={[0, 0.32, 0]}>
+            <cylinderGeometry args={[1.95, 1.95, 0.08, 16]} />
+            <meshStandardMaterial color="#388e9c" roughness={0.1} metalness={0.8} />
+          </mesh>
+          {/* Tiered Central Fountain Pedestal & Upper Water Bowl */}
+          <mesh position={[0, 0.55, 0]} castShadow>
+            <cylinderGeometry args={[0.4, 0.55, 0.5, 8]} />
+            <meshStandardMaterial color="#657569" roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0.85, 0]} castShadow>
+            <cylinderGeometry args={[0.85, 0.25, 0.25, 8]} />
+            <meshStandardMaterial color="#657569" roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0.95, 0]}>
+            <cylinderGeometry args={[0.75, 0.75, 0.05, 12]} />
+            <meshStandardMaterial color="#48a0b0" roughness={0.1} metalness={0.9} />
+          </mesh>
+        </group>
+
+        {/* Classical Stone Perimeter Balustrades & Urns along East and West Flanks */}
+        {[-6.6, 6.6].map((bx, i) => (
+          <group key={`balustrade-${i}`} position={[bx, 0.3, 0]}>
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[0.35, 0.45, 12.0]} />
+              <meshStandardMaterial color="#505e53" roughness={0.7} />
+            </mesh>
+            {/* Decorative Stone Finial Urns along Balustrade */}
+            {[-4.8, -2.4, 0, 2.4, 4.8].map((uz, k) => (
+              <mesh key={`urn-${k}`} position={[0, 0.32, uz]} castShadow>
+                <cylinderGeometry args={[0.18, 0.12, 0.28, 8]} />
+                <meshStandardMaterial color="#657569" />
+              </mesh>
+            ))}
+          </group>
+        ))}
+
+        {/* Polished Stone Seating Benches for Citizens */}
+        {[-3.6, 3.6].map((benchX, i) =>
+          [-1.2, 1.4].map((benchZ, j) => (
+            <group key={`bench-${i}-${j}`} position={[benchX, 0.26, benchZ]}>
+              <mesh castShadow receiveShadow>
+                <boxGeometry args={[1.4, 0.22, 0.42]} />
+                <meshStandardMaterial color="#6d7d71" roughness={0.5} />
+              </mesh>
+              <mesh position={[0, -0.1, 0]}>
+                <boxGeometry args={[1.2, 0.15, 0.3]} />
+                <meshStandardMaterial color="#424c44" />
+              </mesh>
+            </group>
+          ))
+        )}
+
+        {/* Manicured Civic Topiary Greenery (Conical Cypress & Round Boxwood) */}
+        {[-5.2, 5.2].map((tx, i) =>
+          [-4.5, -1.8, 1.8, 4.5].map((tz, j) => (
+            <group key={`topiary-${i}-${j}`} position={[tx, 0.15, tz]}>
+              {/* Stone Planter Urn */}
+              <mesh position={[0, 0.18, 0]} castShadow receiveShadow>
+                <cylinderGeometry args={[0.42, 0.32, 0.36, 8]} />
+                <meshStandardMaterial color="#49574c" roughness={0.7} />
+              </mesh>
+              {/* Pruned Evergreen Topiary */}
+              <mesh position={[0, 0.65, 0]} castShadow>
+                <coneGeometry args={[0.38, 0.9, 8]} />
+                <meshStandardMaterial color="#2c5e32" roughness={0.8} />
+              </mesh>
+            </group>
+          ))
+        )}
       </group>
 
       {/* Majestic Northern Alpine Horizon Backdrop Peaks (Distant background mountains ONLY, Z < -48) */}

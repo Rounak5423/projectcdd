@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useIsNight } from '../DayNightController';
 
 interface LODProxyProps {
+  catalogId?: string;
   category: string;
   modelType: string;
   level: number;
@@ -53,6 +54,7 @@ function FoundationPlinth({ width = 3.6, depth = 3.2 }: { width?: number; depth?
 }
 
 export const BuildingLODProxy = React.memo(function BuildingLODProxy({
+  catalogId = '',
   category,
   modelType,
   level,
@@ -61,11 +63,12 @@ export const BuildingLODProxy = React.memo(function BuildingLODProxy({
   const isNight = useIsNight();
   const glassMat = isNight ? glassNightMat : glassDayMat;
   const heightBoost = (level - 1) * 0.4;
+  const cid = catalogId.toLowerCase();
 
   // 1. RESIDENTIAL CATEGORY
   if (category === 'residential') {
     // A. Single-Family House / Villa (Pitched Roof, Porch, Chimney)
-    if (modelType === 'house' || modelType === 'modular') {
+    if (cid.includes('house') || modelType === 'house') {
       const h = 2.4 + heightBoost;
       return (
         <group raycast={() => null}>
@@ -74,7 +77,7 @@ export const BuildingLODProxy = React.memo(function BuildingLODProxy({
           {/* Main House Body */}
           <mesh position={[-0.3, h * 0.42, 0]} castShadow receiveShadow>
             <boxGeometry args={[2.2, h * 0.85, 2.1]} />
-            <primitive object={isSelected ? selGlowMat : wallWhiteMat} attach="material" />
+            <primitive object={isSelected ? selGlowMat : wallStoneMat} attach="material" />
           </mesh>
 
           {/* Pitched Gable Roof with Eaves */}
@@ -108,7 +111,34 @@ export const BuildingLODProxy = React.memo(function BuildingLODProxy({
       );
     }
 
-    // B. High-Rise Arcology / Residential Spire / Apartment
+    // B. Modular Townhouse / Brownstone Habitat
+    if (cid.includes('modular') || modelType === 'modular') {
+      const h = 3.2 + heightBoost * 0.6;
+      return (
+        <group raycast={() => null}>
+          <FoundationPlinth width={3.6} depth={3.2} />
+          {/* Main Brick Facade */}
+          <mesh position={[0, h * 0.5, 0]} castShadow receiveShadow>
+            <boxGeometry args={[3.2, h, 2.6]} />
+            <primitive object={isSelected ? selGlowMat : wallBrickMat} attach="material" />
+          </mesh>
+          {/* Mansard Roof */}
+          <mesh position={[0, h + 0.45, 0]} castShadow>
+            <boxGeometry args={[3.0, 0.7, 2.4]} />
+            <primitive object={roofSlateMat} attach="material" />
+          </mesh>
+          {/* Window Bands */}
+          {[-0.8, 0.8].map((wx, i) => (
+            <mesh key={i} position={[wx, h * 0.5, 1.32]}>
+              <boxGeometry args={[0.7, h * 0.75, 0.04]} />
+              <primitive object={glassMat} attach="material" />
+            </mesh>
+          ))}
+        </group>
+      );
+    }
+
+    // C. High-Rise Arcology / Stepped Residential Spire
     const towerH = 5.2 + heightBoost * 1.2;
     return (
       <group raycast={() => null}>
@@ -117,13 +147,13 @@ export const BuildingLODProxy = React.memo(function BuildingLODProxy({
         {/* Podium Base */}
         <mesh position={[0, 0.8, 0]} castShadow receiveShadow>
           <boxGeometry args={[3.6, 1.6, 3.2]} />
-          <primitive object={isSelected ? selGlowMat : wallStoneMat} attach="material" />
+          <primitive object={isSelected ? selGlowMat : wallCharcoalMat} attach="material" />
         </mesh>
 
         {/* Central Tower Shaft */}
         <mesh position={[0, towerH * 0.5 + 0.5, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.8, towerH, 2.6]} />
-          <primitive object={isSelected ? selGlowMat : wallWhiteMat} attach="material" />
+          <primitive object={isSelected ? selGlowMat : wallStoneMat} attach="material" />
         </mesh>
 
         {/* Prominent Vertical Balcony & Window Strip Columns */}
@@ -137,7 +167,7 @@ export const BuildingLODProxy = React.memo(function BuildingLODProxy({
         {/* Penthouse Setback Crown */}
         <mesh position={[0, towerH + 0.9, 0]} castShadow>
           <boxGeometry args={[1.8, 0.8, 1.8]} />
-          <primitive object={roofSlateMat} attach="material" />
+          <primitive object={roofCopperMat} attach="material" />
         </mesh>
 
         {/* Rooftop Pergola / Antenna Mast */}
@@ -443,38 +473,52 @@ export const BuildingLODProxy = React.memo(function BuildingLODProxy({
 
   // 7. INFRASTRUCTURE & GOVERNMENT (Water Tower, Water Treatment, High Council Citadel)
   if (category === 'infrastructure' || category === 'government') {
-    if (modelType === 'citadel') {
+    if (modelType === 'citadel' || cid.includes('citadel')) {
       return (
         <group raycast={() => null}>
-          <FoundationPlinth width={4.6} depth={4.6} />
-          {/* Tiered Bastion Ground Terrace */}
-          <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
-            <cylinderGeometry args={[2.6, 3.2, 1.0, 8]} />
-            <primitive object={isSelected ? selGlowMat : wallCharcoalMat} attach="material" />
+          <FoundationPlinth width={6.8} depth={5.6} />
+          {/* Base Terrace Podium & Stairs */}
+          <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
+            <boxGeometry args={[6.8, 0.7, 5.4]} />
+            <primitive object={isSelected ? selGlowMat : wallStoneMat} attach="material" />
           </mesh>
-          {/* Executive Keep */}
-          <mesh position={[0, 1.5, 0]} castShadow receiveShadow>
-            <cylinderGeometry args={[1.9, 2.3, 1.2, 8]} />
+          <mesh position={[0, 0.15, 2.9]} receiveShadow>
+            <boxGeometry args={[3.4, 0.3, 0.8]} />
+            <primitive object={wallCharcoalMat} attach="material" />
+          </mesh>
+          {/* East and West Legislative Wings */}
+          {[-2.3, 2.3].map((wx, i) => (
+            <group key={i} position={[wx, 1.35, 0]}>
+              <mesh castShadow receiveShadow>
+                <boxGeometry args={[2.0, 1.3, 4.4]} />
+                <primitive object={wallStoneMat} attach="material" />
+              </mesh>
+              <mesh position={[0, 0.95, 0]} castShadow>
+                <boxGeometry args={[1.8, 0.6, 4.2]} />
+                <primitive object={roofSlateMat} attach="material" />
+              </mesh>
+            </group>
+          ))}
+          {/* Central Portico with Pediment */}
+          <mesh position={[0, 1.4, 1.8]} castShadow>
+            <boxGeometry args={[2.6, 1.4, 0.8]} />
+            <primitive object={wallWhiteMat} attach="material" />
+          </mesh>
+          <mesh position={[0, 2.3, 1.8]} castShadow>
+            <cylinderGeometry args={[0.02, 1.5, 0.4, 3]} />
+            <primitive object={wallWhiteMat} attach="material" />
+          </mesh>
+          {/* Rotunda Drum & Golden Dome */}
+          <mesh position={[0, 2.2, 0]} castShadow>
+            <cylinderGeometry args={[1.7, 1.7, 1.6, 16]} />
             <primitive object={wallStoneMat} attach="material" />
           </mesh>
-          {/* Colonnade Posts */}
-          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
-            const ang = (i * Math.PI * 2) / 8;
-            return (
-              <mesh key={i} position={[Math.cos(ang) * 1.7, 1.5, Math.sin(ang) * 1.7]}>
-                <cylinderGeometry args={[0.08, 0.09, 1.2, 6]} />
-                <primitive object={wallWhiteMat} attach="material" />
-              </mesh>
-            );
-          })}
-          {/* Golden Council Dome */}
-          <mesh position={[0, 2.6, 0]} castShadow>
-            <sphereGeometry args={[1.4, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <mesh position={[0, 3.5, 0]} castShadow>
+            <sphereGeometry args={[1.6, 20, 14, 0, Math.PI * 2, 0, Math.PI / 2]} />
             <primitive object={roofGoldMat} attach="material" />
           </mesh>
-          {/* Planetary Zenith Spire */}
-          <mesh position={[0, 3.8, 0]}>
-            <coneGeometry args={[0.3, 1.5, 8]} />
+          <mesh position={[0, 4.5, 0]}>
+            <coneGeometry args={[0.2, 0.8, 8]} />
             <primitive object={roofGoldMat} attach="material" />
           </mesh>
         </group>

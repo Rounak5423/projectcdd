@@ -287,99 +287,124 @@ export function ApartmentBlockModel({ isSelected, level }: ModelProps) {
   );
 }
 
-// 4. High-Rise Arcology Spire (Futuristic Vertical City)
+// 4. High-Rise Arcology Spire (Architectural Stepped Residential Tower)
 export function HighRiseArcologyModel({ isSelected, level }: ModelProps) {
   const isNight = useIsNight();
   const heightBoost = (level - 1) * 1.1;
 
   return (
     <group>
-      {/* Ground Bastion Podium */}
-      <mesh position={[0, 0.6, 0]} castShadow receiveShadow>
-        <boxGeometry args={[3.4, 1.2, 3.4]} />
-        <meshStandardMaterial color={isSelected ? '#e0be70' : '#263127'} roughness={0.6} />
+      {/* 1. Ground Architectural Stone Podium & Grand Residential Lobby */}
+      <mesh position={[0, 0.65, 0]} castShadow receiveShadow>
+        <boxGeometry args={[3.6, 1.3, 3.4]} />
+        <meshStandardMaterial color={isSelected ? '#e0be70' : '#2b332d'} roughness={0.7} />
       </mesh>
-      {/* Lower Residential Body */}
-      <mesh position={[0, 2.0 + heightBoost * 0.3, 0]} castShadow>
-        <boxGeometry args={[2.5, 2.0 + heightBoost * 0.6, 2.5]} />
-        <meshStandardMaterial color="#354437" roughness={0.4} />
+      {/* Glazed Double-Height Entrance Portico */}
+      <mesh position={[0, 0.6, 1.72]}>
+        <boxGeometry args={[1.4, 0.9, 0.08]} />
+        <meshStandardMaterial
+          color={isNight ? '#ffeaa7' : '#2c3e50'}
+          roughness={0.1}
+          metalness={0.8}
+        />
       </mesh>
-      {/* Cantilever Sky-Garden Promenade */}
-      <mesh position={[0, 3.2 + heightBoost * 0.6, 0]} castShadow>
-        <boxGeometry args={[2.9, 0.28, 2.9]} />
-        <meshStandardMaterial color="#4a6346" roughness={0.5} />
+      {/* Entrance Glass Canopy */}
+      <mesh position={[0, 1.15, 1.95]} rotation={[0.1, 0, 0]} castShadow>
+        <boxGeometry args={[1.8, 0.06, 0.8]} />
+        <meshStandardMaterial color="#3d4941" roughness={0.4} />
       </mesh>
-      {/* Upper Spire Section */}
-      <mesh position={[0, 4.6 + heightBoost * 0.9, 0]} castShadow>
-        <boxGeometry args={[1.6, 2.5 + heightBoost * 0.6, 1.6]} />
-        <meshStandardMaterial color="#4b5d4e" roughness={0.3} />
+
+      {/* 2. Lower Residential Tower Tier (Tier 1: 3 Stories) */}
+      <mesh position={[0, 2.3 + heightBoost * 0.3, 0]} castShadow receiveShadow>
+        <boxGeometry args={[2.8, 2.0 + heightBoost * 0.6, 2.8]} />
+        <meshStandardMaterial color="#414f44" roughness={0.45} />
       </mesh>
-      {/* Illuminated Window Ribbon Strips */}
-      {[-1.27, 1.27].map((wx, i) => (
-        <mesh key={`win-x-${i}`} position={[wx, 2.1 + heightBoost * 0.4, 0]}>
-          <planeGeometry args={[0.05, 2.2 + heightBoost * 0.6]} />
-          <meshBasicMaterial
-            color={isNight ? '#ffe08a' : '#cce4b0'}
-            transparent
-            opacity={isNight ? 0.95 : 0.6}
+      {/* Recessed Window Grid on Front & Back Facades */}
+      {[-0.9, 0, 0.9].map((wx, i) => (
+        <group key={`win-col-${i}`}>
+          <mesh position={[wx, 2.3 + heightBoost * 0.3, 1.42]}>
+            <boxGeometry args={[0.5, 1.6 + heightBoost * 0.5, 0.04]} />
+            <meshStandardMaterial
+              color={isNight ? '#ffeaa7' : '#1c2833'}
+              emissive={isNight ? '#ffbe44' : '#000000'}
+              emissiveIntensity={isNight ? 1.6 : 0}
+              roughness={0.2}
+            />
+          </mesh>
+          <mesh position={[wx, 2.3 + heightBoost * 0.3, -1.42]}>
+            <boxGeometry args={[0.5, 1.6 + heightBoost * 0.5, 0.04]} />
+            <meshStandardMaterial
+              color={isNight ? '#ffeaa7' : '#1c2833'}
+              emissive={isNight ? '#ffbe44' : '#000000'}
+              emissiveIntensity={isNight ? 1.6 : 0}
+              roughness={0.2}
+            />
+          </mesh>
+        </group>
+      ))}
+
+      {/* 3. Cantilevered Sky-Garden Terrace Promenade */}
+      <mesh position={[0, 3.4 + heightBoost * 0.6, 0]} castShadow>
+        <boxGeometry args={[3.2, 0.22, 3.2]} />
+        <meshStandardMaterial color="#4f634b" roughness={0.6} />
+      </mesh>
+      {/* Foliage Greenery Planters on Sky-Garden */}
+      {[-1.3, 1.3].map((px, i) => (
+        <mesh key={`planter-${i}`} position={[px, 3.65 + heightBoost * 0.6, 0]} castShadow>
+          <boxGeometry args={[0.35, 0.28, 2.6]} />
+          <meshStandardMaterial color="#2c5e32" roughness={0.8} />
+        </mesh>
+      ))}
+
+      {/* 4. Upper Penthouse Spire Tier (Tier 2: Stepped Setback) */}
+      <mesh position={[0, 4.8 + heightBoost * 0.9, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.9, 2.4 + heightBoost * 0.6, 1.9]} />
+        <meshStandardMaterial color="#556658" roughness={0.4} />
+      </mesh>
+      {/* Penthouse High-Rise Window Ribbons */}
+      {[-0.5, 0.5].map((px, i) => (
+        <mesh key={`p-win-${i}`} position={[px, 4.8 + heightBoost * 0.9, 0.97]}>
+          <boxGeometry args={[0.4, 2.0 + heightBoost * 0.5, 0.04]} />
+          <meshStandardMaterial
+            color={isNight ? '#ffeaa7' : '#1c2833'}
+            emissive={isNight ? '#ffbe44' : '#000000'}
+            emissiveIntensity={isNight ? 1.8 : 0}
+            roughness={0.2}
           />
         </mesh>
       ))}
 
-      {/* Level 2 Development: Skybridge Docking Portal */}
-      {level >= 2 && (
-        <mesh position={[0, 5.8 + heightBoost * 1.1, 0]}>
-          <cylinderGeometry args={[1.1, 1.3, 0.4, 8]} />
-          <meshStandardMaterial color="#c6a76a" metalness={0.8} />
-        </mesh>
-      )}
+      {/* 5. Crowning Architectural Copper Mansard Cap & Zenith Antenna */}
+      <mesh position={[0, 6.2 + heightBoost * 1.2, 0]} castShadow>
+        <boxGeometry args={[1.4, 0.6, 1.4]} />
+        <meshStandardMaterial color="#2d4d40" metalness={0.6} roughness={0.3} />
+      </mesh>
+      <mesh position={[0, 6.6 + heightBoost * 1.2, 0]}>
+        <coneGeometry args={[0.3, 0.8, 4]} />
+        <meshStandardMaterial color="#c6a76a" metalness={0.8} />
+      </mesh>
+      <AntennaMast position={[0, 7.0 + heightBoost * 1.2, 0]} height={1.8} />
 
-      {/* Level 3 Development: Rooftop Helipad & Quantum Zenith Spire */}
-      {level >= 3 && (
-        <group position={[0, 6.2 + heightBoost * 1.2, 0]}>
-          {/* Helipad Deck */}
-          <mesh position={[0, 0.1, 0]}>
-            <cylinderGeometry args={[1.0, 1.05, 0.12, 16]} />
-            <meshStandardMaterial color="#303831" roughness={0.8} />
-          </mesh>
-          <mesh position={[0, 0.18, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[0.9, 16]} />
-            <meshBasicMaterial color="#e0be70" />
-          </mesh>
-          <AntennaMast position={[0, 0.2, 0]} height={2.2} />
-        </group>
-      )}
-
-      {/* Level 4 Development: Quad Cantilever Sky-Gardens & Array Wings */}
+      {/* Level 4 Development: Lateral Sky-Bridges */}
       {level >= 4 && (
-        <group position={[0, 4.0 + heightBoost * 0.8, 0]}>
-          <mesh position={[-1.7, 0, 0]} castShadow>
-            <boxGeometry args={[0.8, 0.3, 1.4]} />
-            <meshStandardMaterial color="#4a6346" />
+        <group position={[0, 3.8 + heightBoost * 0.6, 0]}>
+          <mesh position={[-1.8, 0, 0]} castShadow>
+            <boxGeometry args={[0.9, 0.4, 1.2]} />
+            <meshStandardMaterial color="#3d4941" />
           </mesh>
-          <mesh position={[1.7, 0, 0]} castShadow>
-            <boxGeometry args={[0.8, 0.3, 1.4]} />
-            <meshStandardMaterial color="#4a6346" />
+          <mesh position={[1.8, 0, 0]} castShadow>
+            <boxGeometry args={[0.9, 0.4, 1.2]} />
+            <meshStandardMaterial color="#3d4941" />
           </mesh>
         </group>
       )}
 
-      {/* Level 5 Development (Apex Arcology Wonder): Floating Holographic Crown Ring & Zenith Beacon */}
+      {/* Level 5 Development: Gilded Apex Rotunda & Beacon */}
       {level >= 5 && (
-        <group position={[0, 7.6 + heightBoost * 1.3, 0]}>
-          {/* Glowing Halo Crown */}
+        <group position={[0, 7.4 + heightBoost * 1.2, 0]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[1.6, 0.08, 16, 32]} />
-            <meshStandardMaterial
-              color="#ffd700"
-              emissive="#ffd700"
-              emissiveIntensity={isNight ? 2.5 : 1.2}
-            />
-          </mesh>
-          {/* Central Vertical Energy Beacon */}
-          <mesh position={[0, 1.2, 0]}>
-            <cylinderGeometry args={[0.04, 0.04, 2.4, 8]} />
-            <meshBasicMaterial color="#00ffff" transparent opacity={0.8} />
+            <torusGeometry args={[1.2, 0.05, 16, 24]} />
+            <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={isNight ? 2.5 : 1.0} />
           </mesh>
         </group>
       )}

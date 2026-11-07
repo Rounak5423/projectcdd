@@ -8,6 +8,7 @@ import NatureEnvironment from './NatureEnvironment';
 import RoadNetwork from './RoadNetwork';
 import StreetlightsSystem from './StreetlightsSystem';
 import VehiclesSystem from './VehiclesSystem';
+import PedestriansSystem from './PedestriansSystem';
 import DistrictOverlays from './DistrictOverlays';
 import BuildingObject from './BuildingObject';
 import PlacementSystem from './PlacementSystem';
@@ -45,7 +46,7 @@ export default function CivilizationWorld3D() {
       <div className="w-full h-full relative bg-[#121714] select-none overflow-hidden">
         {/* 3D WebGL Canvas */}
         <Canvas
-          camera={{ position: [30, 26, 38], fov: 40, near: 0.5, far: 350 }}
+          camera={{ position: [32, 28, 38], fov: 38, near: 0.5, far: 350 }}
           shadows
           gl={{
             antialias: true,
@@ -80,6 +81,9 @@ export default function CivilizationWorld3D() {
 
           {/* Autonomous Transit Vehicles & Freight Pods */}
           <VehiclesSystem />
+
+          {/* Autonomous Intelligent Pedestrians System */}
+          <PedestriansSystem />
 
           {/* Tactical District Projection Rings & Labels */}
           <DistrictOverlays />

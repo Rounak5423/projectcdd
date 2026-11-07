@@ -102,109 +102,122 @@ const RiverFragmentShader = /* glsl */ `
   varying vec3 vTangent;
   varying vec3 vBitangent;
 
+  // Multi-frequency 2D rotational turbulence (eliminates all 1D parallel striping)
+  void computeOrganicFlowNormals(vec2 uv, float time, float speed, float bank, out float nX, out float nZ) {
+    // Continuous streamwise advection with lateral swirl
+    vec2 p1 = vec2(uv.x * 2.2 - time * 0.22 * speed, uv.y * 3.4 + sin(uv.x * 1.4 + time * 0.12) * 0.2);
+    vec2 p2 = vec2(uv.x * 4.6 - time * 0.36 * speed + 0.4, uv.y * 5.8 - time * 0.08);
+    vec2 p3 = vec2(uv.x * 9.2 - time * 0.58 * speed + 0.8, uv.y * 10.4 + sin(time * 0.18) * 0.15);
+
+    // Coupled 2D non-collinear wave octaves with orthogonal phase mixing
+    float w1 = sin(p1.x * 2.4 + p1.y * 1.8) * cos(p1.x * 1.6 - p1.y * 2.2);
+    float w2 = sin(p2.x * 3.8 - p2.y * 2.6) * cos(p2.x * 2.2 + p2.y * 3.4);
+    float w3 = sin(p3.x * 6.2 + p3.y * 5.1) * cos(p3.x * 4.5 - p3.y * 6.8);
+
+    // Gradients for surface normal slope
+    float g1x = cos(p1.x * 2.4 + p1.y * 1.8) * 2.4 * cos(p1.x * 1.6 - p1.y * 2.2);
+    float g1z = -sin(p1.x * 2.4 + p1.y * 1.8) * 2.2 * sin(p1.x * 1.6 - p1.y * 2.2);
+
+    float g2x = cos(p2.x * 3.8 - p2.y * 2.6) * 3.8 * cos(p2.x * 2.2 + p2.y * 3.4);
+    float g2z = sin(p2.x * 3.8 - p2.y * 2.6) * 3.4 * cos(p2.x * 2.2 + p2.y * 3.4);
+
+    float g3x = cos(p3.x * 6.2 + p3.y * 5.1) * 6.2 * cos(p3.x * 4.5 - p3.y * 6.8);
+    float g3z = -sin(p3.x * 6.2 + p3.y * 5.1) * 6.8 * sin(p3.x * 4.5 - p3.y * 6.8);
+
+    float slopeX = (g1x * 0.016 + g2x * 0.009 + g3x * 0.004) * (0.35 + 0.65 * bank);
+    float slopeZ = (g1z * 0.016 + g2z * 0.009 + g3z * 0.004) * (0.35 + 0.65 * bank);
+
+    nX = slopeX;
+    nZ = slopeZ;
+  }
+
   void main() {
     float speed = vFlowParams.x;
     float underBridge = vFlowParams.y;
     float pierProx = vFlowParams.z;
     float bank = vFlowParams.w;
 
-    // 1. Dual-Octave Directional Flow in Curvilinear Tangent Space
-    // Downstream advection along streamwise coordinate (vUv.x)
-    vec2 coord1 = vec2(vUv.x * 3.8 - uTime * 0.38 * speed, vUv.y * 3.2 + sin(vUv.x * 1.8 + uTime * 0.18) * 0.12);
-    vec2 coord2 = vec2(vUv.x * 7.5 - uTime * 0.58 * speed + 0.35, vUv.y * 5.4 - uTime * 0.12);
-    vec2 coord3 = vec2(vUv.x * 15.0 - uTime * 0.92 * speed, vUv.y * 9.2 + sin(uTime * 0.25) * 0.08);
+    // 1. Organic 2D Flow Field Perturbations
+    float slopeU, slopeV;
+    computeOrganicFlowNormals(vUv, uTime, speed, bank, slopeU, slopeV);
 
-    // Subtle gentle slope perturbations (calm flowing streamlets without violent churning)
-    float d1 = cos(coord1.x * 6.283) * 0.032;
-    float d2 = sin(coord1.y * 6.283) * 0.026;
-    float d3 = cos(coord2.x * 6.283) * 0.022;
-    float d4 = sin(coord2.y * 6.283) * 0.018;
-    float d5 = sin(coord3.x * 6.283) * 0.012;
-    float d6 = cos(coord3.y * 6.283) * 0.009;
-
-    float slopeU = d1 + d3 + d5;
-    float slopeV = d2 + d4 + d6;
-
-    // Bank damping: water is naturally calmer near shoreline
-    slopeU *= (0.4 + 0.6 * bank);
-    slopeV *= (0.4 + 0.6 * bank);
-
-    // Subtle pier wake deflection
+    // Subtle localized pier wake vortex
     if (pierProx > 0.01) {
-      float swirl = sin(vUv.x * 14.0 - uTime * 2.8) * cos(vUv.y * 18.0);
-      slopeU += swirl * 0.038 * pierProx;
-      slopeV += swirl * 0.038 * pierProx;
+      float wakeSwirl = sin(vUv.x * 16.0 - uTime * 2.6) * cos(vUv.y * 18.0 + uTime * 0.8);
+      slopeU += wakeSwirl * 0.024 * pierProx;
+      slopeV += wakeSwirl * 0.024 * pierProx;
     }
 
     vec3 normalMap = normalize(vec3(-slopeU, 1.0, -slopeV));
     vec3 N = normalize(vNormal * normalMap.y + vTangent * normalMap.x + vBitangent * normalMap.z);
 
-    // 2. View Vector & Real Freshwater Fresnel Reflectance
+    // 2. View Vector & Physical Dielectric Water Fresnel (Schlick)
     vec3 V = normalize(uCameraPosition - vWorldPosition);
     float NdotV = max(0.0, dot(N, V));
-    float F0 = 0.025; // Physical freshwater refractive index ~1.33
-    float fresnel = F0 + (1.0 - F0) * pow(clamp(1.0 - NdotV, 0.0, 1.0), 4.2);
+    float F0 = 0.022; // Refractive index n = 1.333
+    float fresnel = F0 + (1.0 - F0) * pow(clamp(1.0 - NdotV, 0.0, 1.0), 4.5);
 
-    // 3. Clear, Vibrant Natural Blue River Color Palette
-    // Day palette: Rich deep sapphire thalweg -> vibrant natural river azure -> sunlit sky-blue crystal shallows
-    vec3 cDeepThalweg = vec3(0.025, 0.130, 0.360); // Deep sapphire blue channel
-    vec3 cMidChannel  = vec3(0.055, 0.260, 0.540); // Radiant natural river azure blue
-    vec3 cShallows    = vec3(0.120, 0.420, 0.720); // Crystal clear sky-blue shallows
+    // 3. Natural Blue-Green Mountain Freshwater Color Palette
+    // Deep thalweg: rich, deep emerald-sapphire mineral core
+    vec3 cDeepThalweg = vec3(0.055, 0.175, 0.235);
+    // Mid-stream: clear, vibrant natural river azure-teal
+    vec3 cMidChannel  = vec3(0.095, 0.285, 0.355);
+    // Shallows: clear mountain stream mineral shallows revealing gravel beds
+    vec3 cShallows    = vec3(0.190, 0.445, 0.485);
 
-    // Night palette: calm moonlit dark navy river
-    vec3 cNightDeep   = vec3(0.010, 0.038, 0.120);
-    vec3 cNightMid    = vec3(0.018, 0.075, 0.190);
-    vec3 cNightShallow= vec3(0.038, 0.125, 0.280);
+    // Night palette: calm moonlit deep navy-cyan
+    vec3 cNightDeep   = vec3(0.012, 0.040, 0.075);
+    vec3 cNightMid    = vec3(0.020, 0.068, 0.115);
+    vec3 cNightShallow= vec3(0.038, 0.105, 0.165);
 
-    vec3 waterDeep = mix(cDeepThalweg, cNightDeep, uIsNight);
-    vec3 waterMid  = mix(cMidChannel, cNightMid, uIsNight);
+    vec3 waterDeep    = mix(cDeepThalweg, cNightDeep, uIsNight);
+    vec3 waterMid     = mix(cMidChannel, cNightMid, uIsNight);
     vec3 waterShallow = mix(cShallows, cNightShallow, uIsNight);
 
-    float centerDist = abs(vUv.y - 0.5) * 2.0;
-    vec3 waterColor = mix(waterDeep, waterMid, smoothstep(0.0, 0.55, centerDist));
-    waterColor = mix(waterColor, waterShallow, smoothstep(0.55, 0.98, centerDist));
+    // Organic lateral depth transition: perturbed by subtle noise so gravel bars meander naturally
+    float lateralPerturb = sin(vUv.x * 6.5) * 0.06 + cos(vUv.x * 13.0) * 0.03;
+    float centerDist = abs((vUv.y + lateralPerturb) - 0.5) * 2.0;
+    centerDist = clamp(centerDist, 0.0, 1.0);
 
-    // Under-Bridge Ambient Shadowing: water darkens naturally under bridge decks
+    vec3 waterColor = mix(waterDeep, waterMid, smoothstep(0.0, 0.6, centerDist));
+    waterColor = mix(waterColor, waterShallow, smoothstep(0.6, 0.98, centerDist));
+
+    // Under-Bridge continuous shadowing (water continues cleanly under bridge with ambient shadow)
     if (underBridge > 0.01) {
-      vec3 bridgeShade = mix(vec3(0.015, 0.055, 0.140), vec3(0.005, 0.018, 0.060), uIsNight);
-      waterColor = mix(waterColor, bridgeShade, underBridge * 0.52);
+      vec3 bridgeShade = mix(vec3(0.025, 0.085, 0.115), vec3(0.006, 0.020, 0.040), uIsNight);
+      waterColor = mix(waterColor, bridgeShade, underBridge * 0.60);
     }
 
-    // 4. Soft Environmental Sky Reflection
-    vec3 skyReflect = mix(uSkyColor * 0.90, vec3(0.58, 0.78, 0.96), 0.42);
+    // 4. Soft Environmental Sky Reflections
+    vec3 skyReflect = mix(uSkyColor * 0.85, vec3(0.50, 0.72, 0.86), 0.35);
     if (uIsNight > 0.5) {
-      skyReflect = vec3(0.05, 0.10, 0.22);
+      skyReflect = vec3(0.04, 0.08, 0.16);
     }
 
-    // 5. Soft Sunlight Sheen (No blinding plastic glare)
+    // 5. Natural Soft Sunlight Sheen (No high-frequency plastic glare or striped bands)
     vec3 L = normalize(uSunPosition - vWorldPosition);
     vec3 H = normalize(L + V);
     float NdotH = max(0.0, dot(N, H));
 
-    float glintSpec = pow(NdotH, 64.0) * (uIsNight > 0.5 ? 0.35 : 0.70) * uSunIntensity;
-    float broadSheen = pow(NdotH, 16.0) * (uIsNight > 0.5 ? 0.08 : 0.16);
-    vec3 specular = uSunColor * (glintSpec + broadSheen);
+    float specularPower = pow(NdotH, 32.0) * (uIsNight > 0.5 ? 0.25 : 0.45) * uSunIntensity;
+    vec3 specular = uSunColor * specularPower * (1.0 - underBridge * 0.92);
 
-    // Bridge decks block direct overhead sunlight
-    specular *= (1.0 - underBridge * 0.95);
-
-    // 6. Subtle Pier Micro-Wake (No excessive white foam)
+    // 6. Subtle Pier Micro-Wake (Gentle natural froth)
     float wakeFactor = 0.0;
-    if (pierProx > 0.08) {
-      float wakeNoise = sin(vUv.x * 24.0 - uTime * 3.2) * cos(vUv.y * 28.0);
-      wakeFactor = clamp((wakeNoise - 0.5) * 1.8, 0.0, 0.28) * pierProx;
+    if (pierProx > 0.12) {
+      float wakeNoise = sin(vUv.x * 20.0 - uTime * 2.8) * cos(vUv.y * 22.0);
+      wakeFactor = clamp((wakeNoise - 0.5) * 1.2, 0.0, 0.20) * pierProx;
     }
-    vec3 wakeColor = mix(vec3(0.86, 0.93, 0.99), vec3(0.35, 0.48, 0.65), uIsNight);
+    vec3 wakeColor = mix(vec3(0.78, 0.89, 0.94), vec3(0.28, 0.38, 0.48), uIsNight);
 
-    // 7. Composite Natural Water Color
-    vec3 finalColor = mix(waterColor, skyReflect, fresnel * 0.62);
+    // 7. Composite Final Water Surface Color
+    vec3 finalColor = mix(waterColor, skyReflect, fresnel * 0.55);
     finalColor += specular;
     finalColor = mix(finalColor, wakeColor, wakeFactor);
 
-    // Natural Optical Depth Opacity:
-    // Deep center has high absorption (0.92), clear shallows reveal submerged pebbles (0.76)
-    float alpha = mix(0.92, 0.76, smoothstep(0.35, 0.98, centerDist));
-    alpha = mix(alpha, 0.96, underBridge * 0.45);
+    // Optical depth opacity: deep center is rich & absorbing (0.94), shallows are crystal clear (0.78)
+    float alpha = mix(0.94, 0.78, smoothstep(0.4, 0.98, centerDist));
+    alpha = mix(alpha, 0.96, underBridge * 0.4);
 
     gl_FragColor = vec4(finalColor, alpha);
   }

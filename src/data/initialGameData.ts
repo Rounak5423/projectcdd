@@ -725,7 +725,7 @@ export const initialPlacedBuildings: PlacedBuilding[] = [
     x: 0,
     z: 13.0,
     y: 1.17,
-    rotation: 0,
+    rotation: Math.PI, // Grand entrance facing North towards the Civic Forum and Central Bridge
     districtId: 'dist-citadel',
     status: 'active',
     health: 98,

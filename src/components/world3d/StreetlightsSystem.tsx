@@ -63,16 +63,20 @@ export default React.memo(function StreetlightsSystem() {
       list.push({ x: 27.4, z, rotationY: Math.PI / 2 });
     }
 
-    // 5. Citadel Ring Boulevard (Radius ~ 8.1, encircles Citadel Dais at [0, 13])
-    for (let i = 0; i < 8; i++) {
-      const angle = (i * Math.PI * 2) / 8;
-      const r = 8.1;
-      const x = Math.cos(angle) * r;
-      const z = 13 + Math.sin(angle) * r;
-      // Facing inward towards the ring roadway
-      const rot = Math.atan2(-x, -(z - 13));
-      list.push({ x, z, rotationY: rot });
+    // 5. Elysium Grand Forum Boulevard Loop Streetlights (Outer sidewalks flanking Civic Plaza)
+    // West Avenue Sidewalk (Facing East toward avenue)
+    for (let z = 6.0; z <= 18.0; z += 4.0) {
+      list.push({ x: -11.2, z, rotationY: Math.PI / 2 });
     }
+    // East Avenue Sidewalk (Facing West toward avenue)
+    for (let z = 6.0; z <= 18.0; z += 4.0) {
+      list.push({ x: 11.2, z, rotationY: -Math.PI / 2 });
+    }
+    // North and South Forum Transverse Crossings
+    list.push({ x: -4.5, z: 3.4, rotationY: 0 });
+    list.push({ x: 4.5, z: 3.4, rotationY: 0 });
+    list.push({ x: -4.5, z: 20.6, rotationY: Math.PI });
+    list.push({ x: 4.5, z: 20.6, rotationY: Math.PI });
 
     return list;
   }, []);

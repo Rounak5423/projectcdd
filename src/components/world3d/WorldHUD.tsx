@@ -18,6 +18,7 @@ import { useDayNight, WeatherType } from './DayNightController';
 import { useGameState } from '../../context/GameStateContext';
 import { triggerCameraPreset, triggerCameraFocus, CameraPreset } from './CameraManager';
 import { usePerformanceTelemetry } from './PerformanceTelemetry';
+import { getTrafficFlowMetrics } from './VehiclesSystem';
 
 export default function WorldHUD() {
   const {
@@ -39,6 +40,14 @@ export default function WorldHUD() {
   const { districts, selectBuilding, placedBuildings } = useGameState();
   const telemetry = usePerformanceTelemetry();
   const [showTelemetry, setShowTelemetry] = useState<boolean>(true);
+  const [traffic, setTraffic] = useState(getTrafficFlowMetrics());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setTraffic(getTrafficFlowMetrics());
+    }, 1200);
+    return () => clearInterval(timer);
+  }, []);
 
   const formatHour = (hour: number) => {
     const h = Math.floor(hour);
@@ -95,6 +104,14 @@ export default function WorldHUD() {
             <div className="p-1 rounded bg-[#131914] border border-[#263528]">
               <span className="text-[#8e9c8c] block text-[9px]">BUFFERS (GEO/TEX)</span>
               <span className="font-bold text-[#dce9ca]">{telemetry.geometries} / {telemetry.textures}</span>
+            </div>
+            <div className="p-1 rounded bg-[#131914] border border-[#263528]">
+              <span className="text-[#8e9c8c] block text-[9px]">ACTIVE CITIZENS</span>
+              <span className="font-bold text-[#2ecc71]">{traffic.activePedestrians} peds · {traffic.activeVehicles} veh</span>
+            </div>
+            <div className="p-1 rounded bg-[#131914] border border-[#263528]">
+              <span className="text-[#8e9c8c] block text-[9px]">TRAFFIC FLOW</span>
+              <span className="font-bold text-[#3498db]">{traffic.trafficFlowEfficiency}% ({traffic.averageSpeedKph} km/h)</span>
             </div>
           </div>
         )}
