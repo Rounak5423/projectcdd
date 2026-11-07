@@ -142,3 +142,4 @@ export const CouncilDisagreementsView: React.FC<CouncilDisagreementsViewProps> =
 };
 
 export default CouncilDisagreementsView;
+

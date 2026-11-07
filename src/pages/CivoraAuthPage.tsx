@@ -357,16 +357,38 @@ export default function CivoraAuthPage({ onAuthenticated, onBackToLanding }: Civ
             )}
           </p>
 
-          {/* Demo credentials hint */}
+          {/* Demo credentials hint with quick-fill */}
           {mode === 'login' && (
-            <div className="mt-5 p-3 rounded-lg bg-[#1a2a1b]/60 border border-[#c5a66a]/10 text-center">
-              <p className="text-[10px] text-[#5a6456] mb-1 uppercase tracking-wider font-mono">Default Demo Credentials</p>
-              <p className="text-[11px] text-[#c5a66a]/60 font-mono">
-                admin / <span className="text-[#c5a66a]/80">AdminPassword123!</span>
+            <div className="mt-5 p-3 rounded-lg bg-[#1a2a1b]/60 border border-[#c5a66a]/15 text-center">
+              <p className="text-[10px] text-[#5a6456] mb-2 uppercase tracking-wider font-mono">
+                Click to Quick-Fill Credentials
               </p>
-              <p className="text-[11px] text-[#c5a66a]/60 font-mono">
-                player1 / <span className="text-[#c5a66a]/80">UserPassword123!</span>
-              </p>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsername('admin');
+                    setPassword('AdminPassword123!');
+                    clearError();
+                    setFieldErrors({});
+                  }}
+                  className="px-2.5 py-1 rounded bg-[#0f1710] border border-[#c5a66a]/30 hover:border-[#c5a66a]/70 text-[11px] text-[#c5a66a] font-mono cursor-pointer transition-all hover:bg-[#1a261c]"
+                >
+                  Admin / AdminPassword123!
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsername('player1');
+                    setPassword('UserPassword123!');
+                    clearError();
+                    setFieldErrors({});
+                  }}
+                  className="px-2.5 py-1 rounded bg-[#0f1710] border border-[#c5a66a]/30 hover:border-[#c5a66a]/70 text-[11px] text-[#8fa879] font-mono cursor-pointer transition-all hover:bg-[#1a261c]"
+                >
+                  Player1 / UserPassword123!
+                </button>
+              </div>
             </div>
           )}
         </div>
