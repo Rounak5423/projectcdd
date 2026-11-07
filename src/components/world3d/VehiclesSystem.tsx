@@ -103,16 +103,16 @@ function VehiclesSystem() {
     },
     {
       id: 'r5-citadel-ring',
-      // Citadel Grand Boulevard Inner Ring Promenade (Clockwise circuit)
+      // Citadel Grand Boulevard Inner Ring Promenade (Clockwise circuit around [0, 13])
       waypoints: [
-        [0, 0.75, -14.6],
-        [10.3, 0.75, -10.3],
-        [14.6, 0.75, 0],
-        [10.3, 0.75, 10.3],
-        [0, 0.75, 14.6],
-        [-10.3, 0.75, 10.3],
-        [-14.6, 0.75, 0],
-        [-10.3, 0.75, -10.3],
+        [0, 1.05, 6.3],
+        [4.74, 1.05, 8.26],
+        [6.7, 1.05, 13.0],
+        [4.74, 1.05, 17.74],
+        [0, 1.05, 19.7],
+        [-4.74, 1.05, 17.74],
+        [-6.7, 1.05, 13.0],
+        [-4.74, 1.05, 8.26],
       ],
       speed: 5.6,
       color: '#f1c40f',
@@ -120,16 +120,16 @@ function VehiclesSystem() {
     },
     {
       id: 'r6-citadel-counter',
-      // Citadel Boulevard Ring (Counter-Clockwise VIP Shuttle)
+      // Citadel Boulevard Ring (Counter-Clockwise VIP Shuttle around [0, 13])
       waypoints: [
-        [0, 0.75, 14.6],
-        [10.3, 0.75, 10.3],
-        [14.6, 0.75, 0],
-        [10.3, 0.75, -10.3],
-        [0, 0.75, -14.6],
-        [-10.3, 0.75, -10.3],
-        [-14.6, 0.75, 0],
-        [-10.3, 0.75, 10.3],
+        [0, 1.05, 19.7],
+        [4.74, 1.05, 17.74],
+        [6.7, 1.05, 13.0],
+        [4.74, 1.05, 8.26],
+        [0, 1.05, 6.3],
+        [-4.74, 1.05, 8.26],
+        [-6.7, 1.05, 13.0],
+        [-4.74, 1.05, 17.74],
       ],
       speed: 5.4,
       color: '#1abc9c',

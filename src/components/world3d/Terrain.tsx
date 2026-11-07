@@ -59,7 +59,7 @@ export function isNearLake(x: number, z: number, tolerance: number = 2.0): boole
 }
 
 export function getTerrainHeight(x: number, z: number): number {
-  // 1. Lake check
+  // 1. Highland Lake check (Northwest mountain tarn & reservoir lake at [-38, -22])
   const lakeDist = Math.hypot(x - (-38), z - (-22));
   if (lakeDist < 12.2) {
     const depthFactor = Math.cos((lakeDist / 12.2) * (Math.PI / 2));
@@ -84,22 +84,23 @@ export function getTerrainHeight(x: number, z: number): number {
       const bankProgress = Math.min(1.0, (distPerp - halfW) / 4.2);
       const bankS = bankProgress * bankProgress * (3 - 2 * bankProgress);
       // Base ground elevation surrounding this river reach
-      let baseGround = 0.4;
-      if (Math.hypot(x, z) < 16) baseGround = 0.8;
-      else if (Math.hypot(x - (-28), z - (-20)) < 16) baseGround = 1.0;
-      else if (Math.hypot(x - 32, z - (-16)) < 18) baseGround = 0.7;
-      else if (Math.hypot(x - (-24), z - 28) < 20) baseGround = 0.4;
+      let baseGround = 0.42;
+      if (Math.hypot(x, z - 13) < 13) baseGround = 0.85; // Raised Citadel Dais ground
+      else if (Math.hypot(x - (-28), z - (-20)) < 16) baseGround = 1.2;
+      else if (Math.hypot(x - 32, z - (-16)) < 18) baseGround = 0.75;
+      else if (Math.hypot(x - (-24), z - 28) < 20) baseGround = 0.42;
       return yWater + bankS * (baseGround - yWater);
     }
   }
 
-  // 3. Central Citadel Plateau
-  const distFromCenter = Math.hypot(x, z);
-  if (distFromCenter < 16) {
-    return 0.8 + (1 - distFromCenter / 16) * 0.5;
+  // 3. Central Citadel Dais & Civic Terrace (South of river, centered at [0, 13])
+  const distCitadel = Math.hypot(x, z - 13);
+  if (distCitadel < 12) {
+    const t = 1 - distCitadel / 12;
+    return 0.82 + t * 0.35; // Majestic elevated civic terrace at ~0.82m to 1.17m
   }
 
-  // 4. Science Ridge (Northwest)
+  // 4. Science Ridge (Northwest, overlooking lake)
   const distScience = Math.hypot(x - (-28), z - (-20));
   if (distScience < 16) {
     return 1.4 + (1 - distScience / 16) * 1.0;
@@ -108,61 +109,65 @@ export function getTerrainHeight(x: number, z: number): number {
   // 5. Industrial Plateau (Northeast)
   const distInd = Math.hypot(x - 32, z - (-16));
   if (distInd < 18) {
-    return 0.7;
+    return 0.75 + (1 - distInd / 18) * 0.25;
   }
 
   // 6. Agrisector Valley (Southwest)
   const distAgri = Math.hypot(x - (-24), z - 28);
   if (distAgri < 20) {
-    return 0.4 + Math.sin(x * 0.2) * 0.15;
+    return 0.42 + Math.sin(x * 0.2) * 0.12;
   }
 
   // 7. Residential Terraces (Southeast)
   const distRes = Math.hypot(x - 20, z - 26);
   if (distRes < 18) {
-    return 0.6 + Math.cos(z * 0.15) * 0.2;
+    return 0.55 + Math.cos(z * 0.15) * 0.15;
   }
 
-  // 8. Outer Mountain Ridges (Perimeter peaks)
-  const edgeDistX = Math.abs(x);
-  const edgeDistZ = Math.abs(z);
-  const maxEdge = Math.max(edgeDistX, edgeDistZ);
+  // 8. Northern Alpine Background Mountains (STRICTLY on North & NW horizon, Z < -34 or X < -40)
+  // NEVER obstructs the foreground camera (Z > 16 is completely open, unobstructed meadow!)
+  if (z < -34 || x < -40 || (x > 38 && z < -14)) {
+    let mountainStrength = 0;
+    if (z < -34) mountainStrength = Math.max(mountainStrength, (-34 - z) / 20);
+    if (x < -40) mountainStrength = Math.max(mountainStrength, (-40 - x) / 18);
+    if (x > 38 && z < -14) mountainStrength = Math.max(mountainStrength, (x - 38) / 18);
 
-  if (maxEdge > 44) {
-    const mountainFactor = (maxEdge - 44) / 18;
+    mountainStrength = Math.min(1.0, mountainStrength);
+    // Smooth natural mountain sculpting with layered ridge harmonics
     const ridgeNoise =
-      Math.sin(x * 0.25) * 2.2 +
-      Math.cos(z * 0.3) * 2.5 +
-      Math.sin((x + z) * 0.15) * 3.0;
-    return Math.max(0.5, mountainFactor * 8.5 + ridgeNoise);
+      Math.sin(x * 0.16 + 1.2) * 3.2 +
+      Math.cos(z * 0.18 + 0.8) * 3.6 +
+      Math.sin((x - z) * 0.12) * 2.8;
+
+    return 0.5 + mountainStrength * (11.5 + ridgeNoise);
   }
 
-  // Default gentle meadow roll
-  return 0.4 + Math.sin(x * 0.08) * 0.2 + Math.cos(z * 0.08) * 0.2;
+  // Default gentle, sunny meadow roll
+  return 0.42 + Math.sin(x * 0.08) * 0.14 + Math.cos(z * 0.08) * 0.14;
 }
 
 function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
   // Generate high quality procedural terrain geometry with vertex colors
-  const { geometry, wireframeGeo } = useMemo(() => {
+  const { geometry } = useMemo(() => {
     const size = 136;
-    const segments = 120; // Crisp, smooth terrain resolution
+    const segments = 128; // High resolution, silky smooth terrain mesh
     const geo = new THREE.PlaneGeometry(size, size, segments, segments);
     geo.rotateX(-Math.PI / 2);
 
     const positions = geo.attributes.position;
     const colors = new Float32Array(positions.count * 3);
 
-    // Color definitions
-    const cLushGreen = new THREE.Color(activeLayer === 'environment' ? '#3d823b' : '#477943');
+    // Natural Landscape Color Palette
+    const cLushGreen = new THREE.Color(activeLayer === 'environment' ? '#3d823b' : '#45793e');
     const cDeepGreen = new THREE.Color('#386435');
-    const cHillOlive = new THREE.Color('#58854b');
-    const cSandRiver = new THREE.Color('#827b68');
-    const cBedSilt = new THREE.Color('#28322a');
-    const cPebbleGravel = new THREE.Color('#545d4a');
-    const cCliffStone = new THREE.Color('#58625d');
-    const cMountainRock = new THREE.Color('#727d78');
-    const cSnowPeak = new THREE.Color('#dce6e0');
-    const cUrbanTint = new THREE.Color('#415744');
+    const cHillOlive = new THREE.Color('#587848');
+    const cSandRiver = new THREE.Color('#786f5c');
+    const cBedSilt = new THREE.Color('#222d25');
+    const cPebbleGravel = new THREE.Color('#4c5446');
+    const cCliffStone = new THREE.Color('#5a645f');
+    const cMountainRock = new THREE.Color('#747e79');
+    const cSnowPeak = new THREE.Color('#e0ebe5');
+    const cCitadelPaved = new THREE.Color('#4d5e4f');
 
     for (let i = 0; i < positions.count; i++) {
       const vx = positions.getX(i);
@@ -200,18 +205,18 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
         // Sandy beach / bank transition
         const t = (vy + 0.8) / 1.0;
         vertexColor = cBedSilt.clone().lerp(cSandRiver, t);
-      } else if (vy < 2.0) {
+      } else if (vy < 1.8) {
         // Valley grasslands & district foundations
-        const distCitadel = Math.hypot(vx, vz);
-        if (distCitadel < 14) {
-          vertexColor.lerpColors(cLushGreen, cUrbanTint, 0.4);
+        const distCitadel = Math.hypot(vx, vz - 13);
+        if (distCitadel < 12) {
+          vertexColor = cCitadelPaved.clone();
         } else {
           vertexColor = Math.sin(vx * 0.3 + vz * 0.3) > 0 ? cLushGreen : cDeepGreen;
         }
-      } else if (vy < 5.0) {
+      } else if (vy < 4.5) {
         // Foothills & ridges
         vertexColor = cHillOlive.clone();
-      } else if (vy < 9.0) {
+      } else if (vy < 8.5) {
         // Rocky mountain cliffs
         vertexColor = cCliffStone.clone();
       } else if (vy < 12.0) {
@@ -230,7 +235,7 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
 
-    return { geometry: geo, wireframeGeo: geo };
+    return { geometry: geo };
   }, [activeLayer]);
 
   // Clean up GPU buffer on unmount or layer changes
@@ -242,58 +247,52 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
 
   return (
     <group raycast={() => null}>
-      {/* Main Procedural Vertex-Colored Terrain Mesh */}
+      {/* Main Procedural Vertex-Colored Terrain Mesh (Smooth shaded, organic slopes) */}
       <mesh
         geometry={geometry}
         receiveShadow
       >
         <meshStandardMaterial
           vertexColors
-          roughness={0.88}
-          metalness={0.08}
-          flatShading
+          roughness={0.82}
+          metalness={0.06}
         />
       </mesh>
 
-      {/* District Terraces & Low-Poly Decorative Cliff Pillars */}
-      <group>
-        {/* Citadel Grand Dais Foundation */}
-        <mesh position={[0, 0.35, 0]} receiveShadow>
-          <cylinderGeometry args={[14.8, 15.6, 0.7, 32]} />
-          <meshStandardMaterial color="#445447" roughness={0.7} />
+      {/* Citadel Grand Dais Civic Terrace (South of river, centered at [0, 13]) */}
+      <group position={[0, 0.82, 13]}>
+        <mesh position={[0, -0.05, 0]} receiveShadow>
+          <cylinderGeometry args={[11.8, 12.5, 0.2, 36]} />
+          <meshStandardMaterial color="#354038" roughness={0.7} />
         </mesh>
-        <mesh position={[0, 0.72, 0]} receiveShadow>
-          <cylinderGeometry args={[14.2, 14.8, 0.1, 32]} />
-          <meshStandardMaterial color="#697f67" roughness={0.6} />
+        <mesh position={[0, 0.08, 0]} receiveShadow>
+          <cylinderGeometry args={[11.2, 11.6, 0.08, 36]} />
+          <meshStandardMaterial color="#4f5e52" roughness={0.6} />
         </mesh>
-
-        {/* Outer Mountain Crest Accents (Low poly geometric peaks) */}
-        {[
-          [-54, -48, 14, 11],
-          [52, -50, 15, 12],
-          [-52, 50, 13, 10],
-          [50, 52, 16, 12],
-          [-56, 0, 12, 10],
-          [55, 6, 13, 9],
-          [0, -56, 14, 11],
-          [0, 56, 12, 9],
-        ].map(([mx, mz, my, radius], idx) => (
-          <group key={idx} position={[mx, my * 0.45, mz]}>
-            <mesh castShadow receiveShadow>
-              <coneGeometry args={[radius, my, 7]} />
-              <meshStandardMaterial color="#55605b" roughness={0.9} flatShading />
-            </mesh>
-            {/* Snow cap */}
-            <mesh position={[0, my * 0.35, 0]} castShadow>
-              <coneGeometry args={[radius * 0.35, my * 0.32, 7]} />
-              <meshStandardMaterial color="#e3ede8" roughness={0.4} flatShading />
-            </mesh>
-          </group>
-        ))}
       </group>
+
+      {/* Majestic Northern Alpine Horizon Backdrop Peaks (Distant background mountains ONLY, Z < -48) */}
+      {[
+        [-52, -50, 15, 12],
+        [-26, -54, 16, 13],
+        [0, -56, 17, 14],
+        [26, -54, 16, 13],
+        [50, -50, 15, 12],
+      ].map(([mx, mz, my, radius], idx) => (
+        <group key={idx} position={[mx, my * 0.42, mz]}>
+          <mesh castShadow receiveShadow>
+            <coneGeometry args={[radius, my, 12]} />
+            <meshStandardMaterial color="#4d5752" roughness={0.85} />
+          </mesh>
+          {/* Pristine Alpine Snow Summit */}
+          <mesh position={[0, my * 0.35, 0]} castShadow>
+            <coneGeometry args={[radius * 0.38, my * 0.34, 12]} />
+            <meshStandardMaterial color="#e8f0ec" roughness={0.3} />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }
 
 export default React.memo(Terrain);
-

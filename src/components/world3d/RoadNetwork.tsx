@@ -515,15 +515,15 @@ function RoadNetwork() {
     const nsNorthMarks = createRoadMarkingsGeometry([[0, -44], [0, -10.5]], 5.4, 'double-yellow');
     const nsNorthDashes = createRoadMarkingsGeometry([[0, -44], [0, -10.5]], 5.4, 'dual-dash');
 
-    // South Bridge Approach to Dais: Z = 4.5 to Z = 11.8 (meets Citadel Ring)
-    const nsDaisApproach = createTerrainAdaptiveRoadGeometry([[0, 4.5], [0, 11.8]], 5.4, 0.08, 0.75);
-    const nsDaisApproachSW = createSidewalksGeometry([[0, 4.5], [0, 11.8]], 5.4, 0.75, 0.08, 0.75);
-    const nsDaisMarks = createRoadMarkingsGeometry([[0, 4.5], [0, 11.8]], 5.4, 'double-yellow', 0.08, 0.75);
+    // South Bridge Approach to Dais: Z = 4.5 to Z = 5.6 (meets Citadel Ring North apex at Z = 5.6)
+    const nsDaisApproach = createTerrainAdaptiveRoadGeometry([[0, 4.5], [0, 5.6]], 5.4, 0.08, 0.75);
+    const nsDaisApproachSW = createSidewalksGeometry([[0, 4.5], [0, 5.6]], 5.4, 0.75, 0.08, 0.75);
+    const nsDaisMarks = createRoadMarkingsGeometry([[0, 4.5], [0, 5.6]], 5.4, 'double-yellow', 0.08, 0.75);
 
-    // Citadel Ring to South Crossroads: Z = 17.4 to Z = 21.2
-    const nsCitadelToCross = createTerrainAdaptiveRoadGeometry([[0, 17.4], [0, 21.2]], 5.4);
-    const nsCitadelToCrossSW = createSidewalksGeometry([[0, 17.4], [0, 21.2]], 5.4);
-    const nsCitadelMarks = createRoadMarkingsGeometry([[0, 17.4], [0, 21.2]], 5.4, 'double-yellow');
+    // Citadel Ring to South Crossroads: Z = 20.4 to Z = 21.2 (from Citadel Ring South apex at Z = 20.4)
+    const nsCitadelToCross = createTerrainAdaptiveRoadGeometry([[0, 20.4], [0, 21.2]], 5.4);
+    const nsCitadelToCrossSW = createSidewalksGeometry([[0, 20.4], [0, 21.2]], 5.4);
+    const nsCitadelMarks = createRoadMarkingsGeometry([[0, 20.4], [0, 21.2]], 5.4, 'double-yellow');
 
     // South Crossroads to Oasis South Terminal: Z = 26.8 to Z = 44
     const nsSouth = createTerrainAdaptiveRoadGeometry([[0, 26.8], [0, 44]], 5.4);
@@ -531,18 +531,16 @@ function RoadNetwork() {
     const nsSouthMarks = createRoadMarkingsGeometry([[0, 26.8], [0, 44]], 5.4, 'double-yellow');
     const nsSouthDashes = createRoadMarkingsGeometry([[0, 26.8], [0, 44]], 5.4, 'dual-dash');
 
-    // 2. East-West Grand Arterial (Width 5.2m)
-    // West Arm: X = -44 to X = -14.6 (meets Citadel Ring West edge)
+    // 2. East-West Grand Arterial (Outer High-Speed Wings along Z = 0)
+    // West Arm: X = -44 to X = -27.6 (terminates cleanly at West Crossroads)
     const ewWest = createTerrainAdaptiveRoadGeometry([[-44, 0], [-27.6, 0]], 5.2);
-    const ewWestMid = createTerrainAdaptiveRoadGeometry([[-22.4, 0], [-14.6, 0]], 5.2);
-    const ewWestSW = createSidewalksGeometry([[-44, 0], [-14.6, 0]], 5.2);
-    const ewWestMarks = createRoadMarkingsGeometry([[-44, 0], [-14.6, 0]], 5.2, 'double-yellow');
+    const ewWestSW = createSidewalksGeometry([[-44, 0], [-27.6, 0]], 5.2);
+    const ewWestMarks = createRoadMarkingsGeometry([[-44, 0], [-27.6, 0]], 5.2, 'double-yellow');
 
-    // East Arm: X = 14.6 to X = 44 (meets Citadel Ring East edge)
-    const ewEastMid = createTerrainAdaptiveRoadGeometry([[14.6, 0], [22.4, 0]], 5.2);
+    // East Arm: X = 27.6 to X = 44 (begins cleanly from East Crossroads)
     const ewEast = createTerrainAdaptiveRoadGeometry([[27.6, 0], [44, 0]], 5.2);
-    const ewEastSW = createSidewalksGeometry([[14.6, 0], [44, 0]], 5.2);
-    const ewEastMarks = createRoadMarkingsGeometry([[14.6, 0], [44, 0]], 5.2, 'double-yellow');
+    const ewEastSW = createSidewalksGeometry([[27.6, 0], [44, 0]], 5.2);
+    const ewEastMarks = createRoadMarkingsGeometry([[27.6, 0], [44, 0]], 5.2, 'double-yellow');
 
     // 3. West Science Highway (Width 4.2m, along X = -25)
     // North Arm: Z = -38 to Z = -23.7 (meets West Suspension Bridge)
@@ -612,8 +610,8 @@ function RoadNetwork() {
       nsDaisApproach, nsDaisApproachSW, nsDaisMarks,
       nsCitadelToCross, nsCitadelToCrossSW, nsCitadelMarks,
       nsSouth, nsSouthSW, nsSouthMarks, nsSouthDashes,
-      ewWest, ewWestMid, ewWestSW, ewWestMarks,
-      ewEastMid, ewEast, ewEastSW, ewEastMarks,
+      ewWest, ewWestSW, ewWestMarks,
+      ewEast, ewEastSW, ewEastMarks,
       westNorth, westNorthSW, westNorthMarks,
       westMid1, westMid1SW, westMid1Marks,
       westMid2, westMid2SW, westMid2Marks,
@@ -675,7 +673,7 @@ function RoadNetwork() {
         <mesh geometry={roadGeometries.nsSouthDashes} material={whiteMarkingMat} raycast={() => null} />
       </group>
 
-      {/* East-West Grand Arterial */}
+      {/* East-West Grand Arterial (Outer High-Speed Wings) */}
       <group
         onClick={(e) => {
           e.stopPropagation();
@@ -683,11 +681,9 @@ function RoadNetwork() {
         }}
       >
         <mesh geometry={roadGeometries.ewWest} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.ewWestMid} material={asphaltMat} receiveShadow />
         <mesh geometry={roadGeometries.ewWestSW} material={sidewalkMat} receiveShadow />
         <mesh geometry={roadGeometries.ewWestMarks} material={yellowMarkingMat} raycast={() => null} />
 
-        <mesh geometry={roadGeometries.ewEastMid} material={asphaltMat} receiveShadow />
         <mesh geometry={roadGeometries.ewEast} material={asphaltMat} receiveShadow />
         <mesh geometry={roadGeometries.ewEastSW} material={sidewalkMat} receiveShadow />
         <mesh geometry={roadGeometries.ewEastMarks} material={yellowMarkingMat} raycast={() => null} />
@@ -773,23 +769,32 @@ function RoadNetwork() {
       </group>
 
       {/* ================= 3. CITADEL GRAND BOULEVARD RING ================= */}
+      {/* Encircles the elevated Citadel Civic Terrace South of river at [0, 13] */}
       <group
-        position={[0, 0.74, 0]}
+        position={[0, 1.05, 13]}
         onClick={(e) => {
           e.stopPropagation();
           handleSelectRoad(roadSegments[4]);
         }}
       >
+        {/* Asphalt Ring Roadway */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <ringGeometry args={[12.8, 16.4, 48]} />
-          <meshStandardMaterial color="#2d332f" roughness={0.88} side={THREE.DoubleSide} />
+          <ringGeometry args={[5.6, 7.8, 48]} />
+          <meshStandardMaterial color="#272d29" roughness={0.92} metalness={0.08} side={THREE.DoubleSide} />
         </mesh>
+        {/* Center Yellow Dividing Line */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} raycast={() => null}>
-          <ringGeometry args={[14.55, 14.65, 48]} />
+          <ringGeometry args={[6.65, 6.75, 48]} />
           <meshBasicMaterial color="#e5c46d" side={THREE.DoubleSide} />
         </mesh>
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.016, 0]} raycast={() => null}>
-          <ringGeometry args={[16.4, 17.1, 48]} />
+        {/* Outer Raised Sidewalk & Curb */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.016, 0]} receiveShadow raycast={() => null}>
+          <ringGeometry args={[7.8, 8.4, 48]} />
+          <meshStandardMaterial color="#667368" roughness={0.75} side={THREE.DoubleSide} />
+        </mesh>
+        {/* Inner Dais Promenade Curb */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.016, 0]} receiveShadow raycast={() => null}>
+          <ringGeometry args={[5.0, 5.6, 48]} />
           <meshStandardMaterial color="#667368" roughness={0.75} side={THREE.DoubleSide} />
         </mesh>
       </group>

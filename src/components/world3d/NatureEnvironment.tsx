@@ -1,7 +1,8 @@
 import React, { useRef, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { getTerrainHeight, isNearRiver, isNearLake } from './Terrain';
-import { MapLayer } from '../../context/GameStateContext';
+import { MapLayer, useGameState } from '../../context/GameStateContext';
+import { CITY_ROAD_CORRIDORS, JUNCTION_CLEARANCE_PLAZAS, projectPointToSegment } from './cityPlanning';
 
 interface NatureEnvironmentProps {
   activeLayer: MapLayer;
@@ -67,6 +68,8 @@ function mergeBufferGeometries(geometries: THREE.BufferGeometry[]): THREE.Buffer
 }
 
 function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
+  const { placedBuildings } = useGameState();
+
   // Instanced mesh references for paired trunk and foliage rendering
   const pineTrunkRef = useRef<THREE.InstancedMesh>(null);
   const pineFoliageRef = useRef<THREE.InstancedMesh>(null);
@@ -82,23 +85,30 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
 
   // Generate deterministic scattered trees, rocks, and flora firmly anchored to the terrain
   const { pineTransforms, decTransforms, birchTransforms, rockTransforms, bushTransforms } = useMemo(() => {
-    const isExcluded = (x: number, z: number) => {
-      // Keep clear of water bodies (river ribbons & lakes)
+    const isExcluded = (x: number, z: number, clearance: number = 2.4) => {
+      // 1. Keep clear of water bodies (river ribbons & lakes)
       if (isNearRiver(x, z, 3.8) || isNearLake(x, z, 4.2)) return true;
+      if (Math.hypot(x - (-26), z - (-34)) < 6.8) return true; // Tarn pond
 
-      // Citadel Grand Dais & Ring Boulevard (radius ~15.5m)
-      if (Math.hypot(x, z) < 16.0) return true;
+      // 2. Citadel Grand Dais & Ring Boulevard (centered at [0, 13])
+      if (Math.hypot(x, z - 13) < 11.5 || Math.hypot(x, z) < 7.5) return true;
 
-      // Primary cardinal transit corridors
-      if (Math.abs(x) < 3.8 || Math.abs(z) < 3.8) return true;
-      if (Math.abs(x - (-25)) < 3.4 || Math.abs(x - 25) < 3.4) return true;
-      if (Math.abs(z - (-25)) < 3.4 || Math.abs(z - 25) < 3.4) return true;
+      // 3. Roads and Sidewalks Corridors
+      for (const road of CITY_ROAD_CORRIDORS) {
+        const proj = projectPointToSegment(x, z, road.p1[0], road.p1[1], road.p2[0], road.p2[1]);
+        const reqClearance = road.width * 0.5 + 1.8 + clearance;
+        if (proj.dist < reqClearance) return true;
+      }
 
-      // District building core centers
-      if (Math.hypot(x - (-28), z - (-20)) < 7.5) return true; // Science
-      if (Math.hypot(x - 32, z - (-16)) < 8.5) return true;    // Industrial
-      if (Math.hypot(x - (-24), z - 28) < 8.5) return true;    // Agri
-      if (Math.hypot(x - 20, z - 26) < 8.5) return true;       // Residential
+      // 4. Junction Clearance Plazas
+      for (const [jx, jz, jRadius] of JUNCTION_CLEARANCE_PLAZAS) {
+        if (Math.hypot(x - jx, z - jz) < jRadius + 1.8 + clearance) return true;
+      }
+
+      // 5. Placed Buildings & Construction Lots
+      for (const b of placedBuildings) {
+        if (Math.hypot(x - b.x, z - b.z) < 4.6 + clearance) return true;
+      }
 
       return false;
     };
@@ -123,7 +133,7 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
       const rx = (random() - 0.5) * 116;
       const rz = (random() - 0.5) * 116;
 
-      if (isExcluded(rx, rz)) continue;
+      if (isExcluded(rx, rz, 2.0)) continue;
 
       const ry = getTerrainHeight(rx, rz);
       // Ensure trees are neither submerged in water nor on jagged snow-caps
@@ -136,8 +146,6 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
       const tiltZ = (random() - 0.5) * 0.05;
 
       // Position set strictly at terrain surface height
-      // The tree trunk models are engineered with deep root bases extending down to -0.50m
-      // so trunks are deeply anchored into the ground, completely eliminating floating trees!
       dummy.position.set(rx, ry, rz);
       dummy.rotation.set(tiltX, rotY, tiltZ);
       dummy.scale.set(scale, scale, scale);
@@ -155,10 +163,12 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
       }
     }
 
-    // 2. Generate Boulders & River Rocks
+    // 2. Generate Boulders & River Rocks (Firmly embedded into ground)
     for (let i = 0; i < 160; i++) {
       const rx = (random() - 0.5) * 118;
       const rz = (random() - 0.5) * 118;
+
+      if (isExcluded(rx, rz, 1.2)) continue;
 
       const ry = getTerrainHeight(rx, rz);
       if (ry < -0.9) continue;
@@ -172,7 +182,7 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
       const sy = 0.5 + random() * 0.9;
       const sz = 0.7 + random() * 1.3;
 
-      // Sits with base partly sunk into ground
+      // Base firmly sunk into terrain
       dummy.position.set(rx, ry, rz);
       dummy.rotation.set((random() - 0.5) * 0.3, random() * Math.PI * 2, (random() - 0.5) * 0.3);
       dummy.scale.set(sx, sy, sz);
@@ -186,7 +196,7 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
       const rx = (random() - 0.5) * 108;
       const rz = (random() - 0.5) * 108;
 
-      if (isExcluded(rx, rz)) continue;
+      if (isExcluded(rx, rz, 1.0)) continue;
       const ry = getTerrainHeight(rx, rz);
       if (ry < 0.25 || ry > 6.0) continue;
 
@@ -415,12 +425,12 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
     return { birchTrunkGeo: tGeo, birchFoliageGeo: fGeo };
   }, []);
 
-  // 4. Weathered Boulders & River Rocks
+  // 4. Weathered Boulders & River Rocks (Firmly embedded into ground)
   const rockGeometry = useMemo(() => {
     const geo = new THREE.DodecahedronGeometry(1.0, 0);
     geo.scale(1.3, 0.85, 1.1);
-    // Partially embedded into terrain
-    geo.translate(0, 0.15, 0);
+    // Lower 35% deeply embedded into terrain to prevent any floating
+    geo.translate(0, -0.30, 0);
     return geo;
   }, []);
 
@@ -428,15 +438,15 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
   const bushGeometry = useMemo(() => {
     const c1 = new THREE.SphereGeometry(0.75, 7, 6);
     c1.scale(1.1, 0.8, 1.0);
-    c1.translate(0, 0.35, 0);
+    c1.translate(0, -0.05, 0); // Base penetrates slightly into meadow soil
 
     const c2 = new THREE.SphereGeometry(0.55, 6, 5);
     c2.scale(1.0, 0.7, 0.9);
-    c2.translate(0.4, 0.25, 0.2);
+    c2.translate(0.4, 0.05, 0.2);
 
     const c3 = new THREE.SphereGeometry(0.5, 6, 5);
     c3.scale(0.9, 0.65, 1.0);
-    c3.translate(-0.35, 0.22, -0.2);
+    c3.translate(-0.35, 0.02, -0.2);
 
     const bGeo = mergeBufferGeometries([c1, c2, c3]);
     c1.dispose();

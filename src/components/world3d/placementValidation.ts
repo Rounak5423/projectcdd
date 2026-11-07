@@ -1,116 +1,12 @@
 import { getTerrainHeight, isNearRiver, isNearLake } from './Terrain';
 import { PlacedBuilding, BuildingCatalogItem, ResourceState } from '../../types/game';
-
-export interface RoadSegmentBounds {
-  p1: [number, number];
-  p2: [number, number];
-  width: number;
-}
-
-// Complete road network corridors matching RoadNetwork.tsx
-export const ROAD_CORRIDORS: RoadSegmentBounds[] = [
-  // North-South Grand Arterial North
-  { p1: [0, -44], p2: [0, -10.5], width: 5.4 },
-  // Central Arch Bridge
-  { p1: [0, -10.5], p2: [0, 4.5], width: 5.6 },
-  // South Bridge Approach to Dais
-  { p1: [0, 4.5], p2: [0, 11.8], width: 5.4 },
-  // Citadel Ring to South Crossroads
-  { p1: [0, 17.4], p2: [0, 21.2], width: 5.4 },
-  // South Crossroads to Terminal
-  { p1: [0, 26.8], p2: [0, 44], width: 5.4 },
-  // East-West Grand Arterial West
-  { p1: [-44, 0], p2: [-14.6, 0], width: 5.2 },
-  // East-West Grand Arterial East
-  { p1: [14.6, 0], p2: [44, 0], width: 5.2 },
-  // North District Loop Avenue
-  { p1: [-40, -22], p2: [40, -22], width: 3.8 },
-  // South District Loop Avenue
-  { p1: [-38, 24], p2: [38, 24], width: 3.8 },
-  // West Longitudinal Avenue
-  { p1: [-25, -38], p2: [-25, 38], width: 3.8 },
-  // East Longitudinal Avenue
-  { p1: [25, -38], p2: [25, 38], width: 3.8 },
-  // West Suspension Bridge
-  { p1: [-25, -23.7], p2: [-25, -8.7], width: 4.5 },
-  // East Truss Bridge
-  { p1: [25, 0.25], p2: [25, 15.75], width: 4.5 },
-];
-
-export const JUNCTION_PLAZAS: [number, number, number][] = [
-  [0, 24, 3.8],
-  [-25, 0, 3.8],
-  [25, 0, 3.8],
-  [-25, 24, 3.8],
-  [25, 24, 3.8],
-  [0, -22, 3.8],
-  [25, -22, 3.8],
-];
-
-// Calculate distance from point (px, pz) to line segment (ax, az)-(bx, bz)
-function distToSegment(
-  px: number,
-  pz: number,
-  ax: number,
-  az: number,
-  bx: number,
-  bz: number
-): number {
-  const dx = bx - ax;
-  const dz = bz - az;
-  const lenSq = dx * dx + dz * dz;
-
-  if (lenSq === 0) return Math.hypot(px - ax, pz - az);
-
-  let t = ((px - ax) * dx + (pz - az) * dz) / lenSq;
-  t = Math.max(0, Math.min(1, t));
-
-  const projX = ax + t * dx;
-  const projZ = az + t * dz;
-  return Math.hypot(px - projX, pz - projZ);
-}
-
-// Distance to road network
-export function getDistToRoadNetwork(x: number, z: number): {
-  minDist: number;
-  overlaps: boolean;
-  clearanceRequired: number;
-} {
-  const buildingRadius = 2.1;
-  let minDist = Infinity;
-  let overlaps = false;
-
-  // 1. Check Citadel Boulevard Ring (center 0,0, radius 14.5, width 3.8)
-  const distFromCenter = Math.hypot(x, z);
-  const ringDist = Math.abs(distFromCenter - 14.5);
-  const ringRequired = 1.9 + buildingRadius;
-  if (ringDist < ringRequired) {
-    overlaps = true;
-  }
-  minDist = Math.min(minDist, ringDist);
-
-  // 2. Check all road linear corridors
-  for (const road of ROAD_CORRIDORS) {
-    const d = distToSegment(x, z, road.p1[0], road.p1[1], road.p2[0], road.p2[1]);
-    const req = road.width * 0.5 + buildingRadius;
-    if (d < req) {
-      overlaps = true;
-    }
-    minDist = Math.min(minDist, d);
-  }
-
-  // 3. Check junction plazas
-  for (const [jx, jz, jRadius] of JUNCTION_PLAZAS) {
-    const d = Math.hypot(x - jx, z - jz);
-    const req = jRadius + buildingRadius;
-    if (d < req) {
-      overlaps = true;
-    }
-    minDist = Math.min(minDist, d);
-  }
-
-  return { minDist, overlaps, clearanceRequired: buildingRadius };
-}
+import {
+  CITY_ROAD_CORRIDORS,
+  JUNCTION_CLEARANCE_PLAZAS,
+  getDistToRoadNetwork,
+  calculateRoadsideAlignment,
+  RoadsideAlignment,
+} from './cityPlanning';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -119,6 +15,8 @@ export interface ValidationResult {
   slope: number;
   terrainElevation: number;
   isFarFromRoad: boolean;
+  zoneName?: string;
+  recommendedRotation?: number;
 }
 
 export function validateBuildingPlacement({
@@ -137,6 +35,7 @@ export function validateBuildingPlacement({
   relocatingBuildingId?: string | null;
 }): ValidationResult {
   const terrainY = getTerrainHeight(x, z);
+  const footprintRadius = 2.2;
 
   // 1. Check World Buildable Perimeter
   const distFromOrigin = Math.hypot(x, z);
@@ -147,12 +46,12 @@ export function validateBuildingPlacement({
       distToRoad: 99,
       slope: 0,
       terrainElevation: terrainY,
-      isFarFromRoad: false,
+      isFarFromRoad: true,
     };
   }
 
-  // 2. Check Water Channel (River & Lakes)
-  if (isNearRiver(x, z, 2.2)) {
+  // 2. Check Water Channel & Wetlands (River & Lakes)
+  if (isNearRiver(x, z, 2.4)) {
     return {
       isValid: false,
       reason: 'Cannot construct on active riverbed water channel',
@@ -163,7 +62,7 @@ export function validateBuildingPlacement({
     };
   }
 
-  if (isNearLake(x, z, 2.6)) {
+  if (isNearLake(x, z, 2.8)) {
     return {
       isValid: false,
       reason: 'Cannot construct inside alpine reservoir lake',
@@ -175,7 +74,7 @@ export function validateBuildingPlacement({
   }
 
   // Highland tarn pond at [-26, -34]
-  if (Math.hypot(x - (-26), z - (-34)) < 6.2) {
+  if (Math.hypot(x - (-26), z - (-34)) < 6.4) {
     return {
       isValid: false,
       reason: 'Cannot construct in highland scenic tarn pool',
@@ -186,12 +85,12 @@ export function validateBuildingPlacement({
     };
   }
 
-  // 3. Check Road Overlap
-  const roadCheck = getDistToRoadNetwork(x, z);
+  // 3. Check Road Overlap & Highway Corridors
+  const roadCheck = getDistToRoadNetwork(x, z, footprintRadius);
   if (roadCheck.overlaps) {
     return {
       isValid: false,
-      reason: 'Overlaps active roadway transit corridor',
+      reason: 'Footprint obstructs active roadway or pedestrian sidewalk',
       distToRoad: roadCheck.minDist,
       slope: 0,
       terrainElevation: terrainY,
@@ -199,7 +98,36 @@ export function validateBuildingPlacement({
     };
   }
 
-  // 4. Check Terrain Elevation & Slope Stability
+  // 4. Check Road Access Requirement (Buildings must be positioned alongside roads)
+  // Citadel high council building is permitted on central dais at [0, 13]; other buildings must be roadside
+  const isCitadelCenter = catalogItem.modelType === 'citadel' && Math.hypot(x, z - 13) < 11.0;
+  if (!isCitadelCenter && roadCheck.minDist > 12.5) {
+    return {
+      isValid: false,
+      reason: 'Building must be positioned alongside an accessible road',
+      distToRoad: roadCheck.minDist,
+      slope: 0,
+      terrainElevation: terrainY,
+      isFarFromRoad: true,
+    };
+  }
+
+  // 5. Check Bridges (No buildings on bridge spans)
+  if (roadCheck.closestRoad?.isBridge) {
+    const bridgeDist = roadCheck.minDist;
+    if (bridgeDist < 5.8) {
+      return {
+        isValid: false,
+        reason: 'Cannot place buildings on or directly under bridge spans',
+        distToRoad: roadCheck.minDist,
+        slope: 0,
+        terrainElevation: terrainY,
+        isFarFromRoad: false,
+      };
+    }
+  }
+
+  // 6. Check Terrain Elevation & Slope Stability
   const offset = 2.1;
   const hN = getTerrainHeight(x, z - offset);
   const hS = getTerrainHeight(x, z + offset);
@@ -231,8 +159,8 @@ export function validateBuildingPlacement({
     };
   }
 
-  // 5. Check Overlap with Existing Placed Buildings
-  const minBuildingSpacing = 4.3;
+  // 7. Check Overlap with Existing Placed Buildings
+  const minBuildingSpacing = 4.4;
   for (const b of placedBuildings) {
     if (relocatingBuildingId && b.id === relocatingBuildingId) {
       continue; // Skip self when relocating
@@ -241,7 +169,7 @@ export function validateBuildingPlacement({
     if (d < minBuildingSpacing) {
       return {
         isValid: false,
-        reason: `Overlaps clearance zone of ${b.name}`,
+        reason: `Overlaps clearance envelope of ${b.name}`,
         distToRoad: roadCheck.minDist,
         slope: slopeDelta,
         terrainElevation: terrainY,
@@ -250,7 +178,7 @@ export function validateBuildingPlacement({
     }
   }
 
-  // 6. Check Materials Cost (waived if simply relocating an existing structure)
+  // 8. Check Materials Cost (waived if relocating an existing structure)
   if (!relocatingBuildingId && resources.materials < catalogItem.costMaterials) {
     return {
       isValid: false,
@@ -262,18 +190,32 @@ export function validateBuildingPlacement({
     };
   }
 
-  // 7. Road Access Warning
-  const isFarFromRoad = roadCheck.minDist > 26.0;
+  // 9. Zone Telemetry & Road Alignment Information
+  const alignment = calculateRoadsideAlignment(x, z, catalogItem.category, footprintRadius);
+
+  const zoneNames: Record<string, string> = {
+    residential: 'Residential Quarter',
+    commercial: 'Commercial District',
+    industrial: 'Industrial Zone',
+    healthcare: 'Healthcare & Wellness Sector',
+    education: 'Science & Education Hub',
+    agriculture: 'Verdant Agrisector',
+    infrastructure: 'Utility & Infrastructure Corridor',
+    citadel: 'Central Civic Dais',
+  };
+
+  const zoneDisplay = zoneNames[alignment.zone] || 'Civilization Sector';
 
   return {
     isValid: true,
-    reason: isFarFromRoad
-      ? 'Valid site (Notice: Far from primary transit corridor)'
-      : 'Optimal structural placement zone',
+    reason: alignment.isZoneMatching
+      ? `Optimal roadside site in ${zoneDisplay}`
+      : `Valid site in ${zoneDisplay} (Notice: Cross-zone construction)`,
     distToRoad: roadCheck.minDist,
     slope: slopeDelta,
     terrainElevation: terrainY,
-    isFarFromRoad,
+    isFarFromRoad: false,
+    zoneName: zoneDisplay,
+    recommendedRotation: alignment.facingRotation,
   };
 }
-

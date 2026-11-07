@@ -6,6 +6,7 @@ import Terrain from './Terrain';
 import WaterSystem from './WaterSystem';
 import NatureEnvironment from './NatureEnvironment';
 import RoadNetwork from './RoadNetwork';
+import StreetlightsSystem from './StreetlightsSystem';
 import VehiclesSystem from './VehiclesSystem';
 import DistrictOverlays from './DistrictOverlays';
 import BuildingObject from './BuildingObject';
@@ -44,7 +45,7 @@ export default function CivilizationWorld3D() {
       <div className="w-full h-full relative bg-[#121714] select-none overflow-hidden">
         {/* 3D WebGL Canvas */}
         <Canvas
-          camera={{ position: [38, 34, 46], fov: 42, near: 0.5, far: 350 }}
+          camera={{ position: [30, 26, 38], fov: 40, near: 0.5, far: 350 }}
           shadows
           gl={{
             antialias: true,
@@ -73,6 +74,9 @@ export default function CivilizationWorld3D() {
 
           {/* Comprehensive Connected Road Network & Architectural Bridges */}
           <RoadNetwork />
+
+          {/* Roadside Architectural Streetlights System */}
+          <StreetlightsSystem />
 
           {/* Autonomous Transit Vehicles & Freight Pods */}
           <VehiclesSystem />

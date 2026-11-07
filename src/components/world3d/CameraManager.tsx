@@ -26,8 +26,8 @@ export default function CameraManager() {
   const controlsRef = useRef<any>(null);
   const { selectedBuilding } = useGameState();
 
-  const targetVec = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0));
-  const camVec = useRef<THREE.Vector3>(new THREE.Vector3(38, 34, 46));
+  const targetVec = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.8, 8.0));
+  const camVec = useRef<THREE.Vector3>(new THREE.Vector3(30, 26, 38));
   const isTransitioning = useRef<boolean>(false);
 
   // Smoothly center camera when building is selected in game state
@@ -53,21 +53,21 @@ export default function CameraManager() {
         const p = custom.detail.preset as CameraPreset;
         switch (p) {
           case 'isometric':
-            targetVec.current.set(0, 0, 0);
-            camVec.current.set(44, 38, 44);
+            targetVec.current.set(0, 1.8, 8.0);
+            camVec.current.set(30, 26, 38);
             break;
           case 'topDown':
-            targetVec.current.set(0, 0, 0);
-            camVec.current.set(0, 80, 0.4);
+            targetVec.current.set(0, 0, 8.0);
+            camVec.current.set(0, 75, 8.4);
             break;
           case 'panoramic':
-            targetVec.current.set(0, 2, 0);
-            camVec.current.set(54, 13, 46);
+            targetVec.current.set(0, 2.0, 10.0);
+            camVec.current.set(46, 12, 38);
             break;
           case 'reset':
           default:
-            targetVec.current.set(0, 0, 0);
-            camVec.current.set(38, 34, 46);
+            targetVec.current.set(0, 1.8, 8.0);
+            camVec.current.set(30, 26, 38);
             break;
         }
         isTransitioning.current = true;
