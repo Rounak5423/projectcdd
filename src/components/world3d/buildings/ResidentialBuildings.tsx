@@ -1,6 +1,6 @@
 import React from 'react';
 import * as THREE from 'three';
-import { useDayNight } from '../DayNightController';
+import { useIsNight } from '../DayNightController';
 import {
   ArchitecturalDoor,
   ArchitecturalWindow,
@@ -18,7 +18,7 @@ interface ModelProps {
 
 // 1. Small Suburban House (Single-family villa with pitched roof and garden)
 export function SmallHouseModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
 
   return (
     <group>
@@ -181,7 +181,7 @@ export function ApartmentBlockModel({ isSelected, level }: ModelProps) {
 
 // 4. High-Rise Arcology Spire (Futuristic Vertical City)
 export function HighRiseArcologyModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
   const heightBoost = (level - 1) * 1.1;
 
   return (

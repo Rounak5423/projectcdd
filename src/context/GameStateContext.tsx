@@ -125,6 +125,7 @@ interface GameStateContextType {
   isConstructionMode: boolean;
   selectedCatalogItem: BuildingCatalogItem | null;
   activeDrawer: ActiveDrawer;
+  relocatingBuildingId: string | null;
   
   // Action Handlers
   togglePlay: () => void;
@@ -135,6 +136,11 @@ interface GameStateContextType {
   setActiveLayer: (layer: MapLayer) => void;
   setConstructionMode: (active: boolean, item?: BuildingCatalogItem | null) => void;
   placeBuilding: (catalogId: string, x: number, z: number, districtId?: string, rotation?: number) => boolean;
+  startRelocation: (buildingId: string) => void;
+  cancelRelocation: () => void;
+  relocateBuilding: (buildingId: string, x: number, z: number, districtId?: string, rotation?: number) => boolean;
+  rotateBuilding: (buildingId: string, angleDelta?: number) => void;
+  repairBuilding: (buildingId: string) => boolean;
   upgradeBuilding: (buildingId: string) => boolean;
   demolishBuilding: (buildingId: string) => void;
   startResearch: (techId: string) => boolean;
@@ -217,6 +223,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [isConstructionMode, setIsConstructionMode] = useState<boolean>(false);
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<BuildingCatalogItem | null>(null);
   const [activeDrawer, setActiveDrawer] = useState<ActiveDrawer>('none');
+  const [relocatingBuildingId, setRelocatingBuildingId] = useState<string | null>(null);
 
   // Fun Historical Twin Citizen Protests & Unrest System
   const [activeProtest, setActiveProtest] = useState<ProtestEvent | null>(historicalTwinProtests[0]);
@@ -447,9 +454,133 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const setConstructionMode = (active: boolean, item?: BuildingCatalogItem | null) => {
     setIsConstructionMode(active);
     setSelectedCatalogItem(item || null);
+    if (!active) {
+      setRelocatingBuildingId(null);
+    }
     if (active) {
       setActiveDrawer('none');
     }
+  };
+
+  const startRelocation = (buildingId: string) => {
+    const building = placedBuildings.find((b) => b.id === buildingId);
+    if (!building) return;
+
+    const catalogItem = buildingCatalog.find((c) => c.id === building.catalogId) || {
+      id: building.catalogId,
+      name: building.name,
+      category: building.category,
+      description: 'Relocating existing structural asset.',
+      costMaterials: 0,
+      costCredits: 0,
+      energyReq: 0,
+      waterReq: 0,
+      populationCapacity: 0,
+      workerReq: building.workersNeeded,
+      productionAmount: 0,
+      maintenanceCost: 0,
+      constructionDurationDays: 0,
+      minTechLevel: 1,
+      modelType: building.modelType,
+    };
+
+    setRelocatingBuildingId(buildingId);
+    setSelectedCatalogItem(catalogItem);
+    setIsConstructionMode(true);
+    setSelectedBuildingId(null);
+    setActiveDrawer('none');
+  };
+
+  const cancelRelocation = () => {
+    setRelocatingBuildingId(null);
+    setIsConstructionMode(false);
+    setSelectedCatalogItem(null);
+  };
+
+  const relocateBuilding = (
+    buildingId: string,
+    x: number,
+    z: number,
+    districtId?: string,
+    rotation?: number
+  ) => {
+    const building = placedBuildings.find((b) => b.id === buildingId);
+    if (!building) return false;
+
+    setPlacedBuildings((prev) =>
+      prev.map((b) =>
+        b.id === buildingId
+          ? {
+              ...b,
+              x: Math.round(x * 10) / 10,
+              z: Math.round(z * 10) / 10,
+              districtId: districtId || b.districtId,
+              rotation: rotation !== undefined ? rotation : b.rotation,
+            }
+          : b
+      )
+    );
+
+    const event: GameEvent = {
+      id: `ev-${Date.now()}`,
+      year: civilization.currentYear,
+      day: civilization.currentDay,
+      title: `Relocated: ${building.name}`,
+      description: `Structure systematically transported to coordinates (${x.toFixed(1)}, ${z.toFixed(1)}).`,
+      category: 'economic',
+      severity: 'info',
+      isRead: false,
+    };
+    setEvents((prev) => [event, ...prev]);
+
+    setRelocatingBuildingId(null);
+    setIsConstructionMode(false);
+    setSelectedCatalogItem(null);
+    setSelectedBuildingId(buildingId);
+    return true;
+  };
+
+  const rotateBuilding = (buildingId: string, angleDelta: number = Math.PI / 4) => {
+    setPlacedBuildings((prev) =>
+      prev.map((b) =>
+        b.id === buildingId
+          ? {
+              ...b,
+              rotation: ((b.rotation || 0) + angleDelta) % (Math.PI * 2),
+            }
+          : b
+      )
+    );
+  };
+
+  const repairBuilding = (buildingId: string) => {
+    const building = placedBuildings.find((b) => b.id === buildingId);
+    if (!building || building.health >= 100) return false;
+
+    const repairCost = Math.max(15, Math.round((100 - building.health) * 2.5));
+    if (resources.materials < repairCost) return false;
+
+    setResources((prev) => ({
+      ...prev,
+      materials: prev.materials - repairCost,
+    }));
+
+    setPlacedBuildings((prev) =>
+      prev.map((b) => (b.id === buildingId ? { ...b, health: 100, status: 'active' } : b))
+    );
+
+    const event: GameEvent = {
+      id: `ev-${Date.now()}`,
+      year: civilization.currentYear,
+      day: civilization.currentDay,
+      title: `Repaired: ${building.name}`,
+      description: `Structural integrity fully restored (Cost: ${repairCost} materials).`,
+      category: 'economic',
+      severity: 'success',
+      isRead: false,
+    };
+    setEvents((prev) => [event, ...prev]);
+    return true;
   };
 
   const placeBuilding = (
@@ -877,6 +1008,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         isConstructionMode,
         selectedCatalogItem,
         activeDrawer,
+        relocatingBuildingId,
         togglePlay,
         setSpeed,
         advanceTick,
@@ -885,6 +1017,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         setActiveLayer,
         setConstructionMode,
         placeBuilding,
+        startRelocation,
+        cancelRelocation,
+        relocateBuilding,
+        rotateBuilding,
+        repairBuilding,
         upgradeBuilding,
         demolishBuilding,
         startResearch,

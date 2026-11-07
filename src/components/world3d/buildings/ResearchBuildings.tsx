@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useDayNight } from '../DayNightController';
+import { useIsNight } from '../DayNightController';
 
 interface ModelProps {
   isSelected: boolean;
@@ -10,7 +10,7 @@ interface ModelProps {
 
 // Quantum Observatory (Telescope with spinning quantum rings)
 export function ObservatoryModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
   const ringRef1 = useRef<THREE.Mesh>(null);
   const ringRef2 = useRef<THREE.Mesh>(null);
   const domeRef = useRef<THREE.Group>(null);

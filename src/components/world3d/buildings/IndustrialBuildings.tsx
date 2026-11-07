@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useDayNight } from '../DayNightController';
+import { useIsNight } from '../DayNightController';
 import { AntennaMast } from './BuildingSharedElements';
 
 interface ModelProps {
@@ -187,7 +187,7 @@ export function LogisticsWarehouseModel({ isSelected, level }: ModelProps) {
 
 // 4. Tokamak Fusion Power Plant (Clean Baseload Energy)
 export function FusionPowerPlantModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
   const plasmaRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
@@ -273,7 +273,7 @@ export function SolarArrayFieldModel({ isSelected, level }: ModelProps) {
 
 // 6. Vortex Wind Turbine
 export function WindTurbineModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
   const rotorRef = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import * as THREE from 'three';
-import { useDayNight } from '../DayNightController';
+import { useIsNight } from '../DayNightController';
 import {
   ArchitecturalDoor,
   ArchitecturalWindow,
@@ -17,7 +17,7 @@ interface ModelProps {
 
 // 1. Street-Level Retail Boutique & Shops
 export function RetailShopModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
 
   return (
     <group>
@@ -82,7 +82,7 @@ export function RetailShopModel({ isSelected, level }: ModelProps) {
 
 // 2. Shopping Complex / Commercial Arcade Mall
 export function ShoppingComplexModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
 
   return (
     <group>
@@ -152,7 +152,7 @@ export function ShoppingComplexModel({ isSelected, level }: ModelProps) {
 
 // 3. Corporate Office Headquarters
 export function OfficeBuildingModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
   const floors = 3 + level;
   const floorHeight = 0.75;
   const buildingHeight = floors * floorHeight;
@@ -198,7 +198,7 @@ export function OfficeBuildingModel({ isSelected, level }: ModelProps) {
 
 // 4. Financial Commercial Tower (Crystalline Skyscraper)
 export function CommercialTowerModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
   const height = 4.4 + level * 0.9;
 
   return (

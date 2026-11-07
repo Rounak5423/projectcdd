@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useDayNight } from './DayNightController';
+import { useIsNight } from './DayNightController';
 import { useGameState } from '../../context/GameStateContext';
 import { getGlobalTrafficSignal } from './RoadNetwork';
 
@@ -15,8 +15,8 @@ interface VehicleRoute {
   isEastWest?: boolean;
 }
 
-export default function VehiclesSystem() {
-  const { isNight } = useDayNight();
+function VehiclesSystem() {
+  const isNight = useIsNight();
   const { isPlaying, speed: simSpeed } = useGameState();
   const vehiclesRef = useRef<THREE.Group>(null);
 
@@ -163,6 +163,24 @@ export default function VehiclesSystem() {
     },
   ], []);
 
+  // Precomputed Route Metrics for Zero-Allocation Frame Loop
+  const routeMetas = useMemo(() => {
+    return routes.map((route) => {
+      const wp = route.waypoints;
+      let totalDist = 0;
+      const segDists: number[] = [];
+      const segAccums: number[] = [];
+      for (let i = 0; i < wp.length; i++) {
+        const next = wp[(i + 1) % wp.length];
+        const dist = Math.hypot(next[0] - wp[i][0], next[2] - wp[i][2]);
+        segDists.push(dist);
+        segAccums.push(totalDist);
+        totalDist += dist;
+      }
+      return { totalDist, segDists, segAccums };
+    });
+  }, [routes]);
+
   // Distance progresses & current speeds
   const progressRef = useRef<number[]>(routes.map((_, i) => i * 0.14));
   const currentSpeedsRef = useRef<number[]>(routes.map((r) => r.speed));
@@ -183,14 +201,7 @@ export default function VehiclesSystem() {
       if (!child) return;
 
       const wp = route.waypoints;
-      let totalDist = 0;
-      const segDists: number[] = [];
-      for (let i = 0; i < wp.length; i++) {
-        const next = wp[(i + 1) % wp.length];
-        const dist = Math.hypot(next[0] - wp[i][0], next[2] - wp[i][2]);
-        segDists.push(dist);
-        totalDist += dist;
-      }
+      const { totalDist, segDists, segAccums } = routeMetas[idx];
 
       // Check current vehicle position
       const curX = child.position.x;
@@ -228,16 +239,15 @@ export default function VehiclesSystem() {
         (progressRef.current[idx] + (currentSpeedsRef.current[idx] * dt) / totalDist) % 1.0;
       const targetDist = progressRef.current[idx] * totalDist;
 
-      // Find current waypoint segment
-      let accum = 0;
+      // Find current waypoint segment via precomputed cumulative distances
       let segIdx = 0;
-      for (let i = 0; i < segDists.length; i++) {
-        if (accum + segDists[i] >= targetDist) {
+      for (let i = segDists.length - 1; i >= 0; i--) {
+        if (targetDist >= segAccums[i]) {
           segIdx = i;
           break;
         }
-        accum += segDists[i];
       }
+      const accum = segAccums[segIdx];
 
       const p1 = wp[segIdx];
       const p2 = wp[(segIdx + 1) % wp.length];
@@ -258,13 +268,13 @@ export default function VehiclesSystem() {
   });
 
   return (
-    <group ref={vehiclesRef}>
+    <group ref={vehiclesRef} raycast={() => null}>
       {routes.map((route, idx) => (
         <group key={route.id} position={route.waypoints[0]}>
           {/* Commuter Pod */}
           {route.type === 'commuter' && (
             <group>
-              <mesh position={[0, 0.16, 0]} castShadow>
+              <mesh position={[0, 0.16, 0]}>
                 <boxGeometry args={[0.72, 0.36, 1.45]} />
                 <meshStandardMaterial color={route.color} metalness={0.8} roughness={0.2} />
               </mesh>
@@ -279,7 +289,7 @@ export default function VehiclesSystem() {
           {/* Luxury Executive Cruiser */}
           {route.type === 'cruiser' && (
             <group>
-              <mesh position={[0, 0.15, 0]} castShadow>
+              <mesh position={[0, 0.15, 0]}>
                 <boxGeometry args={[0.78, 0.32, 1.6]} />
                 <meshStandardMaterial color={route.color} metalness={0.9} roughness={0.15} />
               </mesh>
@@ -293,7 +303,7 @@ export default function VehiclesSystem() {
           {/* Autonomous Transit Shuttle */}
           {route.type === 'shuttle' && (
             <group>
-              <mesh position={[0, 0.28, 0]} castShadow>
+              <mesh position={[0, 0.28, 0]}>
                 <boxGeometry args={[0.92, 0.58, 2.1]} />
                 <meshStandardMaterial color="#34495e" metalness={0.5} roughness={0.3} />
               </mesh>
@@ -312,12 +322,12 @@ export default function VehiclesSystem() {
           {route.type === 'hauler' && (
             <group>
               {/* Tractor Cab */}
-              <mesh position={[0, 0.24, -0.6]} castShadow>
+              <mesh position={[0, 0.24, -0.6]}>
                 <boxGeometry args={[1.05, 0.5, 1.2]} />
                 <meshStandardMaterial color="#42392f" roughness={0.7} />
               </mesh>
               {/* Intermodal Freight Container */}
-              <mesh position={[0, 0.5, 0.45]} castShadow>
+              <mesh position={[0, 0.5, 0.45]}>
                 <boxGeometry args={[1.1, 0.72, 1.9]} />
                 <meshStandardMaterial color={route.color} roughness={0.5} />
               </mesh>
@@ -377,3 +387,5 @@ export default function VehiclesSystem() {
     </group>
   );
 }
+
+export default React.memo(VehiclesSystem);
