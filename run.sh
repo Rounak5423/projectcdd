@@ -34,13 +34,15 @@ echo "Running simulation tests..."
 cd "$BACKEND_DIR"
 ./venv/bin/pytest -q
 
+PORT="${PORT:-8000}"
+
 echo "------------------------------------------------------------------"
 echo "Simulation Engine Ready!"
-echo "Server & WebGL Command Center: http://127.0.0.1:8000"
-echo "WebSocket Telemetry Stream:    ws://127.0.0.1:8000/ws/world/prime"
-echo "REST API Docs:                 http://127.0.0.1:8000/docs"
+echo "Server & WebGL Command Center: http://127.0.0.1:$PORT"
+echo "WebSocket Telemetry Stream:    ws://127.0.0.1:$PORT/ws/world/prime"
+echo "REST API Docs:                 http://127.0.0.1:$PORT/docs"
 echo "------------------------------------------------------------------"
 echo "Press Ctrl+C to terminate."
 
-./venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+./venv/bin/uvicorn main:app --host 127.0.0.1 --port "$PORT" --reload
 

@@ -18,3 +18,4 @@ echo "  Interactive API Docs:        http://127.0.0.1:8000/docs"
 echo "=================================================================="
 
 exec "$PYTHON_BIN" "$DIR/genesis_engine_v2.py"
+

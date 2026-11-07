@@ -1,61 +1,64 @@
-# GENESIS Engine v2.0 Simulation Suite
+# GENESIS Engine v2.0: Master Simulation & Immersive Command Center
 
-The **GENESIS Persistent Artificial Civilisation Engine & Policy Platform (v2.0)** is an autonomous artificial civilization builder, policy laboratory, and counterfactual experiment simulator.
-
-## Directory Contents
-
-- **`genesis_engine_v2.py`**: Standalone production-grade Python 3.10+ FastAPI backend implementing all 9 interconnected simulation engines, SQLite WAL persistence layer, WebSockets telemetry, counterfactual branching, and an embedded Glassmorphic Command Center.
-- **`genesis_v2.db`**: Persistent SQLite database storing civilizations, buildings, demographic profiles, policies, and experiment snapshots.
-- **`run_simulation.sh`**: Launch script configured to use the local virtual environment.
+The **GENESIS Persistent Artificial Civilisation Engine & Policy Platform (v2.0)** is an autonomous artificial civilisation builder, cognitive policy laboratory, and counterfactual scenario simulator.
 
 ---
 
-## Architecture & Core Mechanics
+## What's Inside
 
-### 1. The 9 Interconnected Simulation Engines
-1. **Population**: Dynamic age-cohort modeling, birth/death fertility curves, net migration, workforce allocation.
-2. **Resources**: Multi-tier resource consumption (Energy, Biomass, Minerals, Quantum Compute), renewable energy grid transitions.
-3. **Economy**: Production modeling, Universal Basic Income (UBI) distributions, Gini coefficient inequality calculation.
-4. **Infrastructure**: Power grid stability, housing saturation, maintenance overheads.
-5. **Environment**: Industrial carbon footprint, ecological stability indices, climate mitigation technologies.
-6. **Governance**: Public approval ratings, social cohesion, corruption friction, institutional trust.
-7. **Events Engine**: Stochastic systemic crisis generation (e.g., Solar Flares, Synthetic Epidemics, Quantum Grid Failures).
-8. **Progression**: Civilisation XP scaling, level promotions, and tech tree unlocks.
-9. **Branching & Experiments**: Non-destructive counterfactual sandbox projecting parallel world trajectories against baseline history.
+1. **3D WebGL Command Center (Three.js):**
+   - **Procedural Sci-Fi Architecture**:
+     - *Arcology Spires*: Multi-tiered residential towers with glowing cyan window bands.
+     - *Quantum Synthesis Labs*: Rotating orbital rings with pulsating core octahedrons.
+     - *Geodesic Bio-Domes*: Translucent green biospheres with internal greenery.
+     - *Helios Fusion Complexes*: Tokamaks with blue plasma core emissions.
+     - *Subspace Observatories*: Parabolic orbital dish tracking celestial coordinates.
+     - *Polytechnic Academies*: Twin spires bridged by luminous skybridges.
+   - **Interactive 3D Click-to-Place Mode**: Select building from the dock, hover the grid with glowing ghost preview, and left-click to construct with spatial audio feedback.
+   - **Day / Night Lighting Cycle**: Traverses sun & moon arcs, switches daytime azure atmosphere to neon night mode with 1,500 sparkling stars.
+   - **Animated Air Traffic**: 14 autonomous drones and aerocars cruising on 3D flight paths.
+   - **4 Camera Presets**: Orbital Overview, Cinematic Street Level, Tactical Satellite, and Research District Zoom.
+   - **3D Heatmap Overlays**: Switch between Normal, Cognitive Atrophy, Energy Grid Power, and Civic Unrest Risk.
 
-### 2. Cognitive Science: The AI Dependency Paradox
-Models the longitudinal decay of human reasoning and critical analysis when cognitive tasks are delegated to synthetic intelligences without friction or scaffolding:
+2. **Cognitive Science: The AI Dependency Paradox:**
+   - Real-time mathematical modeling of cognitive decay:
+     $$\text{Atrophy} = (1.0 - \text{scaffolding\_friction}) \times 0.015 \times \text{ai\_dependency}$$
+   - Dynamic 5-Axis Radar Chart (Chart.js) evaluating Independent Reasoning, Critical Analysis, Problem Velocity, Autonomy, and Innovation.
 
-$$\text{Atrophy} = (1.0 - \text{scaffolding\_friction}) \times 0.015 \times \text{ai\_dependency}$$
+3. **Agent Micro-Simulation & Cohorts:**
+   - 4 Live citizen cohorts: *Neural Epistemologists*, *Synthetic Operators*, *Quantum Bio-Architects*, and *Humanist Artisans*.
+   - Live thought-bubble stream dynamically reflecting current policy friction and technological mandates.
 
-- **High AI Dependency + Low Scaffolding Friction**: Accelerated human cognitive atrophy, degradation of independent critical thinking.
-- **Scaffolding Policy Interventions**: Preserves cognitive resilience and reasoning capabilities even in advanced technological epochs.
+4. **Planetary Crisis Council:**
+   - Emergent systemic shocks (e.g. Cognitive Drift Cascades, Grid Brownouts, Synthetic Strikes).
+   - 3 Branching policy choices with immediate resource costs and forecasted socio-cognitive impacts.
 
-### 3. Genesis Research Credits (GRC) Transaction Economy
-- GRC is strictly required to run counterfactual scenario branching.
-- Credits are passively generated per tick by research facilities (`university`, `research_center`) and awarded on civilisational milestones.
-- Atomic balance enforcement guarantees balances can never drop below zero (`HTTP 402 Payment Required`).
+5. **4-Era Visual Technology Tree:**
+   - Progressive epochs: *Era I: Silicon Dawn*, *Era II: Cognitive Scaffolding*, *Era III: Quantum Supremacy*, and *Era IV: Singularity Synthesis*.
+   - Spend Research Points (RP) generated by universities to unlock futuristic structures and claim GRC milestone rewards.
+
+6. **Paid Experiment Scenario Branching:**
+   - Deep-copies authoritative world state at $T_{\text{current}}$, applies policy interventions, and runs counterfactual parallel projections against the baseline trajectory.
+   - Strictly backed by Genesis Research Credits (GRC).
+
+7. **Synthesized Web Audio API Soundscape:**
+   - Built-in sound generator without external audio files: ambient sci-fi background hum, crisp UI clicks, construction mechanical sweeps, Eureka harmonic chimes, and crisis sirens (toggleable via the top bar).
 
 ---
 
 ## How to Run
 
-### Starting the Server
-From the project root:
+### 1. Launch the Master v2.0 Simulation Suite
 ```bash
 ./run_v2.sh
+# OR from inside the directory:
+cd genesis_v2_simulation && ./run_simulation.sh
 ```
-Or from inside this directory:
-```bash
-./run_simulation.sh
-# OR
-../genesis-engine/backend/venv/bin/python3 genesis_engine_v2.py
-```
+- **Dashboard UI**: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- **Interactive OpenAPI Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-### Accessing the Dashboard & APIs
-- **Glassmorphic Strategy Command Center**: [http://127.0.0.1:8000](http://127.0.0.1:8000)
-  - Interactive Three.js 3D WebGL isometric city grid
-  - Dynamic Chart.js 5-axis cognitive radar chart
-  - Dual-trajectory scenario branching visualizer
-  - Real-time WebSocket telemetry stream
-- **Interactive OpenAPI / Swagger Documentation**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+### 2. Launch the Full React + Vite Suite (from `genesis-engine`)
+```bash
+PORT=8001 ./run.sh
+```
+- **Full React + 3D Anno App**: [http://127.0.0.1:8001](http://127.0.0.1:8001)
