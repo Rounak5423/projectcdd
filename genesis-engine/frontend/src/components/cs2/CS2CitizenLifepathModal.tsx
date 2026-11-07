@@ -161,3 +161,4 @@ export default function CS2CitizenLifepathModal({ citizen, onClose }: CS2Citizen
     </div>
   );
 }
+

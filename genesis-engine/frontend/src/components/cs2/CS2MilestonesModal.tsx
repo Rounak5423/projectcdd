@@ -146,3 +146,4 @@ export default function CS2MilestonesModal({ isOpen, onClose }: CS2MilestonesMod
     </div>
   );
 }
+

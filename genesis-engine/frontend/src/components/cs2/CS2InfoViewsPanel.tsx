@@ -313,3 +313,4 @@ export default function CS2InfoViewsPanel() {
     </div>
   );
 }
+
