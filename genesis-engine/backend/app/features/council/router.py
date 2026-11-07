@@ -20,6 +20,10 @@ from app.features.council.schemas import (
     CouncilRecommendationResponse,
     CouncilDecisionCreate,
     CouncilDecisionResponse,
+    CouncilExecutionRequest,
+    CouncilExecutionResponse,
+    CouncilEvaluationResponse,
+    CouncilOverviewResponse,
 )
 
 router = APIRouter(prefix="/council", tags=["Council of Advisors"])
@@ -531,5 +535,155 @@ async def get_advisor_generated_recommendations(
         data=res.get("recommendations", []),
         message="Advisor proposed recommendations retrieved."
     )
+
+
+# ---------------------------------------------------------------------------
+# Convocation, Trade-Offs, & Overview Endpoints (Phase 5)
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/sessions/{session_id}/convoke",
+    response_model=CouncilEnvelope[Dict[str, Any]],
+    summary="Convoke all six advisors in royal session"
+)
+async def convoke_session_advisors(
+    session_id: str,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """
+    Executes formal convocation of all six advisors for an active council session.
+    Runs analytical logic, generates findings, risks, and recommendations, and performs trade-off analysis.
+    """
+    session = council_service.get_session(session_id)
+    verify_world_access(session["worldId"], current_user)
+
+    user_id = current_user.get("id") if current_user else None
+    report = council_service.convoke_council_advisors(
+        world_id=session["worldId"],
+        session_id=session_id,
+        user_id=user_id
+    )
+    return CouncilEnvelope(
+        success=True,
+        data=report,
+        message="High Council convoked and ministerial deliberation concluded."
+    )
+
+
+@router.get(
+    "/sessions/{session_id}/tradeoffs",
+    response_model=CouncilEnvelope[List[Dict[str, Any]]],
+    summary="Retrieve cross-domain trade-offs and disagreements"
+)
+async def get_session_tradeoffs(
+    session_id: str,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Returns detected genuine disagreements and competing objectives between advisors."""
+    session = council_service.get_session(session_id)
+    verify_world_access(session["worldId"], current_user)
+
+    tradeoffs = council_service.get_tradeoffs(world_id=session["worldId"], session_id=session_id)
+    return CouncilEnvelope(
+        success=True,
+        data=tradeoffs,
+        message="Council trade-offs and disagreements retrieved."
+    )
+
+
+@router.get(
+    "/overview/{world_id}",
+    response_model=CouncilEnvelope[CouncilOverviewResponse],
+    summary="Retrieve unified Council status overview"
+)
+async def get_council_overview(
+    world_id: str,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Returns comprehensive council overview: assessment, live advisor states, pending recs, and active session."""
+    verify_world_access(world_id, current_user)
+    overview = council_service.get_council_overview(world_id)
+    return CouncilEnvelope(
+        success=True,
+        data=overview,
+        message="Council overview status retrieved."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Execution and Post-Implementation Evaluation Endpoints (Phase 5)
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/recommendations/{recommendation_id}/execute",
+    response_model=CouncilEnvelope[CouncilExecutionResponse],
+    summary="Authorize and execute an accepted recommendation into simulation"
+)
+async def execute_recommendation(
+    recommendation_id: str,
+    payload: CouncilExecutionRequest,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """
+    Submits an accepted recommendation for authorized execution into the simulation engine.
+    Validates resource availability, executes policy/decree, snapshots baseline metrics, and records implementation.
+    """
+    rec = council_service.get_recommendation(recommendation_id)
+    verify_world_access(rec["worldId"], current_user)
+
+    user_id = current_user.get("id") if current_user else None
+    exec_res = council_service.execute_recommendation(
+        rec_id=recommendation_id,
+        confirmation=payload.confirmation,
+        execution_notes=payload.execution_notes or payload.executionNotes,
+        user_id=user_id,
+        target_action_override=payload.target_action_override or payload.targetActionOverride
+    )
+    return CouncilEnvelope(
+        success=True,
+        data=exec_res,
+        message="Recommendation successfully executed into live simulation."
+    )
+
+
+@router.get(
+    "/recommendations/{recommendation_id}/evaluation",
+    response_model=CouncilEnvelope[CouncilEvaluationResponse],
+    summary="Retrieve post-implementation metric evaluation"
+)
+async def evaluate_recommendation(
+    recommendation_id: str,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Calculates observable post-implementation metric deltas comparing baseline to current simulation state."""
+    rec = council_service.get_recommendation(recommendation_id)
+    verify_world_access(rec["worldId"], current_user)
+
+    evaluation = council_service.evaluate_recommendation_outcome(recommendation_id)
+    return CouncilEnvelope(
+        success=True,
+        data=evaluation,
+        message="Post-implementation outcome evaluation calculated."
+    )
+
+
+@router.get(
+    "/executions",
+    response_model=CouncilEnvelope[List[CouncilExecutionResponse]],
+    summary="List all recommendation execution records for a world"
+)
+async def list_executions(
+    world_id: str = Query("aurora-prime", alias="worldId"),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Returns historical implementation execution records."""
+    verify_world_access(world_id, current_user)
+    records = council_service.list_execution_records(world_id)
+    return CouncilEnvelope(
+        success=True,
+        data=records,
+        message="Council execution audit records retrieved."
+    )
+
 
 

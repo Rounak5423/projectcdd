@@ -69,15 +69,27 @@ REC_STATUS_PROPOSED = "proposed"
 REC_STATUS_UNDER_REVIEW = "under_review"
 REC_STATUS_ACCEPTED = "accepted"
 REC_STATUS_REJECTED = "rejected"
+REC_STATUS_AWAITING_EXECUTION = "awaiting_execution"
+REC_STATUS_EXECUTING = "executing"
 REC_STATUS_IMPLEMENTED = "implemented"
+REC_STATUS_FAILED = "failed"
 REC_STATUS_EXPIRED = "expired"
+
+# Execution Record Statuses
+EXEC_STATUS_AWAITING = "awaiting_execution"
+EXEC_STATUS_EXECUTING = "executing"
+EXEC_STATUS_IMPLEMENTED = "implemented"
+EXEC_STATUS_FAILED = "failed"
 
 ALLOWED_REC_STATUSES = {
     REC_STATUS_PROPOSED,
     REC_STATUS_UNDER_REVIEW,
     REC_STATUS_ACCEPTED,
     REC_STATUS_REJECTED,
+    REC_STATUS_AWAITING_EXECUTION,
+    REC_STATUS_EXECUTING,
     REC_STATUS_IMPLEMENTED,
+    REC_STATUS_FAILED,
     REC_STATUS_EXPIRED,
 }
 
@@ -87,7 +99,10 @@ REC_STATUS_FRONTEND_MAPPING = {
     REC_STATUS_UNDER_REVIEW: "Under Review",
     REC_STATUS_ACCEPTED: "Accepted",
     REC_STATUS_REJECTED: "Rejected",
+    REC_STATUS_AWAITING_EXECUTION: "Awaiting Execution",
+    REC_STATUS_EXECUTING: "Executing",
     REC_STATUS_IMPLEMENTED: "Implemented",
+    REC_STATUS_FAILED: "Execution Failed",
     REC_STATUS_EXPIRED: "Expired",
 }
 
@@ -119,10 +134,15 @@ ALLOWED_OUTCOMES = {
 
 # Session Event Types
 EVENT_SESSION_STARTED = "session_started"
+EVENT_CONVOCATION_STARTED = "convocation_started"
+EVENT_CONVOCATION_COMPLETED = "convocation_completed"
 EVENT_BRIEFING_ADDED = "briefing_added"
 EVENT_RECOMMENDATION_DISCUSSED = "recommendation_discussed"
 EVENT_RECOMMENDATION_ACCEPTED = "recommendation_accepted"
 EVENT_RECOMMENDATION_REJECTED = "recommendation_rejected"
+EVENT_EXECUTION_REQUESTED = "execution_requested"
+EVENT_EXECUTION_COMPLETED = "execution_completed"
+EVENT_EXECUTION_FAILED = "execution_failed"
 EVENT_DECISION_RECORDED = "decision_recorded"
 EVENT_SESSION_COMPLETED = "session_completed"
 

@@ -23,12 +23,16 @@ interface AdvisorIntelligencePanelProps {
   advisor: Advisor | null;
   recommendations: CouncilRecommendation[];
   onSelectRecommendation?: (recId: string) => void;
+  onYieldFloor?: (advisorId: string) => void;
+  isSpeaking?: boolean;
 }
 
 export const AdvisorIntelligencePanel: React.FC<AdvisorIntelligencePanelProps> = ({
   advisor,
   recommendations,
   onSelectRecommendation,
+  onYieldFloor,
+  isSpeaking = false,
 }) => {
   if (!advisor) {
     return (
@@ -83,9 +87,25 @@ export const AdvisorIntelligencePanel: React.FC<AdvisorIntelligencePanelProps> =
           </div>
         </div>
 
-        <div className="text-right shrink-0">
-          <span className="text-[9px] font-mono text-[#A5AD9D] block">LAST BRIEFING</span>
-          <span className="text-[11px] font-mono text-[#EAE3D2] font-semibold">{advisor.lastBriefingDate}</span>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <div className="text-right">
+            <span className="text-[9px] font-mono text-[#A5AD9D] block">LAST BRIEFING</span>
+            <span className="text-[11px] font-mono text-[#EAE3D2] font-semibold">{advisor.lastBriefingDate}</span>
+          </div>
+
+          {onYieldFloor && (
+            <button
+              onClick={() => onYieldFloor(advisor.id)}
+              className={`px-2.5 py-1 rounded text-[10px] font-serif font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                isSpeaking
+                  ? 'bg-[#C5A66A] text-[#171D18] shadow animate-pulse'
+                  : 'bg-[#17231B] border border-[#C5A66A]/40 text-[#C5A66A] hover:bg-[#C5A66A]/20'
+              }`}
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>{isSpeaking ? 'Addressing Chamber' : 'Yield Floor'}</span>
+            </button>
+          )}
         </div>
       </div>
 

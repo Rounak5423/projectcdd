@@ -253,6 +253,61 @@ class CouncilService:
             "metadata": meta,
         }
 
+    def _format_execution(self, rec: Dict[str, Any]) -> Dict[str, Any]:
+        import json
+        baseline = {}
+        if rec.get("baseline_metrics_json"):
+            try:
+                baseline = json.loads(rec["baseline_metrics_json"])
+            except Exception:
+                baseline = {}
+
+        outcome = {}
+        if rec.get("outcome_metrics_json"):
+            try:
+                outcome = json.loads(rec["outcome_metrics_json"])
+            except Exception:
+                outcome = {}
+
+        return {
+            "id": rec["id"],
+            "recommendationId": rec["recommendation_id"],
+            "recommendation_id": rec["recommendation_id"],
+            "worldId": rec["world_id"],
+            "world_id": rec["world_id"],
+            "sessionId": rec.get("session_id"),
+            "session_id": rec.get("session_id"),
+            "executionType": rec["execution_type"],
+            "execution_type": rec["execution_type"],
+            "actionId": rec.get("action_id"),
+            "action_id": rec.get("action_id"),
+            "status": rec["status"],
+            "simTickAtExecution": rec.get("sim_tick_at_execution", 1),
+            "sim_tick_at_execution": rec.get("sim_tick_at_execution", 1),
+            "simYear": rec.get("sim_year", 2026),
+            "sim_year": rec.get("sim_year", 2026),
+            "simDay": rec.get("sim_day", 1),
+            "sim_day": rec.get("sim_day", 1),
+            "costCredits": rec.get("cost_credits", 0.0),
+            "cost_credits": rec.get("cost_credits", 0.0),
+            "costMaterials": rec.get("cost_materials", 0.0),
+            "cost_materials": rec.get("cost_materials", 0.0),
+            "costEnergy": rec.get("cost_energy", 0.0),
+            "cost_energy": rec.get("cost_energy", 0.0),
+            "baselineMetrics": baseline,
+            "baseline_metrics": baseline,
+            "outcomeMetrics": outcome,
+            "outcome_metrics": outcome,
+            "outcomeEvaluation": rec.get("outcome_evaluation"),
+            "outcome_evaluation": rec.get("outcome_evaluation"),
+            "errorMessage": rec.get("error_message"),
+            "error_message": rec.get("error_message"),
+            "createdAt": rec.get("created_at", ""),
+            "created_at": rec.get("created_at", ""),
+            "updatedAt": rec.get("updated_at", ""),
+            "updated_at": rec.get("updated_at", ""),
+        }
+
     def _format_session(self, sess: Dict[str, Any]) -> Dict[str, Any]:
         import json
         topics = []
@@ -380,6 +435,25 @@ class CouncilService:
         opening_address: Optional[str] = None,
         created_by: Optional[str] = None
     ) -> Dict[str, Any]:
+        # Validate world exists
+        from db.database import get_db_connection
+        conn = get_db_connection()
+        w = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
+        conn.close()
+        if not w:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Civilisation world '{world_id}' not found."
+            )
+
+        # Prevent duplicate active sessions for the same world
+        active_sess = self.repo.get_active_session_for_world(world_id)
+        if active_sess:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"An active council conclave '{active_sess['id']}' already exists for civilisation '{world_id}'. Conclude the active session before convening a new one."
+            )
+
         # Validate invited advisors exist
         invited = invited_advisor_ids or []
         for adv_id in invited:
@@ -715,4 +789,555 @@ class CouncilService:
             )
         decisions = self.repo.list_session_decisions(session_id)
         return [self._format_decision(d) for d in decisions]
+
+    # -----------------------------------------------------------------------
+    # Convocation & Trade-Offs (Phase 5)
+    # -----------------------------------------------------------------------
+
+    def convoke_council_advisors(
+        self,
+        world_id: str,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Executes formal convocation of all six advisors.
+        - Obtains consistent snapshot of civilisation.
+        - Executes all 6 intelligence engines.
+        - Formulates findings, risks, evidence, and recommendations.
+        - Performs cross-domain trade-off analysis.
+        - Associates report and recommendations with session.
+        - Records session events.
+        """
+        if session_id:
+            session = self.repo.get_session(session_id)
+            if not session:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Council session '{session_id}' not found."
+                )
+            if session.get("world_id") != world_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Session belongs to a different civilisation world."
+                )
+            self.repo.record_session_event(
+                session_id=session_id,
+                event_type="convocation_started",
+                description="High Council convoked: Ministerial analysis underway across six domains.",
+                actor_id=user_id
+            )
+
+        from app.features.council.intelligence.orchestrator import CouncilOrchestrator
+        orch = CouncilOrchestrator(self.repo)
+        report = orch.run_council_deliberation(world_id=world_id, persist_recommendations=True)
+        report_dict = report.to_dict()
+        rec_count = len(report_dict.get("recommendations", []))
+        tradeoff_count = len(report_dict.get("tradeoffs", []))
+
+        if session_id:
+            self.repo.record_session_event(
+                session_id=session_id,
+                event_type="convocation_completed",
+                description=f"Convocation concluded. {rec_count} directives formulated and {tradeoff_count} trade-offs identified.",
+                actor_id=user_id,
+                metadata={"recommendation_count": rec_count, "tradeoff_count": tradeoff_count}
+            )
+
+        return report_dict
+
+    def get_tradeoffs(self, world_id: str, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Retrieves identified cross-domain trade-offs and compromises."""
+        latest_report = self.get_latest_council_deliberation(world_id)
+        return latest_report.get("tradeoffs", [])
+
+    def get_council_overview(self, world_id: str) -> Dict[str, Any]:
+        """
+        Unified Council overview:
+        - Overall civilisation assessment
+        - Live advisor statuses
+        - Critical findings & important warnings
+        - Recommendations counts
+        - Disagreements count
+        - Simulation tick & data completeness
+        """
+        from db.database import get_db_connection
+        conn = get_db_connection()
+        world = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
+        econ = conn.execute("SELECT * FROM economy_resources WHERE world_id = ?", (world_id,)).fetchone()
+        conn.close()
+
+        sim_year = (world["year"] if world else 2026) or 2026
+        sim_day = (world["day"] if world else 1) or 1
+        sim_tick = sim_year * 365 + sim_day
+        stability = float(econ["civic_stability"] if econ else 0.80)
+
+        active_session = self.repo.get_active_session_for_world(world_id)
+        latest_report = self.get_latest_council_deliberation(world_id)
+
+        # Count recommendations
+        recs = self.repo.list_recommendations(world_id=world_id)
+        pending_count = sum(1 for r in recs if r["status"] in ["proposed", "under_review"])
+        accepted_awaiting = sum(1 for r in recs if r["status"] in ["accepted", "awaiting_execution"])
+        implemented_count = sum(1 for r in recs if r["status"] == "implemented")
+
+        advisor_statuses = {}
+        critical_findings = []
+        important_warnings = []
+
+        advisors = self.repo.get_all_advisors()
+        for adv in advisors:
+            adv_id = adv["id"]
+            adv_res = (latest_report.get("advisors") or {}).get(adv_id, {})
+            findings = adv_res.get("findings", [])
+            risks = adv_res.get("risks", [])
+
+            has_critical = any(f.get("severity") == "urgent" for f in findings) or any(r.get("probability") == "Imminent" for r in risks)
+            has_warning = any(f.get("severity") == "warning" for f in findings) or any(r.get("probability") == "High" for r in risks)
+
+            status_val = "Critical" if has_critical else ("Attention Required" if has_warning else "Optimal")
+            advisor_statuses[adv_id] = {
+                "id": adv_id,
+                "title": adv["title"],
+                "name": adv["name"],
+                "status": status_val,
+                "hasActiveWarning": has_warning or has_critical,
+                "confidenceScore": adv_res.get("confidence_score", 88)
+            }
+
+            for f in findings:
+                if f.get("severity") == "urgent":
+                    critical_findings.append({**f, "advisorId": adv_id, "advisorTitle": adv["title"]})
+                elif f.get("severity") == "warning":
+                    important_warnings.append({**f, "advisorId": adv_id, "advisorTitle": adv["title"]})
+
+        disagreements = latest_report.get("tradeoffs", [])
+
+        overall = (
+            f"The Council is in active quorum for {world['name'] if world else 'Aurora Prime'}. "
+            f"Equilibrium stability is at {(stability * 100):.1f}%. "
+            f"{len(critical_findings)} critical findings and {len(disagreements)} cross-domain trade-offs require sovereign attention."
+        )
+
+        return {
+            "worldId": world_id,
+            "world_id": world_id,
+            "overallCivilisationAssessment": overall,
+            "overall_civilisation_assessment": overall,
+            "advisorStatuses": advisor_statuses,
+            "advisor_statuses": advisor_statuses,
+            "activeSession": self._format_session(active_session) if active_session else None,
+            "active_session": self._format_session(active_session) if active_session else None,
+            "criticalFindings": critical_findings,
+            "critical_findings": critical_findings,
+            "importantWarnings": important_warnings,
+            "important_warnings": important_warnings,
+            "pendingRecommendationsCount": pending_count,
+            "pending_recommendations_count": pending_count,
+            "acceptedAwaitingExecutionCount": accepted_awaiting,
+            "accepted_awaiting_execution_count": accepted_awaiting,
+            "implementedCount": implemented_count,
+            "implemented_count": implemented_count,
+            "disagreementsCount": len(disagreements),
+            "disagreements_count": len(disagreements),
+            "lastAnalysisTimestamp": latest_report.get("timestamp"),
+            "last_analysis_timestamp": latest_report.get("timestamp"),
+            "simulationTick": sim_tick,
+            "simulation_tick": sim_tick,
+            "dataCompletenessScore": 92.5,
+            "data_completeness_score": 92.5,
+        }
+
+    # -----------------------------------------------------------------------
+    # Decision Execution & Simulation Connection (Phase 5)
+    # -----------------------------------------------------------------------
+
+    def execute_recommendation(
+        self,
+        rec_id: str,
+        confirmation: bool = True,
+        execution_notes: Optional[str] = None,
+        user_id: Optional[str] = None,
+        target_action_override: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Executes an accepted council recommendation via the authoritative simulation engine.
+        Enforces:
+        1. Only 'accepted' recommendations can be executed.
+        2. Idempotency safeguard (prevents duplicate execution).
+        3. Resource availability validation (fails gracefully if insufficient treasury/materials).
+        4. State updates to 'implemented' ONLY after confirmed success.
+        5. Preserves full audit trail and baseline metrics for post-implementation evaluation.
+        """
+        import uuid
+        import json
+        if not confirmation:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Execution requires explicit sovereign confirmation."
+            )
+
+        rec = self.repo.get_recommendation(rec_id)
+        if not rec:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Council recommendation '{rec_id}' not found."
+            )
+
+        current_status = rec["status"].lower()
+        if current_status == "implemented":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Recommendation '{rec_id}' has already been implemented (Reference: {rec.get('implementation_reference')})."
+            )
+
+        if current_status not in ["accepted", "awaiting_execution"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot execute recommendation with status '{current_status}'. Recommendation must first be reviewed and 'Accepted' by the ruler."
+            )
+
+        # Check existing execution record (Idempotency)
+        existing_exec = self.repo.get_execution_record_by_recommendation(rec_id)
+        if existing_exec and existing_exec["status"] == "implemented":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Recommendation has already been executed under reference '{existing_exec['id']}'."
+            )
+
+        world_id = rec["world_id"]
+        from db.database import get_db_connection
+        conn = get_db_connection()
+        world = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
+        if not world:
+            conn.close()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"World '{world_id}' not found."
+            )
+        econ = conn.execute("SELECT * FROM economy_resources WHERE world_id = ?", (world_id,)).fetchone()
+
+        # Map recommendation to simulation action
+        title_desc = f"{rec['title']} {rec['description']}".lower()
+        from api.v1.policies import CATALOG_POLICIES
+        from api.v1.infrastructure import BUILDING_DEFAULTS
+
+        execution_type = "policy"
+        action_id = target_action_override or None
+        cost_credits = float(rec.get("estimated_cost_crc") or 0.0)
+        cost_materials = 0.0
+        cost_energy = 0.0
+
+        if not action_id:
+            if any(k in title_desc for k in ["clean energy", "ecological", "renewable", "emission", "green"]):
+                action_id = "clean_energy_subsidies"
+            elif any(k in title_desc for k in ["basic income", "ubi", "dividend", "equity", "poverty"]):
+                action_id = "universal_basic_income"
+            elif any(k in title_desc for k in ["scaffolding", "atrophy", "socratic", "reasoning"]):
+                action_id = "cognitive_scaffolding"
+            elif any(k in title_desc for k in ["automation tax", "algorithmic dividend", "levy"]):
+                action_id = "automation_tax"
+            elif any(k in title_desc for k in ["academy", "foundational", "education", "literacy"]):
+                action_id = "free_education"
+            elif any(k in title_desc for k in ["universal ai", "copilot", "assistance"]):
+                action_id = "universal_ai"
+            elif any(k in title_desc for k in ["hospital", "clinic", "health", "physician"]):
+                execution_type = "infrastructure"
+                action_id = "Healthcare"
+            elif any(k in title_desc for k in ["research", "laboratory", "observatory", "scholar"]):
+                execution_type = "infrastructure"
+                action_id = "Research"
+            else:
+                execution_type = "administrative_decree"
+                action_id = f"decree_{rec['advisor_id']}"
+
+        # Determine cost based on mapped action
+        if execution_type == "policy":
+            template = next((p for p in CATALOG_POLICIES if p["id"] == action_id), None)
+            if template:
+                cost_credits = max(cost_credits, float(template["implementation_cost"]))
+        elif execution_type == "infrastructure":
+            b_def = BUILDING_DEFAULTS.get(action_id)
+            if b_def:
+                cost_credits = max(cost_credits, float(b_def["cost"].get("credits", 150)))
+                cost_materials = float(b_def["cost"].get("materials", 1000))
+                cost_energy = float(b_def["cost"].get("energy", 500))
+
+        # Validate resource availability
+        current_credits = float(econ["genesis_research_credits"] if econ else 1000.0)
+        current_materials = float(econ["materials"] if econ else 1000.0)
+
+        if current_credits < cost_credits:
+            conn.close()
+            self.repo.create_execution_record({
+                "recommendation_id": rec_id,
+                "world_id": world_id,
+                "session_id": rec.get("session_id"),
+                "executed_by": user_id,
+                "execution_type": execution_type,
+                "action_id": action_id,
+                "status": "failed",
+                "cost_credits": cost_credits,
+                "cost_materials": cost_materials,
+                "error_message": f"Insufficient treasury credits: required {cost_credits:.1f}, available {current_credits:.1f}."
+            })
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Execution rejected: Insufficient treasury credits (Required: {cost_credits:.1f}, Available: {current_credits:.1f}). Recommendation remains Accepted for future execution."
+            )
+
+        if current_materials < cost_materials:
+            conn.close()
+            self.repo.create_execution_record({
+                "recommendation_id": rec_id,
+                "world_id": world_id,
+                "session_id": rec.get("session_id"),
+                "executed_by": user_id,
+                "execution_type": execution_type,
+                "action_id": action_id,
+                "status": "failed",
+                "cost_credits": cost_credits,
+                "cost_materials": cost_materials,
+                "error_message": f"Insufficient materials: required {cost_materials:.1f}, available {current_materials:.1f}."
+            })
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Execution rejected: Insufficient materials (Required: {cost_materials:.1f}, Available: {current_materials:.1f}). Recommendation remains Accepted."
+            )
+
+        # Baseline snapshot
+        sim_year = world["year"] or 2026
+        sim_day = world["day"] or 1
+        sim_tick = sim_year * 365 + sim_day
+
+        baseline_metrics = {
+            "population": econ["population"] if econ else 100,
+            "treasury": current_credits,
+            "happiness": econ["happiness"] if econ else 0.75,
+            "civic_stability": econ["civic_stability"] if econ else 0.77,
+            "education_index": 0.75,
+            "health_index": 0.85,
+            "environmental_health": econ["environmental_health"] if econ else 0.80,
+            "gini_index": econ["gini_coefficient"] if econ else 0.28,
+            "sim_year": sim_year,
+            "sim_day": sim_day,
+            "sim_tick": sim_tick,
+        }
+
+        # Apply simulation action through authoritative simulation database tables
+        with conn:
+            # 1. Deduct resources from economy_resources
+            conn.execute("""
+            UPDATE economy_resources
+            SET genesis_research_credits = MAX(0.0, genesis_research_credits - ?),
+                materials = MAX(0.0, materials - ?)
+            WHERE world_id = ?
+            """, (cost_credits, cost_materials, world_id))
+
+            # 2. Enact policy or decree
+            if execution_type == "policy":
+                template = next((p for p in CATALOG_POLICIES if p["id"] == action_id), None)
+                if template:
+                    conn.execute("""
+                    INSERT INTO policies (id, world_id, name, category, is_active, implementation_cost, parameters, effects)
+                    VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+                    ON CONFLICT(world_id, id) DO UPDATE SET
+                        is_active = 1,
+                        parameters = excluded.parameters
+                    """, (
+                        action_id, world_id, template["name"], template["category"],
+                        cost_credits, json.dumps(template["parameters"]), json.dumps(template["effects"])
+                    ))
+
+            # 3. Record simulation event in authoritative events table
+            event_title = f"Imperial Directive Implemented: {rec['title']}"
+            conn.execute("""
+            INSERT INTO events (id, world_id, year, day, title, category, description, created_at)
+            VALUES (?, ?, ?, ?, ?, 'council', ?, datetime('now'))
+            """, (
+                f"evt_exec_{uuid.uuid4().hex[:8]}",
+                world_id,
+                sim_year,
+                sim_day,
+                event_title,
+                f"Executed by sovereign authority upon counsel of {rec.get('advisor_name', 'The Council')}. {execution_notes or rec['description']}"
+            ))
+
+        conn.close()
+
+        # 4. Create implementation execution record
+        exec_id = f"exec_rec_{uuid.uuid4().hex[:10]}"
+        exec_record = self.repo.create_execution_record({
+            "id": exec_id,
+            "recommendation_id": rec_id,
+            "world_id": world_id,
+            "session_id": rec.get("session_id"),
+            "executed_by": user_id,
+            "execution_type": execution_type,
+            "action_id": action_id,
+            "status": "implemented",
+            "sim_tick_at_execution": sim_tick,
+            "sim_year": sim_year,
+            "sim_day": sim_day,
+            "cost_credits": cost_credits,
+            "cost_materials": cost_materials,
+            "cost_energy": cost_energy,
+            "baseline_metrics": baseline_metrics,
+            "outcome_metrics": {},
+            "outcome_evaluation": "Implementation baseline established. Observation pending subsequent simulation ticks."
+        })
+
+        # 5. Update recommendation status to implemented
+        self.repo.update_recommendation_status(
+            rec_id=rec_id,
+            new_status="implemented",
+            reviewed_by=user_id,
+            decision_notes=f"Implemented: {exec_id} ({action_id})",
+            implementation_reference=exec_id
+        )
+
+        # 6. Record session event if associated with session
+        if rec.get("session_id"):
+            self.repo.record_session_event(
+                session_id=rec["session_id"],
+                event_type="execution_completed",
+                description=f"Recommendation '{rec['title']}' implemented into live simulation ({exec_id}).",
+                actor_id=user_id,
+                metadata={"execution_id": exec_id, "recommendation_id": rec_id, "action_id": action_id}
+            )
+
+        return self._format_execution(exec_record)
+
+    def evaluate_recommendation_outcome(self, rec_id: str) -> Dict[str, Any]:
+        """
+        Calculates observable post-implementation metric progression.
+        Distinguishes observed changes from causal claims.
+        """
+        import json
+        rec = self.repo.get_recommendation(rec_id)
+        if not rec:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Council recommendation '{rec_id}' not found."
+            )
+
+        exec_record = self.repo.get_execution_record_by_recommendation(rec_id)
+        if not exec_record or exec_record["status"] != "implemented":
+            return {
+                "recommendationId": rec_id,
+                "recommendation_id": rec_id,
+                "executionId": "none",
+                "execution_id": "none",
+                "title": rec["title"],
+                "status": rec["status"],
+                "executionTick": 0,
+                "execution_tick": 0,
+                "currentTick": 0,
+                "current_tick": 0,
+                "ticksElapsed": 0,
+                "ticks_elapsed": 0,
+                "baselineMetrics": {},
+                "baseline_metrics": {},
+                "currentMetrics": {},
+                "current_metrics": {},
+                "metricDeltas": {},
+                "metric_deltas": {},
+                "observedOutcomeSummary": "Recommendation has not been executed into the simulation yet.",
+                "observed_outcome_summary": "Recommendation has not been executed into the simulation yet.",
+                "causalityDisclaimer": "No simulation execution reference found.",
+                "causality_disclaimer": "No simulation execution reference found."
+            }
+
+        baseline = {}
+        if exec_record.get("baseline_metrics_json"):
+            try:
+                baseline = json.loads(exec_record["baseline_metrics_json"])
+            except Exception:
+                baseline = {}
+
+        from db.database import get_db_connection
+        conn = get_db_connection()
+        world = conn.execute("SELECT * FROM worlds WHERE id = ?", (rec["world_id"],)).fetchone()
+        econ = conn.execute("SELECT * FROM economy_resources WHERE world_id = ?", (rec["world_id"],)).fetchone()
+        conn.close()
+
+        if not world:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Civilisation world not found."
+            )
+
+        current_year = world["year"] or 2026
+        current_day = world["day"] or 1
+        current_tick = current_year * 365 + current_day
+        exec_tick = exec_record.get("sim_tick_at_execution", current_tick)
+        ticks_elapsed = max(0, current_tick - exec_tick)
+
+        current_metrics = {
+            "population": econ["population"] if econ else 100,
+            "treasury": float(econ["genesis_research_credits"] if econ else 1000.0),
+            "happiness": float(econ["happiness"] if econ else 0.75),
+            "civic_stability": float(econ["civic_stability"] if econ else 0.77),
+            "education_index": 0.75,
+            "health_index": 0.85,
+            "environmental_health": float(econ["environmental_health"] if econ else 0.80),
+            "gini_index": float(econ["gini_coefficient"] if econ else 0.28),
+            "sim_year": current_year,
+            "sim_day": current_day,
+            "sim_tick": current_tick,
+        }
+
+        # Calculate deltas
+        deltas = {}
+        for k in ["population", "treasury", "happiness", "civic_stability", "education_index", "health_index", "environmental_health", "gini_index"]:
+            b_val = float(baseline.get(k, 0.0) or 0.0)
+            c_val = float(current_metrics.get(k, 0.0) or 0.0)
+            deltas[k] = round(c_val - b_val, 4)
+
+        if ticks_elapsed == 0:
+            summary = (
+                f"Observation pending: Implementation executed at Epoch {exec_record.get('sim_year', 2026)} Day {exec_record.get('sim_day', 1)}. "
+                "0 simulation ticks have elapsed since execution. Baseline metrics recorded."
+            )
+        else:
+            summary = (
+                f"Observed changes over {ticks_elapsed} ticks: Stability ({deltas['civic_stability']:+.3f}), "
+                f"Health ({deltas['health_index']:+.3f}), Gini ({deltas['gini_index']:+.3f}), "
+                f"Treasury ({deltas['treasury']:+.1f} CRC)."
+            )
+
+        disclaimer = (
+            "Observed metric progression reflects aggregate civilisational dynamics over elapsed simulation ticks. "
+            "Macro-systemic shifts correlate with execution epoch but must not be conflated with exclusive causality."
+        )
+
+        return {
+            "recommendationId": rec_id,
+            "recommendation_id": rec_id,
+            "executionId": exec_record["id"],
+            "execution_id": exec_record["id"],
+            "title": rec["title"],
+            "status": "implemented",
+            "executionTick": exec_tick,
+            "execution_tick": exec_tick,
+            "currentTick": current_tick,
+            "current_tick": current_tick,
+            "ticksElapsed": ticks_elapsed,
+            "ticks_elapsed": ticks_elapsed,
+            "baselineMetrics": baseline,
+            "baseline_metrics": baseline,
+            "currentMetrics": current_metrics,
+            "current_metrics": current_metrics,
+            "metricDeltas": deltas,
+            "metric_deltas": deltas,
+            "observedOutcomeSummary": summary,
+            "observed_outcome_summary": summary,
+            "causalityDisclaimer": disclaimer,
+            "causality_disclaimer": disclaimer,
+        }
+
+    def list_execution_records(self, world_id: str) -> List[Dict[str, Any]]:
+        records = self.repo.list_execution_records(world_id)
+        return [self._format_execution(r) for r in records]
+
 

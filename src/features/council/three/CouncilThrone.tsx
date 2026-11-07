@@ -149,3 +149,4 @@ export const CouncilThrone: React.FC = () => {
     </group>
   );
 };
+

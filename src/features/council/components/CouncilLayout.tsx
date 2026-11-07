@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Advisor } from '../types/advisor';
-import { CouncilRecommendation } from '../types/recommendation';
-import { CouncilSession, RecordDecisionPayload } from '../types/council';
+import { CouncilRecommendation, CouncilEvaluationResult } from '../types/recommendation';
+import { CouncilSession, RecordDecisionPayload, CouncilTradeOffConflict, CouncilOverview } from '../types/council';
 import AdvisorRoster from './AdvisorRoster';
 import CouncilChamber3D from '../three/CouncilChamber3D';
 import AdvisorIntelligencePanel from './AdvisorIntelligencePanel';
 import RecommendationPanel from './RecommendationPanel';
 import CouncilSessionPanel from './CouncilSessionPanel';
 import CouncilHistory from './CouncilHistory';
+import CouncilDisagreementsView from './CouncilDisagreementsView';
+import EvaluationModal from './EvaluationModal';
 import { soundFx } from '../../../services/soundFx';
 import {
   Crown,
@@ -19,32 +21,55 @@ import {
   X,
   Sparkles,
   Shield,
-  HelpCircle
+  HelpCircle,
+  Scale
 } from 'lucide-react';
 
 interface CouncilLayoutProps {
   advisors: Advisor[];
   recommendations: CouncilRecommendation[];
   sessions: CouncilSession[];
+  tradeoffs?: CouncilTradeOffConflict[];
+  overview?: CouncilOverview | null;
   selectedAdvisorId: string | null;
   speakingAdvisorId?: string | null;
+  isConvoking?: boolean;
+  isExecutingId?: string | null;
+  evaluationResult?: CouncilEvaluationResult | null;
   onSelectAdvisor: (advisorId: string) => void;
+  onHearBriefing?: (advisorId: string) => void;
   onReviewRecommendation: (recId: string, status: 'Accepted' | 'Rejected' | 'Under Review') => void;
+  onExecuteRecommendation?: (recId: string) => void;
+  onEvaluateOutcome?: (recId: string) => void;
+  onCloseEvaluationModal?: () => void;
+  onConvokeAdvisors?: () => void;
+  onAdoptCompromise?: (tradeoff: CouncilTradeOffConflict) => void;
   onStartSession: (title: string, agenda: string[], invitedAdvisorIds: string[]) => void;
   onRecordDecision: (payload: RecordDecisionPayload) => void;
   onClose?: () => void;
 }
 
-export type CouncilViewMode = 'chamber' | 'recommendations' | 'sessions' | 'history';
+export type CouncilViewMode = 'chamber' | 'recommendations' | 'disagreements' | 'sessions' | 'history';
 
 export const CouncilLayout: React.FC<CouncilLayoutProps> = ({
   advisors,
   recommendations,
   sessions,
+  tradeoffs = [],
+  overview,
   selectedAdvisorId,
   speakingAdvisorId,
+  isConvoking = false,
+  isExecutingId = null,
+  evaluationResult = null,
   onSelectAdvisor,
+  onHearBriefing,
   onReviewRecommendation,
+  onExecuteRecommendation,
+  onEvaluateOutcome,
+  onCloseEvaluationModal,
+  onConvokeAdvisors,
+  onAdoptCompromise,
   onStartSession,
   onRecordDecision,
   onClose,
@@ -113,6 +138,21 @@ export const CouncilLayout: React.FC<CouncilLayoutProps> = ({
             <button
               onClick={() => {
                 soundFx.playClick();
+                setViewMode('disagreements');
+              }}
+              className={`px-3.5 py-1.5 rounded text-xs font-serif tracking-wider uppercase transition-all flex items-center gap-1.5 ${
+                viewMode === 'disagreements'
+                  ? 'bg-[#C5A66A] text-[#171D18] font-bold shadow'
+                  : 'text-[#A5AD9D] hover:text-[#EAE3D2]'
+              }`}
+            >
+              <Scale className="w-3.5 h-3.5" />
+              <span>Disagreements ({tradeoffs.length})</span>
+            </button>
+
+            <button
+              onClick={() => {
+                soundFx.playClick();
                 setViewMode('sessions');
               }}
               className={`px-3.5 py-1.5 rounded text-xs font-serif tracking-wider uppercase transition-all flex items-center gap-1.5 ${
@@ -140,6 +180,21 @@ export const CouncilLayout: React.FC<CouncilLayoutProps> = ({
               <span>Archives</span>
             </button>
           </div>
+
+          {onConvokeAdvisors && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onConvokeAdvisors();
+              }}
+              disabled={isConvoking}
+              className="px-3.5 py-1.5 rounded bg-[#C5A66A]/20 hover:bg-[#C5A66A]/30 border border-[#C5A66A]/50 text-[#C5A66A] text-xs font-serif font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50"
+              title="Convoke all 6 ministerial advisors to evaluate civilisation snapshot and generate intelligence"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${isConvoking ? 'animate-spin' : ''}`} />
+              <span>{isConvoking ? 'Convoking Assembly...' : 'Convoke Council'}</span>
+            </button>
+          )}
 
           {onClose && (
             <button
@@ -184,6 +239,8 @@ export const CouncilLayout: React.FC<CouncilLayoutProps> = ({
                 onSelectRecommendation={(recId) => {
                   setViewMode('recommendations');
                 }}
+                onYieldFloor={onHearBriefing}
+                isSpeaking={selectedAdvisor?.id === speakingAdvisorId}
               />
             </div>
           </div>
@@ -195,6 +252,18 @@ export const CouncilLayout: React.FC<CouncilLayoutProps> = ({
               recommendations={recommendations}
               advisors={advisors}
               onReviewRecommendation={onReviewRecommendation}
+              onExecuteRecommendation={onExecuteRecommendation}
+              onEvaluateOutcome={onEvaluateOutcome}
+              isExecutingId={isExecutingId}
+            />
+          </div>
+        )}
+
+        {viewMode === 'disagreements' && (
+          <div className="w-full h-full max-w-6xl mx-auto overflow-hidden">
+            <CouncilDisagreementsView
+              tradeoffs={tradeoffs}
+              onAdoptCompromise={onAdoptCompromise}
             />
           </div>
         )}
@@ -218,6 +287,14 @@ export const CouncilLayout: React.FC<CouncilLayoutProps> = ({
           </div>
         )}
       </div>
+
+      {/* Outcome Evaluation Modal */}
+      {evaluationResult && onCloseEvaluationModal && (
+        <EvaluationModal
+          evaluation={evaluationResult}
+          onClose={onCloseEvaluationModal}
+        />
+      )}
     </div>
   );
 };

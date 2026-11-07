@@ -33,3 +33,4 @@ export interface CameraTransitionState {
   targetLookAt: [number, number, number];
   isTransitioning: boolean;
 }
+

@@ -19,11 +19,17 @@ import {
 interface RecommendationCardProps {
   recommendation: CouncilRecommendation;
   onReview?: (recId: string, status: 'Accepted' | 'Rejected' | 'Under Review') => void;
+  onExecute?: (recId: string) => void;
+  onEvaluate?: (recId: string) => void;
+  isExecuting?: boolean;
 }
 
 export const RecommendationCard: React.FC<RecommendationCardProps> = ({
   recommendation,
   onReview,
+  onExecute,
+  onEvaluate,
+  isExecuting = false,
 }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
@@ -179,46 +185,75 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
           </button>
         </div>
 
-        {/* Action Controls for Demo Review */}
-        {onReview && recommendation.status !== 'Implemented' && recommendation.status !== 'Expired' && (
-          <div className="flex items-center gap-2">
-            {recommendation.status !== 'Under Review' && recommendation.status !== 'Accepted' && (
-              <button
-                onClick={() => {
-                  soundFx.playClick();
-                  onReview(recommendation.id, 'Under Review');
-                }}
-                className="px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#D6A75E]/30 text-[#D6A75E] text-[10px] font-serif uppercase tracking-wider transition-colors"
-              >
-                Deliberate
-              </button>
-            )}
+        {/* Action Controls for Demo Review & Execution */}
+        <div className="flex items-center gap-2">
+          {recommendation.status === 'Accepted' && onExecute && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onExecute(recommendation.id);
+              }}
+              disabled={isExecuting}
+              className="px-3 py-1 rounded bg-[#8FA879] hover:bg-[#a4c08b] text-[#121713] text-[10px] font-serif font-bold uppercase tracking-wider transition-all shadow flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <CheckCircle2 className="w-3 h-3" />
+              <span>{isExecuting ? 'Enacting Directive...' : 'Authorize Execution'}</span>
+            </button>
+          )}
 
-            {recommendation.status !== 'Accepted' && (
-              <button
-                onClick={() => {
-                  soundFx.playClick();
-                  onReview(recommendation.id, 'Accepted');
-                }}
-                className="px-3 py-1 rounded bg-[#C5A66A] hover:bg-[#D8CBAA] text-[#171D18] text-[10px] font-serif font-bold uppercase tracking-wider transition-colors shadow"
-              >
-                Accept Directive
-              </button>
-            )}
+          {recommendation.status === 'Implemented' && onEvaluate && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onEvaluate(recommendation.id);
+              }}
+              className="px-3 py-1 rounded bg-[#1f2720] hover:bg-[#28352a] border border-[#8FA879]/40 text-[#8FA879] text-[10px] font-serif uppercase tracking-wider transition-colors flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>View Outcome Evaluation</span>
+            </button>
+          )}
 
-            {recommendation.status !== 'Rejected' && (
-              <button
-                onClick={() => {
-                  soundFx.playClick();
-                  onReview(recommendation.id, 'Rejected');
-                }}
-                className="px-2.5 py-1 rounded bg-[#171D18] hover:bg-[#C87569]/20 border border-[#C87569]/40 text-[#C87569] text-[10px] font-serif uppercase tracking-wider transition-colors"
-              >
-                Veto
-              </button>
-            )}
-          </div>
-        )}
+          {onReview && recommendation.status !== 'Implemented' && recommendation.status !== 'Expired' && (
+            <>
+              {recommendation.status !== 'Under Review' && recommendation.status !== 'Accepted' && (
+                <button
+                  onClick={() => {
+                    soundFx.playClick();
+                    onReview(recommendation.id, 'Under Review');
+                  }}
+                  className="px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#D6A75E]/30 text-[#D6A75E] text-[10px] font-serif uppercase tracking-wider transition-colors"
+                >
+                  Deliberate
+                </button>
+              )}
+
+              {recommendation.status !== 'Accepted' && (
+                <button
+                  onClick={() => {
+                    soundFx.playClick();
+                    onReview(recommendation.id, 'Accepted');
+                  }}
+                  className="px-3 py-1 rounded bg-[#C5A66A] hover:bg-[#D8CBAA] text-[#171D18] text-[10px] font-serif font-bold uppercase tracking-wider transition-colors shadow"
+                >
+                  Accept Directive
+                </button>
+              )}
+
+              {recommendation.status !== 'Rejected' && (
+                <button
+                  onClick={() => {
+                    soundFx.playClick();
+                    onReview(recommendation.id, 'Rejected');
+                  }}
+                  className="px-2.5 py-1 rounded bg-[#171D18] hover:bg-[#C87569]/20 border border-[#C87569]/40 text-[#C87569] text-[10px] font-serif uppercase tracking-wider transition-colors"
+                >
+                  Veto
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

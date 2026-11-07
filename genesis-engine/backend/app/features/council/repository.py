@@ -142,6 +142,33 @@ def init_council_tables(conn: Optional[sqlite3.Connection] = None) -> None:
             FOREIGN KEY (session_id) REFERENCES council_sessions(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS council_execution_records (
+            id TEXT PRIMARY KEY,
+            recommendation_id TEXT NOT NULL,
+            world_id TEXT NOT NULL,
+            session_id TEXT,
+            executed_by TEXT,
+            execution_type TEXT NOT NULL,
+            action_id TEXT,
+            status TEXT NOT NULL DEFAULT 'awaiting_execution',
+            sim_tick_at_execution INTEGER NOT NULL DEFAULT 1,
+            sim_year INTEGER NOT NULL DEFAULT 2026,
+            sim_day INTEGER NOT NULL DEFAULT 1,
+            cost_credits REAL NOT NULL DEFAULT 0.0,
+            cost_materials REAL NOT NULL DEFAULT 0.0,
+            cost_energy REAL NOT NULL DEFAULT 0.0,
+            baseline_metrics_json TEXT NOT NULL DEFAULT '{}',
+            outcome_metrics_json TEXT DEFAULT '{}',
+            outcome_evaluation TEXT,
+            error_message TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (recommendation_id) REFERENCES council_recommendations(id) ON DELETE CASCADE,
+            FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE,
+            FOREIGN KEY (session_id) REFERENCES council_sessions(id) ON DELETE SET NULL,
+            FOREIGN KEY (executed_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
         -- Performance Indexes
         CREATE INDEX IF NOT EXISTS idx_council_sessions_world ON council_sessions(world_id);
         CREATE INDEX IF NOT EXISTS idx_council_sessions_status ON council_sessions(status);
@@ -155,6 +182,8 @@ def init_council_tables(conn: Optional[sqlite3.Connection] = None) -> None:
         CREATE INDEX IF NOT EXISTS idx_council_decisions_session ON council_decisions(session_id);
         CREATE INDEX IF NOT EXISTS idx_council_decisions_rec ON council_decisions(recommendation_id);
         CREATE INDEX IF NOT EXISTS idx_council_events_session ON council_session_events(session_id);
+        CREATE INDEX IF NOT EXISTS idx_council_exec_rec ON council_execution_records(recommendation_id);
+        CREATE INDEX IF NOT EXISTS idx_council_exec_world ON council_execution_records(world_id);
         """)
 
     if close_after:
@@ -545,7 +574,8 @@ class CouncilRepository:
         rec_id: str,
         new_status: str,
         reviewed_by: Optional[str] = None,
-        decision_notes: Optional[str] = None
+        decision_notes: Optional[str] = None,
+        implementation_reference: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         conn = self.get_conn()
         now = datetime.now(timezone.utc).isoformat()
@@ -560,12 +590,13 @@ class CouncilRepository:
                 return None
 
             notes = decision_notes if decision_notes is not None else rec["decision_notes"]
+            impl_ref = implementation_reference if implementation_reference is not None else rec["implementation_reference"]
 
             conn.execute("""
             UPDATE council_recommendations
-            SET status = ?, reviewed_at = ?, reviewed_by = ?, decision_notes = ?, updated_at = ?
+            SET status = ?, reviewed_at = ?, reviewed_by = ?, decision_notes = ?, implementation_reference = ?, updated_at = ?
             WHERE id = ?
-            """, (new_status.lower(), now, reviewed_by, notes, now, rec_id))
+            """, (new_status.lower(), now, reviewed_by, notes, impl_ref, now, rec_id))
 
             # Record event if tied to a session
             session_id = rec["session_id"]
@@ -678,6 +709,136 @@ class CouncilRepository:
         rows = conn.execute(
             "SELECT * FROM council_session_events WHERE session_id = ? ORDER BY created_at ASC",
             (session_id,)
+        ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+
+    def record_session_event(
+        self,
+        session_id: str,
+        event_type: str,
+        description: str,
+        actor_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        conn = self.get_conn()
+        event_id = f"evt_{uuid.uuid4().hex[:8]}"
+        now = datetime.now(timezone.utc).isoformat()
+        with conn:
+            conn.execute("""
+            INSERT INTO council_session_events (
+                id, session_id, event_type, description, actor_id, metadata_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                event_id,
+                session_id,
+                event_type,
+                description,
+                actor_id,
+                json.dumps(metadata or {}),
+                now
+            ))
+        conn.close()
+        return {
+            "id": event_id,
+            "session_id": session_id,
+            "event_type": event_type,
+            "description": description,
+            "actor_id": actor_id,
+            "metadata_json": json.dumps(metadata or {}),
+            "created_at": now
+        }
+
+    def get_active_session_for_world(self, world_id: str) -> Optional[Dict[str, Any]]:
+        conn = self.get_conn()
+        row = conn.execute(
+            "SELECT * FROM council_sessions WHERE world_id = ? AND status IN ('active', 'scheduled') ORDER BY created_at DESC LIMIT 1",
+            (world_id,)
+        ).fetchone()
+        conn.close()
+        if not row:
+            return None
+        return self.get_session(row["id"])
+
+    def create_execution_record(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        conn = self.get_conn()
+        exec_id = data.get("id") or f"exec_{uuid.uuid4().hex[:10]}"
+        now = datetime.now(timezone.utc).isoformat()
+        with conn:
+            conn.execute("""
+            INSERT INTO council_execution_records (
+                id, recommendation_id, world_id, session_id, executed_by,
+                execution_type, action_id, status, sim_tick_at_execution,
+                sim_year, sim_day, cost_credits, cost_materials, cost_energy,
+                baseline_metrics_json, outcome_metrics_json, outcome_evaluation,
+                error_message, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                exec_id,
+                data["recommendation_id"],
+                data["world_id"],
+                data.get("session_id"),
+                data.get("executed_by"),
+                data.get("execution_type", "policy"),
+                data.get("action_id"),
+                data.get("status", "awaiting_execution"),
+                data.get("sim_tick_at_execution", 1),
+                data.get("sim_year", 2026),
+                data.get("sim_day", 1),
+                data.get("cost_credits", 0.0),
+                data.get("cost_materials", 0.0),
+                data.get("cost_energy", 0.0),
+                json.dumps(data.get("baseline_metrics", {})),
+                json.dumps(data.get("outcome_metrics", {})),
+                data.get("outcome_evaluation"),
+                data.get("error_message"),
+                now,
+                now
+            ))
+        conn.close()
+        return self.get_execution_record(exec_id) # type: ignore
+
+    def get_execution_record(self, exec_id: str) -> Optional[Dict[str, Any]]:
+        conn = self.get_conn()
+        row = conn.execute("SELECT * FROM council_execution_records WHERE id = ?", (exec_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def get_execution_record_by_recommendation(self, rec_id: str) -> Optional[Dict[str, Any]]:
+        conn = self.get_conn()
+        row = conn.execute(
+            "SELECT * FROM council_execution_records WHERE recommendation_id = ? ORDER BY created_at DESC LIMIT 1",
+            (rec_id,)
+        ).fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def update_execution_record(self, exec_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        conn = self.get_conn()
+        now = datetime.now(timezone.utc).isoformat()
+        fields = []
+        vals = []
+        for k, v in updates.items():
+            if k in ["baseline_metrics", "outcome_metrics"]:
+                fields.append(f"{k}_json = ?")
+                vals.append(json.dumps(v))
+            else:
+                fields.append(f"{k} = ?")
+                vals.append(v)
+        fields.append("updated_at = ?")
+        vals.append(now)
+        vals.append(exec_id)
+
+        with conn:
+            conn.execute(f"UPDATE council_execution_records SET {', '.join(fields)} WHERE id = ?", tuple(vals))
+        conn.close()
+        return self.get_execution_record(exec_id)
+
+    def list_execution_records(self, world_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        conn = self.get_conn()
+        rows = conn.execute(
+            "SELECT * FROM council_execution_records WHERE world_id = ? ORDER BY created_at DESC LIMIT ?",
+            (world_id, limit)
         ).fetchall()
         conn.close()
         return [dict(r) for r in rows]

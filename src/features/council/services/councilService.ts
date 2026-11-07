@@ -7,12 +7,17 @@ import { Advisor, AdvisorBriefingData } from '../types/advisor';
 import {
   CouncilRecommendation,
   RecommendationReviewPayload,
+  RecommendationExecutePayload,
+  CouncilExecutionRecord,
+  CouncilEvaluationResult,
 } from '../types/recommendation';
 import {
   CouncilSession,
   CreateSessionPayload,
   RecordDecisionPayload,
   CouncilDecision,
+  CouncilTradeOffConflict,
+  CouncilOverview,
 } from '../types/council';
 import {
   initialCouncilAdvisors,
@@ -246,6 +251,228 @@ export class CouncilService {
     });
 
     return { data: updated, isDemo: true, message: `Recommendation marked as ${payload.status}.` };
+  }
+
+  // 9. POST /api/council/sessions/{session_id}/convoke
+  public async convokeSessionAdvisors(sessionId: string): Promise<CouncilServiceResult<any>> {
+    try {
+      const response = await apiClient.post<ApiResponse<any>>(`/council/sessions/${sessionId}/convoke`);
+      if (response.data && response.data.success && response.data.data) {
+        return { data: response.data.data, isDemo: false, message: 'High Council convoked and ministerial analysis delivered.' };
+      }
+    } catch (err) {
+      // Fallback
+    }
+    return {
+      data: {
+        advisors: demoAdvisors,
+        recommendations: demoRecommendations,
+        tradeoffs: [],
+      },
+      isDemo: true,
+      message: 'Demo: Ministerial convocation completed.',
+    };
+  }
+
+  // 10. GET /api/council/sessions/{session_id}/tradeoffs
+  public async getSessionTradeoffs(sessionId: string): Promise<CouncilServiceResult<CouncilTradeOffConflict[]>> {
+    try {
+      const response = await apiClient.get<ApiResponse<CouncilTradeOffConflict[]>>(`/council/sessions/${sessionId}/tradeoffs`);
+      if (response.data && response.data.success && response.data.data) {
+        return { data: response.data.data, isDemo: false };
+      }
+    } catch (err) {
+      // Fallback
+    }
+    const demoTradeoffs: CouncilTradeOffConflict[] = [
+      {
+        id: 'conflict-treasurer-chancellor-ubi',
+        conflictTitle: 'Sovereign Fiscal Liquidity vs Social Wealth Redistribution',
+        advisorAId: 'adv-treasurer',
+        advisorATitle: 'The Grand Treasurer',
+        advisorAStance: 'Cautions that liquid reserves are tight and funding unconditional dividends strains the crown balance sheet.',
+        advisorBId: 'adv-chancellor',
+        advisorBTitle: 'The High Chancellor',
+        advisorBStance: 'Maintains that widening Gini disparity erodes civic stability and generates public unrest.',
+        competingObjectives: 'Maintaining sovereign credit reserves vs Compressing wealth inequality',
+        potentialConsequences: 'Premature dividend payout risks fiscal insolvency; austerity risks civic unrest.',
+        potentialCompromise: 'Phase universal dividend gradually tied to algorithmic productivity surpluses.',
+      },
+      {
+        id: 'conflict-architect-keeper-growth',
+        conflictTitle: 'Civic Urban Expansion vs Environmental Conservation',
+        advisorAId: 'adv-architect',
+        advisorATitle: 'The Royal Architect',
+        advisorAStance: 'Demands rapid expansion of heavy infrastructure to meet housing and transport demand.',
+        advisorBId: 'adv-keeper',
+        advisorBTitle: 'The Keeper of Nature',
+        advisorBStance: 'Warns that concrete and steel expansion accelerates carbon emissions and stresses environmental health.',
+        competingObjectives: 'Expanding municipal capacity vs Protecting biospheric balance',
+        potentialConsequences: 'Overbuilding triggers irreversible ecological degradation; stalling causes housing shortages.',
+        potentialCompromise: 'Mandate 35% ecological green buffers on all new infrastructure districts.',
+      },
+    ];
+    return { data: demoTradeoffs, isDemo: true };
+  }
+
+  // 11. GET /api/council/overview/{world_id}
+  public async getCouncilOverview(worldId: string = 'aurora-prime'): Promise<CouncilServiceResult<CouncilOverview | null>> {
+    try {
+      const response = await apiClient.get<ApiResponse<CouncilOverview>>(`/council/overview/${worldId}`);
+      if (response.data && response.data.success && response.data.data) {
+        return { data: response.data.data, isDemo: false };
+      }
+    } catch (err) {
+      // Fallback
+    }
+    const demoOverview: CouncilOverview = {
+      worldId,
+      overallCivilisationAssessment: 'The Council is in active quorum. Six ministerial departments are reporting live telemetry.',
+      advisorStatuses: {},
+      pendingRecommendationsCount: demoRecommendations.filter((r) => r.status === 'Proposed' || r.status === 'Under Review').length,
+      acceptedAwaitingExecutionCount: demoRecommendations.filter((r) => r.status === 'Accepted').length,
+      implementedCount: demoRecommendations.filter((r) => r.status === 'Implemented').length,
+      disagreementsCount: 2,
+      simulationTick: 147,
+      dataCompletenessScore: 92.5,
+      criticalFindings: [],
+      importantWarnings: [],
+    };
+    return { data: demoOverview, isDemo: true };
+  }
+
+  // 12. POST /api/council/recommendations/{recommendation_id}/execute
+  public async executeRecommendation(
+    payload: RecommendationExecutePayload
+  ): Promise<CouncilServiceResult<CouncilExecutionRecord | null>> {
+    try {
+      const response = await apiClient.post<ApiResponse<CouncilExecutionRecord>>(
+        `/council/recommendations/${payload.recommendationId}/execute`,
+        payload
+      );
+      if (response.data && response.data.success && response.data.data) {
+        return { data: response.data.data, isDemo: false, message: 'Recommendation executed into live simulation.' };
+      }
+    } catch (err: any) {
+      if (err.response?.data?.detail) {
+        throw new Error(err.response.data.detail);
+      }
+    }
+
+    // Demo mode execution
+    const rec = demoRecommendations.find((r) => r.id === payload.recommendationId);
+    if (!rec) {
+      throw new Error('Recommendation not found');
+    }
+    if (rec.status !== 'Accepted') {
+      throw new Error(`Cannot execute: recommendation status is ${rec.status}. Must be Accepted.`);
+    }
+
+    rec.status = 'Implemented';
+    rec.implementationReference = `exec_demo_${Date.now()}`;
+
+    const demoRecord: CouncilExecutionRecord = {
+      id: rec.implementationReference,
+      recommendationId: rec.id,
+      worldId: 'aurora-prime',
+      executionType: 'policy',
+      actionId: 'clean_energy_subsidies',
+      status: 'implemented',
+      simTickAtExecution: 147,
+      simYear: 12,
+      simDay: 147,
+      costCredits: rec.estimatedCostCrc || 250,
+      costMaterials: 0,
+      costEnergy: 0,
+      baselineMetrics: {
+        treasury: 1000,
+        happiness: 0.75,
+        civic_stability: 0.77,
+      },
+      outcomeMetrics: {},
+      outcomeEvaluation: 'Demo baseline captured.',
+      createdAt: new Date().toISOString(),
+    };
+
+    return { data: demoRecord, isDemo: true, message: 'Demo: Recommendation executed.' };
+  }
+
+  // 13. GET /api/council/recommendations/{recommendation_id}/evaluation
+  public async getRecommendationEvaluation(
+    recommendationId: string
+  ): Promise<CouncilServiceResult<CouncilEvaluationResult | null>> {
+    try {
+      const response = await apiClient.get<ApiResponse<CouncilEvaluationResult>>(
+        `/council/recommendations/${recommendationId}/evaluation`
+      );
+      if (response.data && response.data.success && response.data.data) {
+        return { data: response.data.data, isDemo: false };
+      }
+    } catch (err) {
+      // Fallback
+    }
+
+    const rec = demoRecommendations.find((r) => r.id === recommendationId);
+    const demoEval: CouncilEvaluationResult = {
+      recommendationId,
+      executionId: rec?.implementationReference || 'exec_demo_01',
+      title: rec?.title || 'Council Directive',
+      status: rec?.status || 'Implemented',
+      executionTick: 147,
+      currentTick: 152,
+      ticksElapsed: 5,
+      baselineMetrics: {
+        happiness: 0.75,
+        civic_stability: 0.77,
+        treasury: 1200,
+      },
+      currentMetrics: {
+        happiness: 0.78,
+        civic_stability: 0.81,
+        treasury: 950,
+      },
+      metricDeltas: {
+        happiness: 0.03,
+        civic_stability: 0.04,
+        treasury: -250,
+      },
+      observedOutcomeSummary: 'Observed shifts across 5 simulation ticks: Stability (+0.040), Happiness (+0.030), Treasury (-250 CRC).',
+      causalityDisclaimer: 'Observed metrics reflect broader civilisational progression and should not be conflated with exclusive direct causality.',
+    };
+    return { data: demoEval, isDemo: true };
+  }
+
+  // 14. POST /api/council/sessions/{session_id}/complete
+  public async completeSession(
+    sessionId: string,
+    summary?: string
+  ): Promise<CouncilServiceResult<CouncilSession | null>> {
+    try {
+      const response = await apiClient.post<ApiResponse<CouncilSession>>(
+        `/council/sessions/${sessionId}/complete`,
+        null,
+        { params: { summary } }
+      );
+      if (response.data && response.data.success && response.data.data) {
+        return { data: response.data.data, isDemo: false, message: 'Council session concluded and decrees archived.' };
+      }
+    } catch (err) {
+      // Fallback
+    }
+
+    let updated: CouncilSession | null = null;
+    demoSessions = demoSessions.map((s) => {
+      if (s.id === sessionId) {
+        updated = {
+          ...s,
+          state: 'Concluded',
+          summaryNotes: summary || s.summaryNotes,
+        };
+        return updated;
+      }
+      return s;
+    });
+    return { data: updated, isDemo: true, message: 'Demo: Council session concluded.' };
   }
 
   // Reset demo state helper

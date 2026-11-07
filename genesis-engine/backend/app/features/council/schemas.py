@@ -321,3 +321,109 @@ class CouncilSessionResponse(BaseModel):
     created_at: str
     updatedAt: str
     updated_at: str
+
+
+# ---------------------------------------------------------------------------
+# Execution and Evaluation Schemas
+# ---------------------------------------------------------------------------
+
+class CouncilExecutionRequest(BaseModel):
+    confirmation: bool = True
+    execution_notes: Optional[str] = None
+    executionNotes: Optional[str] = None
+    target_action_override: Optional[str] = None
+    targetActionOverride: Optional[str] = None
+
+
+class CouncilExecutionResponse(BaseModel):
+    id: str
+    recommendationId: str
+    recommendation_id: str
+    worldId: str
+    world_id: str
+    sessionId: Optional[str] = None
+    session_id: Optional[str] = None
+    executionType: str
+    execution_type: str
+    actionId: Optional[str] = None
+    action_id: Optional[str] = None
+    status: str
+    simTickAtExecution: int
+    sim_tick_at_execution: int
+    simYear: int
+    sim_year: int
+    simDay: int
+    sim_day: int
+    costCredits: float = 0.0
+    cost_credits: float = 0.0
+    costMaterials: float = 0.0
+    cost_materials: float = 0.0
+    costEnergy: float = 0.0
+    cost_energy: float = 0.0
+    baselineMetrics: Dict[str, Any] = {}
+    baseline_metrics: Dict[str, Any] = {}
+    outcomeMetrics: Dict[str, Any] = {}
+    outcome_metrics: Dict[str, Any] = {}
+    outcomeEvaluation: Optional[str] = None
+    outcome_evaluation: Optional[str] = None
+    errorMessage: Optional[str] = None
+    error_message: Optional[str] = None
+    createdAt: str
+    created_at: str
+    updatedAt: str
+    updated_at: str
+
+
+class CouncilEvaluationResponse(BaseModel):
+    recommendationId: str
+    recommendation_id: str
+    executionId: str
+    execution_id: str
+    title: str
+    status: str
+    executionTick: int
+    execution_tick: int
+    currentTick: int
+    current_tick: int
+    ticksElapsed: int
+    ticks_elapsed: int
+    baselineMetrics: Dict[str, Any] = {}
+    baseline_metrics: Dict[str, Any] = {}
+    currentMetrics: Dict[str, Any] = {}
+    current_metrics: Dict[str, Any] = {}
+    metricDeltas: Dict[str, Any] = {}
+    metric_deltas: Dict[str, Any] = {}
+    observedOutcomeSummary: str
+    observed_outcome_summary: str
+    causalityDisclaimer: str
+    causality_disclaimer: str
+
+
+class CouncilOverviewResponse(BaseModel):
+    worldId: str
+    world_id: str
+    overallCivilisationAssessment: str
+    overall_civilisation_assessment: str
+    advisorStatuses: Dict[str, Any] = {}
+    advisor_statuses: Dict[str, Any] = {}
+    activeSession: Optional[CouncilSessionResponse] = None
+    active_session: Optional[CouncilSessionResponse] = None
+    criticalFindings: List[Dict[str, Any]] = []
+    critical_findings: List[Dict[str, Any]] = []
+    importantWarnings: List[Dict[str, Any]] = []
+    important_warnings: List[Dict[str, Any]] = []
+    pendingRecommendationsCount: int = 0
+    pending_recommendations_count: int = 0
+    acceptedAwaitingExecutionCount: int = 0
+    accepted_awaiting_execution_count: int = 0
+    implementedCount: int = 0
+    implemented_count: int = 0
+    disagreementsCount: int = 0
+    disagreements_count: int = 0
+    lastAnalysisTimestamp: Optional[str] = None
+    last_analysis_timestamp: Optional[str] = None
+    simulationTick: int = 1
+    simulation_tick: int = 1
+    dataCompletenessScore: float = 100.0
+    data_completeness_score: float = 100.0
+

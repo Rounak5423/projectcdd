@@ -51,6 +51,8 @@ class UnifiedCouncilReport:
     failed_advisors: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
+        all_recs = [rec for adv in self.advisor_reports.values() for rec in adv.get("recommendations", [])]
+        all_findings = [f for adv in self.advisor_reports.values() for f in adv.get("findings", [])]
         return {
             "id": self.id,
             "world_id": self.world_id,
@@ -61,14 +63,19 @@ class UnifiedCouncilReport:
             "year": self.year,
             "day": self.day,
             "generated_at": self.generated_at,
+            "timestamp": self.generated_at,
             "overall_civilisation_status": self.overall_civilisation_status,
             "status": self.overall_civilisation_status,
             "executive_summary": self.executive_summary,
             "advisor_reports": self.advisor_reports,
+            "advisors": self.advisor_reports,
             "all_findings_count": self.all_findings_count,
             "all_risks_count": self.all_risks_count,
             "all_recommendations_count": self.all_recommendations_count,
             "cross_domain_tradeoffs": self.cross_domain_tradeoffs,
+            "tradeoffs": self.cross_domain_tradeoffs,
+            "recommendations": all_recs,
+            "findings": all_findings,
             "composite_confidence": self.composite_confidence,
             "data_completeness": self.data_completeness,
             "failed_advisors": self.failed_advisors,

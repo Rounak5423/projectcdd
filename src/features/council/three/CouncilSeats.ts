@@ -98,3 +98,4 @@ export const COUNCIL_SEATS: AdvisorSeatConfig[] = [
     cameraFocusTarget: [1.8, 1.25, 1.5],
   },
 ];
+

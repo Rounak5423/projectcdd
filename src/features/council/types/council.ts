@@ -53,3 +53,55 @@ export interface CouncilChamberProps {
   activeSession?: CouncilSession | null;
 }
 
+export interface CouncilTradeOffConflict {
+  id: string;
+  conflictTitle: string;
+  advisorAId: string;
+  advisorATitle: string;
+  advisorAStance: string;
+  advisorBId: string;
+  advisorBTitle: string;
+  advisorBStance: string;
+  competingObjectives: string;
+  potentialConsequences: string;
+  potentialCompromise: string;
+  supporting_finding_ids?: string[];
+}
+
+export interface CouncilOverview {
+  worldId: string;
+  overallCivilisationAssessment: string;
+  advisorStatuses: Record<string, {
+    id: string;
+    title: string;
+    name: string;
+    status: string;
+    hasActiveWarning: boolean;
+    confidenceScore: number;
+  }>;
+  activeSession?: CouncilSession | null;
+  criticalFindings: Array<{
+    id: string;
+    title: string;
+    detail: string;
+    severity: string;
+    advisorId: string;
+    advisorTitle: string;
+  }>;
+  importantWarnings: Array<{
+    id: string;
+    title: string;
+    detail: string;
+    severity: string;
+    advisorId: string;
+    advisorTitle: string;
+  }>;
+  pendingRecommendationsCount: number;
+  acceptedAwaitingExecutionCount: number;
+  implementedCount: number;
+  disagreementsCount: number;
+  lastAnalysisTimestamp?: string;
+  simulationTick: number;
+  dataCompletenessScore: number;
+}
+

@@ -19,12 +19,18 @@ interface RecommendationPanelProps {
   recommendations: CouncilRecommendation[];
   advisors: Advisor[];
   onReviewRecommendation: (recId: string, status: 'Accepted' | 'Rejected' | 'Under Review') => void;
+  onExecuteRecommendation?: (recId: string) => void;
+  onEvaluateOutcome?: (recId: string) => void;
+  isExecutingId?: string | null;
 }
 
 export const RecommendationPanel: React.FC<RecommendationPanelProps> = ({
   recommendations,
   advisors,
   onReviewRecommendation,
+  onExecuteRecommendation,
+  onEvaluateOutcome,
+  isExecutingId,
 }) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
@@ -161,6 +167,9 @@ export const RecommendationPanel: React.FC<RecommendationPanelProps> = ({
               key={rec.id}
               recommendation={rec}
               onReview={onReviewRecommendation}
+              onExecute={onExecuteRecommendation}
+              onEvaluate={onEvaluateOutcome}
+              isExecuting={isExecutingId === rec.id}
             />
           ))
         )}
