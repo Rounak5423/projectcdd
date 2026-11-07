@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import {
   CivilizationProfile,
   ResourceState,
@@ -49,9 +49,13 @@ import {
 } from '../data/cs2Data';
 import { soundFx } from '../services/soundFx';
 import { civilizationApi } from '../services/civilizationApi';
+import {
+  calculateCitySimulation,
+  CitySimulationReport,
+} from '../simulation/economySimulationEngine';
 
 export type MapLayer = 'all' | 'infrastructure' | 'population' | 'resources' | 'environment' | 'economy';
-export type ActiveDrawer = 'none' | 'notifications' | 'codex' | 'timeline' | 'construction' | 'buildingInspector';
+export type ActiveDrawer = 'none' | 'notifications' | 'codex' | 'timeline' | 'construction' | 'buildingInspector' | 'economy';
 
 export interface GameToast {
   id: string;
@@ -128,6 +132,7 @@ interface GameStateContextType {
   experiments: Experiment[];
   achievements: Achievement[];
   events: GameEvent[];
+  economyReport: CitySimulationReport;
   quests: GameQuest[];
   toasts: GameToast[];
   levelUpCelebration: { level: number; era: string; perks: string[] } | null;
@@ -445,6 +450,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const selectedBuilding = placedBuildings.find((b) => b.id === selectedBuildingId) || null;
 
+  // Centralized City Simulation Report (Calculates fiscal flows, resource accounting, district metrics, demands & alerts)
+  const economyReport = useMemo(() => {
+    return calculateCitySimulation(placedBuildings, buildingCatalog, resources, districts, taxRate);
+  }, [placedBuildings, resources, districts, taxRate]);
+
   // Simulation Tick Logic
   const advanceTick = useCallback(() => {
     // 1. Advance Calendar
@@ -458,17 +468,45 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       return { ...prev, currentDay: nextDay, currentYear: nextYear };
     });
 
-    // 2. Adjust Resources based on rates
+    // 2. Adjust Resources & Treasury based on real simulation calculations
     setResources((prev) => {
-      const foodDelta = rates.foodRate * 0.1;
-      const waterDelta = rates.waterRate * 0.1;
-      const energyDelta = rates.energyRate * 0.1;
-      const materialsDelta = rates.materialsRate * 0.1;
-      const researchDelta = rates.researchRate * 0.1;
-      const grcDelta = rates.grcEarnRate * 0.05;
+      const liveReport = calculateCitySimulation(placedBuildings, buildingCatalog, prev, districts, taxRate);
 
-      const newPop = prev.population + Math.round((prev.population * (rates.populationGrowthRate / 100)) / 365);
-      const newGdp = Number((prev.gdp + (prev.gdp * (rates.gdpGrowthRate / 100)) / 365).toFixed(3));
+      const netCashDelta = liveReport.economy.netDailyCashFlow * 0.1;
+      const foodDelta = liveReport.resources.foodNet * 0.1;
+      const waterDelta = liveReport.resources.waterNet * 0.1;
+      const energyDelta = liveReport.resources.energyNetMW * 0.1;
+      const materialsDelta = liveReport.resources.materialsNet * 0.1;
+      const researchDelta = rates.researchRate * 0.1;
+
+      // Natural Population growth influenced by housing capacity and healthcare
+      const housingFactor = liveReport.demands.residentialDemand > 98 ? 0.15 : 1.0;
+      const healthFactor = (prev.health || 80) / 100;
+      const popGrowth = Math.round(
+        (prev.population * (rates.populationGrowthRate / 100) * housingFactor * healthFactor) / 365
+      );
+      const newPop = prev.population + popGrowth;
+
+      // GDP responds to commercial activity and employment rate
+      const employmentFactor = (liveReport.resources.employmentRatePercent || 90) / 100;
+      const gdpDelta = (prev.gdp * (rates.gdpGrowthRate / 100) * employmentFactor) / 365;
+      const newGdp = Number((prev.gdp + gdpDelta).toFixed(3));
+
+      // Public health responds to water and clinic availability
+      let newHealth = prev.health;
+      if (liveReport.resources.waterNet < 0) {
+        newHealth = Math.max(30, newHealth - 0.5);
+      } else if (newHealth < 98) {
+        newHealth = Math.min(100, newHealth + 0.1);
+      }
+
+      // Public happiness responds to fiscal health, power stability, and unemployment
+      let newHappiness = prev.happiness;
+      if (liveReport.resources.energyNetMW < 0) {
+        newHappiness = Math.max(20, newHappiness - 1.0);
+      } else if (liveReport.economy.fiscalHealth === 'Surplus' && newHappiness < 98) {
+        newHappiness = Math.min(100, newHappiness + 0.1);
+      }
 
       return {
         ...prev,
@@ -477,9 +515,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         energy: Math.max(0, Math.round(prev.energy + energyDelta)),
         materials: Math.max(0, Math.round(prev.materials + materialsDelta)),
         researchPoints: Math.round(prev.researchPoints + researchDelta),
-        grc: Math.round(prev.grc + grcDelta),
+        grc: Math.max(0, Math.round(prev.grc + netCashDelta)),
         population: newPop,
         gdp: newGdp,
+        health: Math.round(newHealth),
+        happiness: Math.round(newHappiness),
       };
     });
 
@@ -1468,6 +1508,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         experiments,
         achievements,
         events,
+        economyReport,
         isPlaying,
         speed,
         selectedBuildingId,

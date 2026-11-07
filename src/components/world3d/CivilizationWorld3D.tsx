@@ -8,6 +8,7 @@ import NatureEnvironment from './NatureEnvironment';
 import RoadNetwork from './RoadNetwork';
 import StreetlightsSystem from './StreetlightsSystem';
 import VehiclesSystem from './VehiclesSystem';
+import PedestriansSystem from './PedestriansSystem';
 import DistrictOverlays from './DistrictOverlays';
 import BuildingObject from './BuildingObject';
 import CS2ZoningAndInfoView3D from './CS2ZoningAndInfoView3D';
@@ -81,6 +82,9 @@ export default function CivilizationWorld3D() {
 
           {/* Autonomous Transit Vehicles & Freight Pods */}
           <VehiclesSystem />
+
+          {/* Autonomous Intelligent Pedestrians System */}
+          <PedestriansSystem />
 
           {/* Tactical District Projection Rings & Labels */}
           <DistrictOverlays />

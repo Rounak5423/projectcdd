@@ -416,17 +416,17 @@ function RoadNetwork() {
     },
     {
       id: 'road-citadel-ring',
-      name: 'Citadel Grand Boulevard Ring',
+      name: 'Elysium Grand Forum Boulevard Loop',
       category: 'district_avenue',
       speedLimitKmh: 50,
       lanes: 2,
-      width: 3.8,
-      lengthMeters: 380,
+      width: 4.6,
+      lengthMeters: 460,
       status: 'Optimal',
-      throughputVehiclesPerDay: 19500,
+      throughputVehiclesPerDay: 24500,
       connectedDistricts: ['Elysium Citadel'],
-      connectedBuildings: ['High Council Citadel', 'Elysium Spire Alpha', 'Elysium Spire Beta'],
-      description: 'Circular ceremonial promenade encircling the Planetary Senate Citadel and administrative grounds.',
+      connectedBuildings: ['Planetary Senate Citadel', 'Civic Forum & Grand Plaza'],
+      description: 'Grand quadrangle ceremonial boulevard loop encircling the Planetary Senate Citadel, Civic Forum, and fountain gardens.',
     },
     {
       id: 'road-bridge-central',
@@ -515,15 +515,36 @@ function RoadNetwork() {
     const nsNorthMarks = createRoadMarkingsGeometry([[0, -44], [0, -10.5]], 5.4, 'double-yellow');
     const nsNorthDashes = createRoadMarkingsGeometry([[0, -44], [0, -10.5]], 5.4, 'dual-dash');
 
-    // South Bridge Approach to Dais: Z = 4.5 to Z = 5.6 (meets Citadel Ring North apex at Z = 5.6)
+    // South Bridge Approach to Forum: Z = 4.5 to Z = 5.6 (meets North Forum Avenue)
     const nsDaisApproach = createTerrainAdaptiveRoadGeometry([[0, 4.5], [0, 5.6]], 5.4, 0.08, 0.75);
     const nsDaisApproachSW = createSidewalksGeometry([[0, 4.5], [0, 5.6]], 5.4, 0.75, 0.08, 0.75);
     const nsDaisMarks = createRoadMarkingsGeometry([[0, 4.5], [0, 5.6]], 5.4, 'double-yellow', 0.08, 0.75);
 
-    // Citadel Ring to South Crossroads: Z = 20.4 to Z = 21.2 (from Citadel Ring South apex at Z = 20.4)
-    const nsCitadelToCross = createTerrainAdaptiveRoadGeometry([[0, 20.4], [0, 21.2]], 5.4);
-    const nsCitadelToCrossSW = createSidewalksGeometry([[0, 20.4], [0, 21.2]], 5.4);
-    const nsCitadelMarks = createRoadMarkingsGeometry([[0, 20.4], [0, 21.2]], 5.4, 'double-yellow');
+    // Elysium Grand Forum Boulevard Loop (Encircles the Central Civic Plaza)
+    // North Transverse Avenue: X = -8.6 to X = 8.6 at Z = 5.6
+    const forumNorth = createTerrainAdaptiveRoadGeometry([[-8.6, 5.6], [8.6, 5.6]], 4.8);
+    const forumNorthSW = createSidewalksGeometry([[-8.6, 5.6], [8.6, 5.6]], 4.8);
+    const forumNorthMarks = createRoadMarkingsGeometry([[-8.6, 5.6], [8.6, 5.6]], 4.8, 'single-white');
+
+    // West Forum Avenue: Z = 5.6 to Z = 18.5 at X = -8.6
+    const forumWest = createTerrainAdaptiveRoadGeometry([[-8.6, 5.6], [-8.6, 18.5]], 4.6);
+    const forumWestSW = createSidewalksGeometry([[-8.6, 5.6], [-8.6, 18.5]], 4.6);
+    const forumWestMarks = createRoadMarkingsGeometry([[-8.6, 5.6], [-8.6, 18.5]], 4.6, 'single-white');
+
+    // East Forum Avenue: Z = 5.6 to Z = 18.5 at X = 8.6
+    const forumEast = createTerrainAdaptiveRoadGeometry([[8.6, 5.6], [8.6, 18.5]], 4.6);
+    const forumEastSW = createSidewalksGeometry([[8.6, 5.6], [8.6, 18.5]], 4.6);
+    const forumEastMarks = createRoadMarkingsGeometry([[8.6, 5.6], [8.6, 18.5]], 4.6, 'single-white');
+
+    // South Transverse Avenue: X = -8.6 to X = 8.6 at Z = 18.5
+    const forumSouth = createTerrainAdaptiveRoadGeometry([[-8.6, 18.5], [8.6, 18.5]], 4.8);
+    const forumSouthSW = createSidewalksGeometry([[-8.6, 18.5], [8.6, 18.5]], 4.8);
+    const forumSouthMarks = createRoadMarkingsGeometry([[-8.6, 18.5], [8.6, 18.5]], 4.8, 'single-white');
+
+    // Forum South Exit to South Crossroads: Z = 18.5 to Z = 21.2
+    const nsCitadelToCross = createTerrainAdaptiveRoadGeometry([[0, 18.5], [0, 21.2]], 5.4);
+    const nsCitadelToCrossSW = createSidewalksGeometry([[0, 18.5], [0, 21.2]], 5.4);
+    const nsCitadelMarks = createRoadMarkingsGeometry([[0, 18.5], [0, 21.2]], 5.4, 'double-yellow');
 
     // South Crossroads to Oasis South Terminal: Z = 26.8 to Z = 44
     const nsSouth = createTerrainAdaptiveRoadGeometry([[0, 26.8], [0, 44]], 5.4);
@@ -608,6 +629,10 @@ function RoadNetwork() {
     return {
       nsNorth, nsNorthSW, nsNorthMarks, nsNorthDashes,
       nsDaisApproach, nsDaisApproachSW, nsDaisMarks,
+      forumNorth, forumNorthSW, forumNorthMarks,
+      forumWest, forumWestSW, forumWestMarks,
+      forumEast, forumEastSW, forumEastMarks,
+      forumSouth, forumSouthSW, forumSouthMarks,
       nsCitadelToCross, nsCitadelToCrossSW, nsCitadelMarks,
       nsSouth, nsSouthSW, nsSouthMarks, nsSouthDashes,
       ewWest, ewWestSW, ewWestMarks,
@@ -768,38 +793,36 @@ function RoadNetwork() {
         <mesh geometry={roadGeometries.juncNorthEastT} material={asphaltMat} receiveShadow />
       </group>
 
-      {/* ================= 3. CITADEL GRAND BOULEVARD RING ================= */}
-      {/* Encircles the elevated Citadel Civic Terrace South of river at [0, 13] */}
+      {/* ================= 3. ELYSIUM GRAND FORUM BOULEVARD LOOP ================= */}
+      {/* Quadrangle Boulevard Loop encircling the Civic Forum and Senate Citadel */}
       <group
-        position={[0, 1.05, 13]}
         onClick={(e) => {
           e.stopPropagation();
           handleSelectRoad(roadSegments[4]);
         }}
       >
-        {/* Asphalt Ring Roadway */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <ringGeometry args={[5.6, 7.8, 48]} />
-          <meshStandardMaterial color="#272d29" roughness={0.92} metalness={0.08} side={THREE.DoubleSide} />
-        </mesh>
-        {/* Center Yellow Dividing Line */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} raycast={() => null}>
-          <ringGeometry args={[6.65, 6.75, 48]} />
-          <meshBasicMaterial color="#e5c46d" side={THREE.DoubleSide} />
-        </mesh>
-        {/* Outer Raised Sidewalk & Curb */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.016, 0]} receiveShadow raycast={() => null}>
-          <ringGeometry args={[7.8, 8.4, 48]} />
-          <meshStandardMaterial color="#667368" roughness={0.75} side={THREE.DoubleSide} />
-        </mesh>
-        {/* Inner Dais Promenade Curb */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.016, 0]} receiveShadow raycast={() => null}>
-          <ringGeometry args={[5.0, 5.6, 48]} />
-          <meshStandardMaterial color="#667368" roughness={0.75} side={THREE.DoubleSide} />
-        </mesh>
+        <mesh geometry={roadGeometries.forumNorth} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.forumNorthSW} material={sidewalkMat} receiveShadow />
+        <mesh geometry={roadGeometries.forumNorthMarks} material={whiteMarkingMat} raycast={() => null} />
+
+        <mesh geometry={roadGeometries.forumWest} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.forumWestSW} material={sidewalkMat} receiveShadow />
+        <mesh geometry={roadGeometries.forumWestMarks} material={whiteMarkingMat} raycast={() => null} />
+
+        <mesh geometry={roadGeometries.forumEast} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.forumEastSW} material={sidewalkMat} receiveShadow />
+        <mesh geometry={roadGeometries.forumEastMarks} material={whiteMarkingMat} raycast={() => null} />
+
+        <mesh geometry={roadGeometries.forumSouth} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.forumSouthSW} material={sidewalkMat} receiveShadow />
+        <mesh geometry={roadGeometries.forumSouthMarks} material={whiteMarkingMat} raycast={() => null} />
       </group>
 
       {/* ================= 4. ZEBRA PEDESTRIAN CROSSINGS AT JUNCTIONS ================= */}
+      {/* Forum Pedestrian Entrances */}
+      <ZebraPedestrianCrossing position={[0, 0.86, 5.6]} width={4.8} length={2.0} rotationY={Math.PI / 2} />
+      <ZebraPedestrianCrossing position={[0, 0.86, 18.5]} width={4.8} length={2.0} rotationY={Math.PI / 2} />
+
       {/* South 4-Way Crossroads (Z = 24) */}
       <ZebraPedestrianCrossing position={[0, 0.86, 21.4]} width={5.4} length={2.2} />
       <ZebraPedestrianCrossing position={[0, 0.86, 26.6]} width={5.4} length={2.2} />

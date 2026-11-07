@@ -8,6 +8,7 @@ import { getTerrainHeight } from './Terrain';
 import { MasterBuildingRouter } from './BuildingModels';
 import { BuildingLODProxy } from './buildings/BuildingLODProxy';
 import BuildingDamageEffect from './buildings/BuildingDamageEffect';
+import BuildingActivityEffect from './buildings/BuildingActivityEffect';
 import BuildingScaffolding from './buildings/BuildingScaffolding';
 import ConstructionStageModel from './buildings/ConstructionStageModel';
 import { triggerBuildingHover } from './WorldLabelManager';
@@ -99,8 +100,8 @@ function BuildingObject({
         />
       ) : (
         <group scale={isDimmed ? 0.72 : isSelected ? 1.05 : 1.0}>
-          <Detailed distances={[0, 95]}>
-            {/* Level 0 (< 95 units): Full High-Fidelity Architectural Model with Roof, Doors, Balconies & Windows */}
+          <Detailed distances={[0, 150]}>
+            {/* Level 0 (< 150 units): Full High-Fidelity Architectural Model with Roof, Doors, Balconies & Windows */}
             <MasterBuildingRouter
               catalogId={building.catalogId}
               category={building.category}
@@ -108,8 +109,9 @@ function BuildingObject({
               level={building.level}
               isSelected={isSelected}
             />
-            {/* Level 1 (>= 95 units): High-Fidelity Architectural Silhouette Proxy (NOT a flat box) */}
+            {/* Level 1 (>= 150 units): Distant High-Fidelity Silhouette Proxy */}
             <BuildingLODProxy
+              catalogId={building.catalogId}
               category={building.category}
               modelType={building.modelType}
               level={building.level}
@@ -162,7 +164,10 @@ function BuildingObject({
       {/* 3. Building Damage & Warning Effects */}
       <BuildingDamageEffect health={building.health} status={building.status} />
 
-      {/* 4. Ground Selection Projection Ring & Beacon Beam */}
+      {/* 4. Purposeful Dynamic Building Activity & Diurnal Lighting */}
+      <BuildingActivityEffect building={building} />
+
+      {/* 5. Ground Selection Projection Ring & Beacon Beam */}
       {isSelected && (
         <group position={[0, 0.05, 0]}>
           <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>

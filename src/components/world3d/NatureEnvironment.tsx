@@ -90,8 +90,8 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
       if (isNearRiver(x, z, 3.8) || isNearLake(x, z, 4.2)) return true;
       if (Math.hypot(x - (-26), z - (-34)) < 6.8) return true; // Tarn pond
 
-      // 2. Citadel Grand Dais & Ring Boulevard (centered at [0, 13])
-      if (Math.hypot(x, z - 13) < 11.5 || Math.hypot(x, z) < 7.5) return true;
+      // 2. Elysium Grand Civic Forum, Boulevard Loop & Bridge Approach
+      if ((Math.abs(x) < 12.2 && z >= 4.5 && z <= 20.5) || Math.hypot(x, z) < 7.5) return true;
 
       // 3. Roads and Sidewalks Corridors
       for (const road of CITY_ROAD_CORRIDORS) {

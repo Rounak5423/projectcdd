@@ -26,8 +26,8 @@ export default function CameraManager() {
   const controlsRef = useRef<any>(null);
   const { selectedBuilding } = useGameState();
 
-  const targetVec = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.8, 8.0));
-  const camVec = useRef<THREE.Vector3>(new THREE.Vector3(30, 26, 38));
+  const targetVec = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.8, 10.0));
+  const camVec = useRef<THREE.Vector3>(new THREE.Vector3(32, 28, 38));
   const isTransitioning = useRef<boolean>(false);
 
   // Smoothly center camera when building is selected in game state
@@ -53,21 +53,22 @@ export default function CameraManager() {
         const p = custom.detail.preset as CameraPreset;
         switch (p) {
           case 'isometric':
-            targetVec.current.set(0, 1.8, 8.0);
-            camVec.current.set(30, 26, 38);
+            targetVec.current.set(0, 1.8, 10.0);
+            camVec.current.set(32, 28, 38);
             break;
           case 'topDown':
-            targetVec.current.set(0, 0, 8.0);
-            camVec.current.set(0, 75, 8.4);
+            // Orthogonal city-planning top-down overview centered on civilization core
+            targetVec.current.set(0, 1.0, 10.0);
+            camVec.current.set(0.01, 82, 10.05);
             break;
           case 'panoramic':
-            targetVec.current.set(0, 2.0, 10.0);
-            camVec.current.set(46, 12, 38);
+            targetVec.current.set(0, 2.5, 12.0);
+            camVec.current.set(45, 14, 35);
             break;
           case 'reset':
           default:
-            targetVec.current.set(0, 1.8, 8.0);
-            camVec.current.set(30, 26, 38);
+            targetVec.current.set(0, 1.8, 10.0);
+            camVec.current.set(32, 28, 38);
             break;
         }
         isTransitioning.current = true;
@@ -105,11 +106,11 @@ export default function CameraManager() {
   return (
     <OrbitControls
       ref={controlsRef}
-      maxPolarAngle={Math.PI / 2.1}
-      minPolarAngle={0.08}
-      minDistance={10}
+      maxPolarAngle={Math.PI / 2.15}
+      minPolarAngle={0.06}
+      minDistance={12}
       maxDistance={115}
-      dampingFactor={0.07}
+      dampingFactor={0.08}
       enableDamping
     />
   );

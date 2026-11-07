@@ -4,169 +4,306 @@ import * as THREE from 'three';
 import { useIsNight } from './DayNightController';
 import { useGameState } from '../../context/GameStateContext';
 import { getGlobalTrafficSignal } from './RoadNetwork';
+import { VehicleCategory, TrafficFlowMetrics } from './cityLifeTypes';
 
-interface VehicleRoute {
+interface VehicleDef {
   id: string;
+  name: string;
+  category: VehicleCategory;
+  color: string;
+  routeId: string;
   waypoints: [number, number, number][];
   speed: number;
-  color: string;
-  type: 'commuter' | 'shuttle' | 'hauler' | 'cruiser';
+  length: number;
   isNorthSouth?: boolean;
   isEastWest?: boolean;
+  isEmergency?: boolean;
+}
+
+// Global traffic metrics singleton for HUD and telemetry
+let currentTrafficMetrics: TrafficFlowMetrics = {
+  activeVehicles: 12,
+  activePedestrians: 36,
+  averageSpeedMps: 6.8,
+  averageSpeedKph: 24.5,
+  trafficFlowEfficiency: 92,
+  congestionIndex: 8,
+  ambulanceInTransit: true,
+};
+
+export function getTrafficFlowMetrics(): TrafficFlowMetrics {
+  return currentTrafficMetrics;
+}
+
+export function setTrafficFlowMetrics(metrics: Partial<TrafficFlowMetrics>) {
+  currentTrafficMetrics = { ...currentTrafficMetrics, ...metrics };
 }
 
 function VehiclesSystem() {
   const isNight = useIsNight();
-  const { isPlaying, speed: simSpeed } = useGameState();
+  const { isPlaying, speed: simSpeed, resources } = useGameState();
   const vehiclesRef = useRef<THREE.Group>(null);
+  const emergencyStrobeRef = useRef<THREE.PointLight>(null);
 
-  // 8 Diverse Transportation Routes
-  const routes: VehicleRoute[] = useMemo(() => [
+  // 12 Realistic Transportation Vehicles with Exact Road Network Waypoints
+  const vehicles: VehicleDef[] = useMemo(() => [
+    // 1. Commuter Pod (North-South Grand Arterial)
     {
-      id: 'r1-ns-corridor',
-      // North-South Arterial Corridor (Citadel to Oasis Terraces across Central Bridge)
+      id: 'veh-ns-commuter',
+      name: 'Pioneer Commuter Pod Alpha',
+      category: 'commuter',
+      color: '#3498db',
+      routeId: 'r-ns-main',
       waypoints: [
         [1.1, 0.65, -42],
         [1.1, 0.65, -14],
-        [1.1, 0.65, -5.5], // North Approach Stop line
-        [1.1, 0.65, -3.0], // Crossing
+        [1.1, 0.65, -5.5],
         [1.1, 0.75, 0],
         [1.1, 0.65, 8],
+        [1.1, 0.65, 21.0], // North stop line at South Crossroads
+        [1.1, 0.65, 27.0],
         [1.1, 0.65, 42],
         [-1.1, 0.65, 42],
+        [-1.1, 0.65, 27.0], // South stop line at South Crossroads
+        [-1.1, 0.65, 21.0],
         [-1.1, 0.65, 8],
-        [-1.1, 0.65, 5.5], // South Approach Stop line
         [-1.1, 0.75, 0],
         [-1.1, 0.65, -14],
         [-1.1, 0.65, -42],
       ],
-      speed: 7.8,
-      color: '#3498db',
-      type: 'commuter',
+      speed: 7.6,
+      length: 1.6,
       isNorthSouth: true,
     },
+    // 2. Autonomous Transit Shuttle (North-South Corridor)
     {
-      id: 'r2-ew-corridor',
-      // East-West Arterial Corridor (Science Park to Industrial Basin)
+      id: 'veh-ns-transit',
+      name: 'Metro Autonomous Transit Shuttle 01',
+      category: 'shuttle',
+      color: '#2980b9',
+      routeId: 'r-ns-main',
+      waypoints: [
+        [1.1, 0.65, -35],
+        [1.1, 0.65, -8],
+        [1.1, 0.75, 0],
+        [1.1, 0.65, 12],
+        [1.1, 0.65, 21.0],
+        [1.1, 0.65, 38],
+        [-1.1, 0.65, 38],
+        [-1.1, 0.65, 27.0],
+        [-1.1, 0.65, 12],
+        [-1.1, 0.75, 0],
+        [-1.1, 0.65, -8],
+        [-1.1, 0.65, -35],
+      ],
+      speed: 6.4,
+      length: 2.4,
+      isNorthSouth: true,
+    },
+    // 3. Heavy Freight Hauler (East-West Arterial Corridor)
+    {
+      id: 'veh-ew-freight-01',
+      name: 'Vulcan Intermodal Hauler 01',
+      category: 'hauler',
+      color: '#e67e22',
+      routeId: 'r-ew-main',
       waypoints: [
         [-42, 0.65, 1.1],
-        [-16, 0.65, 1.1],
-        [-5.5, 0.65, 1.1], // West Approach Stop line
+        [-25, 0.65, 1.1],
+        [-4.8, 0.65, 1.1],
         [0, 0.65, 1.1],
         [18, 0.65, 1.1],
         [42, 0.65, 1.1],
         [42, 0.65, -1.1],
         [18, 0.65, -1.1],
-        [5.5, 0.65, -1.1], // East Approach Stop line
+        [4.8, 0.65, -1.1],
         [0, 0.65, -1.1],
-        [-16, 0.65, -1.1],
+        [-25, 0.65, -1.1],
         [-42, 0.65, -1.1],
       ],
-      speed: 8.5,
-      color: '#e67e22',
-      type: 'hauler',
+      speed: 7.2,
+      length: 2.8,
       isEastWest: true,
     },
+    // 4. Commuter Sedan (East-West Corridor)
     {
-      id: 'r3-west-highway',
-      // West Science Highway (Science Park via West Bridge to South Agrisector)
+      id: 'veh-ew-sedan',
+      name: 'Science Park Commuter Sedan',
+      category: 'commuter',
+      color: '#c0392b',
+      routeId: 'r-ew-main',
       waypoints: [
-        [-25, 0.65, -36],
-        [-25, 0.75, -16.2], // West Suspension Bridge
-        [-25, 0.65, 0],
-        [-25, 0.65, 28],
-        [-23.6, 0.65, 28],
-        [-23.6, 0.65, 0],
-        [-23.6, 0.75, -16.2],
-        [-23.6, 0.65, -36],
+        [38, 0.65, -1.1],
+        [14, 0.65, -1.1],
+        [4.8, 0.65, -1.1],
+        [-14, 0.65, -1.1],
+        [-38, 0.65, -1.1],
+        [-38, 0.65, 1.1],
+        [-14, 0.65, 1.1],
+        [-4.8, 0.65, 1.1],
+        [14, 0.65, 1.1],
+        [38, 0.65, 1.1],
       ],
-      speed: 7.2,
-      color: '#2ecc71',
-      type: 'shuttle',
+      speed: 8.0,
+      length: 1.5,
+      isEastWest: true,
     },
+    // 5. West Science Highway Transit Shuttle
     {
-      id: 'r4-east-expressway',
-      // East Industrial Expressway (Vulcan Basin via East Bridge to Oasis Terraces)
+      id: 'veh-west-transit',
+      name: 'Aethel Ridge Tech Shuttle',
+      category: 'shuttle',
+      color: '#27ae60',
+      routeId: 'r-west-highway',
       waypoints: [
-        [25, 0.65, -36],
-        [25, 0.65, 0],
-        [25, 0.75, 8.0], // East Truss Bridge
-        [25, 0.65, 36],
-        [23.6, 0.65, 36],
-        [23.6, 0.75, 8.0],
-        [23.6, 0.65, 0],
-        [23.6, 0.65, -36],
+        [-24.2, 0.65, -36],
+        [-24.2, 0.75, -16.2], // West Suspension Bridge
+        [-24.2, 0.65, 0],
+        [-24.2, 0.65, 28],
+        [-25.8, 0.65, 28],
+        [-25.8, 0.65, 0],
+        [-25.8, 0.75, -16.2],
+        [-25.8, 0.65, -36],
       ],
-      speed: 7.4,
-      color: '#9b59b6',
-      type: 'hauler',
+      speed: 6.8,
+      length: 2.2,
     },
+    // 6. East Industrial Basin Hauler
     {
-      id: 'r5-citadel-ring',
-      // Citadel Grand Boulevard Inner Ring Promenade (Clockwise circuit around [0, 13])
+      id: 'veh-east-freight',
+      name: 'Vulcan Smelter Logistics Transporter',
+      category: 'hauler',
+      color: '#8e44ad',
+      routeId: 'r-east-highway',
       waypoints: [
-        [0, 1.05, 6.3],
-        [4.74, 1.05, 8.26],
-        [6.7, 1.05, 13.0],
-        [4.74, 1.05, 17.74],
-        [0, 1.05, 19.7],
-        [-4.74, 1.05, 17.74],
-        [-6.7, 1.05, 13.0],
-        [-4.74, 1.05, 8.26],
+        [25.8, 0.65, -36],
+        [25.8, 0.65, 0],
+        [25.8, 0.75, 8.0], // East Truss Bridge
+        [25.8, 0.65, 36],
+        [24.2, 0.65, 36],
+        [24.2, 0.75, 8.0],
+        [24.2, 0.65, 0],
+        [24.2, 0.65, -36],
       ],
-      speed: 5.6,
-      color: '#f1c40f',
-      type: 'cruiser',
+      speed: 6.5,
+      length: 2.8,
     },
+    // 7. Elysium Forum Civic VIP Cruiser
     {
-      id: 'r6-citadel-counter',
-      // Citadel Boulevard Ring (Counter-Clockwise VIP Shuttle around [0, 13])
+      id: 'veh-forum-vip',
+      name: 'High Council Executive Limousine',
+      category: 'cruiser',
+      color: '#d4af37',
+      routeId: 'r-forum-loop',
       waypoints: [
-        [0, 1.05, 19.7],
-        [4.74, 1.05, 17.74],
-        [6.7, 1.05, 13.0],
-        [4.74, 1.05, 8.26],
-        [0, 1.05, 6.3],
-        [-4.74, 1.05, 8.26],
-        [-6.7, 1.05, 13.0],
-        [-4.74, 1.05, 17.74],
+        [0, 1.05, 5.6],
+        [8.6, 1.05, 5.6],
+        [8.6, 1.05, 12.0],
+        [8.6, 1.05, 18.5],
+        [0, 1.05, 18.5],
+        [-8.6, 1.05, 18.5],
+        [-8.6, 1.05, 12.0],
+        [-8.6, 1.05, 5.6],
       ],
       speed: 5.4,
-      color: '#1abc9c',
-      type: 'commuter',
+      length: 1.8,
     },
+    // 8. Forum Autonomous Sightseeing Trolley
     {
-      id: 'r7-oasis-residential',
-      // Oasis Terraces Residential Loop (Habitat Blocks to Cellular Care Clinic)
+      id: 'veh-forum-trolley',
+      name: 'Elysium Forum Autonomous Trolley',
+      category: 'shuttle',
+      color: '#16a085',
+      routeId: 'r-forum-counter',
+      waypoints: [
+        [0, 1.05, 18.5],
+        [8.6, 1.05, 18.5],
+        [8.6, 1.05, 12.0],
+        [8.6, 1.05, 5.6],
+        [0, 1.05, 5.6],
+        [-8.6, 1.05, 5.6],
+        [-8.6, 1.05, 12.0],
+        [-8.6, 1.05, 18.5],
+      ],
+      speed: 5.0,
+      length: 2.1,
+    },
+    // 9. Oasis Residential Delivery Van
+    {
+      id: 'veh-res-van',
+      name: 'Oasis Terraces Courier Van',
+      category: 'commuter',
+      color: '#e84393',
+      routeId: 'r-res-loop',
       waypoints: [
         [18, 0.65, 18],
         [24, 0.65, 18],
-        [24, 0.65, 32],
-        [18, 0.65, 32],
+        [24, 0.65, 34],
+        [18, 0.65, 34],
       ],
-      speed: 5.0,
-      color: '#e84393',
-      type: 'commuter',
+      speed: 5.2,
+      length: 1.6,
     },
+    // 10. Vulcan Heavy Ore Hauler
     {
-      id: 'r8-vulcan-heavy-freight',
-      // Vulcan Forge Basin Ore Freight Shuttle
+      id: 'veh-vulcan-ore',
+      name: 'Vulcan Heavy Ore Hauler 02',
+      category: 'hauler',
+      color: '#d63031',
+      routeId: 'r-vulcan-loop',
       waypoints: [
         [32, 0.65, -14],
         [26, 0.65, -14],
-        [26, 0.65, -26],
-        [32, 0.65, -26],
+        [26, 0.65, -28],
+        [32, 0.65, -28],
       ],
       speed: 4.8,
-      color: '#d63031',
-      type: 'hauler',
+      length: 2.9,
+    },
+    // 11. OASIS EMERGENCY MEDICAL AMBULANCE (Priority Emergency Response)
+    {
+      id: 'veh-ambulance',
+      name: 'Oasis Mobile Cellular Care Ambulance',
+      category: 'ambulance',
+      color: '#ffffff',
+      routeId: 'r-emergency-clinic',
+      waypoints: [
+        [14.0, 0.65, 19.5], // Oasis Clinic Bay
+        [8.0, 0.65, 19.5],  // South Cross-Arterial
+        [1.1, 0.65, 21.0],  // South Crossroads approach
+        [1.1, 0.65, 34.0],  // Residential Arterial
+        [-1.1, 0.65, 34.0],
+        [-1.1, 0.65, 21.0],
+        [0, 1.05, 18.5],   // Forum entrance
+        [8.6, 1.05, 18.5],
+        [14.0, 0.65, 19.5], // Back to Clinic Bay
+      ],
+      speed: 9.2,
+      length: 2.1,
+      isEmergency: true,
+    },
+    // 12. Verdant Vale Agrisector Transporter
+    {
+      id: 'veh-agri-trans',
+      name: 'Vale Bio-Produce Delivery Cart',
+      category: 'shuttle',
+      color: '#2ecc71',
+      routeId: 'r-agri-loop',
+      waypoints: [
+        [-24.2, 0.65, 24],
+        [-24.2, 0.65, 38],
+        [-25.8, 0.65, 38],
+        [-25.8, 0.65, 24],
+      ],
+      speed: 5.2,
+      length: 1.8,
     },
   ], []);
 
-  // Precomputed Route Metrics for Zero-Allocation Frame Loop
+  // Precomputed Route Geometry & Distances
   const routeMetas = useMemo(() => {
-    return routes.map((route) => {
-      const wp = route.waypoints;
+    return vehicles.map((v) => {
+      const wp = v.waypoints;
       let totalDist = 0;
       const segDists: number[] = [];
       const segAccums: number[] = [];
@@ -179,62 +316,129 @@ function VehiclesSystem() {
       }
       return { totalDist, segDists, segAccums };
     });
-  }, [routes]);
+  }, [vehicles]);
 
-  // Distance progresses & current speeds
-  const progressRef = useRef<number[]>(routes.map((_, i) => i * 0.14));
-  const currentSpeedsRef = useRef<number[]>(routes.map((r) => r.speed));
+  // Dynamic simulation state refs (zero-allocation frame loop)
+  const progressRef = useRef<number[]>(vehicles.map((_, i) => (i * 0.16) % 1.0));
+  const currentSpeedsRef = useRef<number[]>(vehicles.map((v) => v.speed));
+  const isBrakingRef = useRef<boolean[]>(vehicles.map(() => false));
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }, delta) => {
     if (!isPlaying) return;
 
     const multMap = { '1x': 1, '2x': 1.4, '5x': 2.0, '10x': 3.0 };
     const mult = multMap[simSpeed] || 1;
-    const dt = delta * mult;
+    const dt = Math.min(delta, 0.1) * mult;
 
     const signal = getGlobalTrafficSignal();
+    const elapsedTime = clock.getElapsedTime();
+
+    // Pulse emergency strobe beacon for ambulance
+    if (emergencyStrobeRef.current) {
+      const strobe = Math.sin(elapsedTime * 14.0) > 0 ? 1 : 0;
+      emergencyStrobeRef.current.intensity = strobe * (isNight ? 2.5 : 1.2);
+    }
 
     if (!vehiclesRef.current) return;
 
-    routes.forEach((route, idx) => {
+    let totalVelocity = 0;
+    let totalMaxVelocity = 0;
+
+    // 1. First Pass: Compute vehicle positions & detect headway distance
+    const positions: [number, number, number][] = [];
+    for (let i = 0; i < vehicles.length; i++) {
+      const child = vehiclesRef.current.children[i];
+      if (child) {
+        positions.push([child.position.x, child.position.y, child.position.z]);
+      } else {
+        positions.push([0, 0, 0]);
+      }
+    }
+
+    // 2. Second Pass: Kinematics, Collision Spacing, and Traffic Signal Compliance
+    vehicles.forEach((veh, idx) => {
       const child = vehiclesRef.current?.children[idx];
       if (!child) return;
 
-      const wp = route.waypoints;
+      const wp = veh.waypoints;
       const { totalDist, segDists, segAccums } = routeMetas[idx];
-
-      // Check current vehicle position
       const curX = child.position.x;
       const curZ = child.position.z;
 
-      // Traffic Signal Compliance Logic:
-      let shouldStop = false;
-
-      if (route.isNorthSouth) {
-        // Approaching central 4-way intersection from North or South
-        const isApproachingFromNorth = curZ < -4.8 && curZ > -7.8;
-        const isApproachingFromSouth = curZ > 4.8 && curZ < 7.8;
-        if ((isApproachingFromNorth || isApproachingFromSouth) && !signal.isNorthSouthGreen) {
-          shouldStop = true;
-        }
-      } else if (route.isEastWest) {
-        // Approaching central 4-way intersection from West or East
-        const isApproachingFromWest = curX < -4.8 && curX > -7.8;
-        const isApproachingFromEast = curX > 4.8 && curX < 7.8;
-        if ((isApproachingFromWest || isApproachingFromEast) && !signal.isEastWestGreen) {
-          shouldStop = true;
+      // --- A. TRAFFIC SIGNAL & JUNCTION INTERACTION ---
+      let shouldStopForSignal = false;
+      if (!veh.isEmergency) {
+        if (veh.isNorthSouth) {
+          // Approaching South Crossroads (Z = 24.0)
+          const isApproachingSouthCrossNorth = curZ < 21.0 && curZ > 17.5;
+          const isApproachingSouthCrossSouth = curZ > 27.0 && curZ < 30.5;
+          if ((isApproachingSouthCrossNorth || isApproachingSouthCrossSouth) && !signal.isNorthSouthGreen) {
+            shouldStopForSignal = true;
+          }
+        } else if (veh.isEastWest) {
+          // Approaching Central Crossing
+          const isApproachingWest = curX < -2.8 && curX > -6.5;
+          const isApproachingEast = curX > 2.8 && curX < 6.5;
+          if ((isApproachingWest || isApproachingEast) && !signal.isEastWestGreen) {
+            shouldStopForSignal = true;
+          }
         }
       }
 
-      // Smooth deceleration / acceleration
-      const targetSpeed = shouldStop ? 0 : route.speed;
+      // --- B. VEHICLE HEADWAY MONITORING (ANTI-COLLISION SPACING) ---
+      let headwayLimitSpeed = veh.speed;
+      let hasVehicleAhead = false;
+
+      for (let j = 0; j < vehicles.length; j++) {
+        if (j === idx) continue;
+        const otherPos = positions[j];
+        const dist = Math.hypot(otherPos[0] - curX, otherPos[2] - curZ);
+
+        // Check if other vehicle is within forward proximity cone
+        if (dist < 6.2) {
+          // Angle comparison to ensure other vehicle is actually in front
+          const fwdX = Math.sin(child.rotation.y);
+          const fwdZ = Math.cos(child.rotation.y);
+          const toOtherX = (otherPos[0] - curX) / dist;
+          const toOtherZ = (otherPos[2] - curZ) / dist;
+          const dot = fwdX * toOtherX + fwdZ * toOtherZ;
+
+          if (dot > 0.65) {
+            // Vehicle directly in front!
+            hasVehicleAhead = true;
+            if (dist < 2.8) {
+              headwayLimitSpeed = 0; // Emergency headway stop
+            } else {
+              const safeSpeedFraction = Math.max(0, (dist - 2.8) / 3.4);
+              headwayLimitSpeed = Math.min(headwayLimitSpeed, currentSpeedsRef.current[j] * safeSpeedFraction);
+            }
+          }
+        }
+      }
+
+      // --- C. TARGET SPEED INTEGRATION ---
+      let targetSpeed = veh.speed;
+      if (shouldStopForSignal) {
+        targetSpeed = 0;
+      } else if (hasVehicleAhead) {
+        targetSpeed = Math.min(targetSpeed, headwayLimitSpeed);
+      }
+
+      // Smooth physics-inspired acceleration and braking
+      const isBraking = targetSpeed < currentSpeedsRef.current[idx] - 0.2;
+      isBrakingRef.current[idx] = isBraking;
+
+      const accelRate = targetSpeed < currentSpeedsRef.current[idx] ? 6.5 : 3.8;
       currentSpeedsRef.current[idx] = THREE.MathUtils.lerp(
         currentSpeedsRef.current[idx],
         targetSpeed,
-        dt * 4.0
+        dt * accelRate
       );
 
-      // Advance parametric route progress
+      totalVelocity += currentSpeedsRef.current[idx];
+      totalMaxVelocity += veh.speed;
+
+      // Advance progress along route
       progressRef.current[idx] =
         (progressRef.current[idx] + (currentSpeedsRef.current[idx] * dt) / totalDist) % 1.0;
       const targetDist = progressRef.current[idx] * totalDist;
@@ -248,12 +452,11 @@ function VehiclesSystem() {
         }
       }
       const accum = segAccums[segIdx];
-
       const p1 = wp[segIdx];
       const p2 = wp[(segIdx + 1) % wp.length];
       const segT = (targetDist - accum) / (segDists[segIdx] || 1);
 
-      // Interpolate 3D coordinates
+      // Smooth interpolated 3D coordinates
       const posX = THREE.MathUtils.lerp(p1[0], p2[0], segT);
       const posY = THREE.MathUtils.lerp(p1[1], p2[1], segT);
       const posZ = THREE.MathUtils.lerp(p1[2], p2[2], segT);
@@ -262,122 +465,217 @@ function VehiclesSystem() {
 
       // Smooth orientation along movement vector
       const targetAngle = Math.atan2(p2[0] - p1[0], p2[2] - p1[2]);
-      // Slerp rotation
-      child.rotation.y = THREE.MathUtils.lerp(child.rotation.y, targetAngle, dt * 6.0);
+      let diff = targetAngle - child.rotation.y;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      child.rotation.y += diff * Math.min(1.0, dt * 7.5);
+    });
+
+    // Update global traffic flow telemetry
+    const avgSpeed = vehicles.length > 0 ? totalVelocity / vehicles.length : 6.0;
+    const efficiency = totalMaxVelocity > 0 ? Math.round((totalVelocity / totalMaxVelocity) * 100) : 90;
+    setTrafficFlowMetrics({
+      activeVehicles: vehicles.length,
+      averageSpeedMps: parseFloat(avgSpeed.toFixed(1)),
+      averageSpeedKph: parseFloat((avgSpeed * 3.6).toFixed(1)),
+      trafficFlowEfficiency: efficiency,
+      congestionIndex: 100 - efficiency,
     });
   });
 
   return (
     <group ref={vehiclesRef} raycast={() => null}>
-      {routes.map((route, idx) => (
-        <group key={route.id} position={route.waypoints[0]}>
-          {/* Commuter Pod */}
-          {route.type === 'commuter' && (
+      {vehicles.map((veh, idx) => (
+        <group key={veh.id} position={veh.waypoints[0]}>
+          {/* ================= 1. COMMUTER POD / SEDAN ================= */}
+          {veh.category === 'commuter' && (
             <group>
               <mesh position={[0, 0.16, 0]}>
-                <boxGeometry args={[0.72, 0.36, 1.45]} />
-                <meshStandardMaterial color={route.color} metalness={0.8} roughness={0.2} />
+                <boxGeometry args={[0.74, 0.36, 1.5]} />
+                <meshStandardMaterial color={veh.color} metalness={0.7} roughness={0.25} />
               </mesh>
-              {/* Tinted Aerodynamic Glass Canopy */}
-              <mesh position={[0, 0.34, 0.08]}>
-                <boxGeometry args={[0.56, 0.22, 0.75]} />
-                <meshStandardMaterial color="#1f2c3d" roughness={0.1} metalness={0.9} />
+              {/* Aerodynamic Tinted Glass Canopy */}
+              <mesh position={[0, 0.35, 0.05]}>
+                <boxGeometry args={[0.58, 0.22, 0.8]} />
+                <meshStandardMaterial color="#1a252f" roughness={0.1} metalness={0.9} />
+              </mesh>
+              {/* Dual Axle Wheels */}
+              <mesh position={[-0.38, 0.12, 0.45]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.12, 0.12, 0.08, 12]} />
+                <meshStandardMaterial color="#111" roughness={0.9} />
+              </mesh>
+              <mesh position={[0.38, 0.12, 0.45]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.12, 0.12, 0.08, 12]} />
+                <meshStandardMaterial color="#111" roughness={0.9} />
+              </mesh>
+              <mesh position={[-0.38, 0.12, -0.45]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.12, 0.12, 0.08, 12]} />
+                <meshStandardMaterial color="#111" roughness={0.9} />
+              </mesh>
+              <mesh position={[0.38, 0.12, -0.45]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.12, 0.12, 0.08, 12]} />
+                <meshStandardMaterial color="#111" roughness={0.9} />
               </mesh>
             </group>
           )}
 
-          {/* Luxury Executive Cruiser */}
-          {route.type === 'cruiser' && (
+          {/* ================= 2. AUTONOMOUS TRANSIT SHUTTLE ================= */}
+          {veh.category === 'shuttle' && (
             <group>
-              <mesh position={[0, 0.15, 0]}>
-                <boxGeometry args={[0.78, 0.32, 1.6]} />
-                <meshStandardMaterial color={route.color} metalness={0.9} roughness={0.15} />
+              <mesh position={[0, 0.32, 0]}>
+                <boxGeometry args={[0.96, 0.62, 2.2]} />
+                <meshStandardMaterial color="#2c3e50" metalness={0.5} roughness={0.3} />
               </mesh>
-              <mesh position={[0, 0.32, 0.05]}>
-                <boxGeometry args={[0.62, 0.2, 0.85]} />
-                <meshStandardMaterial color="#c6a76a" metalness={0.8} roughness={0.2} />
-              </mesh>
-            </group>
-          )}
-
-          {/* Autonomous Transit Shuttle */}
-          {route.type === 'shuttle' && (
-            <group>
-              <mesh position={[0, 0.28, 0]}>
-                <boxGeometry args={[0.92, 0.58, 2.1]} />
-                <meshStandardMaterial color="#34495e" metalness={0.5} roughness={0.3} />
-              </mesh>
-              <mesh position={[0, 0.34, 0]}>
-                <boxGeometry args={[0.94, 0.22, 1.8]} />
+              {/* Continuous Panoramic Glass Windows with Soft Blue Luminescence */}
+              <mesh position={[0, 0.38, 0]}>
+                <boxGeometry args={[0.98, 0.24, 1.9]} />
                 <meshStandardMaterial
                   color="#5dade2"
                   emissive="#5dade2"
-                  emissiveIntensity={isNight ? 0.6 : 0.2}
+                  emissiveIntensity={isNight ? 0.75 : 0.25}
                 />
               </mesh>
+              {/* Digital Route Display Sign */}
+              <mesh position={[0, 0.58, 1.05]}>
+                <boxGeometry args={[0.7, 0.08, 0.04]} />
+                <meshStandardMaterial color="#000" emissive="#00ffff" emissiveIntensity={1.8} />
+              </mesh>
             </group>
           )}
 
-          {/* Heavy Logistics Hauler */}
-          {route.type === 'hauler' && (
+          {/* ================= 3. HEAVY LOGISTICS FREIGHT HAULER ================= */}
+          {veh.category === 'hauler' && (
             <group>
-              {/* Tractor Cab */}
-              <mesh position={[0, 0.24, -0.6]}>
-                <boxGeometry args={[1.05, 0.5, 1.2]} />
-                <meshStandardMaterial color="#42392f" roughness={0.7} />
+              {/* Tractor Driver Cab */}
+              <mesh position={[0, 0.28, -0.75]}>
+                <boxGeometry args={[1.08, 0.56, 1.2]} />
+                <meshStandardMaterial color="#34495e" roughness={0.6} />
               </mesh>
-              {/* Intermodal Freight Container */}
-              <mesh position={[0, 0.5, 0.45]}>
-                <boxGeometry args={[1.1, 0.72, 1.9]} />
-                <meshStandardMaterial color={route.color} roughness={0.5} />
+              {/* Intermodal Shipping Freight Container */}
+              <mesh position={[0, 0.56, 0.45]}>
+                <boxGeometry args={[1.14, 0.8, 2.1]} />
+                <meshStandardMaterial color={veh.color} roughness={0.5} />
+              </mesh>
+              {/* Heavy Axles */}
+              <mesh position={[-0.56, 0.14, 0.75]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.14, 0.14, 0.12, 12]} />
+                <meshStandardMaterial color="#111" />
+              </mesh>
+              <mesh position={[0.56, 0.14, 0.75]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.14, 0.14, 0.12, 12]} />
+                <meshStandardMaterial color="#111" />
               </mesh>
             </group>
           )}
 
+          {/* ================= 4. EXECUTIVE LUXURY CRUISER ================= */}
+          {veh.category === 'cruiser' && (
+            <group>
+              <mesh position={[0, 0.16, 0]}>
+                <boxGeometry args={[0.82, 0.32, 1.75]} />
+                <meshStandardMaterial color="#1b1d1f" metalness={0.95} roughness={0.12} />
+              </mesh>
+              {/* Gold Chrome Roofline Accent */}
+              <mesh position={[0, 0.34, 0.05]}>
+                <boxGeometry args={[0.65, 0.2, 0.95]} />
+                <meshStandardMaterial color="#d4af37" metalness={0.9} roughness={0.2} />
+              </mesh>
+            </group>
+          )}
+
+          {/* ================= 5. OASIS EMERGENCY MEDICAL AMBULANCE ================= */}
+          {veh.category === 'ambulance' && (
+            <group>
+              {/* Clean White Medical Van Body */}
+              <mesh position={[0, 0.34, 0]}>
+                <boxGeometry args={[0.92, 0.65, 2.05]} />
+                <meshStandardMaterial color="#f8f9fa" roughness={0.3} metalness={0.4} />
+              </mesh>
+              {/* Emergency Red Reflective Side Stripe */}
+              <mesh position={[0, 0.28, 0]}>
+                <boxGeometry args={[0.94, 0.14, 1.95]} />
+                <meshStandardMaterial color="#e74c3c" emissive="#c0392b" emissiveIntensity={0.6} />
+              </mesh>
+              {/* Medical Red Cross on Flank */}
+              <mesh position={[0.48, 0.42, 0.1]}>
+                <planeGeometry args={[0.24, 0.08]} />
+                <meshBasicMaterial color="#e74c3c" />
+              </mesh>
+              <mesh position={[0.48, 0.42, 0.1]}>
+                <planeGeometry args={[0.08, 0.24]} />
+                <meshBasicMaterial color="#e74c3c" />
+              </mesh>
+
+              {/* Roof-Mounted Emergency Strobe Light Bar (Alternating Cyan/Red) */}
+              <group position={[0, 0.72, 0.2]}>
+                {/* Blue/Cyan Left Strobe */}
+                <mesh position={[-0.24, 0, 0]}>
+                  <boxGeometry args={[0.18, 0.08, 0.12]} />
+                  <meshStandardMaterial color="#00e5ff" emissive="#00e5ff" emissiveIntensity={3.0} />
+                </mesh>
+                {/* Red Right Strobe */}
+                <mesh position={[0.24, 0, 0]}>
+                  <boxGeometry args={[0.18, 0.08, 0.12]} />
+                  <meshStandardMaterial color="#ff2222" emissive="#ff1111" emissiveIntensity={3.0} />
+                </mesh>
+              </group>
+
+              {/* Dynamic Emergency Flasher Light Source */}
+              <pointLight
+                ref={emergencyStrobeRef}
+                position={[0, 0.85, 0.2]}
+                color="#00e5ff"
+                intensity={1.8}
+                distance={7.5}
+              />
+            </group>
+          )}
+
+          {/* ================= COMMON VEHICLE LIGHTING ================= */}
           {/* Front Dual LED Headlights */}
-          <mesh position={[-0.24, 0.2, 0.75]}>
+          <mesh position={[-0.26, 0.2, 0.76]}>
             <boxGeometry args={[0.12, 0.08, 0.05]} />
             <meshStandardMaterial
               color="#ffffff"
               emissive="#ffffff"
-              emissiveIntensity={isNight ? 2.8 : 0.8}
+              emissiveIntensity={isNight ? 3.0 : 0.9}
             />
           </mesh>
-          <mesh position={[0.24, 0.2, 0.75]}>
+          <mesh position={[0.26, 0.2, 0.76]}>
             <boxGeometry args={[0.12, 0.08, 0.05]} />
             <meshStandardMaterial
               color="#ffffff"
               emissive="#ffffff"
-              emissiveIntensity={isNight ? 2.8 : 0.8}
+              emissiveIntensity={isNight ? 3.0 : 0.9}
             />
           </mesh>
 
-          {/* Rear Dual Red Taillights & Brake Lamps */}
-          <mesh position={[-0.24, 0.2, -0.75]}>
+          {/* Rear Dual Red Taillights & Active Brake Lamps */}
+          <mesh position={[-0.26, 0.2, -0.76]}>
             <boxGeometry args={[0.12, 0.08, 0.05]} />
             <meshStandardMaterial
               color="#ff2222"
               emissive="#ff1111"
-              emissiveIntensity={isNight ? 3.0 : 1.0}
+              emissiveIntensity={isBrakingRef.current[idx] ? 4.5 : isNight ? 2.5 : 1.0}
             />
           </mesh>
-          <mesh position={[0.24, 0.2, -0.75]}>
+          <mesh position={[0.26, 0.2, -0.76]}>
             <boxGeometry args={[0.12, 0.08, 0.05]} />
             <meshStandardMaterial
               color="#ff2222"
               emissive="#ff1111"
-              emissiveIntensity={isNight ? 3.0 : 1.0}
+              emissiveIntensity={isBrakingRef.current[idx] ? 4.5 : isNight ? 2.5 : 1.0}
             />
           </mesh>
 
-          {/* Night Dynamic Headlight Projection Cone */}
+          {/* Night Dynamic Headlight Projection Spot Cone */}
           {isNight && (
             <spotLight
               position={[0, 0.35, 0.85]}
               target-position={[0, 0, 9]}
               color="#fff8db"
-              intensity={0.85}
-              distance={8.0}
+              intensity={0.9}
+              distance={8.5}
               angle={0.55}
               penumbra={0.6}
             />

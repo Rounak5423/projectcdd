@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { useIsNight } from './DayNightController';
+import { useGameState } from '../../context/GameStateContext';
 import { getTerrainHeight } from './Terrain';
 
 interface StreetlightCoord {
@@ -63,16 +64,20 @@ export default React.memo(function StreetlightsSystem() {
       list.push({ x: 27.4, z, rotationY: Math.PI / 2 });
     }
 
-    // 5. Citadel Ring Boulevard (Radius ~ 8.1, encircles Citadel Dais at [0, 13])
-    for (let i = 0; i < 8; i++) {
-      const angle = (i * Math.PI * 2) / 8;
-      const r = 8.1;
-      const x = Math.cos(angle) * r;
-      const z = 13 + Math.sin(angle) * r;
-      // Facing inward towards the ring roadway
-      const rot = Math.atan2(-x, -(z - 13));
-      list.push({ x, z, rotationY: rot });
+    // 5. Elysium Grand Forum Boulevard Loop Streetlights (Outer sidewalks flanking Civic Plaza)
+    // West Avenue Sidewalk (Facing East toward avenue)
+    for (let z = 6.0; z <= 18.0; z += 4.0) {
+      list.push({ x: -11.2, z, rotationY: Math.PI / 2 });
     }
+    // East Avenue Sidewalk (Facing West toward avenue)
+    for (let z = 6.0; z <= 18.0; z += 4.0) {
+      list.push({ x: 11.2, z, rotationY: -Math.PI / 2 });
+    }
+    // North and South Forum Transverse Crossings
+    list.push({ x: -4.5, z: 3.4, rotationY: 0 });
+    list.push({ x: 4.5, z: 3.4, rotationY: 0 });
+    list.push({ x: -4.5, z: 20.6, rotationY: Math.PI });
+    list.push({ x: 4.5, z: 20.6, rotationY: Math.PI });
 
     return list;
   }, []);
@@ -132,22 +137,25 @@ export default React.memo(function StreetlightsSystem() {
     []
   );
 
+  const { economyReport } = useGameState();
+  const isBrownout = economyReport.hasCriticalPowerDeficit;
+
   const lensMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: isNight ? '#fff2b3' : '#4a4435',
-        emissive: isNight ? '#ffb938' : '#000000',
-        emissiveIntensity: isNight ? 2.8 : 0,
+        color: isNight ? (isBrownout ? '#ff8833' : '#fff2b3') : '#4a4435',
+        emissive: isNight ? (isBrownout ? '#ff5500' : '#ffb938') : '#000000',
+        emissiveIntensity: isNight ? (isBrownout ? 0.9 : 2.8) : 0,
         roughness: 0.2,
       }),
-    [isNight]
+    [isNight, isBrownout]
   );
 
   useEffect(() => {
-    lensMat.color.set(isNight ? '#fff2b3' : '#4a4435');
-    lensMat.emissive.set(isNight ? '#ffb938' : '#000000');
-    lensMat.emissiveIntensity = isNight ? 2.8 : 0;
-  }, [isNight, lensMat]);
+    lensMat.color.set(isNight ? (isBrownout ? '#ff8833' : '#fff2b3') : '#4a4435');
+    lensMat.emissive.set(isNight ? (isBrownout ? '#ff5500' : '#ffb938') : '#000000');
+    lensMat.emissiveIntensity = isNight ? (isBrownout ? 0.9 : 2.8) : 0;
+  }, [isNight, isBrownout, lensMat]);
 
   // Update instance matrices
   useEffect(() => {

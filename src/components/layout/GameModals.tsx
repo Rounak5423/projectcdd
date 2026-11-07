@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
+import CityEconomyDashboard from '../dashboard/CityEconomyDashboard';
 
 export default function GameModals() {
   const {
@@ -245,6 +246,11 @@ export default function GameModals() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* ================= CITY ECONOMY & RESOURCE DASHBOARD ================= */}
+      {activeDrawer === 'economy' && (
+        <CityEconomyDashboard onClose={() => setActiveDrawer('none')} />
       )}
     </div>
   );

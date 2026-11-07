@@ -113,58 +113,10 @@ function Starfield({ isNight }: { isNight: boolean }) {
   return <points ref={pointsRef} geometry={starGeo} material={starMat} raycast={() => null} />;
 }
 
-// ================= VOLUMETRIC DRIFTING CLOUDS =================
-function DriftingClouds({ weather, isNight }: { weather: WeatherType; isNight: boolean }) {
-  const groupRef = useRef<THREE.Group>(null);
-
-  const cloudPuffs = useMemo(() => {
-    const puffs: { x: number; y: number; z: number; scaleX: number; scaleZ: number }[] = [];
-    for (let i = 0; i < 18; i++) {
-      puffs.push({
-        x: (Math.random() - 0.5) * 110,
-        y: 28 + Math.random() * 8,
-        z: (Math.random() - 0.5) * 110,
-        scaleX: 9 + Math.random() * 8,
-        scaleZ: 8 + Math.random() * 7,
-      });
-    }
-    return puffs;
-  }, []);
-
-  useFrame((_, delta) => {
-    if (groupRef.current) {
-      // Wind drift towards +X
-      const speed = weather === 'rain' ? 3.5 : 1.8;
-      groupRef.current.position.x = (groupRef.current.position.x + delta * speed) % 120;
-    }
-  });
-
-  const cloudColor = useMemo(() => {
-    if (isNight) return '#101720';
-    if (weather === 'rain') return '#4a5763';
-    if (weather === 'cloudy') return '#8a9ba8';
-    return '#e6edf2';
-  }, [isNight, weather]);
-
-  const cloudOpacity = weather === 'clear' ? 0.25 : weather === 'cloudy' ? 0.65 : 0.85;
-
-  return (
-    <group ref={groupRef} raycast={() => null}>
-      {cloudPuffs.map((puff, i) => (
-        <mesh key={i} position={[puff.x, puff.y, puff.z]}>
-          <cylinderGeometry args={[puff.scaleX, puff.scaleX * 1.1, 1.8, 12]} />
-          <meshStandardMaterial
-            color={cloudColor}
-            transparent
-            opacity={cloudOpacity}
-            roughness={0.9}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
+// ================= ATMOSPHERIC SKY ENVIRONMENT =================
+// Low-altitude geometric cylinder clouds have been removed: they generated large translucent
+// polygonal and triangular artifacts across the world in top-down and high-angle camera views.
+// Atmospheric mood is rendered through sky color, directional sunlight, and clean distant horizon fog.
 
 // ================= RAIN PARTICLE SYSTEM =================
 function RainParticles({ isRaining }: { isRaining: boolean }) {
@@ -317,8 +269,8 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
   let ambientColor = '#ffffff';
   let skyColor = '#9ec4b0';
   let fogColor = '#a8cbb8';
-  let fogNear = 90;
-  let fogFar = 195;
+  let fogNear = 160;
+  let fogFar = 360;
 
   if (timeOfDay >= 5.0 && timeOfDay < 7.5) {
     // Dawn / Sunrise
@@ -328,6 +280,8 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     ambientColor = '#e8b98d';
     skyColor = '#c49a79';
     fogColor = '#d9b493';
+    fogNear = 150;
+    fogFar = 340;
   } else if (timeOfDay >= 7.5 && timeOfDay <= 17.0) {
     // Full Daylight
     sunIntensity = 2.4;
@@ -335,6 +289,8 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     ambientColor = '#ffffff';
     skyColor = '#9ec4b0';
     fogColor = '#a8cbb8';
+    fogNear = 160;
+    fogFar = 360;
   } else if (timeOfDay > 17.0 && timeOfDay <= 20.0) {
     // Golden Hour / Sunset
     const t = (timeOfDay - 17.0) / 3.0;
@@ -343,6 +299,8 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     ambientColor = '#c97d65';
     skyColor = '#5e4359';
     fogColor = '#735269';
+    fogNear = 150;
+    fogFar = 340;
   } else {
     // Night
     sunIntensity = 0.5;
@@ -350,6 +308,8 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     ambientColor = '#18242f';
     skyColor = '#0b1319';
     fogColor = '#0d1820';
+    fogNear = 140;
+    fogFar = 320;
   }
 
   // Weather modifiers
@@ -359,24 +319,24 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     ambientColor = isNight ? '#141d24' : '#8fa1af';
     skyColor = isNight ? '#080d12' : '#6f838f';
     fogColor = isNight ? '#0b1218' : '#7d909c';
-    fogNear = 65;
-    fogFar = 150;
+    fogNear = 120;
+    fogFar = 280;
   } else if (weather === 'rain') {
     sunIntensity *= 0.45;
     directionalColor = '#95a8b8';
     ambientColor = isNight ? '#101720' : '#6b7d8c';
     skyColor = isNight ? '#060a0e' : '#455663';
     fogColor = isNight ? '#080d12' : '#526473';
-    fogNear = 38;
-    fogFar = 95;
+    fogNear = 90;
+    fogFar = 220;
   } else if (weather === 'fog') {
     sunIntensity *= 0.55;
     directionalColor = '#c5d0d8';
     ambientColor = isNight ? '#121922' : '#7c8e99';
     skyColor = isNight ? '#090e13' : '#667985';
     fogColor = isNight ? '#0c131a' : '#758894';
-    fogNear = 22;
-    fogFar = 68;
+    fogNear = 70;
+    fogFar = 180;
   }
 
   const value = useMemo<DayNightState>(
@@ -498,9 +458,6 @@ export const WorldLighting = React.memo(function WorldLighting() {
 
       {/* Starfield in Nighttime Sky */}
       <Starfield isNight={isNight} />
-
-      {/* Volumetric Drifting Clouds */}
-      <DriftingClouds weather={weather} isNight={isNight} />
 
       {/* Dynamic Rain Particles */}
       <RainParticles isRaining={weather === 'rain'} />

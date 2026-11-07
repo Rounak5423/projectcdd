@@ -185,78 +185,189 @@ export function ElectricalSubstationModel({ isSelected, level }: ModelProps) {
   );
 }
 
-// 4. Planetary Senate Citadel (Government & Civic Command)
+// 4. Planetary Senate Citadel (Monumental Neoclassical Civic Command Palace)
 export function SenateCitadelModel({ isSelected, level }: ModelProps) {
   const isNight = useIsNight();
 
   return (
     <group>
-      {/* Tiered Bastion Ground Terrace */}
-      <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[2.8, 3.4, 1.0, 8]} />
-        <meshStandardMaterial color={isSelected ? '#e0be70' : '#242f26'} roughness={0.5} />
+      {/* 1. Grand Rusticated Stone Base Podium & Broad Entrance Terrace */}
+      <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
+        <boxGeometry args={[7.2, 0.7, 5.8]} />
+        <meshStandardMaterial color={isSelected ? '#e0be70' : '#3d443e'} roughness={0.7} />
       </mesh>
-      {/* Mid Executive Council Keep */}
-      <mesh position={[0, 1.6, 0]} castShadow>
-        <cylinderGeometry args={[2.0, 2.4, 1.4, 8]} />
-        <meshStandardMaterial color="#374639" roughness={0.4} />
+
+      {/* Broad Ceremonial Front Staircase */}
+      {[0, 1, 2, 3].map((step) => (
+        <mesh key={`stair-${step}`} position={[0, 0.08 + step * 0.12, 3.0 + (3 - step) * 0.28]} receiveShadow>
+          <boxGeometry args={[3.6 - step * 0.15, 0.12, 0.32]} />
+          <meshStandardMaterial color="#5a635b" roughness={0.6} />
+        </mesh>
+      ))}
+
+      {/* Flanking Stone Stair Balustrades & Bronze Torches */}
+      {[-1.9, 1.9].map((bx, i) => (
+        <group key={`balustrade-${i}`} position={[bx, 0.45, 3.4]}>
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[0.3, 0.6, 1.4]} />
+            <meshStandardMaterial color="#4c544d" roughness={0.7} />
+          </mesh>
+          {/* Bronze Torch Lantern */}
+          <mesh position={[0, 0.45, 0.5]}>
+            <cylinderGeometry args={[0.08, 0.05, 0.3, 8]} />
+            <meshStandardMaterial color="#c6a76a" metalness={0.8} />
+          </mesh>
+          <mesh position={[0, 0.65, 0.5]}>
+            <sphereGeometry args={[0.08, 8, 8]} />
+            <meshStandardMaterial
+              color="#ffcc66"
+              emissive="#ffaa33"
+              emissiveIntensity={isNight ? 2.5 : 0.8}
+            />
+          </mesh>
+        </group>
+      ))}
+
+      {/* 2. Symmetrical East & West Legislative Wings (2 Stories with Detailed Windows) */}
+      {[-2.4, 2.4].map((wx, i) => (
+        <group key={`wing-${i}`} position={[wx, 1.45, 0]}>
+          {/* Wing Main Masonry Mass */}
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[2.2, 1.5, 4.8]} />
+            <meshStandardMaterial color="#d8ded5" roughness={0.4} />
+          </mesh>
+          {/* Hipped Slate Mansard Roof */}
+          <mesh position={[0, 1.1, 0]} castShadow>
+            <boxGeometry args={[2.0, 0.7, 4.6]} />
+            <meshStandardMaterial color="#2c3a47" roughness={0.3} metalness={0.2} />
+          </mesh>
+          {/* First & Second Floor Windows */}
+          {[-1.4, 0, 1.4].map((wz, j) => (
+            <group key={`win-${j}`}>
+              <mesh position={[i === 0 ? -1.12 : 1.12, -0.15, wz]}>
+                <boxGeometry args={[0.04, 0.6, 0.45]} />
+                <meshStandardMaterial color={isNight ? '#ffeaa7' : '#1a252f'} roughness={0.2} />
+              </mesh>
+              <mesh position={[i === 0 ? -1.12 : 1.12, 0.45, wz]}>
+                <boxGeometry args={[0.04, 0.5, 0.45]} />
+                <meshStandardMaterial color={isNight ? '#ffeaa7' : '#1a252f'} roughness={0.2} />
+              </mesh>
+            </group>
+          ))}
+        </group>
+      ))}
+
+      {/* 3. Central Monumental Portico & Hexastyle Colonnade */}
+      <group position={[0, 1.55, 1.6]}>
+        {/* Portico Base Floor */}
+        <mesh position={[0, -0.75, 0.6]} receiveShadow>
+          <boxGeometry args={[3.2, 0.2, 1.4]} />
+          <meshStandardMaterial color="#4c544d" />
+        </mesh>
+        {/* Hexastyle Classical Fluted Columns */}
+        {[-1.3, -0.78, -0.26, 0.26, 0.78, 1.3].map((cx, i) => (
+          <mesh key={`col-${i}`} position={[cx, 0.1, 1.15]} castShadow>
+            <cylinderGeometry args={[0.09, 0.11, 1.5, 10]} />
+            <meshStandardMaterial color="#e8ece5" roughness={0.3} />
+          </mesh>
+        ))}
+        {/* Triangular Pediment with Classical Tympanum */}
+        <mesh position={[0, 1.05, 1.15]} castShadow>
+          <cylinderGeometry args={[0.02, 1.85, 0.4, 3]} />
+          <meshStandardMaterial color="#e8ece5" roughness={0.3} />
+        </mesh>
+        {/* Bronze Civic Crest Medallion in Tympanum */}
+        <mesh position={[0, 1.02, 1.32]}>
+          <circleGeometry args={[0.18, 16]} />
+          <meshStandardMaterial color="#c6a76a" metalness={0.9} roughness={0.2} />
+        </mesh>
+        {/* Grand Bronze Entrance Portal */}
+        <mesh position={[0, -0.1, 0.35]}>
+          <boxGeometry args={[1.2, 1.2, 0.08]} />
+          <meshStandardMaterial color="#2d261e" metalness={0.6} roughness={0.4} />
+        </mesh>
+      </group>
+
+      {/* 4. Central Grand Rotunda Hall & Drum */}
+      <mesh position={[0, 2.3, 0]} castShadow>
+        <cylinderGeometry args={[1.8, 1.9, 1.8, 16]} />
+        <meshStandardMaterial color="#e2e6de" roughness={0.35} />
       </mesh>
-      {/* Classical Civic Colonnade Ring */}
+      {/* Rotunda Arched Windows */}
       {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
         const ang = (i * Math.PI * 2) / 8;
         return (
-          <mesh key={i} position={[Math.cos(ang) * 1.8, 1.6, Math.sin(ang) * 1.8]}>
-            <cylinderGeometry args={[0.08, 0.1, 1.3, 6]} />
-            <meshStandardMaterial color="#d8cdb4" />
+          <mesh
+            key={`rot-win-${i}`}
+            position={[Math.cos(ang) * 1.82, 2.3, Math.sin(ang) * 1.82]}
+            rotation={[0, -ang + Math.PI / 2, 0]}
+          >
+            <planeGeometry args={[0.55, 0.9]} />
+            <meshStandardMaterial
+              color={isNight ? '#ffeaa7' : '#1a252f'}
+              emissive={isNight ? '#ffbe44' : '#000000'}
+              emissiveIntensity={isNight ? 1.6 : 0}
+            />
           </mesh>
         );
       })}
-      {/* Grand Golden Council Dome */}
-      <mesh position={[0, 2.7, 0]} castShadow>
-        <sphereGeometry args={[1.5, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+
+      {/* 5. Majestic Ribbed Gilded Civic Dome */}
+      <mesh position={[0, 3.7, 0]} castShadow>
+        <sphereGeometry args={[1.7, 24, 18, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <meshStandardMaterial
           color="#c6a76a"
-          metalness={0.8}
+          metalness={0.85}
           roughness={0.2}
-          emissive="#c6a76a"
-          emissiveIntensity={isNight ? 0.7 : 0.3}
+          emissive="#b8934a"
+          emissiveIntensity={isNight ? 0.6 : 0.2}
         />
       </mesh>
-      {/* Planetary Zenith Spire */}
-      <mesh position={[0, 4.0, 0]}>
-        <coneGeometry args={[0.4, 1.6, 8]} />
-        <meshStandardMaterial color="#c6a76a" metalness={0.9} />
+
+      {/* Lantern Cupola & Planetary Zenith Spire */}
+      <mesh position={[0, 4.7, 0]} castShadow>
+        <cylinderGeometry args={[0.35, 0.45, 0.6, 12]} />
+        <meshStandardMaterial color="#e2e6de" />
+      </mesh>
+      <mesh position={[0, 5.4, 0]}>
+        <coneGeometry args={[0.15, 0.9, 8]} />
+        <meshStandardMaterial color="#ffd700" metalness={0.95} />
       </mesh>
 
-      {/* Level 4 Development: Quad Monumental Bastion Spreading Terraces */}
+      {/* Level 4 Development: Ceremonial Colonnaded Arcade Wings */}
       {level >= 4 && (
         <group>
-          {[-2.2, 2.2].map((bx, i) =>
-            [-2.2, 2.2].map((bz, j) => (
-              <mesh key={`bastion-${i}-${j}`} position={[bx, 0.7, bz]} castShadow>
-                <cylinderGeometry args={[0.6, 0.75, 1.4, 6]} />
-                <meshStandardMaterial color="#c6a76a" metalness={0.7} roughness={0.3} />
+          {[-3.8, 3.8].map((ax, i) => (
+            <group key={`arcade-${i}`} position={[ax, 0.9, 0]}>
+              <mesh position={[0, 0, 0]} castShadow>
+                <boxGeometry args={[0.8, 1.1, 4.2]} />
+                <meshStandardMaterial color="#d8ded5" roughness={0.4} />
               </mesh>
-            ))
-          )}
+              {[-1.5, -0.5, 0.5, 1.5].map((az, k) => (
+                <mesh key={`arc-col-${k}`} position={[i === 0 ? -0.45 : 0.45, 0, az]}>
+                  <cylinderGeometry args={[0.07, 0.08, 1.1, 8]} />
+                  <meshStandardMaterial color="#e8ece5" />
+                </mesh>
+              ))}
+            </group>
+          ))}
         </group>
       )}
 
-      {/* Level 5 Development (Apex Civilization Wonder): Floating Golden Halo & Zenith Power Beam */}
+      {/* Level 5 Development (Wonder of Civilization): Planetary Hologram & Zenith Light Beam */}
       {level >= 5 && (
-        <group position={[0, 5.2, 0]}>
+        <group position={[0, 6.2, 0]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[2.0, 0.1, 16, 32]} />
+            <torusGeometry args={[1.8, 0.05, 16, 32]} />
             <meshStandardMaterial
               color="#ffd700"
               emissive="#ffd700"
-              emissiveIntensity={isNight ? 3.0 : 1.5}
+              emissiveIntensity={isNight ? 2.5 : 1.2}
             />
           </mesh>
-          {/* Vertical Planetary Beacon Light Column */}
-          <mesh position={[0, 2.0, 0]}>
-            <cylinderGeometry args={[0.08, 0.08, 4.0, 8]} />
-            <meshBasicMaterial color="#ffeaa7" transparent opacity={0.85} />
+          <mesh position={[0, 1.8, 0]}>
+            <cylinderGeometry args={[0.04, 0.04, 3.6, 8]} />
+            <meshBasicMaterial color="#ffeaa7" transparent opacity={0.8} />
           </mesh>
         </group>
       )}
