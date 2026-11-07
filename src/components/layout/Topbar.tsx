@@ -13,6 +13,8 @@ import {
   Calendar,
   Sparkles,
   BookOpen,
+  DollarSign,
+  ShieldAlert,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 
@@ -23,7 +25,7 @@ export default function Topbar({
   isRightPanelOpen: boolean;
   onToggleRightPanel: () => void;
 }) {
-  const { resources, rates, civilization, events, setActiveDrawer } = useGameState();
+  const { resources, rates, civilization, events, setActiveDrawer, disasterState, economyReport } = useGameState();
   const unreadCount = events.filter((e) => !e.isRead).length;
 
   const resourceItems = [
@@ -143,9 +145,57 @@ export default function Topbar({
       </div>
 
       {/* Right Quick Controls & Modals */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
+        {/* City Economy Quick Drawer Trigger */}
+        <button
+          onClick={() => setActiveDrawer('economy')}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#202921] hover:bg-[#283529] border border-[#344435] hover:border-[#4e644f] transition-all text-xs font-mono shadow-sm"
+          title="Open City Economy & Financial Treasury Dashboard"
+        >
+          <div className="flex items-center gap-1.5 text-[#c6a76a] font-bold">
+            <DollarSign size={14} />
+            <span className="hidden md:inline">ECONOMY</span>
+          </div>
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+              economyReport.economy.fiscalHealth === 'Surplus'
+                ? 'bg-[#1b3823] text-[#2ecc71] border border-[#2b5936]'
+                : economyReport.economy.fiscalHealth === 'Balanced'
+                ? 'bg-[#332b17] text-[#f1c40f] border border-[#524424]'
+                : 'bg-[#3b1c1c] text-[#e74c3c] border border-[#5e2e2e]'
+            }`}
+          >
+            {economyReport.economy.netDailyCashFlow >= 0 ? `+${economyReport.economy.netDailyCashFlow}` : economyReport.economy.netDailyCashFlow} Cr
+          </span>
+        </button>
+
+        {/* Civil Defense & Disaster Command Center */}
+        <button
+          onClick={() => setActiveDrawer('disaster')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-mono shadow-sm ${
+            disasterState?.activeDisaster
+              ? 'bg-[#4d1616] hover:bg-[#5e1c1c] border-[#e74c3c] text-[#ff8e8e] animate-pulse shadow-[0_0_15px_rgba(231,76,60,0.4)]'
+              : 'bg-[#202921] hover:bg-[#283529] border-[#344435] hover:border-[#4e644f] text-[#a6bd82]'
+          }`}
+          title="Open Civil Defense & Emergency Response Command Center"
+        >
+          <div className="flex items-center gap-1.5 font-bold">
+            <ShieldAlert size={14} className={disasterState?.activeDisaster ? 'text-[#e74c3c]' : 'text-[#a6bd82]'} />
+            <span className="hidden md:inline">DEFENSE</span>
+          </div>
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+              disasterState?.activeDisaster
+                ? 'bg-[#661e1e] text-[#ff8e8e] border border-[#992d2d]'
+                : 'bg-[#1b3823] text-[#2ecc71] border border-[#2b5936]'
+            }`}
+          >
+            {disasterState?.activeDisaster ? disasterState.activeDisaster.type.toUpperCase() : 'SECURE'}
+          </span>
+        </button>
+
         {/* Compact GRC Display for smaller screens */}
-        <div className="xl:hidden flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#262215] border border-[#4d3f23]">
+        <div className="xl:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#262215] border border-[#4d3f23]">
           <Coins size={14} className="text-[#c6a76a]" />
           <span className="text-xs font-mono font-bold text-[#c6a76a]">{resources.grc} GRC</span>
         </div>

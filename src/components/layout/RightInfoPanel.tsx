@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   ChevronRight,
   TrendingUp,
+  ShieldAlert,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 
@@ -29,6 +30,8 @@ export default function RightInfoPanel({ isOpen, onClose }: { isOpen: boolean; o
     events,
     achievements,
     civilization,
+    disasterState,
+    setActiveDrawer,
   } = useGameState();
 
   if (!isOpen) return null;
@@ -150,6 +153,60 @@ export default function RightInfoPanel({ isOpen, onClose }: { isOpen: boolean; o
         ) : (
           /* ================= CIVILISATION VITALS ================= */
           <div className="space-y-5">
+            {/* Disaster & Crisis Readiness Quick Card */}
+            <div className="panel p-3.5 bg-[#1e261f] border-[#39443a]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="eyebrow text-[#c6a76a]">DISASTER & EMERGENCY</span>
+                <span
+                  className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase ${
+                    disasterState?.activeDisaster
+                      ? 'bg-[#4d1616] text-[#ff8e8e] border border-[#e74c3c] animate-pulse'
+                      : 'bg-[#1b3823] text-[#2ecc71] border border-[#2b5936]'
+                  }`}
+                >
+                  {disasterState?.activeDisaster ? 'CRISIS ACTIVE' : 'SYSTEMS NORMAL'}
+                </span>
+              </div>
+              {disasterState?.activeDisaster ? (
+                <div className="p-2.5 rounded bg-[#2e1717] border border-[#6b2525] text-xs space-y-1">
+                  <p className="font-bold text-[#ff8e8e] uppercase text-[11px]">
+                    🚨 {disasterState.activeDisaster.name} ({disasterState.activeDisaster.intensity})
+                  </p>
+                  <p className="text-[10px] text-[#e8e9e3]">
+                    Sector: {disasterState.activeDisaster.districtId} · Stage: {disasterState.activeDisaster.stage.toUpperCase()}
+                  </p>
+                  <div className="flex items-center justify-between text-[9px] font-mono text-[#ffb0b0] pt-1">
+                    <span>Containment</span>
+                    <span>{disasterState.activeDisaster.containmentPercent.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-1 rounded-full bg-[#150a0a] overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#e74c3c] to-[#2ecc71]"
+                      style={{ width: `${disasterState.activeDisaster.containmentPercent}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
+                  <div className="p-1.5 rounded bg-[#161c17] border border-[#2e3a2f]">
+                    <span className="text-[#8e9c8c] block text-[9px]">FLOOD RISK</span>
+                    <span className="font-bold text-[#82a6bd]">{disasterState?.risks?.floodRiskPercent || 0}%</span>
+                  </div>
+                  <div className="p-1.5 rounded bg-[#161c17] border border-[#2e3a2f]">
+                    <span className="text-[#8e9c8c] block text-[9px]">WILDFIRE RISK</span>
+                    <span className="font-bold text-[#e5a07b]">{disasterState?.risks?.wildfireRiskPercent || 0}%</span>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => setActiveDrawer('disaster')}
+                className="mt-2.5 w-full py-1.5 px-2 rounded-lg bg-[#273328] hover:bg-[#344435] text-[#dce9ca] border border-[#445b42] text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <ShieldAlert size={13} className="text-[#c6a76a]" />
+                <span>Open Emergency Command Center</span>
+              </button>
+            </div>
+
             {/* Vitals Summary Card */}
             <div className="panel p-3.5 bg-[#1e261f] border-[#39443a]">
               <div className="flex items-center justify-between mb-3">

@@ -10,6 +10,7 @@ import StreetlightsSystem from './StreetlightsSystem';
 import VehiclesSystem from './VehiclesSystem';
 import PedestriansSystem from './PedestriansSystem';
 import DistrictOverlays from './DistrictOverlays';
+import DisasterVisualEffects from './DisasterVisualEffects';
 import BuildingObject from './BuildingObject';
 import PlacementSystem from './PlacementSystem';
 import CameraManager from './CameraManager';
@@ -87,6 +88,9 @@ export default function CivilizationWorld3D() {
 
           {/* Tactical District Projection Rings & Labels */}
           <DistrictOverlays />
+
+          {/* Procedural 3D Natural Disaster Visual Effects */}
+          <DisasterVisualEffects />
 
           {/* Interactive Architectural Buildings */}
           {placedBuildings.map((building) => (

@@ -24,11 +24,25 @@ export function triggerCameraFocus(x: number, y: number, z: number, dist: number
 
 export default function CameraManager() {
   const controlsRef = useRef<any>(null);
-  const { selectedBuilding } = useGameState();
+  const { selectedBuilding, disasterState } = useGameState();
 
   const targetVec = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.8, 10.0));
   const camVec = useRef<THREE.Vector3>(new THREE.Vector3(32, 28, 38));
   const isTransitioning = useRef<boolean>(false);
+
+  // Real-time camera tremor during earthquakes
+  const activeDisaster = disasterState?.activeDisaster;
+  const isEarthquake =
+    activeDisaster?.type === 'earthquake' &&
+    (activeDisaster.stage === 'warning' || activeDisaster.stage === 'active');
+  const quakeIntensity =
+    activeDisaster?.intensity === 'critical'
+      ? 0.04
+      : activeDisaster?.intensity === 'high'
+      ? 0.025
+      : activeDisaster?.intensity === 'medium'
+      ? 0.015
+      : 0.008;
 
   // Smoothly center camera when building is selected in game state
   useEffect(() => {
@@ -84,8 +98,8 @@ export default function CameraManager() {
     return () => window.removeEventListener('civilization-camera-command', handleCommand);
   }, []);
 
-  // Smooth lerp during camera transition
-  useFrame((_, delta) => {
+  // Smooth lerp during camera transition & seismic tremor during earthquakes
+  useFrame(({ clock }, delta) => {
     if (isTransitioning.current && controlsRef.current) {
       const controls = controlsRef.current;
       const cam = controls.object as THREE.PerspectiveCamera;
@@ -100,6 +114,14 @@ export default function CameraManager() {
       ) {
         isTransitioning.current = false;
       }
+    } else if (isEarthquake && controlsRef.current) {
+      // Subtle seismic tremor on camera position
+      const t = clock.getElapsedTime() * 32;
+      const cam = controlsRef.current.object as THREE.PerspectiveCamera;
+      cam.position.x += Math.sin(t * 1.8) * quakeIntensity;
+      cam.position.y += Math.cos(t * 2.3) * (quakeIntensity * 0.7);
+      cam.position.z += Math.sin(t * 1.4 + 1.0) * quakeIntensity;
+      controlsRef.current.update();
     }
   });
 

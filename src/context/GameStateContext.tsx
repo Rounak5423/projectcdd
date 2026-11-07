@@ -34,9 +34,31 @@ import {
   calculateCitySimulation,
   CitySimulationReport,
 } from '../simulation/economySimulationEngine';
+import {
+  DisasterType,
+  DisasterIntensity,
+  DisasterSimulationState,
+} from '../types/disaster';
+import {
+  calculateDisasterRisks,
+  calculateEmergencyForces,
+  createDisaster,
+  advanceDisasterSimulation,
+  emergencyFullCivilizationRestoration,
+} from '../simulation/disasterSimulationEngine';
+import {
+  CitizenSimulationReport,
+  DetailedCitizenAgent,
+} from '../types/citizen';
+import {
+  runCitizenSimulationTick,
+  createInitialDetailedAgents,
+  calculateCitizenNeeds,
+  updateCitizenRoutines,
+} from '../simulation/citizenSimulationEngine';
 
 export type MapLayer = 'all' | 'infrastructure' | 'population' | 'resources' | 'environment' | 'economy';
-export type ActiveDrawer = 'none' | 'notifications' | 'codex' | 'timeline' | 'construction' | 'buildingInspector' | 'economy';
+export type ActiveDrawer = 'none' | 'notifications' | 'codex' | 'timeline' | 'construction' | 'buildingInspector' | 'economy' | 'disaster' | 'citizens';
 
 interface GameStateContextType {
   civilization: CivilizationProfile;
@@ -54,6 +76,8 @@ interface GameStateContextType {
   achievements: Achievement[];
   events: GameEvent[];
   economyReport: CitySimulationReport;
+  disasterState: DisasterSimulationState;
+  citizenReport: CitizenSimulationReport;
   
   // Simulation controls
   isPlaying: boolean;
@@ -97,6 +121,10 @@ interface GameStateContextType {
   setActiveDrawer: (drawer: ActiveDrawer) => void;
   taxRate: number;
   setTaxRate: (rate: number) => void;
+  triggerDisaster: (type: DisasterType, intensity: DisasterIntensity, districtId?: string) => void;
+  dispatchEmergencyResponse: () => void;
+  restoreAllDisasters: () => void;
+  toggleAutoDisasters: () => void;
 }
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -125,6 +153,36 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<BuildingCatalogItem | null>(null);
   const [activeDrawer, setActiveDrawer] = useState<ActiveDrawer>('none');
   const [relocatingBuildingId, setRelocatingBuildingId] = useState<string | null>(null);
+
+  // Disaster & Emergency Response State
+  const [disasterState, setDisasterState] = useState<DisasterSimulationState>(() => ({
+    activeDisaster: null,
+    risks: {
+      floodRiskPercent: 18,
+      wildfireRiskPercent: 12,
+      droughtRiskPercent: 10,
+      stormRiskPercent: 20,
+      seismicRiskPercent: 14,
+      overallThreatLevel: 'Low',
+    },
+    emergencyForces: {
+      medicalUnitsActive: 0,
+      medicalUnitsTotal: 4,
+      fireCrewsActive: 0,
+      fireCrewsTotal: 5,
+      rescueTeamsActive: 0,
+      rescueTeamsTotal: 4,
+      repairEngineersActive: 0,
+      repairEngineersTotal: 6,
+      shelterCapacityTotal: 120000,
+      responseEfficiencyPercent: 88,
+    },
+    settings: {
+      autoDisastersEnabled: false,
+      disasterFrequency: 'rare',
+    },
+    historicalDisasterCount: 0,
+  }));
 
   const speedMultipliers = { '1x': 1, '2x': 2, '5x': 5, '10x': 10 };
   const mult = speedMultipliers[speed];
@@ -340,7 +398,74 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
       return updated;
     });
-  }, [rates, civilization]);
+
+    // 6. Progress Natural Disaster & Emergency Response Lifecycle
+    setDisasterState((prevDisaster) => {
+      const currentForces = calculateEmergencyForces(placedBuildings, resources);
+      const currentRisks = calculateDisasterRisks('clear', 14, resources, economyReport, placedBuildings);
+
+      if (prevDisaster.activeDisaster) {
+        const { updatedDisaster, updatedBuildings, economicDamageDelta } = advanceDisasterSimulation(
+          prevDisaster.activeDisaster,
+          placedBuildings,
+          currentForces,
+          0.1
+        );
+
+        setPlacedBuildings(updatedBuildings);
+
+        if (economicDamageDelta > 0) {
+          setResources((prevRes) => ({
+            ...prevRes,
+            grc: Math.max(0, Math.round(prevRes.grc - economicDamageDelta)),
+            stability: Math.max(20, Math.round(prevRes.stability - 0.2)),
+          }));
+        }
+
+        return {
+          ...prevDisaster,
+          activeDisaster: updatedDisaster,
+          risks: currentRisks,
+          emergencyForces: {
+            ...currentForces,
+            medicalUnitsActive: updatedDisaster ? Math.min(currentForces.medicalUnitsTotal, 3) : 0,
+            fireCrewsActive: updatedDisaster?.type === 'wildfire' ? currentForces.fireCrewsTotal : 1,
+            rescueTeamsActive: updatedDisaster ? Math.min(currentForces.rescueTeamsTotal, 2) : 0,
+            repairEngineersActive: updatedDisaster ? Math.min(currentForces.repairEngineersTotal, 4) : 0,
+          },
+          historicalDisasterCount:
+            updatedDisaster === null ? prevDisaster.historicalDisasterCount + 1 : prevDisaster.historicalDisasterCount,
+        };
+      }
+
+      // Spontaneous natural disaster emergence only if enabled by user
+      if (prevDisaster.settings.autoDisastersEnabled && Math.random() < 0.005) {
+        const riskTypes: [DisasterType, number][] = [
+          ['flood', currentRisks.floodRiskPercent],
+          ['wildfire', currentRisks.wildfireRiskPercent],
+          ['drought', currentRisks.droughtRiskPercent],
+          ['storm', currentRisks.stormRiskPercent],
+          ['earthquake', currentRisks.seismicRiskPercent],
+        ];
+        riskTypes.sort((a, b) => b[1] - a[1]);
+        if (riskTypes[0][1] > 60) {
+          const newD = createDisaster(riskTypes[0][0], 'medium', 'dist-residential');
+          return {
+            ...prevDisaster,
+            activeDisaster: newD,
+            risks: currentRisks,
+            emergencyForces: currentForces,
+          };
+        }
+      }
+
+      return {
+        ...prevDisaster,
+        risks: currentRisks,
+        emergencyForces: currentForces,
+      };
+    });
+  }, [rates, civilization, placedBuildings, resources, economyReport]);
 
   // Advance by a full year
   const advanceYear = useCallback(() => {
@@ -1041,6 +1166,75 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const triggerDisaster = (type: DisasterType, intensity: DisasterIntensity, districtId?: string) => {
+    const dId = districtId || 'dist-residential';
+    const newDisaster = createDisaster(type, intensity, dId);
+    setDisasterState((prev) => ({
+      ...prev,
+      activeDisaster: newDisaster,
+      emergencyForces: {
+        ...prev.emergencyForces,
+        medicalUnitsActive: Math.min(prev.emergencyForces.medicalUnitsTotal, 3),
+        fireCrewsActive: type === 'wildfire' ? prev.emergencyForces.fireCrewsTotal : 2,
+        rescueTeamsActive: 2,
+        repairEngineersActive: 3,
+      },
+    }));
+
+    setEvents((prev) => [
+      {
+        id: `ev-${Date.now()}-disaster`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: `CRISIS ALERT: ${newDisaster.name}`,
+        description: `Natural disaster detected in ${districts.find((d) => d.id === dId)?.name || 'city sector'}. Emergency response units dispatched.`,
+        category: 'crisis',
+        severity: 'critical',
+        isRead: false,
+      },
+      ...prev,
+    ]);
+  };
+
+  const dispatchEmergencyResponse = () => {
+    setDisasterState((prev) => {
+      if (!prev.activeDisaster) return prev;
+      return {
+        ...prev,
+        activeDisaster: {
+          ...prev.activeDisaster,
+          containmentPercent: Math.min(100, prev.activeDisaster.containmentPercent + 35),
+          stage: prev.activeDisaster.containmentPercent + 35 >= 100 ? 'recovering' : 'containing',
+        },
+      };
+    });
+  };
+
+  const restoreAllDisasters = () => {
+    setPlacedBuildings((prev) => emergencyFullCivilizationRestoration(prev));
+    setDisasterState((prev) => ({
+      ...prev,
+      activeDisaster: null,
+      emergencyForces: {
+        ...prev.emergencyForces,
+        medicalUnitsActive: 0,
+        fireCrewsActive: 0,
+        rescueTeamsActive: 0,
+        repairEngineersActive: 0,
+      },
+    }));
+  };
+
+  const toggleAutoDisasters = () => {
+    setDisasterState((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        autoDisastersEnabled: !prev.settings.autoDisastersEnabled,
+      },
+    }));
+  };
+
   return (
     <GameStateContext.Provider
       value={{
@@ -1059,6 +1253,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         achievements,
         events,
         economyReport,
+        disasterState,
         isPlaying,
         speed,
         selectedBuildingId,
@@ -1098,6 +1293,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         setActiveDrawer,
         taxRate,
         setTaxRate,
+        triggerDisaster,
+        dispatchEmergencyResponse,
+        restoreAllDisasters,
+        toggleAutoDisasters,
       }}
     >
       {children}

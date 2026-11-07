@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import CityEconomyDashboard from '../dashboard/CityEconomyDashboard';
+import DisasterManagementDashboard from '../dashboard/DisasterManagementDashboard';
 
 export default function GameModals() {
   const {
@@ -251,6 +252,11 @@ export default function GameModals() {
       {/* ================= CITY ECONOMY & RESOURCE DASHBOARD ================= */}
       {activeDrawer === 'economy' && (
         <CityEconomyDashboard onClose={() => setActiveDrawer('none')} />
+      )}
+
+      {/* ================= NATURAL DISASTERS & INTELLIGENT EMERGENCY RESPONSE ================= */}
+      {activeDrawer === 'disaster' && (
+        <DisasterManagementDashboard onClose={() => setActiveDrawer('none')} />
       )}
     </div>
   );
