@@ -158,6 +158,9 @@ interface GameStateContextType {
   rotateBuilding: (buildingId: string, angleDelta?: number) => void;
   repairBuilding: (buildingId: string) => boolean;
   upgradeBuilding: (buildingId: string) => boolean;
+  rushConstruction: (buildingId: string) => boolean;
+  cancelConstruction: (buildingId: string) => boolean;
+  toggleFacilityActive: (buildingId: string) => void;
   demolishBuilding: (buildingId: string) => void;
   startResearch: (techId: string) => boolean;
   triggerEureka: (techId: string) => void;
@@ -513,20 +516,124 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       })
     );
 
-    // 5. Update Cities: Skylines II RCI Demand & Utility Networks
+    // 5. Progress Building Construction and Upgrades
+    setPlacedBuildings((prev) => {
+      let ratesChanged = false;
+      const rateDeltas: Partial<ResourceRates> = {};
+      const newEvents: GameEvent[] = [];
+
+      const updated = prev.map((b) => {
+        // A. Active Construction Lifecycle (4 Stages: Excavation -> Framing -> Wall Enclosure -> Commissioning)
+        if (b.status === 'constructing') {
+          const currentProg = b.constructionProgress || 0;
+          const nextProg = Math.min(100, currentProg + 4);
+          if (nextProg >= 100) {
+            const item = buildingCatalog.find((c) => c.id === b.catalogId);
+            const workers = item?.workerReq || b.workersNeeded;
+            if (item?.productionType && item?.productionAmount) {
+              const rKey = `${item.productionType}Rate` as keyof ResourceRates;
+              rateDeltas[rKey] = (rateDeltas[rKey] || 0) + item.productionAmount;
+              ratesChanged = true;
+            }
+            newEvents.push({
+              id: `ev-${Date.now()}-${b.id}`,
+              year: civilization.currentYear,
+              day: civilization.currentDay,
+              title: `Commissioned: ${b.name}`,
+              description: `Construction complete! The facility is now fully operational and connected to the civic grid.`,
+              category: 'economic',
+              severity: 'success',
+              isRead: false,
+            });
+            return {
+              ...b,
+              status: 'active' as const,
+              constructionProgress: 100,
+              workersAssigned: workers,
+              efficiency: 95,
+              health: 100,
+            };
+          }
+          return {
+            ...b,
+            constructionProgress: nextProg,
+          };
+        }
+
+        // B. Active Building Upgrade Lifecycle (Levels 1 to 5)
+        if (b.status === 'upgrading') {
+          const currentUp = b.upgradeProgress || 0;
+          const nextUp = Math.min(100, currentUp + 5);
+          if (nextUp >= 100) {
+            const nextLvl = b.targetLevel || (b.level + 1);
+            const item = buildingCatalog.find((c) => c.id === b.catalogId);
+            if (item?.productionType && item?.productionAmount) {
+              const rKey = `${item.productionType}Rate` as keyof ResourceRates;
+              const bonus = Math.round(item.productionAmount * 0.25);
+              rateDeltas[rKey] = (rateDeltas[rKey] || 0) + bonus;
+              ratesChanged = true;
+            }
+            newEvents.push({
+              id: `ev-${Date.now()}-${b.id}`,
+              year: civilization.currentYear,
+              day: civilization.currentDay,
+              title: `Expansion Complete: ${b.name} (Level ${nextLvl})`,
+              description: `Major structural overhaul finalized. Facility throughput elevated to Level ${nextLvl}.`,
+              category: 'economic',
+              severity: 'success',
+              isRead: false,
+            });
+            return {
+              ...b,
+              status: 'active' as const,
+              level: nextLvl,
+              upgradeProgress: 0,
+              targetLevel: undefined,
+              efficiency: Math.min(100, b.efficiency + 5),
+              health: 100,
+            };
+          }
+          return {
+            ...b,
+            upgradeProgress: nextUp,
+          };
+        }
+
+        return b;
+      });
+
+      if (ratesChanged) {
+        setRates((r) => {
+          const nextR = { ...r };
+          for (const k in rateDeltas) {
+            const key = k as keyof ResourceRates;
+            (nextR[key] as number) = (nextR[key] as number) + (rateDeltas[key] || 0);
+          }
+          return nextR;
+        });
+      }
+
+      if (newEvents.length > 0) {
+        setEvents((evs) => [...newEvents, ...evs]);
+      }
+
+      return updated;
+    });
+
+    // 6. Update Cities: Skylines II RCI Demand & Utility Networks
     setRciDemand(calculateRciDemand(resources.population, placedBuildings, taxRate, resources.health));
     setUtilityStats(calculateUtilityStats(placedBuildings, resources.population));
 
-    // 6. Real-time Citizen Chirper Network
+    // 7. Real-time Citizen Chirper Network
     if (Math.random() < 0.25 && districts.length > 0) {
       const dName = districts[Math.floor(Math.random() * districts.length)].name;
       const newChirp = generateRandomChirp(dName);
       setChirperFeed((prev) => [newChirp, ...prev.slice(0, 24)]);
     }
 
-    // 7. Fire background tick to FastAPI backend
+    // 8. Fire background tick to FastAPI backend
     civilizationApi.advanceSimulationTicks(civilization.id, 1).catch(() => {});
-  }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts, civilization.id]);
+  }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts, civilization]);
 
   // Advance by a full year
   const advanceYear = useCallback(() => {
@@ -736,12 +843,14 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       y: 0.6,
       rotation: rotation || 0,
       districtId,
-      status: 'active',
+      status: 'constructing',
       health: 100,
       efficiency: 95,
-      workersAssigned: item.workerReq,
+      workersAssigned: 0,
       workersNeeded: item.workerReq,
       modelType: item.modelType,
+      constructionProgress: 0,
+      upgradeProgress: 0,
     };
 
     setPlacedBuildings((prev) => [...prev, newBuilding]);
@@ -756,33 +865,22 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       districtId: newBuilding.districtId,
     }).catch(() => {});
 
-    // Update rates if it's a producing building
-    if (item.productionType && item.productionAmount) {
-      setRates((prev) => {
-        const key = `${item.productionType}Rate` as keyof ResourceRates;
-        return {
-          ...prev,
-          [key]: (prev[key] as number) + item.productionAmount,
-        };
-      });
-    }
-
     const event: GameEvent = {
       id: `ev-${Date.now()}`,
       year: civilization.currentYear,
       day: civilization.currentDay,
-      title: `Commissioned: ${newBuilding.name}`,
-      description: `New ${item.category} facility successfully erected in district ${districtId}.`,
+      title: `Ground Broken: ${newBuilding.name}`,
+      description: `Foundation excavation and structural staging underway in district ${districtId}.`,
       category: 'economic',
-      severity: 'success',
+      severity: 'info',
       isRead: false,
     };
     setEvents((prev) => [event, ...prev]);
     soundFx.playHammerBuild();
     triggerToast({
       type: 'build',
-      title: `COMMISSIONED: ${item.name}`,
-      subtitle: `Erected in Sector ${districtId}. +5 GRC Treasury Grant`,
+      title: `CONSTRUCTION STARTED: ${item.name}`,
+      subtitle: `Staging underway in Sector ${districtId}. +5 GRC Treasury Grant`,
     });
     setIsConstructionMode(false);
     setSelectedCatalogItem(null);
@@ -791,15 +889,34 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const upgradeBuilding = (buildingId: string) => {
     const building = placedBuildings.find((b) => b.id === buildingId);
-    if (!building || building.level >= building.maxLevel) return false;
+    if (
+      !building ||
+      building.level >= building.maxLevel ||
+      building.status === 'upgrading' ||
+      building.status === 'constructing'
+    )
+      return false;
 
     const upgradeCost = building.level * 280;
-    if (resources.materials < upgradeCost) return false;
+    if (resources.materials < upgradeCost) {
+      const errEvent: GameEvent = {
+        id: `ev-${Date.now()}`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: 'Upgrade Suspended: Insufficient Materials',
+        description: `Upgrade to Level ${building.level + 1} requires ${upgradeCost} materials. Available: ${resources.materials}.`,
+        category: 'economic',
+        severity: 'warning',
+        isRead: false,
+      };
+      setEvents((prev) => [errEvent, ...prev]);
+      return false;
+    }
 
     setResources((prev) => ({
       ...prev,
       materials: prev.materials - upgradeCost,
-      grc: prev.grc + 25,
+      grc: prev.grc + 15,
     }));
 
     setPlacedBuildings((prev) =>
@@ -807,9 +924,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         b.id === buildingId
           ? {
               ...b,
-              level: b.level + 1,
-              health: 100,
-              efficiency: Math.min(100, b.efficiency + 5),
+              status: 'upgrading',
+              targetLevel: b.level + 1,
+              upgradeProgress: 0,
             }
           : b
       )
@@ -819,22 +936,250 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     soundFx.playHammerBuild();
     triggerToast({
       type: 'build',
-      title: `UPGRADED: ${building.name}`,
-      subtitle: `Promoted to Level ${building.level + 1}. +25 GRC awarded!`,
+      title: `EXPANSION UNDERWAY: ${building.name}`,
+      subtitle: `Upgrading to Level ${building.level + 1}. Construction crew dispatched.`,
     });
 
     const event: GameEvent = {
       id: `ev-${Date.now()}`,
       year: civilization.currentYear,
       day: civilization.currentDay,
-      title: `Upgraded: ${building.name} (Level ${building.level + 1})`,
-      description: `Technological overhaul complete. Structural throughput and efficiency elevated.`,
+      title: `Expansion Commenced: ${building.name}`,
+      description: `Structural renovation underway targeting Level ${building.level + 1}.`,
       category: 'economic',
-      severity: 'success',
+      severity: 'info',
       isRead: false,
     };
     setEvents((prev) => [event, ...prev]);
     return true;
+  };
+
+  const rushConstruction = (buildingId: string) => {
+    const building = placedBuildings.find((b) => b.id === buildingId);
+    if (!building || (building.status !== 'constructing' && building.status !== 'upgrading'))
+      return false;
+
+    const rushCostGrc = building.status === 'constructing' ? 30 : 45;
+    if (resources.grc < rushCostGrc) {
+      const errEvent: GameEvent = {
+        id: `ev-${Date.now()}`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: 'Expedite Failed: Insufficient GRC',
+        description: `Fast-tracking requires ${rushCostGrc} GRC. Available: ${resources.grc} GRC.`,
+        category: 'economic',
+        severity: 'warning',
+        isRead: false,
+      };
+      setEvents((prev) => [errEvent, ...prev]);
+      return false;
+    }
+
+    setResources((prev) => ({
+      ...prev,
+      grc: prev.grc - rushCostGrc,
+    }));
+
+    if (building.status === 'constructing') {
+      const item = buildingCatalog.find((c) => c.id === building.catalogId);
+      const workers = item?.workerReq || building.workersNeeded;
+      if (item?.productionType && item?.productionAmount) {
+        setRates((prev) => {
+          const key = `${item.productionType}Rate` as keyof ResourceRates;
+          return {
+            ...prev,
+            [key]: (prev[key] as number) + item.productionAmount,
+          };
+        });
+      }
+
+      setPlacedBuildings((prev) =>
+        prev.map((b) =>
+          b.id === buildingId
+            ? {
+                ...b,
+                status: 'active',
+                constructionProgress: 100,
+                workersAssigned: workers,
+                health: 100,
+                efficiency: 95,
+              }
+            : b
+        )
+      );
+
+      const event: GameEvent = {
+        id: `ev-${Date.now()}`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: `Priority Commission: ${building.name}`,
+        description: `Construction fast-tracked with priority funding. Facility is now online and operational!`,
+        category: 'economic',
+        severity: 'success',
+        isRead: false,
+      };
+      setEvents((prev) => [event, ...prev]);
+    } else if (building.status === 'upgrading') {
+      const nextLvl = building.targetLevel || building.level + 1;
+      const item = buildingCatalog.find((c) => c.id === building.catalogId);
+      if (item?.productionType && item?.productionAmount) {
+        setRates((prev) => {
+          const key = `${item.productionType}Rate` as keyof ResourceRates;
+          const bonus = Math.round(item.productionAmount * 0.25);
+          return {
+            ...prev,
+            [key]: (prev[key] as number) + bonus,
+          };
+        });
+      }
+
+      setPlacedBuildings((prev) =>
+        prev.map((b) =>
+          b.id === buildingId
+            ? {
+                ...b,
+                status: 'active',
+                level: nextLvl,
+                upgradeProgress: 0,
+                targetLevel: undefined,
+                health: 100,
+                efficiency: Math.min(100, b.efficiency + 5),
+              }
+            : b
+        )
+      );
+
+      const event: GameEvent = {
+        id: `ev-${Date.now()}`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: `Priority Upgrade Complete: ${building.name} (Level ${nextLvl})`,
+        description: `Expansion accelerated with emergency capital. All structural enhancements active!`,
+        category: 'economic',
+        severity: 'success',
+        isRead: false,
+      };
+      setEvents((prev) => [event, ...prev]);
+    }
+
+    soundFx.playRewardClaim();
+    triggerToast({
+      type: 'build',
+      title: `EXPEDITED: ${building.name}`,
+      subtitle: `Fast-track protocol completed. Facility active.`,
+    });
+
+    return true;
+  };
+
+  const cancelConstruction = (buildingId: string) => {
+    const building = placedBuildings.find((b) => b.id === buildingId);
+    if (!building) return false;
+
+    if (building.status === 'constructing') {
+      const item = buildingCatalog.find((c) => c.id === building.catalogId);
+      const refund = item ? Math.round(item.costMaterials * 0.8) : 100;
+      setResources((prev) => ({
+        ...prev,
+        materials: prev.materials + refund,
+      }));
+      setPlacedBuildings((prev) => prev.filter((b) => b.id !== buildingId));
+      setSelectedBuildingId(null);
+      setActiveDrawer('none');
+
+      const event: GameEvent = {
+        id: `ev-${Date.now()}`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: `Construction Cancelled: ${building.name}`,
+        description: `Project aborted. Site cleared and ${refund} materials recovered.`,
+        category: 'economic',
+        severity: 'info',
+        isRead: false,
+      };
+      setEvents((prev) => [event, ...prev]);
+      return true;
+    } else if (building.status === 'upgrading') {
+      const refund = Math.round(building.level * 280 * 0.8);
+      setResources((prev) => ({
+        ...prev,
+        materials: prev.materials + refund,
+      }));
+      setPlacedBuildings((prev) =>
+        prev.map((b) =>
+          b.id === buildingId
+            ? {
+                ...b,
+                status: 'active',
+                upgradeProgress: 0,
+                targetLevel: undefined,
+              }
+            : b
+        )
+      );
+
+      const event: GameEvent = {
+        id: `ev-${Date.now()}`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: `Expansion Cancelled: ${building.name}`,
+        description: `Upgrade project called off. Structure restored to Level ${building.level} baseline (${refund} materials salvaged).`,
+        category: 'economic',
+        severity: 'info',
+        isRead: false,
+      };
+      setEvents((prev) => [event, ...prev]);
+      return true;
+    }
+
+    return false;
+  };
+
+  const toggleFacilityActive = (buildingId: string) => {
+    const building = placedBuildings.find((b) => b.id === buildingId);
+    if (!building || (building.status !== 'active' && building.status !== 'offline')) return;
+
+    const willBeOffline = building.status === 'active';
+    const item = buildingCatalog.find((c) => c.id === building.catalogId);
+
+    if (item?.productionType && item?.productionAmount) {
+      setRates((prev) => {
+        const key = `${item.productionType}Rate` as keyof ResourceRates;
+        const delta = willBeOffline ? -item.productionAmount : item.productionAmount;
+        return {
+          ...prev,
+          [key]: (prev[key] as number) + delta,
+        };
+      });
+    }
+
+    setPlacedBuildings((prev) =>
+      prev.map((b) =>
+        b.id === buildingId
+          ? {
+              ...b,
+              status: willBeOffline ? 'offline' : 'active',
+              workersAssigned: willBeOffline ? 0 : item?.workerReq || b.workersNeeded,
+            }
+          : b
+      )
+    );
+
+    const event: GameEvent = {
+      id: `ev-${Date.now()}`,
+      year: civilization.currentYear,
+      day: civilization.currentDay,
+      title: willBeOffline
+        ? `Facility Paused: ${building.name}`
+        : `Facility Reactivated: ${building.name}`,
+      description: willBeOffline
+        ? `Operations suspended. Facility placed on cold standby.`
+        : `Operations resumed. Facility online at full efficiency.`,
+      category: 'economic',
+      severity: willBeOffline ? 'warning' : 'info',
+      isRead: false,
+    };
+    setEvents((prev) => [event, ...prev]);
   };
 
   const demolishBuilding = (buildingId: string) => {
@@ -1146,6 +1491,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         rotateBuilding,
         repairBuilding,
         upgradeBuilding,
+        rushConstruction,
+        cancelConstruction,
+        toggleFacilityActive,
         demolishBuilding,
         startResearch,
         togglePolicy,

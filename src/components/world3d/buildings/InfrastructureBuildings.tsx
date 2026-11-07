@@ -82,6 +82,30 @@ export function WaterTreatmentPlantModel({ isSelected, level }: ModelProps) {
           <AntennaMast position={[0, 0, 0]} height={1.4} />
         </group>
       )}
+
+      {/* Level 4 Development: UV Sterilization Reactor & Pipeline Manifold */}
+      {level >= 4 && (
+        <group position={[0, 0.9, 1.1]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.3, 0.3, 1.0, 12]} />
+            <meshStandardMaterial color="#00cec9" emissive="#00cec9" emissiveIntensity={0.6} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Aquifer Reclamation Wonder): Crystalline Hydro-Tower & Clean Water Beacons */}
+      {level >= 5 && (
+        <group position={[0, 2.0, 0]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.6, 0.7, 1.6, 12]} />
+            <meshStandardMaterial color="#81ecec" transparent opacity={0.7} metalness={0.7} />
+          </mesh>
+          <mesh position={[0, 1.0, 0]}>
+            <coneGeometry args={[0.2, 0.5, 8]} />
+            <meshStandardMaterial color="#00cec9" emissive="#00cec9" emissiveIntensity={1.5} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -203,6 +227,39 @@ export function SenateCitadelModel({ isSelected, level }: ModelProps) {
         <coneGeometry args={[0.4, 1.6, 8]} />
         <meshStandardMaterial color="#c6a76a" metalness={0.9} />
       </mesh>
+
+      {/* Level 4 Development: Quad Monumental Bastion Spreading Terraces */}
+      {level >= 4 && (
+        <group>
+          {[-2.2, 2.2].map((bx, i) =>
+            [-2.2, 2.2].map((bz, j) => (
+              <mesh key={`bastion-${i}-${j}`} position={[bx, 0.7, bz]} castShadow>
+                <cylinderGeometry args={[0.6, 0.75, 1.4, 6]} />
+                <meshStandardMaterial color="#c6a76a" metalness={0.7} roughness={0.3} />
+              </mesh>
+            ))
+          )}
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Civilization Wonder): Floating Golden Halo & Zenith Power Beam */}
+      {level >= 5 && (
+        <group position={[0, 5.2, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[2.0, 0.1, 16, 32]} />
+            <meshStandardMaterial
+              color="#ffd700"
+              emissive="#ffd700"
+              emissiveIntensity={isNight ? 3.0 : 1.5}
+            />
+          </mesh>
+          {/* Vertical Planetary Beacon Light Column */}
+          <mesh position={[0, 2.0, 0]}>
+            <cylinderGeometry args={[0.08, 0.08, 4.0, 8]} />
+            <meshBasicMaterial color="#ffeaa7" transparent opacity={0.85} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }

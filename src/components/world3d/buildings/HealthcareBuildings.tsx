@@ -69,6 +69,30 @@ export function ClinicModel({ isSelected, level }: ModelProps) {
           <RooftopSolarPanel position={[0, 0, 0.3]} />
         </group>
       )}
+
+      {/* Level 4 Development: Attached Triage Bay & Bio-containment Unit */}
+      {level >= 4 && (
+        <group position={[-0.4, 0.6, -1.1]}>
+          <mesh castShadow>
+            <boxGeometry args={[1.5, 0.7, 0.8]} />
+            <meshStandardMaterial color="#81ecec" transparent opacity={0.7} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Longevity Clinic): Medical Drone Dispatch Pad & Cyan Beacon */}
+      {level >= 5 && (
+        <group position={[-0.4, 2.5, 0]}>
+          <mesh position={[0, 0.05, 0]}>
+            <cylinderGeometry args={[0.6, 0.65, 0.08, 16]} />
+            <meshStandardMaterial color="#2d3436" metalness={0.8} />
+          </mesh>
+          <mesh position={[0, 0.2, 0]}>
+            <sphereGeometry args={[0.08, 8, 8]} />
+            <meshStandardMaterial color="#00cec9" emissive="#00cec9" emissiveIntensity={isNight ? 2.5 : 1.0} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -119,6 +143,34 @@ export function HealthcareCenterModel({ isSelected, level }: ModelProps) {
           <RooftopSolarPanel position={[-0.6, 0, 0]} />
           <RooftopHVAC position={[0.6, 0, 0]} />
           <AntennaMast position={[0, 0, -0.5]} height={1.4} />
+        </group>
+      )}
+
+      {/* Level 4 Development: Robotics Surgical Suite Wing */}
+      {level >= 4 && (
+        <group position={[1.6, 1.0, 0]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.9, 0.9, 1.6]} />
+            <meshStandardMaterial color="#d2ddd0" roughness={0.3} />
+          </mesh>
+          <mesh position={[0, 0, 0.81]}>
+            <planeGeometry args={[0.7, 0.6]} />
+            <meshStandardMaterial color="#81ecec" transparent opacity={0.7} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Cellular Care Wonder): Glowing Caduceus Halo & Cryo Chamber */}
+      {level >= 5 && (
+        <group position={[0, 3.2, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.2, 0.06, 16, 24]} />
+            <meshStandardMaterial
+              color="#00cec9"
+              emissive="#00cec9"
+              emissiveIntensity={isNight ? 2.5 : 1.2}
+            />
+          </mesh>
         </group>
       )}
     </group>
@@ -176,6 +228,39 @@ export function HospitalModel({ isSelected, level }: ModelProps) {
         <group position={[1.1, 1.85, 0.3]}>
           <RooftopSolarPanel position={[0, 0, 0]} />
           <AntennaMast position={[0, 0, -0.5]} height={1.6} />
+        </group>
+      )}
+
+      {/* Level 4 Development: Trauma Tower Extension & Skybridge */}
+      {level >= 4 && (
+        <group>
+          <mesh position={[1.1, 2.6, 0.3]} castShadow>
+            <boxGeometry args={[1.0, 1.2, 1.4]} />
+            <meshStandardMaterial color="#d2ddd0" roughness={0.3} />
+          </mesh>
+          {/* Connecting Skybridge */}
+          <mesh position={[0.35, 2.4, 0]}>
+            <boxGeometry args={[0.9, 0.45, 0.5]} />
+            <meshStandardMaterial color="#81ecec" transparent opacity={0.7} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Medical Citadel Wonder): Holographic Caduceus Beacon & Med-Drone Port */}
+      {level >= 5 && (
+        <group position={[-0.4, 3.4 + heightBoost, -0.2]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.3, 0.08, 16, 32]} />
+            <meshStandardMaterial
+              color="#e74c3c"
+              emissive="#e74c3c"
+              emissiveIntensity={isNight ? 2.5 : 1.2}
+            />
+          </mesh>
+          <mesh position={[0, 0.8, 0]}>
+            <cylinderGeometry args={[0.04, 0.04, 1.6, 8]} />
+            <meshBasicMaterial color="#ffffff" />
+          </mesh>
         </group>
       )}
     </group>

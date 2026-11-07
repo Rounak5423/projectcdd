@@ -84,6 +84,35 @@ export function FactoryFoundryModel({ isSelected, level }: ModelProps) {
           <AntennaMast position={[0.8, 0, 0]} height={1.5} />
         </group>
       )}
+
+      {/* Level 4 Development: Heavy Conveyor Truss & Refining Silo */}
+      {level >= 4 && (
+        <group position={[0, 1.2, 1.4]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.4, 0.45, 1.4, 12]} />
+            <meshStandardMaterial color="#473f36" roughness={0.6} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Vulcan Foundry Wonder): Molten Metal Core Vat & Overhead Crane Array */}
+      {level >= 5 && (
+        <group position={[0, 2.4, 0]}>
+          {/* Glowing Superheated Molten Vat */}
+          <mesh position={[0, 0.2, 0]}>
+            <cylinderGeometry args={[0.7, 0.7, 0.3, 16]} />
+            <meshStandardMaterial
+              color="#e17055"
+              emissive="#d63031"
+              emissiveIntensity={2.0}
+            />
+          </mesh>
+          <mesh position={[0, 0.8, 0]}>
+            <boxGeometry args={[2.2, 0.15, 0.2]} />
+            <meshStandardMaterial color="#c6a76a" metalness={0.8} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -129,6 +158,26 @@ export function ManufacturingUnitModel({ isSelected, level }: ModelProps) {
           <cylinderGeometry args={[0.8, 0.85, 0.1, 12]} />
           <meshStandardMaterial color="#c6a76a" metalness={0.7} />
         </mesh>
+      )}
+
+      {/* Level 4 Development: Pneumatic Material Supply Silos */}
+      {level >= 4 && (
+        <group position={[1.5, 1.2, 0]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.3, 0.3, 1.6, 8]} />
+            <meshStandardMaterial color="#b0bec5" metalness={0.8} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Robotics Megafactory Wonder): Kinetic Core & Beacon Tower */}
+      {level >= 5 && (
+        <group position={[0, 2.8, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.0, 0.05, 12, 24]} />
+            <meshStandardMaterial color="#f39c12" emissive="#f39c12" emissiveIntensity={1.8} />
+          </mesh>
+        </group>
       )}
     </group>
   );
@@ -179,6 +228,26 @@ export function LogisticsWarehouseModel({ isSelected, level }: ModelProps) {
       {level >= 3 && (
         <group position={[0, 1.75, -0.3]}>
           <AntennaMast position={[-1.2, 0, 0]} height={1.4} />
+        </group>
+      )}
+
+      {/* Level 4 Development: Elevated Gantry Railing & High-Density Staging */}
+      {level >= 4 && (
+        <group position={[1.4, 1.8, -0.3]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.8, 0.4, 1.6]} />
+            <meshStandardMaterial color="#2c3e50" metalness={0.7} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Logistics Hub Wonder): Hyperloop Freight Terminal & Dispatch Spire */}
+      {level >= 5 && (
+        <group position={[0, 2.3, 0]}>
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.3, 0.3, 3.2, 12]} />
+            <meshStandardMaterial color="#74b9ff" transparent opacity={0.6} metalness={0.9} />
+          </mesh>
         </group>
       )}
     </group>
@@ -233,6 +302,30 @@ export function FusionPowerPlantModel({ isSelected, level }: ModelProps) {
           <coneGeometry args={[0.5, 1.2, 8]} />
           <meshStandardMaterial color="#c6a76a" metalness={0.8} />
         </mesh>
+      )}
+
+      {/* Level 4 Development: Auxiliary Plasma Acceleration Coils */}
+      {level >= 4 && (
+        <group position={[0, 1.7, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.5, 0.08, 12, 24]} />
+            <meshStandardMaterial color="#00cec9" emissive="#00cec9" emissiveIntensity={1.8} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Tokamak Apex Energy Wonder): Revolving Magnetosphere & Vertical Plasma Beam */}
+      {level >= 5 && (
+        <group position={[0, 2.8, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.8, 0.1, 16, 32]} />
+            <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={2.5} />
+          </mesh>
+          <mesh position={[0, 1.5, 0]}>
+            <cylinderGeometry args={[0.08, 0.08, 3.0, 8]} />
+            <meshBasicMaterial color="#55efc4" transparent opacity={0.85} />
+          </mesh>
+        </group>
       )}
     </group>
   );

@@ -170,35 +170,58 @@ export function createSidewalksGeometry(
     const rOuterX = node.x + node.nx * (halfRoad + sidewalkWidth);
     const rOuterZ = node.z + node.nz * (halfRoad + sidewalkWidth);
 
-    // Left Walkway Top (vertices 0 and 1)
-    positions.push(lOuterX, node.y, lOuterZ);
-    normals.push(0, 1, 0);
+    const yTop = node.y;
+    const ySkirt = node.y - 0.35; // Downward skirt securely embedding sidewalk into terrain
+
+    // Vertex 0: Left outer skirt bottom
+    positions.push(lOuterX, ySkirt, lOuterZ);
+    normals.push(-node.nx, 0, -node.nz);
     uvs.push(0, totalDist * 0.3);
 
-    positions.push(lInnerX, node.y, lInnerZ);
+    // Vertex 1: Left walkway outer top
+    positions.push(lOuterX, yTop, lOuterZ);
     normals.push(0, 1, 0);
-    uvs.push(1, totalDist * 0.3);
+    uvs.push(0.05, totalDist * 0.3);
 
-    // Right Walkway Top (vertices 2 and 3)
-    positions.push(rInnerX, node.y, rInnerZ);
+    // Vertex 2: Left walkway inner top
+    positions.push(lInnerX, yTop, lInnerZ);
     normals.push(0, 1, 0);
-    uvs.push(0, totalDist * 0.3);
+    uvs.push(0.95, totalDist * 0.3);
 
-    positions.push(rOuterX, node.y, rOuterZ);
+    // Vertex 3: Right walkway inner top
+    positions.push(rInnerX, yTop, rInnerZ);
     normals.push(0, 1, 0);
-    uvs.push(1, totalDist * 0.3);
+    uvs.push(0.05, totalDist * 0.3);
+
+    // Vertex 4: Right walkway outer top
+    positions.push(rOuterX, yTop, rOuterZ);
+    normals.push(0, 1, 0);
+    uvs.push(0.95, totalDist * 0.3);
+
+    // Vertex 5: Right outer skirt bottom
+    positions.push(rOuterX, ySkirt, rOuterZ);
+    normals.push(node.nx, 0, node.nz);
+    uvs.push(1.0, totalDist * 0.3);
 
     if (i > 0) {
-      const row = i * 4;
-      const prevRow = (i - 1) * 4;
+      const row = i * 6;
+      const prevRow = (i - 1) * 6;
 
-      // Left sidewalk quad
+      // Left skirt quad
       indices.push(prevRow + 0, prevRow + 1, row + 1);
       indices.push(prevRow + 0, row + 1, row + 0);
 
-      // Right sidewalk quad
-      indices.push(prevRow + 2, prevRow + 3, row + 3);
-      indices.push(prevRow + 2, row + 3, row + 2);
+      // Left walkway top quad
+      indices.push(prevRow + 1, prevRow + 2, row + 2);
+      indices.push(prevRow + 1, row + 2, row + 1);
+
+      // Right walkway top quad
+      indices.push(prevRow + 3, prevRow + 4, row + 4);
+      indices.push(prevRow + 3, row + 4, row + 3);
+
+      // Right skirt quad
+      indices.push(prevRow + 4, prevRow + 5, row + 5);
+      indices.push(prevRow + 4, row + 5, row + 4);
     }
   }
 

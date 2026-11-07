@@ -6,6 +6,7 @@ import { useGameState } from '../../context/GameStateContext';
 import { getTerrainHeight } from './Terrain';
 import { MasterBuildingRouter } from './BuildingModels';
 import { validateBuildingPlacement, ValidationResult } from './placementValidation';
+import { calculateRoadsideAlignment } from './cityPlanning';
 
 export default function PlacementSystem() {
   const {
@@ -23,14 +24,15 @@ export default function PlacementSystem() {
 
   const [cursorPos, setCursorPos] = useState<[number, number, number] | null>(null);
   const [rotationAngle, setRotationAngle] = useState<number>(0);
-  const [snapToGrid, setSnapToGrid] = useState<boolean>(true);
+  const [snapToRoad, setSnapToRoad] = useState<boolean>(true);
   const [validation, setValidation] = useState<ValidationResult>({
     isValid: true,
-    reason: 'Evaluating zone...',
+    reason: 'Evaluating civic zoning...',
     distToRoad: 0,
     slope: 0,
     terrainElevation: 0,
     isFarFromRoad: false,
+    zoneName: 'Central District',
   });
 
   const pointerDownScreenPos = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -61,7 +63,7 @@ export default function PlacementSystem() {
 
   // Keyboard controls:
   // [R] / [Shift+R] - Rotate in 45° increments
-  // [G] - Toggle 2.0m Grid Snapping
+  // [S] - Toggle Intelligent Roadside Snapping
   // [Escape] - Cancel construction or relocation
   useEffect(() => {
     if (!isConstructionMode) return;
@@ -74,8 +76,8 @@ export default function PlacementSystem() {
           if (next < 0) next += Math.PI * 2;
           return next;
         });
-      } else if (e.key === 'g' || e.key === 'G') {
-        setSnapToGrid((prev) => !prev);
+      } else if (e.key === 's' || e.key === 'S') {
+        setSnapToRoad((prev) => !prev);
       } else if (e.key === 'Escape') {
         if (relocatingBuildingId) {
           cancelRelocation();
@@ -114,33 +116,44 @@ export default function PlacementSystem() {
     [districts]
   );
 
-  // Pointer move handler with grid cell throttling
+  // Pointer move handler with roadside alignment & snapping
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
 
-    let rawX = e.point.x;
-    let rawZ = e.point.z;
+    const rawX = e.point.x;
+    const rawZ = e.point.z;
 
-    if (snapToGrid) {
-      rawX = Math.round(rawX / 2.0) * 2.0;
-      rawZ = Math.round(rawZ / 2.0) * 2.0;
+    let targetX = rawX;
+    let targetZ = rawZ;
+
+    // Intelligent Roadside Snapping & Facing Alignment
+    if (snapToRoad && selectedCatalogItem) {
+      const alignment = calculateRoadsideAlignment(rawX, rawZ, selectedCatalogItem.category, 2.2);
+      if (alignment.isBesideRoad) {
+        targetX = Math.round(alignment.snappedX * 10) / 10;
+        targetZ = Math.round(alignment.snappedZ * 10) / 10;
+        setRotationAngle(alignment.facingRotation);
+      } else {
+        targetX = Math.round(rawX * 2) / 2;
+        targetZ = Math.round(rawZ * 2) / 2;
+      }
     } else {
-      rawX = Math.round(rawX * 10) / 10;
-      rawZ = Math.round(rawZ * 10) / 10;
+      targetX = Math.round(rawX * 10) / 10;
+      targetZ = Math.round(rawZ * 10) / 10;
     }
 
-    const cellKey = `${rawX}_${rawZ}`;
+    const cellKey = `${targetX}_${targetZ}`;
     if (cellKey === lastCellRef.current) return;
     lastCellRef.current = cellKey;
 
-    const terrainY = getTerrainHeight(rawX, rawZ) + 0.12;
-    const newPos: [number, number, number] = [rawX, terrainY, rawZ];
+    const terrainY = getTerrainHeight(targetX, targetZ) + 0.12;
+    const newPos: [number, number, number] = [targetX, terrainY, targetZ];
     setCursorPos(newPos);
 
     if (selectedCatalogItem) {
       const val = validateBuildingPlacement({
-        x: rawX,
-        z: rawZ,
+        x: targetX,
+        z: targetZ,
         catalogItem: selectedCatalogItem,
         placedBuildings,
         resources,
@@ -213,7 +226,7 @@ export default function PlacementSystem() {
         <meshBasicMaterial visible={false} />
       </mesh>
 
-      {/* 2. Interactive Holographic Preview & Terrain Alignment Grid */}
+      {/* 2. Interactive Holographic Preview & Roadside Alignment Grid */}
       {cursorPos && (
         <group position={cursorPos} rotation={[0, rotationAngle, 0]}>
           {/* Dynamic 8x8m Holographic Construction Grid */}
@@ -243,7 +256,7 @@ export default function PlacementSystem() {
             />
           </mesh>
 
-          {/* Directional Front Entrance Arrow Indicator */}
+          {/* Directional Front Entrance Arrow Indicator (Points directly towards adjacent road) */}
           <group position={[0, 0.06, 2.7]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
             <coneGeometry args={[0.45, 0.7, 3]} />
             <meshBasicMaterial color={activeColor} />
@@ -273,7 +286,7 @@ export default function PlacementSystem() {
           {/* Floating High-Legibility In-World Status & Instruction Card */}
           <Html position={[0, 5.4, 0]} center distanceFactor={28} zIndexRange={[120, 0]}>
             <div
-              className={`pointer-events-none px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl flex flex-col items-center gap-1 whitespace-nowrap backdrop-blur-xl border transition-all ${
+              className={`pointer-events-none px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl flex flex-col items-center gap-1.5 whitespace-nowrap backdrop-blur-xl border transition-all ${
                 validation.isValid
                   ? 'bg-[#142317]/95 border-[#2ecc71] text-[#e3f7e1]'
                   : 'bg-[#291412]/95 border-[#e74c3c] text-[#fce2de]'
@@ -294,12 +307,22 @@ export default function PlacementSystem() {
                 </span>
               </div>
 
+              {validation.isValid && validation.zoneName && (
+                <div className="text-[11px] text-[#a6bd82] font-mono">
+                  📍 {validation.zoneName} · Road Frontage: {validation.distToRoad.toFixed(1)}m
+                </div>
+              )}
+
               <div className="flex items-center gap-2 text-[10px] text-[#b6c7b3] font-mono">
                 <span className="bg-[#1c281e] px-1.5 py-0.5 rounded border border-[#354838]">
-                  Rotation: {degrees}° [R]
+                  Facing: {degrees}° [R]
                 </span>
-                <span className="bg-[#1c281e] px-1.5 py-0.5 rounded border border-[#354838]">
-                  Grid Snap: {snapToGrid ? '2.0m ON' : 'OFF'} [G]
+                <span className={`px-1.5 py-0.5 rounded border ${
+                  snapToRoad
+                    ? 'bg-[#203a25] border-[#4caf50] text-[#a5d6a7]'
+                    : 'bg-[#1c281e] border-[#354838]'
+                }`}>
+                  Road Snap: {snapToRoad ? 'ON [S]' : 'OFF [S]'}
                 </span>
                 {!relocatingBuildingId && (
                   <span className="text-[#e0be70] font-semibold">

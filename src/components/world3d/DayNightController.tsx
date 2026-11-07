@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameState } from '../../context/GameStateContext';
+
+export type WeatherType = 'clear' | 'cloudy' | 'rain' | 'fog';
 
 export interface DayNightState {
   timeOfDay: number; // 0 to 24 (hours)
@@ -15,6 +18,16 @@ export interface DayNightState {
   fogColor: string;
   ambientColor: string;
   directionalColor: string;
+  fogNear: number;
+  fogFar: number;
+  weather: WeatherType;
+  setWeather: (w: WeatherType) => void;
+  isAutoWeather: boolean;
+  setIsAutoWeather: (auto: boolean) => void;
+  isTimePaused: boolean;
+  setIsTimePaused: (p: boolean) => void;
+  timeSpeedMultiplier: number;
+  setTimeSpeedMultiplier: (mult: number) => void;
 }
 
 const DayNightContext = createContext<DayNightState | undefined>(undefined);
@@ -27,7 +40,6 @@ export function useIsNight(): boolean {
 export function useDayNight(): DayNightState {
   const context = useContext(DayNightContext);
   if (!context) {
-    // Fallback if rendered outside provider
     return {
       timeOfDay: 14,
       setTimeOfDay: () => {},
@@ -35,30 +47,247 @@ export function useDayNight(): DayNightState {
       setIsAutoCycle: () => {},
       isNight: false,
       sunIntensity: 2.2,
-      sunPosition: [40, 55, 30] as [number, number, number],
-      moonPosition: [-40, -55, -30] as [number, number, number],
+      sunPosition: [40, 55, 30],
+      moonPosition: [-40, -55, -30],
       skyColor: '#9ec4b0',
       fogColor: '#9ec4b0',
       ambientColor: '#ffffff',
       directionalColor: '#fff5df',
+      fogNear: 90,
+      fogFar: 195,
+      weather: 'clear',
+      setWeather: () => {},
+      isAutoWeather: true,
+      setIsAutoWeather: () => {},
+      isTimePaused: false,
+      setIsTimePaused: () => {},
+      timeSpeedMultiplier: 1,
+      setTimeSpeedMultiplier: () => {},
     };
   }
   return context;
 }
 
+// ================= STARS MESH =================
+function Starfield({ isNight }: { isNight: boolean }) {
+  const pointsRef = useRef<THREE.Points>(null);
+
+  const { starGeo, starMat } = useMemo(() => {
+    const count = 450;
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(Math.random() * 0.85 + 0.15); // Upper hemisphere only
+      const r = 95 + Math.random() * 10;
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.cos(phi);
+      positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({
+      color: '#ffffff',
+      size: 1.4,
+      transparent: true,
+      opacity: 0,
+      sizeAttenuation: true,
+    });
+    return { starGeo: geo, starMat: mat };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      starGeo.dispose();
+      starMat.dispose();
+    };
+  }, [starGeo, starMat]);
+
+  useFrame(() => {
+    if (pointsRef.current) {
+      const targetOpacity = isNight ? 0.95 : 0.0;
+      starMat.opacity = THREE.MathUtils.lerp(starMat.opacity, targetOpacity, 0.08);
+      starMat.visible = starMat.opacity > 0.01;
+    }
+  });
+
+  return <points ref={pointsRef} geometry={starGeo} material={starMat} raycast={() => null} />;
+}
+
+// ================= VOLUMETRIC DRIFTING CLOUDS =================
+function DriftingClouds({ weather, isNight }: { weather: WeatherType; isNight: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  const cloudPuffs = useMemo(() => {
+    const puffs: { x: number; y: number; z: number; scaleX: number; scaleZ: number }[] = [];
+    for (let i = 0; i < 18; i++) {
+      puffs.push({
+        x: (Math.random() - 0.5) * 110,
+        y: 28 + Math.random() * 8,
+        z: (Math.random() - 0.5) * 110,
+        scaleX: 9 + Math.random() * 8,
+        scaleZ: 8 + Math.random() * 7,
+      });
+    }
+    return puffs;
+  }, []);
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      // Wind drift towards +X
+      const speed = weather === 'rain' ? 3.5 : 1.8;
+      groupRef.current.position.x = (groupRef.current.position.x + delta * speed) % 120;
+    }
+  });
+
+  const cloudColor = useMemo(() => {
+    if (isNight) return '#101720';
+    if (weather === 'rain') return '#4a5763';
+    if (weather === 'cloudy') return '#8a9ba8';
+    return '#e6edf2';
+  }, [isNight, weather]);
+
+  const cloudOpacity = weather === 'clear' ? 0.25 : weather === 'cloudy' ? 0.65 : 0.85;
+
+  return (
+    <group ref={groupRef} raycast={() => null}>
+      {cloudPuffs.map((puff, i) => (
+        <mesh key={i} position={[puff.x, puff.y, puff.z]}>
+          <cylinderGeometry args={[puff.scaleX, puff.scaleX * 1.1, 1.8, 12]} />
+          <meshStandardMaterial
+            color={cloudColor}
+            transparent
+            opacity={cloudOpacity}
+            roughness={0.9}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// ================= RAIN PARTICLE SYSTEM =================
+function RainParticles({ isRaining }: { isRaining: boolean }) {
+  const pointsRef = useRef<THREE.Points>(null);
+  const count = 900;
+
+  const [positions, geo, mat] = useMemo(() => {
+    const pos = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 100;
+      pos[i * 3 + 1] = Math.random() * 45;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 100;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const m = new THREE.PointsMaterial({
+      color: '#9fc2d6',
+      size: 0.35,
+      transparent: true,
+      opacity: 0.72,
+      depthWrite: false,
+    });
+    return [pos, g, m];
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      geo.dispose();
+      mat.dispose();
+    };
+  }, [geo, mat]);
+
+  useFrame((_, delta) => {
+    if (!isRaining) return;
+    const posAttr = geo.attributes.position as THREE.BufferAttribute;
+    const array = posAttr.array as Float32Array;
+
+    const fallSpeed = 36 * delta;
+    const windSpeed = 5 * delta;
+
+    for (let i = 0; i < count; i++) {
+      let y = array[i * 3 + 1] - fallSpeed;
+      let x = array[i * 3] + windSpeed;
+      if (y < 0) {
+        y = 42 + Math.random() * 4;
+        x = (Math.random() - 0.5) * 100;
+      }
+      array[i * 3] = x;
+      array[i * 3 + 1] = y;
+    }
+    posAttr.needsUpdate = true;
+  });
+
+  if (!isRaining) return null;
+
+  return <points ref={pointsRef} geometry={geo} material={mat} raycast={() => null} />;
+}
+
+// ================= CELESTIAL MOON MESH =================
+function CelestialMoon({
+  position,
+  isNight,
+}: {
+  position: [number, number, number];
+  isNight: boolean;
+}) {
+  if (!isNight) return null;
+
+  return (
+    <group position={position} raycast={() => null}>
+      {/* Lunar Core */}
+      <mesh>
+        <sphereGeometry args={[2.8, 20, 20]} />
+        <meshStandardMaterial
+          color="#f0f5fc"
+          emissive="#d0e2f4"
+          emissiveIntensity={0.85}
+          roughness={0.4}
+        />
+      </mesh>
+      {/* Soft Lunar Atmosphere Glow Halo */}
+      <mesh>
+        <sphereGeometry args={[3.8, 16, 16]} />
+        <meshBasicMaterial color="#7ba2cc" transparent opacity={0.22} side={THREE.BackSide} />
+      </mesh>
+    </group>
+  );
+}
+
+// ================= DAY NIGHT & WEATHER PROVIDER =================
 export function DayNightProvider({ children }: { children: React.ReactNode }) {
   const { isPlaying, speed } = useGameState();
   const [timeOfDay, setTimeOfDay] = useState<number>(14.0); // Start at 2:00 PM (bright daylight)
   const [isAutoCycle, setIsAutoCycle] = useState<boolean>(true);
+  const [isTimePaused, setIsTimePaused] = useState<boolean>(false);
+  const [timeSpeedMultiplier, setTimeSpeedMultiplier] = useState<number>(1);
 
-  // Time advancement when auto cycle is on
+  // Weather States
+  const [weather, setWeather] = useState<WeatherType>('clear');
+  const [isAutoWeather, setIsAutoWeather] = useState<boolean>(true);
+
+  // Auto weather cycle (changes condition naturally every ~90s)
   useEffect(() => {
-    if (!isAutoCycle || !isPlaying) return;
+    if (!isAutoWeather || isTimePaused) return;
+
+    const weatherProgression: WeatherType[] = ['clear', 'cloudy', 'rain', 'clear', 'fog'];
+    let idx = 0;
+
+    const weatherTimer = setInterval(() => {
+      idx = (idx + 1) % weatherProgression.length;
+      setWeather(weatherProgression[idx]);
+    }, 95000);
+
+    return () => clearInterval(weatherTimer);
+  }, [isAutoWeather, isTimePaused]);
+
+  // Time advancement when auto cycle is on and not paused
+  useEffect(() => {
+    if (!isAutoCycle || !isPlaying || isTimePaused) return;
 
     const multMap = { '1x': 1, '2x': 2, '5x': 5, '10x': 10 };
-    const mult = multMap[speed] || 1;
-    // Advance 1 hour every 4 seconds at 1x
-    const intervalMs = 200; // 5Hz is plenty smooth for simulation clocks while cutting React ticks by 50%
+    const mult = (multMap[speed] || 1) * timeSpeedMultiplier;
+    const intervalMs = 200;
     const hourPerTick = (0.25 * mult * intervalMs) / 1000;
 
     const timer = setInterval(() => {
@@ -66,29 +295,30 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [isAutoCycle, isPlaying, speed]);
+  }, [isAutoCycle, isPlaying, isTimePaused, speed, timeSpeedMultiplier]);
 
-  // Derived celestial properties based on time of day (0-24)
+  // Derived diurnal state
   const isNight = timeOfDay < 5.5 || timeOfDay > 19.5;
 
-  // Calculate sun angle: rises at 6 (0 rad), zenith at 12 (pi/2), sets at 18 (pi)
+  // Continuous Sun and Moon calculation
   const sunAngle = ((timeOfDay - 6) / 24) * Math.PI * 2;
   const sunDist = 75;
   const sunX = Math.cos(sunAngle) * sunDist;
   const sunY = Math.sin(sunAngle) * sunDist;
   const sunZ = Math.sin(sunAngle * 0.5) * 35;
 
-  // Moon is opposite to the sun
   const moonX = -sunX;
   const moonY = -sunY;
   const moonZ = -sunZ;
 
-  // Smooth color and intensity interpolation
-  let sunIntensity = 0;
-  let directionalColor = '#fff5df';
+  // Base diurnal color palette
+  let sunIntensity = 2.4;
+  let directionalColor = '#fff6e5';
   let ambientColor = '#ffffff';
   let skyColor = '#9ec4b0';
-  let fogColor = '#9ec4b0';
+  let fogColor = '#a8cbb8';
+  let fogNear = 90;
+  let fogFar = 195;
 
   if (timeOfDay >= 5.0 && timeOfDay < 7.5) {
     // Dawn / Sunrise
@@ -114,39 +344,98 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     skyColor = '#5e4359';
     fogColor = '#735269';
   } else {
-    // Night (20:00 to 5:00)
-    sunIntensity = 0.5; // Cool moon light
+    // Night
+    sunIntensity = 0.5;
     directionalColor = '#80a8d6';
     ambientColor = '#18242f';
     skyColor = '#0b1319';
     fogColor = '#0d1820';
   }
 
-  const value = useMemo<DayNightState>(() => ({
-    timeOfDay,
-    setTimeOfDay,
-    isAutoCycle,
-    setIsAutoCycle,
-    isNight,
-    sunIntensity,
-    sunPosition: [sunX, Math.max(sunY, -10), sunZ],
-    moonPosition: [moonX, Math.max(moonY, -10), moonZ],
-    skyColor,
-    fogColor,
-    ambientColor,
-    directionalColor,
-  }), [timeOfDay, isAutoCycle, isNight, sunIntensity, sunX, sunY, sunZ, moonX, moonY, moonZ, skyColor, fogColor, ambientColor, directionalColor]);
+  // Weather modifiers
+  if (weather === 'cloudy') {
+    sunIntensity *= 0.72;
+    directionalColor = '#d0d8df';
+    ambientColor = isNight ? '#141d24' : '#8fa1af';
+    skyColor = isNight ? '#080d12' : '#6f838f';
+    fogColor = isNight ? '#0b1218' : '#7d909c';
+    fogNear = 65;
+    fogFar = 150;
+  } else if (weather === 'rain') {
+    sunIntensity *= 0.45;
+    directionalColor = '#95a8b8';
+    ambientColor = isNight ? '#101720' : '#6b7d8c';
+    skyColor = isNight ? '#060a0e' : '#455663';
+    fogColor = isNight ? '#080d12' : '#526473';
+    fogNear = 38;
+    fogFar = 95;
+  } else if (weather === 'fog') {
+    sunIntensity *= 0.55;
+    directionalColor = '#c5d0d8';
+    ambientColor = isNight ? '#121922' : '#7c8e99';
+    skyColor = isNight ? '#090e13' : '#667985';
+    fogColor = isNight ? '#0c131a' : '#758894';
+    fogNear = 22;
+    fogFar = 68;
+  }
+
+  const value = useMemo<DayNightState>(
+    () => ({
+      timeOfDay,
+      setTimeOfDay,
+      isAutoCycle,
+      setIsAutoCycle,
+      isNight,
+      sunIntensity,
+      sunPosition: [sunX, Math.max(sunY, -10), sunZ],
+      moonPosition: [moonX, Math.max(moonY, -10), moonZ],
+      skyColor,
+      fogColor,
+      ambientColor,
+      directionalColor,
+      fogNear,
+      fogFar,
+      weather,
+      setWeather,
+      isAutoWeather,
+      setIsAutoWeather,
+      isTimePaused,
+      setIsTimePaused,
+      timeSpeedMultiplier,
+      setTimeSpeedMultiplier,
+    }),
+    [
+      timeOfDay,
+      isAutoCycle,
+      isNight,
+      sunIntensity,
+      sunX,
+      sunY,
+      sunZ,
+      moonX,
+      moonY,
+      moonZ,
+      skyColor,
+      fogColor,
+      ambientColor,
+      directionalColor,
+      fogNear,
+      fogFar,
+      weather,
+      isAutoWeather,
+      isTimePaused,
+      timeSpeedMultiplier,
+    ]
+  );
 
   return (
     <IsNightContext.Provider value={isNight}>
-      <DayNightContext.Provider value={value}>
-        {children}
-      </DayNightContext.Provider>
+      <DayNightContext.Provider value={value}>{children}</DayNightContext.Provider>
     </IsNightContext.Provider>
   );
 }
 
-// 3D Scene Lighting component driven by DayNightContext
+// ================= 3D SCENE LIGHTING & ENVIRONMENT COMPONENT =================
 export const WorldLighting = React.memo(function WorldLighting() {
   const {
     isNight,
@@ -157,6 +446,9 @@ export const WorldLighting = React.memo(function WorldLighting() {
     ambientColor,
     skyColor,
     fogColor,
+    fogNear,
+    fogFar,
+    weather,
   } = useDayNight();
 
   const sunRef = useRef<THREE.DirectionalLight>(null);
@@ -164,15 +456,12 @@ export const WorldLighting = React.memo(function WorldLighting() {
   return (
     <>
       <color attach="background" args={[skyColor]} />
-      <fog attach="fog" args={[fogColor, 90, 195]} />
+      <fog attach="fog" args={[fogColor, fogNear, fogFar]} />
 
       {/* Global Ambient Light */}
-      <ambientLight
-        intensity={isNight ? 0.35 : 0.95}
-        color={ambientColor}
-      />
+      <ambientLight intensity={isNight ? 0.35 : 0.95} color={ambientColor} />
 
-      {/* Hemisphere Light for natural ground bounce */}
+      {/* Hemisphere Light for natural bounce */}
       <hemisphereLight
         color={isNight ? '#384d6b' : '#daf0ff'}
         groundColor={isNight ? '#0b1610' : '#45663d'}
@@ -197,12 +486,24 @@ export const WorldLighting = React.memo(function WorldLighting() {
         shadow-bias={-0.0003}
       />
 
-      {/* Secondary fill light for soft shadows without shadow casting pass */}
+      {/* Secondary Fill Light */}
       <directionalLight
         position={[-35, 30, -35]}
         intensity={isNight ? 0.2 : 0.55}
         color={isNight ? '#486380' : '#b0dbff'}
       />
+
+      {/* Celestial Moon with Soft Lunar Atmosphere */}
+      <CelestialMoon position={moonPosition} isNight={isNight} />
+
+      {/* Starfield in Nighttime Sky */}
+      <Starfield isNight={isNight} />
+
+      {/* Volumetric Drifting Clouds */}
+      <DriftingClouds weather={weather} isNight={isNight} />
+
+      {/* Dynamic Rain Particles */}
+      <RainParticles isRaining={weather === 'rain'} />
     </>
   );
 });
