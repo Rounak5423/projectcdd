@@ -3,7 +3,7 @@ import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Detailed } from '@react-three/drei';
 import * as THREE from 'three';
 import { PlacedBuilding } from '../../types/game';
-import { MapLayer } from '../../context/GameStateContext';
+import { useGameState, MapLayer } from '../../context/GameStateContext';
 import { MasterBuildingRouter } from './BuildingModels';
 import { BuildingLODProxy } from './buildings/BuildingLODProxy';
 import BuildingDamageEffect from './buildings/BuildingDamageEffect';
@@ -23,6 +23,7 @@ function BuildingObject({
   onSelect,
   activeLayer,
 }: BuildingObjectProps) {
+  const { isConstructionMode } = useGameState();
   const ringRef = useRef<THREE.Mesh>(null);
 
   // Dimming based on strategic map layers
@@ -50,15 +51,19 @@ function BuildingObject({
     <group
       position={[building.x, building.y, building.z]}
       rotation={[0, rotY, 0]}
+      raycast={isConstructionMode ? () => null : undefined}
       onClick={(e: ThreeEvent<MouseEvent>) => {
+        if (isConstructionMode) return;
         e.stopPropagation();
         onSelect();
       }}
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+        if (isConstructionMode) return;
         e.stopPropagation();
         triggerBuildingHover(building.id);
       }}
       onPointerOut={() => {
+        if (isConstructionMode) return;
         triggerBuildingHover(null);
       }}
     >

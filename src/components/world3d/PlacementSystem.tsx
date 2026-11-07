@@ -1,17 +1,21 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useThree, ThreeEvent } from '@react-three/fiber';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { ThreeEvent, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameState } from '../../context/GameStateContext';
-import { getTerrainHeight, isNearRiver, isNearLake } from './Terrain';
+import { getTerrainHeight } from './Terrain';
 import { MasterBuildingRouter } from './BuildingModels';
+import { validateBuildingPlacement, ValidationResult } from './placementValidation';
 
 export default function PlacementSystem() {
   const {
     isConstructionMode,
     selectedCatalogItem,
+    relocatingBuildingId,
     placeBuilding,
+    relocateBuilding,
     setConstructionMode,
+    cancelRelocation,
     placedBuildings,
     districts,
     resources,
@@ -20,172 +24,290 @@ export default function PlacementSystem() {
   const [cursorPos, setCursorPos] = useState<[number, number, number] | null>(null);
   const [rotationAngle, setRotationAngle] = useState<number>(0);
   const [snapToGrid, setSnapToGrid] = useState<boolean>(true);
+  const [validation, setValidation] = useState<ValidationResult>({
+    isValid: true,
+    reason: 'Evaluating zone...',
+    distToRoad: 0,
+    slope: 0,
+    terrainElevation: 0,
+    isFarFromRoad: false,
+  });
 
-  // Keyboard shortcut: 'R' to rotate by 45 degrees, 'Escape' to cancel
+  const pointerDownScreenPos = useRef<{ x: number; y: number; time: number } | null>(null);
+  const lastCellRef = useRef<string>('');
+  const pulseRef = useRef<THREE.Mesh>(null);
+
+  // Terrain-conforming raycast surface for parallax-free cursor projection on hills and slopes
+  const collisionGeo = useMemo(() => {
+    const size = 136;
+    const segs = 48;
+    const geo = new THREE.PlaneGeometry(size, size, segs, segs);
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const vx = pos.getX(i);
+      const vz = pos.getZ(i);
+      pos.setY(i, getTerrainHeight(vx, vz));
+    }
+    geo.computeVertexNormals();
+    return geo;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      collisionGeo.dispose();
+    };
+  }, [collisionGeo]);
+
+  // Keyboard controls:
+  // [R] / [Shift+R] - Rotate in 45° increments
+  // [G] - Toggle 2.0m Grid Snapping
+  // [Escape] - Cancel construction or relocation
   useEffect(() => {
     if (!isConstructionMode) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'r' || e.key === 'R') {
-        setRotationAngle((prev) => (prev + Math.PI / 4) % (Math.PI * 2));
+        const delta = e.shiftKey ? -Math.PI / 4 : Math.PI / 4;
+        setRotationAngle((prev) => {
+          let next = (prev + delta) % (Math.PI * 2);
+          if (next < 0) next += Math.PI * 2;
+          return next;
+        });
+      } else if (e.key === 'g' || e.key === 'G') {
+        setSnapToGrid((prev) => !prev);
       } else if (e.key === 'Escape') {
-        setConstructionMode(false);
+        if (relocatingBuildingId) {
+          cancelRelocation();
+        } else {
+          setConstructionMode(false);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isConstructionMode, setConstructionMode]);
+  }, [isConstructionMode, relocatingBuildingId, cancelRelocation, setConstructionMode]);
 
-  // Validation logic: checks collisions, rivers, bounds, and resources
-  const validation = useMemo(() => {
-    if (!cursorPos || !selectedCatalogItem) return { isValid: false, reason: '' };
-
-    const [x, , z] = cursorPos;
-
-    // 1. Check material cost
-    if (resources.materials < selectedCatalogItem.costMaterials) {
-      return { isValid: false, reason: 'Insufficient materials to construct' };
+  // Subtle pulsing animation on the holographic foundation ring
+  useFrame(({ clock }) => {
+    if (pulseRef.current) {
+      const s = 1.0 + Math.sin(clock.getElapsedTime() * 4.0) * 0.05;
+      pulseRef.current.scale.set(s, s, 1);
     }
+  });
 
-    // 2. Check terrain boundary
-    const distFromOrigin = Math.hypot(x, z);
-    if (distFromOrigin > 52) {
-      return { isValid: false, reason: 'Outside buildable perimeter' };
-    }
-
-    // 3. Check river & lake collision
-    if (isNearRiver(x, z, 3.8)) {
-      return { isValid: false, reason: 'Cannot construct on riverbed water channel' };
-    }
-    if (isNearLake(x, z, 5.0)) {
-      return { isValid: false, reason: 'Cannot construct in scenic reservoir lake' };
-    }
-
-    // 4. Check overlap with existing placed buildings
-    const minSpacing = 4.2;
-    for (const b of placedBuildings) {
-      const d = Math.hypot(x - b.x, z - b.z);
-      if (d < minSpacing) {
-        return { isValid: false, reason: `Too close to ${b.name}` };
+  // Nearest district resolution based on world coordinates
+  const getNearestDistrictId = useCallback(
+    (x: number, z: number): string => {
+      let bestDist = Infinity;
+      let bestId = 'dist-citadel';
+      for (const d of districts) {
+        const dist = Math.hypot(x - d.x, z - d.z);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestId = d.id;
+        }
       }
-    }
+      return bestId;
+    },
+    [districts]
+  );
 
-    return { isValid: true, reason: 'Valid construction zone' };
-  }, [cursorPos, selectedCatalogItem, placedBuildings, resources.materials]);
-
-  if (!isConstructionMode || !selectedCatalogItem) return null;
-
-  // Determine closest district based on placement coordinates
-  const getNearestDistrictId = (x: number, z: number): string => {
-    let bestDist = Infinity;
-    let bestId = 'dist-citadel';
-    for (const d of districts) {
-      const dist = Math.hypot(x - d.x, z - d.z);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestId = d.id;
-      }
-    }
-    return bestId;
-  };
-
+  // Pointer move handler with grid cell throttling
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
+
     let rawX = e.point.x;
     let rawZ = e.point.z;
 
     if (snapToGrid) {
       rawX = Math.round(rawX / 2.0) * 2.0;
       rawZ = Math.round(rawZ / 2.0) * 2.0;
+    } else {
+      rawX = Math.round(rawX * 10) / 10;
+      rawZ = Math.round(rawZ * 10) / 10;
     }
 
-    const terrainY = getTerrainHeight(rawX, rawZ) + 0.15;
-    setCursorPos([rawX, terrainY, rawZ]);
+    const cellKey = `${rawX}_${rawZ}`;
+    if (cellKey === lastCellRef.current) return;
+    lastCellRef.current = cellKey;
+
+    const terrainY = getTerrainHeight(rawX, rawZ) + 0.12;
+    const newPos: [number, number, number] = [rawX, terrainY, rawZ];
+    setCursorPos(newPos);
+
+    if (selectedCatalogItem) {
+      const val = validateBuildingPlacement({
+        x: rawX,
+        z: rawZ,
+        catalogItem: selectedCatalogItem,
+        placedBuildings,
+        resources,
+        relocatingBuildingId,
+      });
+      setValidation(val);
+    }
   };
 
-  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+  // Guard against camera drag: only confirm placement on clean click
+  const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+    pointerDownScreenPos.current = {
+      x: e.clientX,
+      y: e.clientY,
+      time: Date.now(),
+    };
+  };
+
+  const handlePointerUp = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    if (!cursorPos || !validation.isValid) return;
+    if (!pointerDownScreenPos.current || !cursorPos || !selectedCatalogItem) return;
+
+    const dx = e.clientX - pointerDownScreenPos.current.x;
+    const dy = e.clientY - pointerDownScreenPos.current.y;
+    const dragDistance = Math.hypot(dx, dy);
+    pointerDownScreenPos.current = null;
+
+    // If pointer moved more than 7px, user was navigating/orbiting the camera
+    if (dragDistance > 7) return;
+
+    // Validate placement
+    const val = validateBuildingPlacement({
+      x: cursorPos[0],
+      z: cursorPos[2],
+      catalogItem: selectedCatalogItem,
+      placedBuildings,
+      resources,
+      relocatingBuildingId,
+    });
+
+    if (!val.isValid) return;
 
     const [x, , z] = cursorPos;
     const districtId = getNearestDistrictId(x, z);
-    placeBuilding(selectedCatalogItem.id, x, z, districtId, rotationAngle);
+
+    if (relocatingBuildingId) {
+      relocateBuilding(relocatingBuildingId, x, z, districtId, rotationAngle);
+    } else {
+      placeBuilding(selectedCatalogItem.id, x, z, districtId, rotationAngle);
+    }
   };
 
-  // Render ghost model preview using MasterBuildingRouter
-  const renderGhostMesh = () => {
-    return (
-      <MasterBuildingRouter
-        catalogId={selectedCatalogItem.id}
-        category={selectedCatalogItem.category}
-        modelType={selectedCatalogItem.modelType}
-        level={1}
-        isSelected={false}
-      />
-    );
-  };
+  if (!isConstructionMode || !selectedCatalogItem) return null;
 
-  const ringColor = validation.isValid ? '#2ecc71' : '#e74c3c';
-  const holoColor = validation.isValid ? '#a6bd82' : '#e74c3c';
+  const validColor = '#2ecc71';
+  const invalidColor = '#e74c3c';
+  const activeColor = validation.isValid ? validColor : invalidColor;
+
+  const degrees = Math.round((rotationAngle * 180) / Math.PI) % 360;
 
   return (
     <group>
-      {/* Interactive Raycast Plane covering world */}
+      {/* 1. Global Terrain-Conforming Raycast Intersection Surface */}
       <mesh
-        position={[0, 0.4, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
+        geometry={collisionGeo}
         onPointerMove={handlePointerMove}
-        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
       >
-        <planeGeometry args={[140, 140]} />
         <meshBasicMaterial visible={false} />
       </mesh>
 
-      {/* Holographic Ghost Building Cursor */}
+      {/* 2. Interactive Holographic Preview & Terrain Alignment Grid */}
       {cursorPos && (
         <group position={cursorPos} rotation={[0, rotationAngle, 0]}>
-          {/* Ground Footprint Ring */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
-            <ringGeometry args={[2.0, 2.35, 36]} />
-            <meshBasicMaterial color={ringColor} side={THREE.DoubleSide} />
+          {/* Dynamic 8x8m Holographic Construction Grid */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} raycast={() => null}>
+            <planeGeometry args={[7.8, 7.8, 6, 6]} />
+            <meshBasicMaterial
+              color={activeColor}
+              wireframe
+              transparent
+              opacity={validation.isValid ? 0.38 : 0.55}
+            />
           </mesh>
 
-          {/* Construction Boundary Grid */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
-            <planeGeometry args={[4.4, 4.4]} />
-            <meshBasicMaterial color={ringColor} wireframe transparent opacity={0.4} />
+          {/* Animated Ground Footprint Ring */}
+          <mesh
+            ref={pulseRef}
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[0, 0.04, 0]}
+            raycast={() => null}
+          >
+            <ringGeometry args={[2.2, 2.55, 36]} />
+            <meshBasicMaterial
+              color={activeColor}
+              transparent
+              opacity={0.85}
+              side={THREE.DoubleSide}
+            />
           </mesh>
 
-          {/* Holographic Preview Model */}
-          <group>
-            {renderGhostMesh()}
+          {/* Directional Front Entrance Arrow Indicator */}
+          <group position={[0, 0.06, 2.7]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
+            <coneGeometry args={[0.45, 0.7, 3]} />
+            <meshBasicMaterial color={activeColor} />
           </group>
 
-          {/* Floating Validation Tooltip Banner */}
-          <Html position={[0, 4.8, 0]} center distanceFactor={28}>
+          {/* Transparent Holographic Ghost Building Model */}
+          <group>
+            <MasterBuildingRouter
+              catalogId={selectedCatalogItem.id}
+              category={selectedCatalogItem.category}
+              modelType={selectedCatalogItem.modelType}
+              level={1}
+              isSelected={false}
+            />
+            {/* Holographic Volume Tint Bounding Shell */}
+            <mesh position={[0, 2.2, 0]} raycast={() => null}>
+              <cylinderGeometry args={[2.3, 2.3, 4.4, 16]} />
+              <meshBasicMaterial
+                color={activeColor}
+                transparent
+                opacity={0.12}
+                wireframe
+              />
+            </mesh>
+          </group>
+
+          {/* Floating High-Legibility In-World Status & Instruction Card */}
+          <Html position={[0, 5.4, 0]} center distanceFactor={28} zIndexRange={[120, 0]}>
             <div
-              className={`pointer-events-none px-3.5 py-2 rounded-xl text-xs font-semibold shadow-2xl flex flex-col items-center gap-0.5 whitespace-nowrap backdrop-blur-md border ${
+              className={`pointer-events-none px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl flex flex-col items-center gap-1 whitespace-nowrap backdrop-blur-xl border transition-all ${
                 validation.isValid
-                  ? 'bg-[#18261b]/95 border-[#2ecc71] text-[#dcf2db]'
-                  : 'bg-[#291817]/95 border-[#e74c3c] text-[#fcdad7]'
+                  ? 'bg-[#142317]/95 border-[#2ecc71] text-[#e3f7e1]'
+                  : 'bg-[#291412]/95 border-[#e74c3c] text-[#fce2de]'
               }`}
             >
-              <div className="flex items-center gap-1.5 font-bold">
+              <div className="flex items-center gap-2 font-bold">
                 <span
                   className={`w-2.5 h-2.5 rounded-full ${
                     validation.isValid ? 'bg-[#2ecc71]' : 'bg-[#e74c3c] animate-ping'
                   }`}
                 />
-                <span>
+                <span className="text-sm">
                   {validation.isValid
-                    ? `Click to build ${selectedCatalogItem.name}`
+                    ? relocatingBuildingId
+                      ? `Click to Relocate ${selectedCatalogItem.name}`
+                      : `Click to Construct ${selectedCatalogItem.name}`
                     : validation.reason}
                 </span>
               </div>
-              <span className="text-[10px] text-[#abb7a7]">
-                [R] Rotate ({(Math.round((rotationAngle * 180) / Math.PI)) % 360}°) · [Esc] Cancel · Cost: {selectedCatalogItem.costMaterials} Mat.
-              </span>
+
+              <div className="flex items-center gap-2 text-[10px] text-[#b6c7b3] font-mono">
+                <span className="bg-[#1c281e] px-1.5 py-0.5 rounded border border-[#354838]">
+                  Rotation: {degrees}° [R]
+                </span>
+                <span className="bg-[#1c281e] px-1.5 py-0.5 rounded border border-[#354838]">
+                  Grid Snap: {snapToGrid ? '2.0m ON' : 'OFF'} [G]
+                </span>
+                {!relocatingBuildingId && (
+                  <span className="text-[#e0be70] font-semibold">
+                    Cost: {selectedCatalogItem.costMaterials} Mat.
+                  </span>
+                )}
+                <span className="text-[#e57373]">[Esc] Cancel</span>
+              </div>
             </div>
           </Html>
         </group>
@@ -193,4 +315,3 @@ export default function PlacementSystem() {
     </group>
   );
 }
-

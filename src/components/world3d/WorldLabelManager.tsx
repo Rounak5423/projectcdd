@@ -48,6 +48,8 @@ export default function WorldLabelManager() {
     resources,
     upgradeBuilding,
     demolishBuilding,
+    rotateBuilding,
+    startRelocation,
   } = useGameState();
 
   const { camera } = useThree();
@@ -174,10 +176,32 @@ export default function WorldLabelManager() {
                           : 'bg-[#212721] text-[#697268] border border-[#2f3830] cursor-not-allowed'
                       }`}
                     >
-                      {selectedBuilding.level >= selectedBuilding.maxLevel ? 'Max Level' : `Upgrade (${upgradeCost}M)`}
+                      {selectedBuilding.level >= selectedBuilding.maxLevel ? 'Max' : `Upgrade (${upgradeCost}M)`}
                     </button>
                   );
                 })()}
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    rotateBuilding(selectedBuilding.id, Math.PI / 4);
+                  }}
+                  className="py-1 px-2 rounded-lg text-xs font-semibold bg-[#202921] hover:bg-[#2d382e] text-[#dce9ca] border border-[#374738] transition-colors cursor-pointer"
+                  title="Rotate structure 45°"
+                >
+                  ↻ 45°
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startRelocation(selectedBuilding.id);
+                  }}
+                  className="py-1 px-2 rounded-lg text-xs font-semibold bg-[#252a1d] hover:bg-[#363e2a] text-[#c6a76a] border border-[#4d482a] transition-colors cursor-pointer"
+                  title="Relocate this building to a new terrain site"
+                >
+                  Move
+                </button>
 
                 <button
                   onClick={(e) => {

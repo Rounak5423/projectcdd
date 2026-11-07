@@ -26,6 +26,7 @@ export default function CivilizationWorld3D() {
     selectBuilding,
     activeLayer,
     districts,
+    isConstructionMode,
   } = useGameState();
 
   const handleFocusDistrict = (districtId: string) => {
@@ -51,8 +52,8 @@ export default function CivilizationWorld3D() {
             powerPreference: 'high-performance',
           }}
           onPointerDown={(e) => {
-            // Deselect active building and road if clicking on empty canvas directly
-            if ((e.target as HTMLElement).tagName === 'CANVAS') {
+            // Deselect active building and road if clicking on empty canvas directly while not in construction mode
+            if (!isConstructionMode && (e.target as HTMLElement).tagName === 'CANVAS') {
               selectBuilding(null);
               triggerRoadSelection(null);
             }
