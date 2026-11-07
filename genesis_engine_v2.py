@@ -1852,7 +1852,7 @@ HTML_DASHBOARD = """<!DOCTYPE html>
 """
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def serve_dashboard():
     """Serves the interactive, responsive Glassmorphic Strategy Dashboard UI."""
     return HTMLResponse(content=HTML_DASHBOARD, status_code=200)
