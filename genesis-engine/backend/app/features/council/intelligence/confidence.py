@@ -42,3 +42,4 @@ def calculate_domain_confidence(
     raw_score = (0.50 * available_ratio) + (0.30 * history_score) + (0.20 * sample_score)
     # Clamp between 0.50 and 0.98 (no advisor claims 100% prophetic certainty)
     return round(max(0.50, min(0.98, raw_score)), 2)
+

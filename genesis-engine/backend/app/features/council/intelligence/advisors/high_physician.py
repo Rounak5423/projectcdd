@@ -223,3 +223,4 @@ class HighPhysicianAdvisor(BaseAdvisor):
                 f"Citizen health index stands at {health * 100:.1f}%, and our clean water reservoirs hold {context.water:,.0f} units in reserve. "
                 "Let us continue to invest in our biological resilience, for healthy hands build eternal empires."
             )
+

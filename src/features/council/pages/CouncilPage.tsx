@@ -20,6 +20,7 @@ export const CouncilPage: React.FC<CouncilPageProps> = ({ onNavigate, onClose })
   const [recommendations, setRecommendations] = useState<CouncilRecommendation[]>([]);
   const [sessions, setSessions] = useState<CouncilSession[]>([]);
   const [selectedAdvisorId, setSelectedAdvisorId] = useState<string | null>(null);
+  const [speakingAdvisorId, setSpeakingAdvisorId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -194,6 +195,7 @@ export const CouncilPage: React.FC<CouncilPageProps> = ({ onNavigate, onClose })
       recommendations={recommendations}
       sessions={sessions}
       selectedAdvisorId={selectedAdvisorId}
+      speakingAdvisorId={speakingAdvisorId}
       onSelectAdvisor={handleSelectAdvisor}
       onReviewRecommendation={handleReviewRecommendation}
       onStartSession={handleStartSession}

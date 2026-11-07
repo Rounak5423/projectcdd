@@ -3,7 +3,7 @@ import { Advisor } from '../types/advisor';
 import { CouncilRecommendation } from '../types/recommendation';
 import { CouncilSession, RecordDecisionPayload } from '../types/council';
 import AdvisorRoster from './AdvisorRoster';
-import CouncilChamberPlaceholder from './CouncilChamberPlaceholder';
+import CouncilChamber3D from '../three/CouncilChamber3D';
 import AdvisorIntelligencePanel from './AdvisorIntelligencePanel';
 import RecommendationPanel from './RecommendationPanel';
 import CouncilSessionPanel from './CouncilSessionPanel';
@@ -27,6 +27,7 @@ interface CouncilLayoutProps {
   recommendations: CouncilRecommendation[];
   sessions: CouncilSession[];
   selectedAdvisorId: string | null;
+  speakingAdvisorId?: string | null;
   onSelectAdvisor: (advisorId: string) => void;
   onReviewRecommendation: (recId: string, status: 'Accepted' | 'Rejected' | 'Under Review') => void;
   onStartSession: (title: string, agenda: string[], invitedAdvisorIds: string[]) => void;
@@ -41,6 +42,7 @@ export const CouncilLayout: React.FC<CouncilLayoutProps> = ({
   recommendations,
   sessions,
   selectedAdvisorId,
+  speakingAdvisorId,
   onSelectAdvisor,
   onReviewRecommendation,
   onStartSession,
@@ -164,11 +166,12 @@ export const CouncilLayout: React.FC<CouncilLayoutProps> = ({
               />
             </div>
 
-            {/* Centre: Council Chamber Placeholder */}
+            {/* Centre: 3D Royal Council Chamber */}
             <div className="h-full overflow-hidden">
-              <CouncilChamberPlaceholder
+              <CouncilChamber3D
                 advisors={advisors}
                 selectedAdvisorId={selectedAdvisorId}
+                speakingAdvisorId={speakingAdvisorId}
                 onAdvisorSelect={onSelectAdvisor}
               />
             </div>

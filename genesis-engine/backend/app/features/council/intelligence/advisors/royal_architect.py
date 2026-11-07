@@ -196,3 +196,4 @@ class RoyalArchitectAdvisor(BaseAdvisor):
                 f"With {context.total_buildings_count} active structures and housing occupancy balanced at {occupancy * 100:.1f}%, "
                 "our architectural arteries are well-positioned to support sustainable civil expansion."
             )
+

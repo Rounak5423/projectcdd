@@ -300,3 +300,4 @@ def build_civilisation_context(world_id: str, conn: Optional[sqlite3.Connection]
     finally:
         if close_after:
             conn.close()
+

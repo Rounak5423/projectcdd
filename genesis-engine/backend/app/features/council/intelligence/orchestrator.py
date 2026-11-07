@@ -216,3 +216,4 @@ class CouncilOrchestrator:
 
         self._latest_reports[world_id] = report
         return report
+

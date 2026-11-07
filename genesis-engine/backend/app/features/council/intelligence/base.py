@@ -203,3 +203,4 @@ class BaseAdvisor(ABC):
             data_completeness=completeness,
             missing_metrics=missing,
         )
+

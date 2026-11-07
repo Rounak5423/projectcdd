@@ -59,3 +59,4 @@ class IntelligenceRecommendation:
             "confidence": self.confidence,
             "status": "Proposed",
         }
+

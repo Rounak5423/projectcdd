@@ -53,3 +53,4 @@ class Finding:
             "supporting_evidence": [e.to_dict() for e in self.supporting_evidence],
             "detected_epoch": self.detected_epoch,
         }
+

@@ -278,3 +278,4 @@ def test_intelligence_api_endpoints():
     assert briefing["advisorId"] == ADVISOR_CHANCELLOR
     assert "Sovereign" in briefing["formalSpeech"]
     assert len(briefing["supportingObservations"]) >= 1
+

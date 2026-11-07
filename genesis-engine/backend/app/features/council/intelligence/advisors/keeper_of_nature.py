@@ -250,3 +250,4 @@ class KeeperOfNatureAdvisor(BaseAdvisor):
                 f"With environmental health at {env:.3f} and clean power generation at {context.clean_energy_ratio * 100:.1f}%, "
                 "our civilization demonstrates that monumental grandeur need not come at the expense of our planetary cradle."
             )
+

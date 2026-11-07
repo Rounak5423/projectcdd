@@ -260,3 +260,4 @@ class GrandScholarAdvisor(BaseAdvisor):
                 f"With a Macro Innovation score of {macro_inn:.3f} and research throughput of {context.research_rate:+.1f} points/cycle, "
                 "our scholars stand poised to unravel the deepest mysteries of the artificial cosmos."
             )
+

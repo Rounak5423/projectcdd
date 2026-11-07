@@ -254,3 +254,4 @@ class TreasurerAdvisor(BaseAdvisor):
                 f"With {gdp_str} in civil output and a liquid surplus of {grc:.1f} GRC, "
                 "we possess the financial fortitude to finance the crown's grandest ambitions."
             )
+

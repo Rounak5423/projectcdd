@@ -77,3 +77,4 @@ Historical metric trends are available via the `metrics_history` table:
 - `food`, `energy`, `materials`: Inventory histories
 
 When fewer than 2 historical points exist in `metrics_history`, longitudinal delta analysis is reported as `insufficient_historical_telemetry`, maintaining data integrity.
+

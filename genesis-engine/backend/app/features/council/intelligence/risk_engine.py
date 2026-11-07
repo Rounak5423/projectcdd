@@ -39,3 +39,4 @@ class Risk:
             "mitigation_strategy": self.mitigation_strategy,
             "confidence": self.confidence,
         }
+
