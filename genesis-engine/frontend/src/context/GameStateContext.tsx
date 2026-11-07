@@ -14,6 +14,13 @@ import {
   GameEvent,
   Citizen,
   ProtestEvent,
+  ZoneType,
+  InfoViewType,
+  RciDemand,
+  ChirperMessage,
+  CityMilestone,
+  ZonedTile,
+  UtilityStats,
 } from '../types/game';
 import {
   initialCivilization,
@@ -32,6 +39,14 @@ import {
   initialEvents,
 } from '../data/initialGameData';
 import { historicalTwinProtests } from '../data/protestData';
+import {
+  initialChirperMessages,
+  initialCityMilestones,
+  initialZonedTiles,
+  calculateRciDemand,
+  calculateUtilityStats,
+  generateRandomChirp,
+} from '../data/cs2Data';
 import { soundFx } from '../services/soundFx';
 
 export type MapLayer = 'all' | 'infrastructure' | 'population' | 'resources' | 'environment' | 'economy';
@@ -166,6 +181,29 @@ interface GameStateContextType {
   triggerFireworks: () => void;
   isCinematicTour: boolean;
   setIsCinematicTour: (val: boolean | ((prev: boolean) => boolean)) => void;
+
+  // Cities: Skylines II Extensions
+  activeInfoView: InfoViewType;
+  setActiveInfoView: (view: InfoViewType) => void;
+  rciDemand: RciDemand;
+  activeZoneTool: ZoneType | null;
+  setActiveZoneTool: (tool: ZoneType | null) => void;
+  zoneMode: 'brush' | 'marquee';
+  setZoneMode: (mode: 'brush' | 'marquee') => void;
+  zonedTiles: ZonedTile[];
+  paintZoneTile: (x: number, z: number, zoneType: ZoneType) => void;
+  chirperFeed: ChirperMessage[];
+  likeChirp: (chirpId: string) => void;
+  isChirperOpen: boolean;
+  setIsChirperOpen: (open: boolean) => void;
+  cityMilestones: CityMilestone[];
+  isMilestonesModalOpen: boolean;
+  setIsMilestonesModalOpen: (open: boolean) => void;
+  isBulldozerActive: boolean;
+  setIsBulldozerActive: (active: boolean) => void;
+  utilityStats: UtilityStats;
+  inspectedCitizen: Citizen | null;
+  setInspectedCitizen: (citizen: Citizen | null) => void;
 }
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -278,6 +316,62 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState<boolean>(false);
   const [showFireworks, setShowFireworks] = useState<boolean>(false);
   const [isCinematicTour, setIsCinematicTour] = useState<boolean>(false);
+
+  // Cities: Skylines II Simulation State
+  const [activeInfoView, setActiveInfoView] = useState<InfoViewType>('none');
+  const [activeZoneTool, setActiveZoneTool] = useState<ZoneType | null>(null);
+  const [zoneMode, setZoneMode] = useState<'brush' | 'marquee'>('brush');
+  const [zonedTiles, setZonedTiles] = useState<ZonedTile[]>(initialZonedTiles);
+  const [chirperFeed, setChirperFeed] = useState<ChirperMessage[]>(initialChirperMessages);
+  const [isChirperOpen, setIsChirperOpen] = useState<boolean>(false);
+  const [cityMilestones, setCityMilestones] = useState<CityMilestone[]>(initialCityMilestones);
+  const [isMilestonesModalOpen, setIsMilestonesModalOpen] = useState<boolean>(false);
+  const [isBulldozerActive, setIsBulldozerActive] = useState<boolean>(false);
+  const [inspectedCitizen, setInspectedCitizen] = useState<Citizen | null>(null);
+
+  // Dynamic RCI Demand & Utility calculation state
+  const [rciDemand, setRciDemand] = useState<RciDemand>(() =>
+    calculateRciDemand(initialResources.population, initialPlacedBuildings, 18, 95)
+  );
+  const [utilityStats, setUtilityStats] = useState<UtilityStats>(() =>
+    calculateUtilityStats(initialPlacedBuildings, initialResources.population)
+  );
+
+  const likeChirp = useCallback((chirpId: string) => {
+    setChirperFeed((prev) =>
+      prev.map((c) =>
+        c.id === chirpId
+          ? { ...c, likes: c.isLiked ? c.likes - 1 : c.likes + 1, isLiked: !c.isLiked }
+          : c
+      )
+    );
+  }, []);
+
+  const paintZoneTile = useCallback((x: number, z: number, zoneType: ZoneType) => {
+    const tileId = `tile-${Math.round(x)}-${Math.round(z)}`;
+    setZonedTiles((prev) => {
+      const existing = prev.find((t) => t.id === tileId);
+      if (existing) {
+        if (zoneType === 'none') {
+          return prev.filter((t) => t.id !== tileId);
+        }
+        return prev.map((t) => (t.id === tileId ? { ...t, zoneType } : t));
+      } else if (zoneType !== 'none') {
+        const newTile: ZonedTile = {
+          id: tileId,
+          x: Math.round(x),
+          z: Math.round(z),
+          zoneType,
+          buildingLevel: 1,
+          landValue: 400 + Math.floor(Math.random() * 150),
+          isOccupied: true,
+        };
+        return [...prev, newTile];
+      }
+      return prev;
+    });
+    soundFx.playHammerBuild();
+  }, []);
 
   const loadMaxDemoWorld = useCallback(() => {
     soundFx.playRewardClaim();
@@ -410,7 +504,18 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         return exp;
       })
     );
-  }, [rates]);
+
+    // 5. Update Cities: Skylines II RCI Demand & Utility Networks
+    setRciDemand(calculateRciDemand(resources.population, placedBuildings, taxRate, resources.health));
+    setUtilityStats(calculateUtilityStats(placedBuildings, resources.population));
+
+    // 6. Real-time Citizen Chirper Network
+    if (Math.random() < 0.25) {
+      const dName = districts[Math.floor(Math.random() * districts.length)].name;
+      const newChirp = generateRandomChirp(dName);
+      setChirperFeed((prev) => [newChirp, ...prev.slice(0, 24)]);
+    }
+  }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts]);
 
   // Advance by a full year
   const advanceYear = useCallback(() => {
@@ -919,6 +1024,28 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         triggerFireworks,
         isCinematicTour,
         setIsCinematicTour,
+        // Cities: Skylines II Extensions
+        activeInfoView,
+        setActiveInfoView,
+        rciDemand,
+        activeZoneTool,
+        setActiveZoneTool,
+        zoneMode,
+        setZoneMode,
+        zonedTiles,
+        paintZoneTile,
+        chirperFeed,
+        likeChirp,
+        isChirperOpen,
+        setIsChirperOpen,
+        cityMilestones,
+        isMilestonesModalOpen,
+        setIsMilestonesModalOpen,
+        isBulldozerActive,
+        setIsBulldozerActive,
+        utilityStats,
+        inspectedCitizen,
+        setInspectedCitizen,
       }}
     >
       {children}

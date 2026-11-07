@@ -14,6 +14,7 @@ import CameraManager from './CameraManager';
 import WorldHUD from './WorldHUD';
 import { PerformanceSampler } from './PerformanceTelemetry';
 import WorldLabelManager, { triggerRoadSelection } from './WorldLabelManager';
+import CS2ZoningAndInfoView3D from './CS2ZoningAndInfoView3D';
 
 export function CameraHUD() {
   return <CameraManager />;
@@ -89,6 +90,9 @@ export default function CivilizationWorld3D() {
               activeLayer={activeLayer}
             />
           ))}
+
+          {/* CITIES: SKYLINES II - DYNAMIC ZONING LOTS, INFO VIEWS & BULLDOZER TARGETING */}
+          <CS2ZoningAndInfoView3D />
 
           {/* Centralized 3D World Label & Selection Manager */}
           <WorldLabelManager />

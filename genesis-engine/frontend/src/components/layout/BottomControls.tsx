@@ -8,8 +8,13 @@ import {
   RotateCw,
   Volume2,
   VolumeX,
+  Shovel,
+  Trash2,
+  Trophy,
+  Grid,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
+import CS2RciDemandMeter from '../cs2/CS2RciDemandMeter';
 import { soundFx } from '../../services/soundFx';
 
 export default function BottomControls() {
@@ -22,6 +27,11 @@ export default function BottomControls() {
     advanceTick,
     advanceYear,
     setActiveDrawer,
+    activeZoneTool,
+    setActiveZoneTool,
+    isBulldozerActive,
+    setIsBulldozerActive,
+    setIsMilestonesModalOpen,
   } = useGameState();
 
   const [isMuted, setIsMuted] = useState(soundFx.getIsMuted());
@@ -80,6 +90,11 @@ export default function BottomControls() {
         >
           {isMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
         </button>
+
+        {/* Cities: Skylines II RCI Demand Meters */}
+        <div className="hidden lg:flex items-center">
+          <CS2RciDemandMeter />
+        </div>
       </div>
 
       {/* Center: Playback Speed Controls */}
@@ -132,8 +147,56 @@ export default function BottomControls() {
         </button>
       </div>
 
-      {/* Right: Integrated Turn Advancement Button */}
+      {/* Right: CS2 Tools & Integrated Turn Advancement Button */}
       <div className="flex items-center gap-2">
+        {/* CS2 Zoning Tool Button */}
+        <button
+          onClick={() => {
+            soundFx.playClick();
+            setActiveZoneTool(activeZoneTool ? null : 'residential_high');
+          }}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono font-bold transition-all border ${
+            activeZoneTool
+              ? 'bg-[#1e3325] border-[#2ecc71] text-[#2ecc71] shadow-sm'
+              : 'bg-[#192025] hover:bg-[#222a30] border-[#2b353b] text-[#aba393] hover:text-[#ede8dc]'
+          }`}
+          title="Cities: Skylines II Zoning Tool (Residential, Commercial, Industrial, Office)"
+        >
+          <Grid size={13} className="text-[#2ecc71]" />
+          <span className="hidden sm:inline text-[11px]">Zoning</span>
+        </button>
+
+        {/* CS2 Bulldozer Demolition Tool [B] */}
+        <button
+          onClick={() => {
+            soundFx.playClick();
+            setIsBulldozerActive(!isBulldozerActive);
+          }}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono font-bold transition-all border ${
+            isBulldozerActive
+              ? 'bg-[#3b1c1e] border-[#e74c3c] text-[#e74c3c] shadow-sm animate-pulse'
+              : 'bg-[#192025] hover:bg-[#222a30] border-[#2b353b] text-[#aba393] hover:text-[#ede8dc]'
+          }`}
+          title="Cities: Skylines II Bulldozer Tool [B] (Demolish structures & reclaim materials)"
+        >
+          <Trash2 size={13} className="text-[#e74c3c]" />
+          <span className="hidden sm:inline text-[11px]">Bulldozer</span>
+        </button>
+
+        {/* CS2 City Milestones Button */}
+        <button
+          onClick={() => {
+            soundFx.playClick();
+            setIsMilestonesModalOpen(true);
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#251f14] hover:bg-[#332b1b] border border-[#786128] text-xs font-mono font-bold text-[#dfb74a] transition-all shadow-xs"
+          title="Cities: Skylines II City Milestones & Growth Unlocks"
+        >
+          <Trophy size={13} className="text-[#dfb74a]" />
+          <span className="hidden sm:inline text-[11px]">Milestones</span>
+        </button>
+
+        {/* Advance Turn Button */}
         <button
           onClick={handleNextTurn}
           className="flex items-center gap-2 px-3.5 py-1.5 rounded-md btn-game-gold text-xs transition-all"

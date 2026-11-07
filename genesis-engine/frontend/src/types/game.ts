@@ -1,3 +1,84 @@
+// ================= CITIES: SKYLINES II SIMULATION EXTENSIONS =================
+
+export type ZoneType =
+  | 'none'
+  | 'residential_low'
+  | 'residential_high'
+  | 'commercial_low'
+  | 'commercial_high'
+  | 'industrial'
+  | 'office';
+
+export type InfoViewType =
+  | 'none'
+  | 'electricity'
+  | 'water'
+  | 'traffic'
+  | 'land_value'
+  | 'pollution'
+  | 'happiness';
+
+export interface RciDemand {
+  residentialLow: number; // 0 - 100
+  residentialHigh: number; // 0 - 100
+  commercial: number; // 0 - 100
+  industrial: number; // 0 - 100
+  office: number; // 0 - 100
+}
+
+export interface ChirperMessage {
+  id: string;
+  author: string;
+  handle: string;
+  avatar: string;
+  text: string;
+  time: string;
+  district: string;
+  likes: number;
+  isLiked?: boolean;
+  tag: string;
+}
+
+export interface CityMilestone {
+  level: number;
+  name: string;
+  popRequired: number;
+  rewardCredits: number;
+  rewardGrc: number;
+  unlockedFeatures: string[];
+  isReached: boolean;
+}
+
+export interface CitizenLifepathEvent {
+  year: number;
+  day: number;
+  title: string;
+  description: string;
+  category: 'birth' | 'education' | 'career' | 'relocation' | 'achievement' | 'mortality';
+}
+
+export interface ZonedTile {
+  id: string;
+  x: number;
+  z: number;
+  zoneType: ZoneType;
+  buildingLevel: number; // 1 - 5
+  landValue: number;
+  isOccupied: boolean;
+}
+
+export interface UtilityStats {
+  powerCapacityMW: number;
+  powerConsumptionMW: number;
+  powerSurplusMW: number;
+  waterCapacityM3: number;
+  waterConsumptionM3: number;
+  sewageTreatmentPercent: number;
+  trafficFlowPercent: number; // 0 - 100%
+  averageLandValue: number; // credits/m²
+  pollutionIndex: number; // 0 - 100
+}
+
 export type ResourceType =
   | 'food'
   | 'water'
@@ -126,6 +207,11 @@ export interface Citizen {
   occupation: string;
   district: string;
   educationLevel: 'Basic' | 'Secondary' | 'Higher' | 'Specialist' | 'Quantum/AI';
+  lifeStage?: 'Child' | 'Teen' | 'Adult' | 'Senior';
+  wealthTier?: 'Penniless' | 'Poor' | 'Modest' | 'Comfortable' | 'Wealthy';
+  homeAddress?: string;
+  workplaceAddress?: string;
+  commuteTimeMin?: number;
   happiness: number; // 0 - 100
   health: number; // 0 - 100
   income: number; // annual
@@ -140,6 +226,7 @@ export interface Citizen {
     order: number;
   };
   taxContribution?: number;
+  lifepathEvents?: CitizenLifepathEvent[];
 }
 
 export type TechEra = 'Foundational' | 'Industrial' | 'Digital' | 'Synthetic / AI';

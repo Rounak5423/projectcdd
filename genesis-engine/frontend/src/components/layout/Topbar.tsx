@@ -21,6 +21,7 @@ import { useGameState } from '../../context/GameStateContext';
 import { useAuth } from '../../context/AuthContext';
 import { soundFx } from '../../services/soundFx';
 import { CivoraIcon } from '../brand/CivoraLogo';
+import CS2ChirperWidget from '../cs2/CS2ChirperWidget';
 
 export default function Topbar({
   isRightPanelOpen,
@@ -107,6 +108,9 @@ export default function Topbar({
 
       {/* Right Controls: Subtle Claim Indicator & HUD Actions */}
       <div className="flex items-center gap-2">
+        {/* Cities: Skylines II Chirper Social Network Widget */}
+        <CS2ChirperWidget />
+
         {/* Active Historical Twin Civil Protest Pill */}
         {activeProtest && (
           <button

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Compass,
   X,
@@ -6,7 +6,11 @@ import {
 import CivilizationWorld3D from '../components/world3d/CivilizationWorld3D';
 import AnnoBuildDock from '../components/game/AnnoBuildDock';
 import CivRegionsDrawer from '../components/game/CivRegionsDrawer';
-import AnnoCitizenCard from '../components/game/AnnoCitizenCard';
+import CS2InfoViewsPanel from '../components/cs2/CS2InfoViewsPanel';
+import CS2ZoningToolDock from '../components/cs2/CS2ZoningToolDock';
+import CS2BulldozerTool from '../components/cs2/CS2BulldozerTool';
+import CS2CitizenLifepathModal from '../components/cs2/CS2CitizenLifepathModal';
+import CS2MilestonesModal from '../components/cs2/CS2MilestonesModal';
 import { useGameState } from '../context/GameStateContext';
 import { Citizen } from '../types/game';
 import { soundFx } from '../services/soundFx';
@@ -24,14 +28,44 @@ export default function WorldExplorerPage({
     isConstructionMode,
     selectedCatalogItem,
     setConstructionMode,
+    activeZoneTool,
+    setActiveZoneTool,
+    isBulldozerActive,
+    setIsBulldozerActive,
+    isMilestonesModalOpen,
+    setIsMilestonesModalOpen,
+    inspectedCitizen,
+    setInspectedCitizen,
+    activeInfoView,
+    setActiveInfoView,
   } = useGameState();
-
-  const [inspectedCitizen, setInspectedCitizen] = useState<Citizen | null>(null);
 
   const handleSelectDistrict = (districtId: string) => {
     const citizen = citizens.find((c) => c.district.toLowerCase().includes(districtId.replace('dist-', ''))) || citizens[0];
     setInspectedCitizen(citizen);
   };
+
+  // CS2 Hotkeys: 'b' for Bulldozer, 'z' for Zoning, 'i' for Info Views
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
+        return;
+      }
+      if (e.key === 'b' || e.key === 'B') {
+        soundFx.playClick();
+        setIsBulldozerActive(!isBulldozerActive);
+      } else if (e.key === 'z' || e.key === 'Z') {
+        soundFx.playClick();
+        setActiveZoneTool(activeZoneTool ? null : 'residential_high');
+      } else if (e.key === 'i' || e.key === 'I') {
+        soundFx.playClick();
+        setActiveInfoView(activeInfoView === 'electricity' ? 'water' : activeInfoView === 'water' ? 'traffic' : activeInfoView === 'traffic' ? 'none' : 'electricity');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isBulldozerActive, setIsBulldozerActive, activeZoneTool, setActiveZoneTool, activeInfoView, setActiveInfoView]);
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-[#121619] select-none flex flex-col">
@@ -42,15 +76,26 @@ export default function WorldExplorerPage({
         {/* TOP-RIGHT CIV REGIONS DRAWER */}
         <CivRegionsDrawer onSelectDistrict={handleSelectDistrict} />
 
-        {/* ANNO CITIZEN INSPECTOR CARD (Floats Contextually) */}
-        {inspectedCitizen && (
-          <div className="absolute top-16 right-[290px] z-20 animate-in fade-in duration-150">
-            <AnnoCitizenCard
-              citizen={inspectedCitizen}
-              onClose={() => setInspectedCitizen(null)}
-            />
-          </div>
-        )}
+        {/* CITIES: SKYLINES II - TOP-LEFT FLOATING INFO VIEWS PANEL */}
+        <CS2InfoViewsPanel />
+
+        {/* CITIES: SKYLINES II - ACTIVE BULLDOZER DEMOLITION BANNER */}
+        <CS2BulldozerTool />
+
+        {/* CITIES: SKYLINES II - DEEP CITIZEN LIFEPATH INSPECTOR MODAL */}
+        <CS2CitizenLifepathModal
+          citizen={inspectedCitizen}
+          onClose={() => setInspectedCitizen(null)}
+        />
+
+        {/* CITIES: SKYLINES II - CITY MILESTONES & PROGRESSION ROAD */}
+        <CS2MilestonesModal
+          isOpen={isMilestonesModalOpen}
+          onClose={() => setIsMilestonesModalOpen(false)}
+        />
+
+        {/* CITIES: SKYLINES II - DYNAMIC ZONING TOOL DOCK */}
+        <CS2ZoningToolDock />
 
         {/* CONSTRUCTION PLACEMENT MODE BANNER */}
         {isConstructionMode && selectedCatalogItem && (
