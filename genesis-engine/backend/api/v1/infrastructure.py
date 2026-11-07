@@ -171,14 +171,26 @@ async def construct_building(id: str, req: BuildingConstructRequest):
             json.dumps(cost), json.dumps(upgrade_cost), json.dumps(effects)
         ))
 
-        # Deduct construction cost from resources if available
+        # Update resource generation rates and deduct construction costs
+        energy_boost = effects.get("energy_generation_mw", 0.0) if req.type == "Energy" else 0.0
+        food_boost = effects.get("food_generation_t", 0.0) if req.type == "Agriculture" else 0.0
+        mat_boost = effects.get("materials_generation_t", 0.0) if req.type == "Industry" else 0.0
+        res_boost = effects.get("research_generation", 0.0) if req.type == "Research" else 0.0
+
         conn.execute("""
         UPDATE economy_resources SET
             materials = MAX(0.0, materials - ?),
             energy = MAX(0.0, energy - ?),
-            genesis_research_credits = MAX(0.0, genesis_research_credits - ?)
+            genesis_research_credits = MAX(0.0, genesis_research_credits - ?),
+            energy_rate = energy_rate + ?,
+            food_rate = food_rate + ?,
+            materials_rate = materials_rate + ?,
+            research_rate = research_rate + ?
         WHERE world_id = ?
-        """, (cost.get("materials", 0.0), cost.get("energy", 0.0), cost.get("credits", 0.0), id))
+        """, (
+            cost.get("materials", 0.0), cost.get("energy", 0.0), cost.get("credits", 0.0),
+            energy_boost, food_boost, mat_boost, res_boost, id
+        ))
 
     conn.close()
 
@@ -289,9 +301,39 @@ async def remove_building(building_id: str):
         conn.close()
         raise HTTPException(status_code=404, detail=f"Building '{building_id}' not found")
 
+    world_id = b["world_id"]
+    cost = json.loads(b["construction_cost"] or "{}")
+    effects = json.loads(b["effects"] or "{}")
+
+    # 70% refund of construction cost (materials and credits)
+    refund_materials = round(float(cost.get("materials", 0.0)) * 0.70, 2)
+    refund_credits = round(float(cost.get("credits", 0.0)) * 0.70, 2)
+
+    # Adjust production rates if a utility / production building is removed
+    energy_sub = effects.get("energy_generation_mw", 0.0) if b["type"] == "Energy" else 0.0
+    food_sub = effects.get("food_generation_t", 0.0) if b["type"] == "Agriculture" else 0.0
+    mat_sub = effects.get("materials_generation_t", 0.0) if b["type"] == "Industry" else 0.0
+    res_sub = effects.get("research_generation", 0.0) if b["type"] == "Research" else 0.0
+
     with conn:
         conn.execute("DELETE FROM buildings WHERE id = ?", (building_id,))
+        conn.execute("""
+        UPDATE economy_resources SET
+            materials = materials + ?,
+            genesis_research_credits = genesis_research_credits + ?,
+            energy_rate = MAX(0.0, energy_rate - ?),
+            food_rate = MAX(0.0, food_rate - ?),
+            materials_rate = MAX(0.0, materials_rate - ?),
+            research_rate = MAX(0.0, research_rate - ?)
+        WHERE world_id = ?
+        """, (refund_materials, refund_credits, energy_sub, food_sub, mat_sub, res_sub, world_id))
 
     conn.close()
-    return {"status": "removed", "building_id": building_id}
+    return {
+        "status": "removed",
+        "building_id": building_id,
+        "refund_rate": 0.70,
+        "refunded_materials": refund_materials,
+        "refunded_credits": refund_credits
+    }
 

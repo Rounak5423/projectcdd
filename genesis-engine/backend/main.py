@@ -14,8 +14,8 @@ from engine.models import (
     BranchRequest, CompareResponse
 )
 from engine.state import world_manager
-from engine.simulation import step_world
-from engine.simulation_v1 import seed_aurora_prime_if_not_exists, advance_world_simulation
+from engine.simulation import step_world, seed_aurora_prime_if_not_exists, advance_world_simulation
+from auth.security import decode_access_token
 from db.database import get_db_connection
 from api.v1.router import api_v1_router
 
@@ -29,7 +29,6 @@ class ConnectionManager:
         self.active_connections: Dict[str, Set[WebSocket]] = {}
 
     async def connect(self, world_id: str, websocket: WebSocket):
-        await websocket.accept()
         if world_id not in self.active_connections:
             self.active_connections[world_id] = set()
         self.active_connections[world_id].add(websocket)
@@ -426,18 +425,42 @@ async def stop_autotick(world_id: str):
 
 # WebSocket streaming endpoint
 @app.websocket("/ws/world/{world_id}")
-async def websocket_world_stream(websocket: WebSocket, world_id: str):
+async def websocket_world_stream(websocket: WebSocket, world_id: str, token: Optional[str] = Query(None)):
+    user = None
+    if token:
+        user = decode_access_token(token)
+
+    if not user:
+        await websocket.accept()
+        try:
+            auth_msg_raw = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+            auth_msg = json.loads(auth_msg_raw)
+            if auth_msg.get("type") == "auth" and auth_msg.get("token"):
+                user = decode_access_token(auth_msg["token"])
+        except Exception:
+            pass
+
+        if not user:
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "code": "AUTH_REQUIRED",
+                "message": "Valid authentication token required to connect to world stream."
+            }))
+            await websocket.close(code=1008)
+            return
+    else:
+        await websocket.accept()
+
     await ws_manager.connect(world_id, websocket)
     try:
-        # Send initial full state immediately on connection
+        # Send initial state immediately on connection
         world = world_manager.get(world_id)
         if world:
             await websocket.send_text(json.dumps({
                 "type": "initial_state",
-                "world": serialize_world_state(world, include_all_citizens=True)
+                "world": serialize_world_state(world, include_all_citizens=False)
             }))
         else:
-            # Check SQLite persistent database
             conn = get_db_connection()
             db_w = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
             if db_w:
@@ -476,26 +499,41 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str):
                     target_world = world_manager.get(world_id)
                     if target_world:
                         step_world(target_world, ticks=ticks)
+                        # Broadcast lightweight delta
                         await ws_manager.broadcast(world_id, {
-                            "type": "tick_update",
+                            "type": "tick_delta",
                             "world_id": world_id,
                             "tick": target_world.tick,
                             "year": target_world.year,
-                            "economy": target_world.economy.model_dump(),
-                            "resources": target_world.resources.model_dump(),
-                            "population": target_world.population_count,
-                            "sample_citizens": [c.model_dump() for i, c in enumerate(target_world.citizens) if i < 40]
+                            "delta": {
+                                "population": target_world.population_count,
+                                "gini": target_world.economy.gini,
+                                "civic_stability": target_world.economy.civic_stability,
+                                "macro_innovation": target_world.economy.macro_innovation_index,
+                                "resources": target_world.resources.model_dump()
+                            }
                         })
                     else:
-                        # Advance in SQLite
                         try:
                             delta = advance_world_simulation(world_id, ticks=ticks)
+                            # Broadcast delta instead of monolithic state
                             await ws_manager.broadcast(world_id, {
-                                "type": "tick_update",
-                                **delta
+                                "type": "tick_delta",
+                                "world_id": world_id,
+                                "tick": delta["tick"],
+                                "year": delta["year"],
+                                "day": delta["day"],
+                                "delta": {
+                                    "population": delta["population"],
+                                    "gdp": delta["gdp"],
+                                    "happiness": delta.get("happiness"),
+                                    "civic_stability": delta.get("civic_stability"),
+                                    "resources": delta["resources"],
+                                    "progression": delta["progression"]
+                                }
                             })
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
                 elif action == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
             except json.JSONDecodeError:

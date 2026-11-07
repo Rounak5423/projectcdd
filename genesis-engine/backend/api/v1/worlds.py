@@ -231,3 +231,128 @@ async def delete_world(world_id: str):
 
     conn.close()
     return {"status": "deleted", "world_id": world_id}
+
+
+# ==============================================================================
+# SAVE SLOTS & AUTOSAVES
+# ==============================================================================
+
+@router.post("/worlds/{id}/saves", status_code=status.HTTP_201_CREATED)
+async def create_world_save(id: str, payload: Optional[Dict[str, Any]] = None):
+    conn = get_db_connection()
+    world = conn.execute("SELECT * FROM worlds WHERE id = ?", (id,)).fetchone()
+    if not world:
+        conn.close()
+        raise HTTPException(status_code=404, detail=f"World '{id}' not found")
+
+    econ = conn.execute("SELECT * FROM economy_resources WHERE world_id = ?", (id,)).fetchone()
+    prog = conn.execute("SELECT * FROM progression WHERE world_id = ?", (id,)).fetchone()
+    buildings = conn.execute("SELECT * FROM buildings WHERE world_id = ?", (id,)).fetchall()
+
+    save_id = f"save_{uuid.uuid4().hex[:8]}"
+    slot_type = (payload or {}).get("slot_type", "manual")
+    name = (payload or {}).get("name") or f"{world['name']} Save ({slot_type.capitalize()})"
+    now = datetime.now(timezone.utc).isoformat()
+
+    full_state = {
+        "world": dict(world),
+        "economy": dict(econ) if econ else {},
+        "progression": dict(prog) if prog else {},
+        "buildings": [dict(b) for b in buildings],
+        "saved_at": now
+    }
+
+    with conn:
+        conn.execute("""
+        INSERT INTO world_saves (id, world_id, name, slot_type, tick, year, day, state_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            save_id, id, name, slot_type,
+            world["tick"], world["year"], world["day"],
+            json.dumps(full_state), now
+        ))
+
+    conn.close()
+    return {
+        "id": save_id,
+        "world_id": id,
+        "name": name,
+        "slot_type": slot_type,
+        "tick": world["tick"],
+        "year": world["year"],
+        "day": world["day"],
+        "created_at": now
+    }
+
+
+@router.get("/worlds/{id}/saves")
+async def list_world_saves(id: str):
+    conn = get_db_connection()
+    saves = conn.execute(
+        "SELECT id, world_id, name, slot_type, tick, year, day, created_at FROM world_saves WHERE world_id = ? ORDER BY created_at DESC",
+        (id,)
+    ).fetchall()
+    conn.close()
+    return [dict(s) for s in saves]
+
+
+@router.post("/worlds/{id}/saves/{save_id}/restore")
+async def restore_world_save(id: str, save_id: str):
+    conn = get_db_connection()
+    save_row = conn.execute("SELECT * FROM world_saves WHERE id = ? AND world_id = ?", (save_id, id)).fetchone()
+    if not save_row:
+        conn.close()
+        raise HTTPException(status_code=404, detail=f"Save slot '{save_id}' not found for world '{id}'")
+
+    state_data = json.loads(save_row["state_json"])
+    w_data = state_data.get("world", {})
+    e_data = state_data.get("economy", {})
+
+    with conn:
+        conn.execute("""
+        UPDATE worlds SET tick = ?, year = ?, day = ?, simulation_status = 'paused', updated_at = ?
+        WHERE id = ?
+        """, (
+            save_row["tick"], save_row["year"], save_row["day"],
+            datetime.now(timezone.utc).isoformat(), id
+        ))
+
+        if e_data:
+            conn.execute("""
+            UPDATE economy_resources SET
+                population = ?, gdp = ?, food = ?, water = ?, energy = ?,
+                materials = ?, research_points = ?, genesis_research_credits = ?,
+                happiness = ?, civic_stability = ?
+            WHERE world_id = ?
+            """, (
+                e_data.get("population", 1000), e_data.get("gdp", 100000.0),
+                e_data.get("food", 5000.0), e_data.get("water", 5000.0), e_data.get("energy", 5000.0),
+                e_data.get("materials", 3000.0), e_data.get("research_points", 1000.0),
+                e_data.get("genesis_research_credits", 500.0), e_data.get("happiness", 0.75),
+                e_data.get("civic_stability", 0.75), id
+            ))
+
+    conn.close()
+    return {
+        "status": "restored",
+        "world_id": id,
+        "save_id": save_id,
+        "restored_tick": save_row["tick"],
+        "restored_year": save_row["year"],
+        "restored_day": save_row["day"]
+    }
+
+
+@router.delete("/worlds/{id}/saves/{save_id}")
+async def delete_world_save(id: str, save_id: str):
+    conn = get_db_connection()
+    row = conn.execute("SELECT id FROM world_saves WHERE id = ? AND world_id = ?", (save_id, id)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail=f"Save '{save_id}' not found")
+
+    with conn:
+        conn.execute("DELETE FROM world_saves WHERE id = ?", (save_id,))
+
+    conn.close()
+    return {"status": "deleted", "save_id": save_id}

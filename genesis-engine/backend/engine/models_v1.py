@@ -211,6 +211,7 @@ class EconomyOverview(BaseModel):
     civic_stability: float
     tax_rate: float
     economic_health_score: float
+    happiness: Optional[float] = 0.78
 
 
 class ResourceBalances(BaseModel):

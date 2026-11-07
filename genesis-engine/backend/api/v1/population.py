@@ -108,7 +108,8 @@ async def get_economy(id: str):
         gini_coefficient=econ["gini_coefficient"],
         civic_stability=econ["civic_stability"],
         tax_rate=econ["tax_rate"],
-        economic_health_score=econ_health
+        economic_health_score=econ_health,
+        happiness=round(econ["happiness"], 3) if "happiness" in econ.keys() and econ["happiness"] is not None else 0.78
     )
 
 
