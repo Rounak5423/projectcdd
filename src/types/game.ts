@@ -98,6 +98,9 @@ export interface PlacedBuilding {
   workersAssigned: number;
   workersNeeded: number;
   modelType: BuildingCatalogItem['modelType'];
+  constructionProgress?: number; // 0 - 100
+  upgradeProgress?: number; // 0 - 100
+  targetLevel?: number;
 }
 
 export interface District {

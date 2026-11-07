@@ -80,6 +80,30 @@ export function SchoolModel({ isSelected, level }: ModelProps) {
           <AntennaMast position={[-2.2, 0, 0]} height={1.2} />
         </group>
       )}
+
+      {/* Level 4 Development: Sports & Athletic Geodesic Gym Pavilion */}
+      {level >= 4 && (
+        <group position={[0, 0.45, -1.2]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.7, 0.7, 0.5, 12]} />
+            <meshStandardMaterial color="#34495e" roughness={0.4} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Civic Education Wonder): Digital Planetarium Dome & Halo Ring */}
+      {level >= 5 && (
+        <group position={[-1.1, 1.6, -0.2]}>
+          <mesh position={[0, 0.3, 0]}>
+            <sphereGeometry args={[0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+            <meshStandardMaterial color="#527d94" metalness={0.7} roughness={0.1} />
+          </mesh>
+          <mesh position={[0, 0.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.6, 0.68, 24]} />
+            <meshBasicMaterial color="#f1c40f" side={THREE.DoubleSide} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -136,6 +160,26 @@ export function CollegeModel({ isSelected, level }: ModelProps) {
           <AntennaMast position={[0, 0, 0.5]} height={1.6} />
         </group>
       )}
+
+      {/* Level 4 Development: Particle Physics & Cybernetics Lab Wing */}
+      {level >= 4 && (
+        <group position={[0, 1.8, -0.8]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.5, 0.5, 0.6, 12]} />
+            <meshStandardMaterial color="#2d3436" metalness={0.8} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Polytechnic Wonder): Supercomputing Quantum Core & Neon Beacons */}
+      {level >= 5 && (
+        <group position={[0, 2.3, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.2, 0.05, 16, 24]} />
+            <meshStandardMaterial color="#9b59b6" emissive="#9b59b6" emissiveIntensity={isNight ? 2.5 : 1.2} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -190,6 +234,34 @@ export function UniversityAcademyModel({ isSelected, level }: ModelProps) {
           <RooftopSolarPanel position={[1.4, -0.5, 0]} />
           <RooftopSolarPanel position={[-1.4, -0.5, 0]} />
           <AntennaMast position={[0, 1.2, 0]} height={1.8} />
+        </group>
+      )}
+
+      {/* Level 4 Development: Quadrant Library Rotunda & Celestial Bridge */}
+      {level >= 4 && (
+        <group position={[0, 1.4, -1.3]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.7, 0.75, 0.8, 16]} />
+            <meshStandardMaterial color="#47564a" roughness={0.4} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Academy Wonder of Knowledge): Floating Armillary Celestial Rings & Zenith Beacon */}
+      {level >= 5 && (
+        <group position={[0, 3.4, 0]}>
+          <mesh rotation={[0.4, 0, 0]}>
+            <torusGeometry args={[1.1, 0.04, 16, 32]} />
+            <meshStandardMaterial color="#f1c40f" metalness={0.9} roughness={0.1} />
+          </mesh>
+          <mesh rotation={[-0.4, Math.PI / 2, 0]}>
+            <torusGeometry args={[1.1, 0.04, 16, 32]} />
+            <meshStandardMaterial color="#f1c40f" metalness={0.9} roughness={0.1} />
+          </mesh>
+          <mesh position={[0, 0.8, 0]}>
+            <cylinderGeometry args={[0.03, 0.03, 1.6, 8]} />
+            <meshBasicMaterial color="#00cec9" />
+          </mesh>
         </group>
       )}
     </group>

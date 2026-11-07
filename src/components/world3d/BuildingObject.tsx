@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
-import { Detailed } from '@react-three/drei';
+import { Detailed, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { PlacedBuilding } from '../../types/game';
 import { useGameState, MapLayer } from '../../context/GameStateContext';
@@ -8,6 +8,7 @@ import { MasterBuildingRouter } from './BuildingModels';
 import { BuildingLODProxy } from './buildings/BuildingLODProxy';
 import BuildingDamageEffect from './buildings/BuildingDamageEffect';
 import BuildingScaffolding from './buildings/BuildingScaffolding';
+import ConstructionStageModel from './buildings/ConstructionStageModel';
 import { triggerBuildingHover } from './WorldLabelManager';
 
 interface BuildingObjectProps {
@@ -67,34 +68,74 @@ function BuildingObject({
         triggerBuildingHover(null);
       }}
     >
-      {/* 1. Main 3D Architectural Model with Native GPU Level-of-Detail (LOD) */}
-      <group scale={isDimmed ? 0.72 : isSelected ? 1.05 : 1.0}>
-        <Detailed distances={[0, 48]}>
-          {/* Level 0 (< 48 units): Full High-Fidelity Architectural Model */}
-          <MasterBuildingRouter
-            catalogId={building.catalogId}
-            category={building.category}
-            modelType={building.modelType}
-            level={building.level}
-            isSelected={isSelected}
-          />
-          {/* Level 1 (>= 48 units): Ultra-Fast Low-Poly LOD Proxy Silhouette */}
-          <BuildingLODProxy
-            category={building.category}
-            modelType={building.modelType}
-            level={building.level}
-            isSelected={isSelected}
-          />
-        </Detailed>
-      </group>
-
-      {/* 2. Construction / Upgrading Holographic Scaffolding */}
-      {(building.status === 'constructing' || building.status === 'upgrading') && (
-        <BuildingScaffolding
-          isUpgrading={building.status === 'upgrading'}
-          width={3.4}
-          height={3.2 + building.level * 0.4}
+      {/* 1. Main 3D Architectural Model or Active Construction Lifecycle */}
+      {building.status === 'constructing' ? (
+        <ConstructionStageModel
+          progress={building.constructionProgress ?? 0}
+          category={building.category}
+          modelType={building.modelType}
+          isSelected={isSelected}
         />
+      ) : (
+        <group scale={isDimmed ? 0.72 : isSelected ? 1.05 : 1.0}>
+          <Detailed distances={[0, 48]}>
+            {/* Level 0 (< 48 units): Full High-Fidelity Architectural Model */}
+            <MasterBuildingRouter
+              catalogId={building.catalogId}
+              category={building.category}
+              modelType={building.modelType}
+              level={building.level}
+              isSelected={isSelected}
+            />
+            {/* Level 1 (>= 48 units): Ultra-Fast Low-Poly LOD Proxy Silhouette */}
+            <BuildingLODProxy
+              category={building.category}
+              modelType={building.modelType}
+              level={building.level}
+              isSelected={isSelected}
+            />
+          </Detailed>
+        </group>
+      )}
+
+      {/* 2. Construction / Upgrading Holographic Scaffolding & Progress HUD */}
+      {building.status === 'upgrading' && (
+        <>
+          <BuildingScaffolding
+            isUpgrading={true}
+            width={3.4}
+            height={3.2 + building.level * 0.4}
+          />
+          {/* Floating Upgrade HUD */}
+          <group position={[0, 4.4 + building.level * 0.4, 0]}>
+            <Html
+              position={[0, 0, 0]}
+              center
+              distanceFactor={18}
+              zIndexRange={[100, 0]}
+              transform={false}
+            >
+              <div
+                className={`pointer-events-none select-none transition-all duration-200 flex flex-col items-center ${
+                  isSelected ? 'scale-110' : 'scale-95'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1b221a]/95 border-2 border-[#2ecc71] shadow-xl backdrop-blur-md">
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-t-transparent border-[#2ecc71] animate-spin" />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-mono font-black text-[#2ecc71] tracking-wider leading-none">
+                      {(building.upgradeProgress ?? 0).toFixed(0)}%
+                    </span>
+                    <span className="text-[8px] font-sans font-bold text-[#e0e0e0] leading-none mt-0.5">
+                      Upgrading to Lvl {building.targetLevel || building.level + 1}
+                    </span>
+                  </div>
+                </div>
+                <div className="w-1.5 h-1.5 bg-[#2ecc71] rotate-45 -mt-1 shadow-md" />
+              </div>
+            </Html>
+          </group>
+        </>
       )}
 
       {/* 3. Building Damage & Warning Effects */}

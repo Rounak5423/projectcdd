@@ -76,6 +76,34 @@ export function RetailShopModel({ isSelected, level }: ModelProps) {
           <RooftopSolarPanel position={[0.5, 0, 0]} />
         </group>
       )}
+
+      {/* Level 4 Development: Rooftop Open-Air Dining Terrace & Pergola */}
+      {level >= 4 && (
+        <group position={[0, 2.2, 0]}>
+          <mesh position={[0, 0.05, 0]}>
+            <boxGeometry args={[1.8, 0.08, 1.4]} />
+            <meshStandardMaterial color="#8d6e63" roughness={0.7} />
+          </mesh>
+          <mesh position={[0, 0.4, 0]}>
+            <cylinderGeometry args={[0.5, 0.02, 0.35, 8]} />
+            <meshStandardMaterial color="#e74c3c" />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Boutique Wonder): High-Fashion Glass Penthouse & Neon Beacon */}
+      {level >= 5 && (
+        <group position={[0, 2.7, 0]}>
+          <mesh castShadow>
+            <boxGeometry args={[1.4, 0.7, 1.2]} />
+            <meshStandardMaterial color="#81ecec" transparent opacity={0.75} roughness={0.1} />
+          </mesh>
+          <mesh position={[0, 0.6, 0]}>
+            <cylinderGeometry args={[0.06, 0.06, 0.8, 8]} />
+            <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={isNight ? 2.0 : 0.8} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -146,6 +174,40 @@ export function ShoppingComplexModel({ isSelected, level }: ModelProps) {
           <AntennaMast position={[0, 0, 0.6]} height={1.5} />
         </group>
       )}
+
+      {/* Level 4 Development: Flank Skywalk Connectors & Extended Retail Wings */}
+      {level >= 4 && (
+        <group>
+          <mesh position={[-2.1, 0.9, 0]} castShadow>
+            <boxGeometry args={[0.8, 0.6, 1.8]} />
+            <meshStandardMaterial color="#3d493f" />
+          </mesh>
+          <mesh position={[2.1, 0.9, 0]} castShadow>
+            <boxGeometry args={[0.8, 0.6, 1.8]} />
+            <meshStandardMaterial color="#3d493f" />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Megamall Wonder): Holographic Brand Globe & Sky-Park Atrium */}
+      {level >= 5 && (
+        <group position={[0, 2.7, 0]}>
+          {/* Holographic Rotating Ring */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.5, 0.06, 16, 32]} />
+            <meshStandardMaterial
+              color="#00cec9"
+              emissive="#00cec9"
+              emissiveIntensity={isNight ? 2.0 : 1.0}
+            />
+          </mesh>
+          {/* Floating Brand Prism */}
+          <mesh position={[0, 0.5, 0]}>
+            <octahedronGeometry args={[0.5]} />
+            <meshStandardMaterial color="#ffd700" metalness={0.9} roughness={0.1} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -192,6 +254,30 @@ export function OfficeBuildingModel({ isSelected, level }: ModelProps) {
           <RooftopSolarPanel position={[-0.5, 0, 0.5]} />
         </group>
       )}
+
+      {/* Level 4 Development: Cantilever Executive Boardroom Cube */}
+      {level >= 4 && (
+        <group position={[0, buildingHeight * 0.75, 1.45]}>
+          <mesh castShadow>
+            <boxGeometry args={[1.4, 0.7, 0.8]} />
+            <meshStandardMaterial color="#81ecec" transparent opacity={0.8} roughness={0.1} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Corporate HQ Wonder): Sky-Pavilion & Architectural Crown Beacons */}
+      {level >= 5 && (
+        <group position={[0, buildingHeight + 0.45, 0]}>
+          <mesh position={[0, 0.3, 0]} castShadow>
+            <boxGeometry args={[2.0, 0.5, 1.8]} />
+            <meshStandardMaterial color="#2d3436" metalness={0.8} />
+          </mesh>
+          <mesh position={[0, 0.7, 0]}>
+            <cylinderGeometry args={[0.05, 0.05, 1.2, 8]} />
+            <meshBasicMaterial color="#00cec9" />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -236,6 +322,34 @@ export function CommercialTowerModel({ isSelected, level }: ModelProps) {
       {/* Level 3 Development: Crown Antenna */}
       {level >= 3 && (
         <AntennaMast position={[0, height + 1.8, 0]} height={2.2} />
+      )}
+
+      {/* Level 4 Development: External Panoramic Glass Express Elevators */}
+      {level >= 4 && (
+        <group>
+          <mesh position={[1.4, height * 0.5 + 0.5, 0]}>
+            <boxGeometry args={[0.3, height * 0.7, 0.4]} />
+            <meshStandardMaterial color="#81ecec" transparent opacity={0.7} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Financial Wonder): Floating Golden Halo & Searchlight Beacons */}
+      {level >= 5 && (
+        <group position={[0, height + 2.4, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.4, 0.08, 16, 32]} />
+            <meshStandardMaterial
+              color="#ffd700"
+              emissive="#ffd700"
+              emissiveIntensity={isNight ? 2.8 : 1.2}
+            />
+          </mesh>
+          <mesh position={[0, 1.4, 0]}>
+            <cylinderGeometry args={[0.04, 0.04, 2.5, 8]} />
+            <meshBasicMaterial color="#ffeaa7" transparent opacity={0.9} />
+          </mesh>
+        </group>
       )}
     </group>
   );

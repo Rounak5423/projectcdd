@@ -62,6 +62,37 @@ export function ObservatoryModel({ isSelected, level }: ModelProps) {
           emissiveIntensity={isNight ? 1.6 : 0.9}
         />
       </mesh>
+
+      {/* Level 4 Development: Auxiliary Quantum Sensor Spires & Radiometric Arrays */}
+      {level >= 4 && (
+        <group>
+          {[-1.6, 1.6].map((sx, i) => (
+            <mesh key={i} position={[sx, 1.8, 0]} castShadow>
+              <cylinderGeometry args={[0.08, 0.12, 1.6, 8]} />
+              <meshStandardMaterial color="#c6a76a" metalness={0.8} />
+            </mesh>
+          ))}
+        </group>
+      )}
+
+      {/* Level 5 Development (Deep Space Quantum Array Wonder): Third Gyroscopic Ring & Tachyonic Beam */}
+      {level >= 5 && (
+        <group position={[0, 2.7, 0]}>
+          <mesh rotation={[Math.PI / 4, 0, 0]}>
+            <torusGeometry args={[2.4, 0.06, 12, 32]} />
+            <meshStandardMaterial
+              color="#e056fd"
+              emissive="#be2edd"
+              emissiveIntensity={isNight ? 2.5 : 1.2}
+            />
+          </mesh>
+          {/* Vertical Tachyonic Beam */}
+          <mesh position={[0, 2.5, 0]}>
+            <cylinderGeometry args={[0.05, 0.05, 4.0, 8]} />
+            <meshBasicMaterial color="#686de0" transparent opacity={0.8} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }

@@ -2,18 +2,52 @@ import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { MapLayer } from '../../context/GameStateContext';
 
-// Procedural Terrain Height & Feature Functions
+// Procedural River Centerline Coordinate Z(x)
+// Smoothly meanders through the landscape from NW Lake to SE Delta, perfectly aligned with the 3 bridges:
+// - West Suspension Bridge at x = -25, z = -16.2
+// - Central Citadel Arch Bridge at x = 0, z = -3.0
+// - East Industrial Truss Bridge at x = 25, z = 8.0
+export function getRiverZ(x: number): number {
+  const natural =
+    -3.0 + x * 0.235 + Math.sin(x * 0.044) * 7.8 + Math.sin(x * 0.105 + 0.7) * 1.4 + Math.cos(x * 0.19) * 0.5;
+
+  const natW =
+    -3.0 + (-25) * 0.235 + Math.sin((-25) * 0.044) * 7.8 + Math.sin((-25) * 0.105 + 0.7) * 1.4 + Math.cos((-25) * 0.19) * 0.5;
+  const natC = -3.0 + 0 + Math.sin(0) * 7.8 + Math.sin(0.7) * 1.4 + Math.cos(0) * 0.5;
+  const natE =
+    -3.0 + 25 * 0.235 + Math.sin(25 * 0.044) * 7.8 + Math.sin(25 * 0.105 + 0.7) * 1.4 + Math.cos(25 * 0.19) * 0.5;
+
+  const gW = Math.exp(-Math.pow((x - (-25)) / 8.0, 2));
+  const gC = Math.exp(-Math.pow(x / 8.0, 2));
+  const gE = Math.exp(-Math.pow((x - 25) / 8.0, 2));
+
+  return natural + (-16.2 - natW) * gW + (-3.0 - natC) * gC + (8.0 - natE) * gE;
+}
+
+// Exact downstream tangent vector (unit length)
+export function getRiverDerivative(x: number): { tangentX: number; tangentZ: number } {
+  const dz = (getRiverZ(x + 0.1) - getRiverZ(x - 0.1)) / 0.2;
+  const len = Math.hypot(1.0, dz);
+  return { tangentX: 1.0 / len, tangentZ: dz / len };
+}
+
+// Naturally varying river width throughout its length (wider in valleys, narrower under bridges/gorges)
 export function getRiverPath(x: number): { z: number; width: number } {
-  // S-curved river meander from northwest to southeast
-  // Passes near [-40, -12], through center [0, -3], and out towards [45, 16]
-  const z = -3.0 + Math.sin(x * 0.045) * 8.5 + (x * 0.22);
-  const width = 10.5 + Math.sin(x * 0.08) * 2.0;
+  const z = getRiverZ(x);
+  const baseW = 12.4;
+  const meanderVar = Math.sin(x * 0.072 + 0.5) * 1.6 + Math.cos(x * 0.13) * 0.8;
+  const gW = Math.exp(-Math.pow((x - (-25)) / 6.0, 2)) * 2.8;
+  const gC = Math.exp(-Math.pow(x / 6.0, 2)) * 2.2;
+  const gE = Math.exp(-Math.pow((x - 25) / 6.0, 2)) * 2.6;
+  const width = Math.max(8.8, baseW + meanderVar - gW - gC - gE);
   return { z, width };
 }
 
 export function isNearRiver(x: number, z: number, tolerance: number = 2.0): boolean {
   const { z: rz, width } = getRiverPath(x);
-  return Math.abs(z - rz) < (width * 0.5 + tolerance);
+  const { tangentX } = getRiverDerivative(x);
+  const distPerp = Math.abs(z - rz) * tangentX;
+  return distPerp < width * 0.5 + tolerance;
 }
 
 export function isNearLake(x: number, z: number, tolerance: number = 2.0): boolean {
@@ -21,30 +55,41 @@ export function isNearLake(x: number, z: number, tolerance: number = 2.0): boole
   const dx = x - (-38);
   const dz = z - (-22);
   const dist = Math.sqrt(dx * dx + dz * dz);
-  return dist < (12 + tolerance);
+  return dist < 12.2 + tolerance;
 }
 
 export function getTerrainHeight(x: number, z: number): number {
   // 1. Lake check
   const lakeDist = Math.hypot(x - (-38), z - (-22));
-  if (lakeDist < 12) {
-    const depthFactor = Math.cos((lakeDist / 12) * (Math.PI / 2));
+  if (lakeDist < 12.2) {
+    const depthFactor = Math.cos((lakeDist / 12.2) * (Math.PI / 2));
     return -1.35 * depthFactor;
   }
 
-  // 2. River check
+  // 2. River check: Organic parabolic riverbed and sloped natural riverbank
   const { z: rz, width } = getRiverPath(x);
-  const distToRiver = Math.abs(z - rz);
-  const riverHalfWidth = width * 0.5;
+  const { tangentX } = getRiverDerivative(x);
+  const distPerp = Math.abs(z - rz) * tangentX;
+  const halfW = width * 0.5;
 
-  if (distToRiver < riverHalfWidth + 3.0) {
-    if (distToRiver < riverHalfWidth - 1.0) {
-      // Inside riverbed
-      return -1.25;
+  if (distPerp < halfW + 4.2) {
+    const yWater = -0.14;
+    if (distPerp < halfW) {
+      // Submerged riverbed: parabolic cross-section dipping to deep channel
+      const normD = distPerp / halfW;
+      const bedDepth = 0.95 * Math.pow(1.0 - Math.pow(normD, 1.6), 0.85);
+      return yWater - bedDepth;
     } else {
-      // Sloped riverbank
-      const t = (distToRiver - (riverHalfWidth - 1.0)) / 4.0;
-      return THREE.MathUtils.lerp(-1.25, 0.4, Math.min(1, Math.max(0, t)));
+      // Sloped natural riverbank: smooth S-curve transition from water edge to meadow
+      const bankProgress = Math.min(1.0, (distPerp - halfW) / 4.2);
+      const bankS = bankProgress * bankProgress * (3 - 2 * bankProgress);
+      // Base ground elevation surrounding this river reach
+      let baseGround = 0.4;
+      if (Math.hypot(x, z) < 16) baseGround = 0.8;
+      else if (Math.hypot(x - (-28), z - (-20)) < 16) baseGround = 1.0;
+      else if (Math.hypot(x - 32, z - (-16)) < 18) baseGround = 0.7;
+      else if (Math.hypot(x - (-24), z - 28) < 20) baseGround = 0.4;
+      return yWater + bankS * (baseGround - yWater);
     }
   }
 
@@ -100,7 +145,7 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
   // Generate high quality procedural terrain geometry with vertex colors
   const { geometry, wireframeGeo } = useMemo(() => {
     const size = 136;
-    const segments = 80;
+    const segments = 120; // Crisp, smooth terrain resolution
     const geo = new THREE.PlaneGeometry(size, size, segments, segments);
     geo.rotateX(-Math.PI / 2);
 
@@ -111,8 +156,9 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
     const cLushGreen = new THREE.Color(activeLayer === 'environment' ? '#3d823b' : '#477943');
     const cDeepGreen = new THREE.Color('#386435');
     const cHillOlive = new THREE.Color('#58854b');
-    const cSandRiver = new THREE.Color('#a89b7b');
-    const cBedClay = new THREE.Color('#786b51');
+    const cSandRiver = new THREE.Color('#827b68');
+    const cBedSilt = new THREE.Color('#28322a');
+    const cPebbleGravel = new THREE.Color('#545d4a');
     const cCliffStone = new THREE.Color('#58625d');
     const cMountainRock = new THREE.Color('#727d78');
     const cSnowPeak = new THREE.Color('#dce6e0');
@@ -128,13 +174,32 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
       // Vertex color blending based on elevation, slope, and water proximity
       let vertexColor = cLushGreen.clone();
 
-      if (vy < -0.8) {
-        // Riverbed / Lake bottom
-        vertexColor = cBedClay.clone();
+      // Check river channel proximity for rich riverbed geology
+      const { z: rz, width: rWidth } = getRiverPath(vx);
+      const { tangentX } = getRiverDerivative(vx);
+      const distPerp = Math.abs(vz - rz) * tangentX;
+      const halfW = rWidth * 0.5;
+
+      if (distPerp < halfW + 3.5) {
+        if (distPerp < halfW * 0.55) {
+          // Deep river channel thalweg: dark river silt, sunken slate, gravel
+          vertexColor = cBedSilt.clone();
+        } else if (distPerp < halfW) {
+          // Submerged shallows & gravel bars: weathered river gravel, fine sand
+          const t = (distPerp - halfW * 0.55) / (halfW * 0.45);
+          vertexColor = cBedSilt.clone().lerp(cPebbleGravel, t);
+        } else {
+          // Riverbank margin: moist sand/loam to lush emerald riverbank vegetation
+          const t = (distPerp - halfW) / 3.5;
+          vertexColor = cPebbleGravel.clone().lerp(cLushGreen, t);
+        }
+      } else if (vy < -0.8) {
+        // Lake bottom
+        vertexColor = cBedSilt.clone();
       } else if (vy < 0.2) {
         // Sandy beach / bank transition
         const t = (vy + 0.8) / 1.0;
-        vertexColor.lerpColors(cBedClay, cSandRiver, t);
+        vertexColor = cBedSilt.clone().lerp(cSandRiver, t);
       } else if (vy < 2.0) {
         // Valley grasslands & district foundations
         const distCitadel = Math.hypot(vx, vz);

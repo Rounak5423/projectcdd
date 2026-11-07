@@ -69,6 +69,53 @@ export function SmallHouseModel({ isSelected, level }: ModelProps) {
           <AntennaMast position={[0.6, 0.2, -0.4]} height={1.2} />
         </group>
       )}
+
+      {/* Level 4 Development: Glass Conservatory Solarium & Landscaped Patio */}
+      {level >= 4 && (
+        <group position={[-0.4, 0.5, -1.1]}>
+          {/* Glass Solarium */}
+          <mesh castShadow>
+            <boxGeometry args={[1.5, 0.8, 0.8]} />
+            <meshStandardMaterial
+              color="#81ecec"
+              transparent
+              opacity={0.7}
+              roughness={0.1}
+            />
+          </mesh>
+          {/* Pergola Wooden Slats */}
+          <mesh position={[0, 0.45, 0]}>
+            <boxGeometry args={[1.6, 0.06, 0.9]} />
+            <meshStandardMaterial color="#8d6e63" roughness={0.7} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Wonder Villa): Turquoise Infinity Pool & Luxury Terrace */}
+      {level >= 5 && (
+        <group position={[0.9, 0.2, -0.8]}>
+          {/* Pool Deck */}
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[1.3, 0.25, 1.2]} />
+            <meshStandardMaterial color="#dcdde1" roughness={0.3} />
+          </mesh>
+          {/* Glowing Infinity Water */}
+          <mesh position={[0, 0.14, 0]}>
+            <planeGeometry args={[1.1, 1.0]} />
+            <meshStandardMaterial
+              color="#00cec9"
+              emissive="#00cec9"
+              emissiveIntensity={isNight ? 0.6 : 0.2}
+              roughness={0.05}
+            />
+          </mesh>
+          {/* Sleek Cantilever Upper Lounge */}
+          <mesh position={[-0.4, 1.4, 0]} castShadow>
+            <boxGeometry args={[1.0, 0.5, 0.9]} />
+            <meshStandardMaterial color="#2c3e50" metalness={0.8} roughness={0.2} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -119,6 +166,40 @@ export function MediumResidentialModel({ isSelected, level }: ModelProps) {
           <RooftopSolarPanel position={[-0.5, 2.35, 0.3]} />
           <RooftopHVAC position={[0.5, 3.15, -0.3]} />
           <AntennaMast position={[-0.5, 2.35, -0.4]} height={1.4} />
+        </group>
+      )}
+
+      {/* Level 4 Development: Cantilever Duplex Wing & Glass Stair Atrium */}
+      {level >= 4 && (
+        <group position={[-1.1, 1.8, 0]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.9, 1.2, 1.6]} />
+            <meshStandardMaterial color="#405244" roughness={0.3} />
+          </mesh>
+          <mesh position={[0, 0, 0.81]}>
+            <planeGeometry args={[0.7, 0.9]} />
+            <meshStandardMaterial color="#81ecec" transparent opacity={0.65} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Modular Habitat): Geodesic Leisure Dome & LED Light Ribbons */}
+      {level >= 5 && (
+        <group position={[0, 3.2, 0]}>
+          <mesh position={[0, 0.4, 0]}>
+            <sphereGeometry args={[0.75, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+            <meshStandardMaterial
+              color="#a8e6cf"
+              transparent
+              opacity={0.6}
+              metalness={0.7}
+              roughness={0.1}
+            />
+          </mesh>
+          <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.7, 0.8, 24]} />
+            <meshBasicMaterial color="#c6a76a" side={THREE.DoubleSide} />
+          </mesh>
         </group>
       )}
     </group>
@@ -173,6 +254,33 @@ export function ApartmentBlockModel({ isSelected, level }: ModelProps) {
         <group position={[0, totalHeight + 0.4, 0]}>
           <RooftopSolarPanel position={[-0.4, 0, 0.4]} />
           <AntennaMast position={[0.8, 0, -0.5]} height={1.6} />
+        </group>
+      )}
+
+      {/* Level 4 Development: Glass Curtain Bays & Exterior Elevator Shaft */}
+      {level >= 4 && (
+        <group>
+          {/* Glass Panoramic Elevator Shaft */}
+          <mesh position={[1.45, totalHeight * 0.5, 0]}>
+            <boxGeometry args={[0.35, totalHeight * 0.9, 0.6]} />
+            <meshStandardMaterial color="#81ecec" transparent opacity={0.7} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Residential Wonder): Skybridge Pier & Infinity Pool Deck */}
+      {level >= 5 && (
+        <group position={[0, totalHeight + 0.4, 0]}>
+          {/* Sky Deck */}
+          <mesh position={[0, 0.1, 0]}>
+            <boxGeometry args={[3.0, 0.2, 2.6]} />
+            <meshStandardMaterial color="#c6a76a" metalness={0.8} roughness={0.2} />
+          </mesh>
+          {/* Rooftop Pool */}
+          <mesh position={[0, 0.22, 0]}>
+            <planeGeometry args={[1.8, 1.4]} />
+            <meshStandardMaterial color="#00cec9" emissive="#00cec9" emissiveIntensity={0.5} />
+          </mesh>
         </group>
       )}
     </group>
@@ -239,6 +347,40 @@ export function HighRiseArcologyModel({ isSelected, level }: ModelProps) {
             <meshBasicMaterial color="#e0be70" />
           </mesh>
           <AntennaMast position={[0, 0.2, 0]} height={2.2} />
+        </group>
+      )}
+
+      {/* Level 4 Development: Quad Cantilever Sky-Gardens & Array Wings */}
+      {level >= 4 && (
+        <group position={[0, 4.0 + heightBoost * 0.8, 0]}>
+          <mesh position={[-1.7, 0, 0]} castShadow>
+            <boxGeometry args={[0.8, 0.3, 1.4]} />
+            <meshStandardMaterial color="#4a6346" />
+          </mesh>
+          <mesh position={[1.7, 0, 0]} castShadow>
+            <boxGeometry args={[0.8, 0.3, 1.4]} />
+            <meshStandardMaterial color="#4a6346" />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Arcology Wonder): Floating Holographic Crown Ring & Zenith Beacon */}
+      {level >= 5 && (
+        <group position={[0, 7.6 + heightBoost * 1.3, 0]}>
+          {/* Glowing Halo Crown */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.6, 0.08, 16, 32]} />
+            <meshStandardMaterial
+              color="#ffd700"
+              emissive="#ffd700"
+              emissiveIntensity={isNight ? 2.5 : 1.2}
+            />
+          </mesh>
+          {/* Central Vertical Energy Beacon */}
+          <mesh position={[0, 1.2, 0]}>
+            <cylinderGeometry args={[0.04, 0.04, 2.4, 8]} />
+            <meshBasicMaterial color="#00ffff" transparent opacity={0.8} />
+          </mesh>
         </group>
       )}
     </group>

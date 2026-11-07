@@ -49,6 +49,26 @@ export function BotanicalParkModel({ isSelected, level }: ModelProps) {
           </mesh>
         </group>
       ))}
+
+      {/* Level 4 Development: Shaded Pergola Promenade & Decorative Flower Planters */}
+      {level >= 4 && (
+        <group position={[0, 0.5, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[2.0, 2.3, 24]} />
+            <meshStandardMaterial color="#27ae60" roughness={0.6} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Biosphere Wonder): Cascading Geyser Core & Floating Eco-Halo */}
+      {level >= 5 && (
+        <group position={[0, 1.6, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.4, 0.05, 12, 24]} />
+            <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={1.8} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -137,6 +157,30 @@ export function AeroponicBioDomeModel({ isSelected, level }: ModelProps) {
           emissiveIntensity={0.6}
         />
       </mesh>
+
+      {/* Level 4 Development: Satellite Growth Pods */}
+      {level >= 4 && (
+        <group>
+          <mesh position={[1.8, 0.5, 0]}>
+            <sphereGeometry args={[0.6, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshStandardMaterial color="#94b883" transparent opacity={0.6} />
+          </mesh>
+          <mesh position={[-1.8, 0.5, 0]}>
+            <sphereGeometry args={[0.6, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshStandardMaterial color="#94b883" transparent opacity={0.6} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Level 5 Development (Apex Eden Biodome Wonder): Giant Solar Crest & Bioluminescent Flora */}
+      {level >= 5 && (
+        <group position={[0, 2.5, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.5, 0.08, 12, 24]} />
+            <meshStandardMaterial color="#a8e6cf" emissive="#a8e6cf" emissiveIntensity={2.0} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }

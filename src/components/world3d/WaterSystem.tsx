@@ -1,15 +1,8 @@
 import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { getRiverPath } from './Terrain';
+import { getRiverPath, getRiverDerivative, getRiverZ } from './Terrain';
 import { useDayNight } from './DayNightController';
-
-// Analytical river derivative for exact downstream tangent vectors
-function getRiverDerivative(x: number): { tangentX: number; tangentZ: number } {
-  const dz_dx = Math.cos(x * 0.045) * 0.045 * 8.5 + 0.22;
-  const len = Math.hypot(1.0, dz_dx);
-  return { tangentX: 1.0 / len, tangentZ: dz_dx / len };
-}
 
 // Exact pier coordinates matching RoadNetwork.tsx bridges
 const BRIDGE_PIERS: [number, number][] = [
@@ -25,19 +18,19 @@ const BRIDGE_PIERS: [number, number][] = [
 ];
 
 function getUnderBridgeWeight(x: number, z: number): number {
-  // Central Citadel Arch Bridge: X in [-3.2, 3.2], Z in [-11.0, 5.0]
-  if (Math.abs(x) < 3.2 && z >= -11.0 && z <= 5.0) {
+  // Central Citadel Arch Bridge: X in [-3.2, 3.2], Z in [-10.5, 4.5]
+  if (Math.abs(x) < 3.2 && z >= -10.5 && z <= 4.5) {
     const edgeX = (3.2 - Math.abs(x)) / 1.0;
     return Math.min(1.0, Math.max(0.0, edgeX));
   }
-  // West Suspension Bridge: X in [-27.5, -22.5], Z in [-24.2, -8.2]
-  if (Math.abs(x - (-25)) < 2.8 && z >= -24.2 && z <= -8.2) {
-    const edgeX = (2.8 - Math.abs(x - (-25))) / 1.0;
+  // West Suspension Bridge: X in [-27.6, -22.4], Z in [-23.7, -8.7]
+  if (Math.abs(x - (-25)) < 2.6 && z >= -23.7 && z <= -8.7) {
+    const edgeX = (2.6 - Math.abs(x - (-25))) / 1.0;
     return Math.min(1.0, Math.max(0.0, edgeX));
   }
-  // East Industrial Truss Bridge: X in [22.5, 27.5], Z in [-0.2, 16.2]
-  if (Math.abs(x - 25) < 2.8 && z >= -0.2 && z <= 16.2) {
-    const edgeX = (2.8 - Math.abs(x - 25)) / 1.0;
+  // East Industrial Truss Bridge: X in [22.4, 27.6], Z in [0.25, 15.75]
+  if (Math.abs(x - 25) < 2.6 && z >= 0.25 && z <= 15.75) {
+    const edgeX = (2.6 - Math.abs(x - 25)) / 1.0;
     return Math.min(1.0, Math.max(0.0, edgeX));
   }
   return 0.0;
@@ -47,15 +40,15 @@ function getPierProximity(x: number, z: number): number {
   let maxProx = 0.0;
   for (const [px, pz] of BRIDGE_PIERS) {
     const d = Math.hypot(x - px, z - pz);
-    if (d < 3.2) {
-      const p = Math.max(0.0, 1.0 - d / 3.2);
+    if (d < 3.0) {
+      const p = Math.max(0.0, 1.0 - d / 3.0);
       maxProx = Math.max(maxProx, p);
     }
   }
   return maxProx;
 }
 
-// ================= GLSL SHADERS FOR PHOTOREALISTIC WATER =================
+// ================= GLSL SHADERS FOR NATURAL FRESHWATER RIVER =================
 
 const RiverVertexShader = /* glsl */ `
   attribute vec4 flowParams; // x: speedMult, y: underBridge, z: pierProx, w: bankDamping
@@ -77,30 +70,14 @@ const RiverVertexShader = /* glsl */ `
     vNormal = normalize(normalMatrix * normal);
     vBitangent = normalize(cross(vNormal, vTangent));
 
+    // Natural river: Calm level surface without large unnatural vertical waves.
+    // Extremely subtle capillary micro-ripple (<= 2mm) preserving level water elevation.
     float speed = flowParams.x;
     float bank = flowParams.w;
-
-    // Multi-frequency directional traveling wave progression
-    float u1 = uv.x * 3.6 - uTime * 0.95 * speed;
-    float v1 = uv.y * 3.14159;
-    float wave1 = sin(u1) * 0.038 * sin(v1);
-
-    float u2 = uv.x * 6.8 - uTime * 1.45 * speed + 0.6;
-    float wave2 = cos(u2 + uv.y * 2.8) * 0.020 * sin(v1);
-
-    float u3 = uv.x * 13.0 - uTime * 2.2 * speed;
-    float wave3 = sin(u3) * 0.010 * sin(v1);
-
-    // Pier wake bow disturbance
-    float pierWake = 0.0;
-    if (flowParams.z > 0.01) {
-      pierWake = sin(uv.x * 16.0 - uTime * 3.6) * 0.026 * flowParams.z;
-    }
-
-    float totalDisplacement = (wave1 + wave2 + wave3) * bank + pierWake;
+    float microRipple = sin(uv.x * 12.0 - uTime * 0.8 * speed) * 0.002 * bank;
 
     vec3 pos = position;
-    pos.y += totalDisplacement;
+    pos.y += microRipple;
 
     vec4 worldPos = modelMatrix * vec4(pos, 1.0);
     vWorldPosition = worldPos.xyz;
@@ -131,51 +108,53 @@ const RiverFragmentShader = /* glsl */ `
     float pierProx = vFlowParams.z;
     float bank = vFlowParams.w;
 
-    // 1. Dual Flowing Normal Map Simulation in Curvilinear Tangent Space
-    vec2 coord1 = vec2(vUv.x * 4.2 - uTime * 0.85 * speed, vUv.y * 3.2 + sin(vUv.x * 2.2 + uTime * 0.45) * 0.25);
-    vec2 coord2 = vec2(vUv.x * 8.0 - uTime * 1.38 * speed + 0.5, vUv.y * 5.5 - uTime * 0.35);
-    vec2 coord3 = vec2(vUv.x * 16.0 - uTime * 2.3 * speed, vUv.y * 9.5 + uTime * 0.6);
+    // 1. Dual-Octave Directional Flow in Curvilinear Tangent Space
+    // Downstream advection along streamwise coordinate (vUv.x)
+    vec2 coord1 = vec2(vUv.x * 3.8 - uTime * 0.38 * speed, vUv.y * 3.2 + sin(vUv.x * 1.8 + uTime * 0.18) * 0.12);
+    vec2 coord2 = vec2(vUv.x * 7.5 - uTime * 0.58 * speed + 0.35, vUv.y * 5.4 - uTime * 0.12);
+    vec2 coord3 = vec2(vUv.x * 15.0 - uTime * 0.92 * speed, vUv.y * 9.2 + sin(uTime * 0.25) * 0.08);
 
-    float d1 = cos(coord1.x * 6.283) * 0.065;
-    float d2 = sin(coord1.y * 6.283) * 0.055;
-    float d3 = cos(coord2.x * 6.283) * 0.045;
-    float d4 = sin(coord2.y * 6.283) * 0.038;
-    float d5 = sin(coord3.x * 6.283) * 0.022;
-    float d6 = cos(coord3.y * 6.283) * 0.018;
+    // Subtle gentle slope perturbations (calm flowing streamlets without violent churning)
+    float d1 = cos(coord1.x * 6.283) * 0.032;
+    float d2 = sin(coord1.y * 6.283) * 0.026;
+    float d3 = cos(coord2.x * 6.283) * 0.022;
+    float d4 = sin(coord2.y * 6.283) * 0.018;
+    float d5 = sin(coord3.x * 6.283) * 0.012;
+    float d6 = cos(coord3.y * 6.283) * 0.009;
 
     float slopeU = d1 + d3 + d5;
     float slopeV = d2 + d4 + d6;
 
-    // Bank damping: calmer water at edges
-    slopeU *= (0.35 + 0.65 * bank);
-    slopeV *= (0.35 + 0.65 * bank);
+    // Bank damping: water is naturally calmer near shoreline
+    slopeU *= (0.4 + 0.6 * bank);
+    slopeV *= (0.4 + 0.6 * bank);
 
-    // Pier turbulent wakes
+    // Subtle pier wake deflection
     if (pierProx > 0.01) {
-      float swirl = sin(vUv.x * 18.0 - uTime * 4.5) * cos(vUv.y * 22.0);
-      slopeU += swirl * 0.075 * pierProx;
-      slopeV += swirl * 0.075 * pierProx;
+      float swirl = sin(vUv.x * 14.0 - uTime * 2.8) * cos(vUv.y * 18.0);
+      slopeU += swirl * 0.038 * pierProx;
+      slopeV += swirl * 0.038 * pierProx;
     }
 
     vec3 normalMap = normalize(vec3(-slopeU, 1.0, -slopeV));
     vec3 N = normalize(vNormal * normalMap.y + vTangent * normalMap.x + vBitangent * normalMap.z);
 
-    // 2. View Vector & Fresnel Reflectance (Schlick approximation)
+    // 2. View Vector & Real Freshwater Fresnel Reflectance
     vec3 V = normalize(uCameraPosition - vWorldPosition);
     float NdotV = max(0.0, dot(N, V));
-    float F0 = 0.038;
-    float fresnel = F0 + (1.0 - F0) * pow(clamp(1.0 - NdotV, 0.0, 1.0), 4.0);
+    float F0 = 0.025; // Physical freshwater refractive index ~1.33
+    float fresnel = F0 + (1.0 - F0) * pow(clamp(1.0 - NdotV, 0.0, 1.0), 4.2);
 
-    // 3. Depth-Dependent River Palette
-    // Day palette: deep marine teal -> vibrant turquoise -> crystal emerald shallows
-    vec3 cDeepThalweg = vec3(0.025, 0.165, 0.235);
-    vec3 cMidChannel  = vec3(0.065, 0.365, 0.445);
-    vec3 cShallows    = vec3(0.145, 0.585, 0.510);
+    // 3. Clear, Vibrant Natural Blue River Color Palette
+    // Day palette: Rich deep sapphire thalweg -> vibrant natural river azure -> sunlit sky-blue crystal shallows
+    vec3 cDeepThalweg = vec3(0.025, 0.130, 0.360); // Deep sapphire blue channel
+    vec3 cMidChannel  = vec3(0.055, 0.260, 0.540); // Radiant natural river azure blue
+    vec3 cShallows    = vec3(0.120, 0.420, 0.720); // Crystal clear sky-blue shallows
 
-    // Night palette: deep moonlit midnight navy
-    vec3 cNightDeep   = vec3(0.012, 0.055, 0.105);
-    vec3 cNightMid    = vec3(0.022, 0.105, 0.175);
-    vec3 cNightShallow= vec3(0.042, 0.165, 0.235);
+    // Night palette: calm moonlit dark navy river
+    vec3 cNightDeep   = vec3(0.010, 0.038, 0.120);
+    vec3 cNightMid    = vec3(0.018, 0.075, 0.190);
+    vec3 cNightShallow= vec3(0.038, 0.125, 0.280);
 
     vec3 waterDeep = mix(cDeepThalweg, cNightDeep, uIsNight);
     vec3 waterMid  = mix(cMidChannel, cNightMid, uIsNight);
@@ -183,55 +162,49 @@ const RiverFragmentShader = /* glsl */ `
 
     float centerDist = abs(vUv.y - 0.5) * 2.0;
     vec3 waterColor = mix(waterDeep, waterMid, smoothstep(0.0, 0.55, centerDist));
-    waterColor = mix(waterColor, waterShallow, smoothstep(0.55, 0.95, centerDist));
+    waterColor = mix(waterColor, waterShallow, smoothstep(0.55, 0.98, centerDist));
 
-    // Under-Bridge Ambient Shadowing: water visibly deepens and darkens underneath bridge decks
+    // Under-Bridge Ambient Shadowing: water darkens naturally under bridge decks
     if (underBridge > 0.01) {
-      vec3 bridgeShade = mix(vec3(0.012, 0.075, 0.115), vec3(0.007, 0.032, 0.055), uIsNight);
-      waterColor = mix(waterColor, bridgeShade, underBridge * 0.72);
+      vec3 bridgeShade = mix(vec3(0.015, 0.055, 0.140), vec3(0.005, 0.018, 0.060), uIsNight);
+      waterColor = mix(waterColor, bridgeShade, underBridge * 0.52);
     }
 
-    // 4. Sky Reflection & Environmental Ambient
-    vec3 skyReflect = mix(uSkyColor, vec3(0.68, 0.84, 0.94), 0.45);
+    // 4. Soft Environmental Sky Reflection
+    vec3 skyReflect = mix(uSkyColor * 0.90, vec3(0.58, 0.78, 0.96), 0.42);
     if (uIsNight > 0.5) {
-      skyReflect = vec3(0.05, 0.11, 0.20);
+      skyReflect = vec3(0.05, 0.10, 0.22);
     }
 
-    // 5. Specular Highlights from Sun & Moon (Physically-based GGX)
+    // 5. Soft Sunlight Sheen (No blinding plastic glare)
     vec3 L = normalize(uSunPosition - vWorldPosition);
     vec3 H = normalize(L + V);
     float NdotH = max(0.0, dot(N, H));
 
-    float sharpSpec = pow(NdotH, 110.0) * (uIsNight > 0.5 ? 0.7 : 2.2) * uSunIntensity;
-    float broadSpec = pow(NdotH, 22.0) * (uIsNight > 0.5 ? 0.18 : 0.42);
-    vec3 specular = uSunColor * (sharpSpec + broadSpec);
+    float glintSpec = pow(NdotH, 64.0) * (uIsNight > 0.5 ? 0.35 : 0.70) * uSunIntensity;
+    float broadSheen = pow(NdotH, 16.0) * (uIsNight > 0.5 ? 0.08 : 0.16);
+    vec3 specular = uSunColor * (glintSpec + broadSheen);
 
-    // Direct sun glint is shadowed by bridge deck overhead
-    specular *= (1.0 - underBridge * 0.92);
+    // Bridge decks block direct overhead sunlight
+    specular *= (1.0 - underBridge * 0.95);
 
-    // 6. Foam Highlights along Shores & Pier Wakes
-    float foamFactor = 0.0;
-    if (bank < 0.22) {
-      float shoreEdge = (0.22 - bank) / 0.22;
-      float shorePulse = sin(vUv.x * 20.0 - uTime * 2.5) * 0.5 + 0.5;
-      foamFactor += shoreEdge * shorePulse * 0.42;
+    // 6. Subtle Pier Micro-Wake (No excessive white foam)
+    float wakeFactor = 0.0;
+    if (pierProx > 0.08) {
+      float wakeNoise = sin(vUv.x * 24.0 - uTime * 3.2) * cos(vUv.y * 28.0);
+      wakeFactor = clamp((wakeNoise - 0.5) * 1.8, 0.0, 0.28) * pierProx;
     }
-    if (pierProx > 0.05) {
-      float wakeNoise = sin(vUv.x * 32.0 - uTime * 4.4) * cos(vUv.y * 36.0);
-      float pierFoam = clamp((wakeNoise - 0.25) * 2.5, 0.0, 1.0);
-      foamFactor += pierFoam * pierProx * 0.58;
-    }
+    vec3 wakeColor = mix(vec3(0.86, 0.93, 0.99), vec3(0.35, 0.48, 0.65), uIsNight);
 
-    vec3 foamColor = mix(vec3(0.92, 0.98, 1.0), vec3(0.45, 0.65, 0.80), uIsNight);
-
-    // 7. Composite Color
-    vec3 finalColor = mix(waterColor, skyReflect, fresnel * 0.78);
+    // 7. Composite Natural Water Color
+    vec3 finalColor = mix(waterColor, skyReflect, fresnel * 0.62);
     finalColor += specular;
-    finalColor = mix(finalColor, foamColor, clamp(foamFactor, 0.0, 0.82));
+    finalColor = mix(finalColor, wakeColor, wakeFactor);
 
-    // Opacity: high in center and deep shadowed gorges, subtle clarity in margins
-    float alpha = mix(0.95, 0.86, smoothstep(0.4, 1.0, centerDist));
-    alpha = mix(alpha, 0.98, underBridge * 0.5);
+    // Natural Optical Depth Opacity:
+    // Deep center has high absorption (0.92), clear shallows reveal submerged pebbles (0.76)
+    float alpha = mix(0.92, 0.76, smoothstep(0.35, 0.98, centerDist));
+    alpha = mix(alpha, 0.96, underBridge * 0.45);
 
     gl_FragColor = vec4(finalColor, alpha);
   }
@@ -248,12 +221,12 @@ const LakeVertexShader = /* glsl */ `
     vUv = uv;
     vNormal = normalize(normalMatrix * normal);
 
-    // Concentric ripple propagation dampened to zero at shoreline
+    // Concentric micro-ripples dampened to zero at shoreline
     float r = length(position.xz);
     float edgeDamp = max(0.0, 1.0 - r / 12.2);
 
-    float ripple1 = sin(r * 1.8 - uTime * 1.6) * 0.024 * edgeDamp;
-    float ripple2 = cos(r * 3.2 - uTime * 2.4 + position.x * 0.4) * 0.012 * edgeDamp;
+    float ripple1 = sin(r * 1.6 - uTime * 1.2) * 0.003 * edgeDamp;
+    float ripple2 = cos(r * 2.8 - uTime * 1.8 + position.x * 0.3) * 0.002 * edgeDamp;
 
     vec3 pos = position;
     pos.y += ripple1 + ripple2;
@@ -283,31 +256,31 @@ const LakeFragmentShader = /* glsl */ `
     float rFrac = clamp(r / 12.2, 0.0, 1.0);
 
     // Concentric wave normal ripples
-    float rippleNormX = cos(r * 2.2 - uTime * 1.6) * 0.045 * (1.0 - rFrac);
-    float rippleNormZ = sin(r * 2.2 - uTime * 1.6) * 0.045 * (1.0 - rFrac);
+    float rippleNormX = cos(r * 2.2 - uTime * 1.2) * 0.025 * (1.0 - rFrac);
+    float rippleNormZ = sin(r * 2.2 - uTime * 1.2) * 0.025 * (1.0 - rFrac);
     vec3 N = normalize(vec3(-rippleNormX, 1.0, -rippleNormZ));
 
     vec3 V = normalize(uCameraPosition - vWorldPosition);
     float NdotV = max(0.0, dot(N, V));
-    float fresnel = 0.038 + (1.0 - 0.038) * pow(clamp(1.0 - NdotV, 0.0, 1.0), 4.0);
+    float fresnel = 0.025 + (1.0 - 0.025) * pow(clamp(1.0 - NdotV, 0.0, 1.0), 4.2);
 
-    vec3 cDeep = mix(vec3(0.025, 0.145, 0.225), vec3(0.010, 0.045, 0.095), uIsNight);
-    vec3 cEdge = mix(vec3(0.125, 0.525, 0.495), vec3(0.035, 0.145, 0.215), uIsNight);
+    vec3 cDeep = mix(vec3(0.025, 0.140, 0.360), vec3(0.010, 0.045, 0.130), uIsNight);
+    vec3 cEdge = mix(vec3(0.120, 0.420, 0.680), vec3(0.035, 0.120, 0.260), uIsNight);
     vec3 waterColor = mix(cDeep, cEdge, pow(rFrac, 1.2));
 
-    vec3 skyReflect = mix(uSkyColor, vec3(0.68, 0.84, 0.94), 0.45);
+    vec3 skyReflect = mix(uSkyColor * 0.90, vec3(0.58, 0.78, 0.96), 0.42);
     if (uIsNight > 0.5) {
-      skyReflect = vec3(0.05, 0.11, 0.20);
+      skyReflect = vec3(0.05, 0.10, 0.22);
     }
 
     vec3 L = normalize(uSunPosition - vWorldPosition);
     vec3 H = normalize(L + V);
     float NdotH = max(0.0, dot(N, H));
-    float sharpSpec = pow(NdotH, 110.0) * (uIsNight > 0.5 ? 0.7 : 2.2) * uSunIntensity;
-    vec3 specular = uSunColor * sharpSpec;
+    float sheen = pow(NdotH, 48.0) * (uIsNight > 0.5 ? 0.3 : 0.65) * uSunIntensity;
+    vec3 specular = uSunColor * sheen;
 
-    vec3 finalColor = mix(waterColor, skyReflect, fresnel * 0.80) + specular;
-    gl_FragColor = vec4(finalColor, 0.93);
+    vec3 finalColor = mix(waterColor, skyReflect, fresnel * 0.65) + specular;
+    gl_FragColor = vec4(finalColor, 0.92);
   }
 `;
 
@@ -318,13 +291,13 @@ export default React.memo(function WaterSystem() {
   const riverMeshRef = useRef<THREE.Mesh>(null);
   const lakeMeshRef = useRef<THREE.Mesh>(null);
 
-  // 1. Procedural High-Definition Curvilinear River Ribbon Geometry
+  // 1. Procedural High-Definition Curvilinear Frenet-Frame River Geometry
   const { riverGeo, shoreGeo, lakeGeo, reedTransforms, stoneTransforms } = useMemo(() => {
-    const SEGMENTS_X = 140; // 140 stations along the S-curve
-    const minX = -66;
-    const maxX = 66;
+    const SEGMENTS_X = 180; // High longitudinal resolution along the meanders
+    const minX = -64;
+    const maxX = 64;
     const stepX = (maxX - minX) / SEGMENTS_X;
-    const LATERAL_COLS = 9; // 9 lateral cross-section vertices
+    const LATERAL_COLS = 15; // Smooth lateral subdivision across stream channel
 
     const riverPositions: number[] = [];
     const riverNormals: number[] = [];
@@ -333,64 +306,88 @@ export default React.memo(function WaterSystem() {
     const riverFlowParams: number[] = [];
     const riverIndices: number[] = [];
 
-    // Wet Sand/Silt Shore Under-Ribbons
+    // Wet Sand/Silt Shore Under-Ribbons (Seamless Land-Water Transition)
     const shorePositions: number[] = [];
     const shoreIndices: number[] = [];
 
     let accumulatedStreamDist = 0;
     let prevX = minX;
-    let prevZ = getRiverPath(minX).z;
+    let prevZ = getRiverZ(minX);
 
     for (let r = 0; r <= SEGMENTS_X; r++) {
-      const x = minX + r * stepX;
+      const frac = r / SEGMENTS_X;
+      const x = minX + frac * (maxX - minX);
       const { z: rz, width: baseWidth } = getRiverPath(x);
+      const { tangentX, tangentZ } = getRiverDerivative(x);
 
-      // Organic shoreline variations
-      const organicW = baseWidth + Math.sin(x * 0.25) * 0.55 + Math.cos(x * 0.65) * 0.35;
-      const halfW = organicW * 0.52;
+      // Perpendicular normal in horizontal plane (cross-stream direction)
+      const normX = -tangentZ;
+      const normZ = tangentX;
 
-      // Accumulated streamwise flow distance
+      // Accumulated streamwise distance for seamless UV flow coordinate
       const stepDist = Math.hypot(x - prevX, rz - prevZ);
       accumulatedStreamDist += stepDist;
       prevX = x;
       prevZ = rz;
+      const u = accumulatedStreamDist / 8.0;
 
-      // Streamwise coordinate (u in 0..14)
-      const u = accumulatedStreamDist / 9.0;
+      // Local flow velocity multiplier (Venturi effect: narrower = faster, wider = calmer)
+      const speedMult = Math.min(1.35, Math.max(0.68, 11.2 / baseWidth));
 
-      // Local tangent vector
-      const { tangentX, tangentZ } = getRiverDerivative(x);
+      // Natural organic bank edge variation (dampened to 0 near bridges for clean abutment fit)
+      const bridgeProx = Math.max(
+        Math.exp(-Math.pow((x - (-25)) / 4.5, 2)),
+        Math.exp(-Math.pow(x / 4.5, 2)),
+        Math.exp(-Math.pow((x - 25) / 4.5, 2))
+      );
+      const bankDamp = 1.0 - bridgeProx;
 
-      // Local flow velocity multiplier (Venturi conservation of mass: narrower = faster)
-      const speedMult = Math.min(1.4, Math.max(0.7, 10.5 / organicW));
+      const bankWiggleL = (Math.sin(x * 0.38) * 0.38 + Math.cos(x * 0.75) * 0.18) * bankDamp;
+      const bankWiggleR = (Math.cos(x * 0.42 + 1.2) * 0.38 + Math.sin(x * 0.71) * 0.18) * bankDamp;
 
-      // 9 Lateral vertices across river ribbon
+      // Generate lateral cross-section vertices along the true perpendicular normal
       for (let c = 0; c < LATERAL_COLS; c++) {
         const lateralT = c / (LATERAL_COLS - 1); // 0.0 (left bank) to 1.0 (right bank)
-        const z = rz - halfW + lateralT * (halfW * 2);
-        const y = -0.17; // Base water elevation
+        const centeredT = lateralT - 0.5; // -0.5 to +0.5
 
-        riverPositions.push(x, y, z);
+        // Offset along perpendicular normal
+        const edgeWiggle = (1.0 - lateralT) * bankWiggleL + lateralT * bankWiggleR;
+        const offset = centeredT * baseWidth + edgeWiggle;
+
+        const vx = x + normX * offset;
+        const vz = rz + normZ * offset;
+        const vy = -0.14; // Calm, level river surface elevation
+
+        riverPositions.push(vx, vy, vz);
         riverNormals.push(0, 1, 0);
         riverTangents.push(tangentX, 0, tangentZ);
         riverUvs.push(u, lateralT);
 
-        // Environmental weights
-        const underBridge = getUnderBridgeWeight(x, z);
-        const pierProx = getPierProximity(x, z);
-        const bankDamping = Math.sin(lateralT * Math.PI); // 0 at edges, 1 at center
+        const underBridge = getUnderBridgeWeight(vx, vz);
+        const pierProx = getPierProximity(vx, vz);
+        const bankDamping = Math.sin(lateralT * Math.PI); // 0 at banks, 1 in center channel
 
         riverFlowParams.push(speedMult, underBridge, pierProx, bankDamping);
       }
 
-      // Shore Wet Sand & Gravel Margins (Left & Right)
-      const zL0 = rz - halfW;
-      const zL1 = rz - halfW - 1.1;
-      const zR0 = rz + halfW;
-      const zR1 = rz + halfW + 1.1;
+      // Shore Wet Sand & Gravel Under-Ribbons along Left & Right Banks
+      // Follows the exact organic bank edges with a 1.2m gravel border
+      const offsetL = -0.5 * baseWidth + bankWiggleL;
+      const offsetR = 0.5 * baseWidth + bankWiggleR;
 
-      shorePositions.push(x, -0.22, zL0, x, -0.14, zL1);
-      shorePositions.push(x, -0.22, zR0, x, -0.14, zR1);
+      const xL0 = x + normX * offsetL;
+      const zL0 = rz + normZ * offsetL;
+      const xL1 = x + normX * (offsetL - 1.2);
+      const zL1 = rz + normZ * (offsetL - 1.2);
+
+      const xR0 = x + normX * offsetR;
+      const zR0 = rz + normZ * offsetR;
+      const xR1 = x + normX * (offsetR + 1.2);
+      const zR1 = rz + normZ * (offsetR + 1.2);
+
+      // Heights: slightly submerged at water's edge (-0.18), rising to moist shore (-0.08)
+      shorePositions.push(xL0, -0.18, zL0, xL1, -0.08, zL1);
+      shorePositions.push(xR0, -0.18, zR0, xR1, -0.08, zR1);
 
       // Generate Quads
       if (r < SEGMENTS_X) {
@@ -436,7 +433,7 @@ export default React.memo(function WaterSystem() {
     const lUv: number[] = [];
     const lIdx: number[] = [];
 
-    lPos.push(0, 0, 0);
+    lPos.push(0, -0.14, 0);
     lNorm.push(0, 1, 0);
     lUv.push(0.5, 0.5);
 
@@ -447,7 +444,7 @@ export default React.memo(function WaterSystem() {
         const theta = (s / LAKE_SLICES) * Math.PI * 2;
         const lx = Math.cos(theta) * rDist;
         const lz = Math.sin(theta) * rDist;
-        lPos.push(lx, 0, lz);
+        lPos.push(lx, -0.14, lz);
         lNorm.push(0, 1, 0);
         lUv.push(0.5 + Math.cos(theta) * 0.5 * ringFrac, 0.5 + Math.sin(theta) * 0.5 * ringFrac);
       }
@@ -478,8 +475,8 @@ export default React.memo(function WaterSystem() {
     lkGeo.setAttribute('uv', new THREE.Float32BufferAttribute(lUv, 2));
     lkGeo.setIndex(lIdx);
 
-    // 3. Shoreline Flora (Reeds & Stones along calm river shallows)
-    let seed = 77;
+    // 3. Shoreline Flora (Reeds & River Stones along shallow inner river bends)
+    let seed = 89;
     const rnd = () => {
       seed = (seed * 9301 + 49297) % 233280;
       return seed / 233280;
@@ -489,34 +486,50 @@ export default React.memo(function WaterSystem() {
     const stones: THREE.Matrix4[] = [];
     const dummy = new THREE.Object3D();
 
-    for (let i = 0; i < 75; i++) {
+    for (let i = 0; i < 70; i++) {
       const rx = -55 + rnd() * 110;
-      const { z: rz, width } = getRiverPath(rx);
-      const halfW = width * 0.52;
-      const side = rnd() > 0.5 ? 1 : -1;
-      const rzPos = rz + side * (halfW + 0.3 + rnd() * 0.8);
+      // Skip bridge zones
+      if (Math.abs(rx - (-25)) < 4.0 || Math.abs(rx) < 4.0 || Math.abs(rx - 25) < 4.0) continue;
 
-      // Reeds prefer calmer shallow sections
-      dummy.position.set(rx, -0.12, rzPos);
-      dummy.rotation.set(0, rnd() * Math.PI * 2, (rnd() - 0.5) * 0.15);
-      const s = 0.7 + rnd() * 0.6;
-      dummy.scale.set(s, s * (1.1 + rnd() * 0.4), s);
+      const { z: rz, width } = getRiverPath(rx);
+      const { tangentX, tangentZ } = getRiverDerivative(rx);
+      const normX = -tangentZ;
+      const normZ = tangentX;
+      const halfW = width * 0.5;
+      const side = rnd() > 0.5 ? 1 : -1;
+      const dist = halfW + 0.3 + rnd() * 0.9;
+
+      const px = rx + normX * side * dist;
+      const pz = rz + normZ * side * dist;
+
+      dummy.position.set(px, -0.10, pz);
+      dummy.rotation.set(0, rnd() * Math.PI * 2, (rnd() - 0.5) * 0.12);
+      const s = 0.65 + rnd() * 0.55;
+      dummy.scale.set(s, s * (1.0 + rnd() * 0.35), s);
       dummy.updateMatrix();
       reeds.push(dummy.matrix.clone());
     }
 
-    for (let i = 0; i < 55; i++) {
-      const rx = -58 + rnd() * 116;
-      const { z: rz, width } = getRiverPath(rx);
-      const halfW = width * 0.52;
-      const side = rnd() > 0.5 ? 1 : -1;
-      const rzPos = rz + side * (halfW - 0.2 + rnd() * 0.9);
+    for (let i = 0; i < 50; i++) {
+      const rx = -56 + rnd() * 112;
+      if (Math.abs(rx - (-25)) < 4.0 || Math.abs(rx) < 4.0 || Math.abs(rx - 25) < 4.0) continue;
 
-      dummy.position.set(rx, -0.16, rzPos);
-      dummy.rotation.set(rnd() * 0.4, rnd() * Math.PI * 2, rnd() * 0.4);
-      const sx = 0.35 + rnd() * 0.55;
-      const sy = 0.25 + rnd() * 0.35;
-      const sz = 0.35 + rnd() * 0.55;
+      const { z: rz, width } = getRiverPath(rx);
+      const { tangentX, tangentZ } = getRiverDerivative(rx);
+      const normX = -tangentZ;
+      const normZ = tangentX;
+      const halfW = width * 0.5;
+      const side = rnd() > 0.5 ? 1 : -1;
+      const dist = halfW - 0.3 + rnd() * 0.8;
+
+      const px = rx + normX * side * dist;
+      const pz = rz + normZ * side * dist;
+
+      dummy.position.set(px, -0.15, pz);
+      dummy.rotation.set(rnd() * 0.3, rnd() * Math.PI * 2, rnd() * 0.3);
+      const sx = 0.35 + rnd() * 0.5;
+      const sy = 0.20 + rnd() * 0.3;
+      const sz = 0.35 + rnd() * 0.5;
       dummy.scale.set(sx, sy, sz);
       dummy.updateMatrix();
       stones.push(dummy.matrix.clone());
@@ -548,14 +561,14 @@ export default React.memo(function WaterSystem() {
       uniforms: {
         uTime: { value: 0 },
         uSunPosition: { value: new THREE.Vector3(40, 55, 30) },
-        uSunColor: { value: new THREE.Color('#fff5df') },
-        uSunIntensity: { value: 2.2 },
-        uSkyColor: { value: new THREE.Color('#9ec4b0') },
-        uCameraPosition: { value: new THREE.Vector3(38, 34, 46) },
-        uIsNight: { value: 0 },
+        uSunColor: { value: new THREE.Color('#ffffff') },
+        uSunIntensity: { value: 1.0 },
+        uSkyColor: { value: new THREE.Color('#d4e6f1') },
+        uCameraPosition: { value: new THREE.Vector3(0, 30, 40) },
+        uIsNight: { value: 0.0 },
       },
       transparent: true,
-      depthWrite: true,
+      depthWrite: false,
       side: THREE.DoubleSide,
     });
   }, []);
@@ -568,14 +581,14 @@ export default React.memo(function WaterSystem() {
       uniforms: {
         uTime: { value: 0 },
         uSunPosition: { value: new THREE.Vector3(40, 55, 30) },
-        uSunColor: { value: new THREE.Color('#fff5df') },
-        uSunIntensity: { value: 2.2 },
-        uSkyColor: { value: new THREE.Color('#9ec4b0') },
-        uCameraPosition: { value: new THREE.Vector3(38, 34, 46) },
-        uIsNight: { value: 0 },
+        uSunColor: { value: new THREE.Color('#ffffff') },
+        uSunIntensity: { value: 1.0 },
+        uSkyColor: { value: new THREE.Color('#d4e6f1') },
+        uCameraPosition: { value: new THREE.Vector3(0, 30, 40) },
+        uIsNight: { value: 0.0 },
       },
       transparent: true,
-      depthWrite: true,
+      depthWrite: false,
       side: THREE.DoubleSide,
     });
   }, []);
@@ -587,7 +600,7 @@ export default React.memo(function WaterSystem() {
     };
   }, [riverMaterial, lakeMaterial]);
 
-  // Synchronize dynamic uniforms every frame with zero GC allocations
+  // Per-frame uniform updates
   useFrame(({ clock }) => {
     const elapsed = clock.getElapsedTime();
 
@@ -642,8 +655,8 @@ export default React.memo(function WaterSystem() {
   }, []);
 
   const stoneGeo = useMemo(() => {
-    const geo = new THREE.DodecahedronGeometry(0.6, 1);
-    geo.scale(1.2, 0.65, 1.1);
+    const geo = new THREE.DodecahedronGeometry(0.55, 1);
+    geo.scale(1.2, 0.55, 1.1);
     return geo;
   }, []);
 
@@ -659,9 +672,9 @@ export default React.memo(function WaterSystem() {
       {/* 1. Wet Sand & Gravel Silt Shore Under-Ribbon (Seamless Land-Water Transition) */}
       <mesh geometry={shoreGeo} receiveShadow>
         <meshStandardMaterial
-          color={isNight ? '#26221c' : '#4d4233'}
-          roughness={0.65}
-          metalness={0.12}
+          color={isNight ? '#24201a' : '#453c30'}
+          roughness={0.75}
+          metalness={0.08}
         />
       </mesh>
 
@@ -673,8 +686,8 @@ export default React.memo(function WaterSystem() {
         receiveShadow
       />
 
-      {/* 3. Alpine Reservoir Lake with Photorealistic Concentric Waves */}
-      <group position={[-38, -0.16, -22]}>
+      {/* 3. Alpine Reservoir Lake with Serene Concentric Water */}
+      <group position={[-38, -0.14, -22]}>
         <mesh
           ref={lakeMeshRef}
           geometry={lakeGeo}
@@ -684,41 +697,41 @@ export default React.memo(function WaterSystem() {
 
         {/* Lake shoreline wet sand inner ring */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.015, 0]}>
-          <ringGeometry args={[11.2, 12.3, 48]} />
+          <ringGeometry args={[11.4, 12.3, 48]} />
           <meshStandardMaterial
-            color={isNight ? '#28231c' : '#524434'}
-            roughness={0.68}
-            metalness={0.15}
+            color={isNight ? '#26211a' : '#4a3e30'}
+            roughness={0.72}
+            metalness={0.1}
           />
         </mesh>
 
         {/* Lake shoreline pebble outer beach */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
-          <ringGeometry args={[12.1, 13.2, 48]} />
+          <ringGeometry args={[12.2, 13.1, 48]} />
           <meshStandardMaterial
-            color={isNight ? '#3a342a' : '#7a6c56'}
+            color={isNight ? '#353026' : '#6e624e'}
             roughness={0.92}
-            metalness={0.05}
+            metalness={0.04}
           />
         </mesh>
       </group>
 
-      {/* 4. Secondary Mountain Tarn Pond (Highland scenic turquoise mirror) */}
+      {/* 4. Secondary Mountain Tarn Pond (Highland scenic mirror) */}
       <group position={[-26, 1.46, -34]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <circleGeometry args={[5.2, 32]} />
           <meshStandardMaterial
-            color={isNight ? '#0b2633' : '#19788a'}
-            roughness={0.04}
-            metalness={0.42}
+            color={isNight ? '#0b284c' : '#1b75bb'}
+            roughness={0.12}
+            metalness={0.25}
             transparent
             opacity={0.88}
           />
         </mesh>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.015, 0]}>
-          <ringGeometry args={[4.9, 5.7, 32]} />
+          <ringGeometry args={[4.9, 5.6, 32]} />
           <meshStandardMaterial
-            color={isNight ? '#322d25' : '#6b5e4c'}
+            color={isNight ? '#2c2720' : '#5c5242'}
             roughness={0.94}
           />
         </mesh>
@@ -732,8 +745,8 @@ export default React.memo(function WaterSystem() {
           receiveShadow
         >
           <meshStandardMaterial
-            color={isNight ? '#2d3826' : '#455938'}
-            roughness={0.8}
+            color={isNight ? '#263020' : '#3d4d32'}
+            roughness={0.85}
           />
         </instancedMesh>
       )}
@@ -746,8 +759,8 @@ export default React.memo(function WaterSystem() {
           receiveShadow
         >
           <meshStandardMaterial
-            color={isNight ? '#3a403b' : '#565c56'}
-            roughness={0.78}
+            color={isNight ? '#323832' : '#4d544c'}
+            roughness={0.82}
           />
         </instancedMesh>
       )}
