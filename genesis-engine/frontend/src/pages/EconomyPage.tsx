@@ -89,7 +89,7 @@ const initialTradeDeals: TradeDeal[] = [
   { id: 'td-03', type: 'IMPORT', resource: 'Hydrocarbon Crude Oil', icon: '🛢️', amount: '25,000 BBL', partnerCiv: 'Aethelgard Prime', pricePerUnit: '$85/BBL', durationYears: 2, netRevenue: -210 },
 ];
 
-export default function EconomyPage() {
+export default function EconomyPage({ onClose }: { onClose?: () => void }) {
   const { resources, rates } = useGameState();
   const [deficits, setDeficits] = useState<DeficitItem[]>(initialDeficits);
   const [commodities, setCommodities] = useState<CommodityLedgerItem[]>(commodityLedgerData);
@@ -126,11 +126,27 @@ export default function EconomyPage() {
           </h1>
         </div>
 
-        {/* Tactical status pill */}
-        <div className="flex items-center gap-3 bg-[#10171c] px-3.5 py-1.5 rounded-md border border-[#202f38] text-xs font-mono">
-          <span className="text-[#8799a4]">Active Bilateral Deals:</span>
-          <span className="font-bold text-[#5ec1cd]">{tradeDeals.length} Treaties</span>
-          <span className="text-[#3cd070] font-bold">+$890M Net Fiscal Inflow</span>
+        {/* Tactical status pill + Close */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 bg-[#10171c] px-3.5 py-1.5 rounded-md border border-[#202f38] text-xs font-mono">
+            <span className="text-[#8799a4]">Active Bilateral Deals:</span>
+            <span className="font-bold text-[#5ec1cd]">{tradeDeals.length} Treaties</span>
+            <span className="text-[#3cd070] font-bold">+$890M Net Inflow</span>
+          </div>
+
+          {onClose && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onClose();
+              }}
+              className="px-3 py-1.5 rounded-md bg-[#c94c4c] hover:bg-[#a33838] border border-[#f08b8b] text-xs font-mono font-bold text-white transition-colors flex items-center gap-1.5 shadow-md"
+              title="Return to 3D World Viewport (ESC)"
+            >
+              <X size={13} />
+              <span className="hidden sm:inline">Return to World [ESC]</span>
+            </button>
+          )}
         </div>
       </div>
 

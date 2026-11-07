@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { MapLayer } from '../../context/GameStateContext';
 
@@ -96,7 +96,7 @@ export function getTerrainHeight(x: number, z: number): number {
   return 0.4 + Math.sin(x * 0.08) * 0.2 + Math.cos(z * 0.08) * 0.2;
 }
 
-export default function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
+function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
   // Generate high quality procedural terrain geometry with vertex colors
   const { geometry, wireframeGeo } = useMemo(() => {
     const size = 136;
@@ -168,13 +168,19 @@ export default function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
     return { geometry: geo, wireframeGeo: geo };
   }, [activeLayer]);
 
+  // Clean up GPU buffer on unmount or layer changes
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
+
   return (
-    <group>
+    <group raycast={() => null}>
       {/* Main Procedural Vertex-Colored Terrain Mesh */}
       <mesh
         geometry={geometry}
         receiveShadow
-        castShadow
       >
         <meshStandardMaterial
           vertexColors
@@ -223,4 +229,6 @@ export default function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
     </group>
   );
 }
+
+export default React.memo(Terrain);
 

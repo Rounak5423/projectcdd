@@ -12,16 +12,14 @@ import BuildingObject from './BuildingObject';
 import PlacementSystem from './PlacementSystem';
 import CameraManager from './CameraManager';
 import WorldHUD from './WorldHUD';
+import { PerformanceSampler } from './PerformanceTelemetry';
+import WorldLabelManager, { triggerRoadSelection } from './WorldLabelManager';
 
 export function CameraHUD() {
   return <CameraManager />;
 }
 
-export interface CivilizationWorld3DProps {
-  onSelectDistrict?: (districtId: string) => void;
-}
-
-export default function CivilizationWorld3D({ onSelectDistrict }: CivilizationWorld3DProps = {}) {
+export default function CivilizationWorld3D() {
   const {
     placedBuildings,
     selectedBuildingId,
@@ -31,7 +29,6 @@ export default function CivilizationWorld3D({ onSelectDistrict }: CivilizationWo
   } = useGameState();
 
   const handleFocusDistrict = (districtId: string) => {
-    if (onSelectDistrict) onSelectDistrict(districtId);
     const dist = districts.find((d) => d.id === districtId);
     if (!dist) return;
     // Find building in district or select first building
@@ -54,9 +51,10 @@ export default function CivilizationWorld3D({ onSelectDistrict }: CivilizationWo
             powerPreference: 'high-performance',
           }}
           onPointerDown={(e) => {
-            // Deselect building if clicking on empty terrain canvas directly
+            // Deselect active building and road if clicking on empty canvas directly
             if ((e.target as HTMLElement).tagName === 'CANVAS') {
-              // Allows deselecting when clicking empty areas
+              selectBuilding(null);
+              triggerRoadSelection(null);
             }
           }}
         >
@@ -92,15 +90,21 @@ export default function CivilizationWorld3D({ onSelectDistrict }: CivilizationWo
             />
           ))}
 
+          {/* Centralized 3D World Label & Selection Manager */}
+          <WorldLabelManager />
+
           {/* Real-time Holographic Placement & Grid System */}
           <PlacementSystem />
 
           {/* Smooth Camera Navigation & Building Focus Controls */}
           <CameraManager />
+
+          {/* High-Performance 3D Engine Telemetry Sampler */}
+          <PerformanceSampler />
         </Canvas>
 
-        {/* In-World Tactical Time & District Teleport HUD */}
-        <WorldHUD onFocusDistrict={handleFocusDistrict} />
+        {/* In-World Tactical Time, Camera & District Teleport HUD */}
+        <WorldHUD />
       </div>
     </DayNightProvider>
   );

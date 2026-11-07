@@ -18,7 +18,8 @@ import {
   Gift,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
-import { useAuth } from '../../context/AuthContext';
+import { soundFx } from '../../services/soundFx';
+import { CivoraIcon } from '../brand/CivoraLogo';
 
 export default function Topbar({
   isRightPanelOpen,
@@ -27,8 +28,18 @@ export default function Topbar({
   isRightPanelOpen: boolean;
   onToggleRightPanel: () => void;
 }) {
-  const { resources, rates, civilization, events, setActiveDrawer, quests, claimQuest } = useGameState();
-  const { user, isAdmin, setIsAuthModalOpen } = useAuth();
+  const {
+    resources,
+    rates,
+    civilization,
+    events,
+    setActiveDrawer,
+    quests,
+    claimQuest,
+    activeProtest,
+    setIsProtestModalOpen,
+    setIsDemoModalOpen,
+  } = useGameState();
   const unreadCount = events.filter((e) => !e.isRead).length;
 
   const activeUnclaimedQuest = quests?.find((q) => q.isCompleted && !q.isClaimed);
@@ -51,9 +62,7 @@ export default function Topbar({
         onClick={() => setActiveDrawer('codex')}
         title="View Civilisation Codex & Status"
       >
-        <div className="w-7 h-7 rounded-md border border-[#8f7742]/60 bg-[#1c2328] flex items-center justify-center text-[#c29b38] shadow-xs group-hover:border-[#c29b38] transition-colors">
-          <Crown size={14} />
-        </div>
+        <CivoraIcon size={30} />
 
         <div>
           <div className="flex items-center gap-1.5">
@@ -96,6 +105,24 @@ export default function Topbar({
 
       {/* Right Controls: Subtle Claim Indicator & HUD Actions */}
       <div className="flex items-center gap-2">
+        {/* Active Historical Twin Civil Protest Pill */}
+        {activeProtest && (
+          <button
+            onClick={() => {
+              soundFx.playCrowdChant();
+              setIsProtestModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#3b1c14] hover:bg-[#4d2419] border border-[#d95338] text-[11px] font-bold text-[#f7a999] transition-all shadow-xs animate-pulse"
+            title={`Active Civil Protest: ${activeProtest.title} (Click to resolve)`}
+          >
+            <span className="text-xs">📢</span>
+            <span className="hidden sm:inline">Protest in {activeProtest.districtName.split(' ')[0]}</span>
+            <span className="text-[10px] font-mono text-[#dfb74a] uppercase bg-[#24120c] px-1 py-0.2 rounded border border-[#5c2a1a]">
+              Resolve
+            </span>
+          </button>
+        )}
+
         {/* Small claimable reward indicator if quest ready (replaces oversized banner) */}
         {activeUnclaimedQuest && (
           <button
@@ -114,6 +141,19 @@ export default function Topbar({
           <Coins size={11} />
           <span>{resources.grc}</span>
         </div>
+
+        {/* Showcase Capabilities Presenter Suite Button */}
+        <button
+          onClick={() => {
+            soundFx.playClick();
+            setIsDemoModalOpen(true);
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#292212] hover:bg-[#3d3215] border border-[#a18131] text-[11px] font-bold text-[#dfb74a] transition-all shadow-xs"
+          title="Open Presenter Suite: Showcase All Potential Capabilities"
+        >
+          <Sparkles size={12} className="text-[#dfb74a] animate-pulse" />
+          <span className="hidden sm:inline">Showcase Suite</span>
+        </button>
 
         {/* Codex Action */}
         <button
@@ -137,25 +177,6 @@ export default function Topbar({
             </span>
           )}
         </button>
-
-        {/* Auth Status & Account Switcher */}
-        <div
-          onClick={() => setIsAuthModalOpen(true)}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#192025] hover:bg-[#222a30] border border-[#2b353b] hover:border-[#c29b38]/50 cursor-pointer transition-colors text-xs"
-          title="Account & Role Management (Click to Switch User)"
-        >
-          <span className="text-xs">{isAdmin ? '👑' : '👤'}</span>
-          <span className="font-bold text-[11px] text-[#ede8dc] hidden sm:inline">{user?.username || 'player1'}</span>
-          <span
-            className={`text-[8px] font-mono font-bold px-1 py-0.2 rounded border ${
-              isAdmin
-                ? 'bg-[#332612] text-[#dfb74a] border-[#8f7742]/60'
-                : 'bg-[#152720] text-[#7ea376] border-[#2b4c3e]'
-            }`}
-          >
-            {user?.role?.toUpperCase() || 'USER'}
-          </span>
-        </div>
 
         {/* Tactical Vitals / Inspector Toggle */}
         <button

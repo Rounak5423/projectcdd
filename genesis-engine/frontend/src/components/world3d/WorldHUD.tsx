@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Sun,
   Moon,
@@ -11,18 +11,21 @@ import {
   Sliders,
   Play,
   Pause,
+  MapPin,
+  Camera,
+  Activity,
+  Cpu,
 } from 'lucide-react';
 import { useDayNight } from './DayNightController';
 import { useGameState } from '../../context/GameStateContext';
+import { triggerCameraPreset, triggerCameraFocus, CameraPreset } from './CameraManager';
+import { usePerformanceTelemetry } from './PerformanceTelemetry';
 
-interface WorldHUDProps {
-  onCameraPreset?: (preset: 'isometric' | 'topDown' | 'panoramic' | 'reset') => void;
-  onFocusDistrict?: (districtId: string) => void;
-}
-
-export default function WorldHUD({ onCameraPreset, onFocusDistrict }: WorldHUDProps) {
+export default function WorldHUD() {
   const { timeOfDay, setTimeOfDay, isAutoCycle, setIsAutoCycle, isNight } = useDayNight();
-  const { districts, selectBuilding } = useGameState();
+  const { districts, selectBuilding, placedBuildings } = useGameState();
+  const telemetry = usePerformanceTelemetry();
+  const [showTelemetry, setShowTelemetry] = useState<boolean>(true);
 
   const formatHour = (hour: number) => {
     const h = Math.floor(hour);
@@ -30,10 +33,62 @@ export default function WorldHUD({ onCameraPreset, onFocusDistrict }: WorldHUDPr
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   };
 
+  const handleDistrictClick = (districtId: string) => {
+    const d = districts.find((dist) => dist.id === districtId);
+    if (!d) return;
+
+    // Trigger smooth camera glide to district center
+    triggerCameraFocus(d.x, 0, d.z, d.radius * 1.3);
+
+    // Optionally select primary structure in that district
+    const primary = placedBuildings.find((b) => b.districtId === districtId);
+    if (primary) {
+      selectBuilding(primary.id);
+    }
+  };
+
   return (
     <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2.5 pointer-events-none">
-      {/* TIME OF DAY & LIGHTING CONTROLLER */}
-      <div className="pointer-events-auto bg-[#171d18]/92 border border-[#39443a] p-2.5 rounded-xl backdrop-blur-md shadow-2xl flex flex-col gap-2 min-w-[240px]">
+      {/* 1. REAL-TIME 3D PERFORMANCE TELEMETRY */}
+      <div className="pointer-events-auto bg-[#171d18]/94 border border-[#39443a] p-2.5 rounded-xl backdrop-blur-md shadow-2xl flex flex-col gap-1.5 min-w-[245px]">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowTelemetry(!showTelemetry)}
+            className="flex items-center gap-1.5 text-xs font-mono font-bold text-[#a6bd82] hover:text-[#dce9ca] transition-colors"
+          >
+            <Activity size={14} className="text-[#2ecc71] animate-pulse" />
+            <span>ENGINE METRICS</span>
+          </button>
+          <div className="flex items-center gap-1 font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#1b251d] border border-[#2b3a2e] text-[#2ecc71]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#2ecc71] animate-ping" />
+            <span>{telemetry.fps} FPS</span>
+          </div>
+        </div>
+
+        {showTelemetry && (
+          <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-[#29352a] text-[10px] font-mono">
+            <div className="p-1 rounded bg-[#131914] border border-[#263528]">
+              <span className="text-[#8e9c8c] block text-[9px]">DRAWCALLS</span>
+              <span className="font-bold text-[#f0f3eb]">{telemetry.drawCalls}</span>
+            </div>
+            <div className="p-1 rounded bg-[#131914] border border-[#263528]">
+              <span className="text-[#8e9c8c] block text-[9px]">TRIANGLES</span>
+              <span className="font-bold text-[#82a6bd]">{(telemetry.triangles || 0).toLocaleString()}</span>
+            </div>
+            <div className="p-1 rounded bg-[#131914] border border-[#263528]">
+              <span className="text-[#8e9c8c] block text-[9px]">FRAME TIME</span>
+              <span className="font-bold text-[#c6a76a]">{telemetry.frameTimeMs} ms</span>
+            </div>
+            <div className="p-1 rounded bg-[#131914] border border-[#263528]">
+              <span className="text-[#8e9c8c] block text-[9px]">BUFFERS (GEO/TEX)</span>
+              <span className="font-bold text-[#dce9ca]">{telemetry.geometries} / {telemetry.textures}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 2. TIME OF DAY & LIGHTING CONTROLLER */}
+      <div className="pointer-events-auto bg-[#171d18]/94 border border-[#39443a] p-2.5 rounded-xl backdrop-blur-md shadow-2xl flex flex-col gap-2 min-w-[245px]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-[#c6a76a]">
             {isNight ? <Moon size={14} className="text-[#80a8d6]" /> : <Sun size={14} className="text-[#ffbe3b]" />}
@@ -111,13 +166,38 @@ export default function WorldHUD({ onCameraPreset, onFocusDistrict }: WorldHUDPr
                 : 'bg-[#202921] text-[#9da99b] border-[#313f32]'
             }`}
           >
-            <span>{isAutoCycle ? 'Auto' : 'Locked'}</span>
+            <span>{isAutoCycle ? 'Auto Cycle' : 'Locked'}</span>
           </button>
         </div>
       </div>
 
-      {/* DISTRICT QUICK TELEPORT NAVIGATION */}
-      <div className="pointer-events-auto bg-[#171d18]/92 border border-[#39443a] p-2 rounded-xl backdrop-blur-md shadow-2xl flex flex-col gap-1 min-w-[240px]">
+      {/* 3. CAMERA PERSPECTIVE PRESETS */}
+      <div className="pointer-events-auto bg-[#171d18]/94 border border-[#39443a] p-2 rounded-xl backdrop-blur-md shadow-2xl flex flex-col gap-1.5 min-w-[245px]">
+        <div className="flex items-center gap-1.5 px-1 text-[10px] font-mono tracking-wider text-[#c6a76a] uppercase">
+          <Camera size={12} />
+          <span>CAMERA ANGLES</span>
+        </div>
+        <div className="grid grid-cols-4 gap-1">
+          {[
+            { id: 'isometric', label: 'Iso', title: 'Classic Isometric View' },
+            { id: 'topDown', label: 'Top', title: 'Top-Down Tactical View' },
+            { id: 'panoramic', label: 'Pano', title: 'Cinematic Horizon View' },
+            { id: 'reset', label: 'Reset', title: 'Reset Default Perspective' },
+          ].map((btn) => (
+            <button
+              key={btn.id}
+              onClick={() => triggerCameraPreset(btn.id as CameraPreset)}
+              title={btn.title}
+              className="py-1 px-1.5 rounded-lg bg-[#202921] hover:bg-[#2e3b2f] border border-[#313f32] text-[11px] font-mono font-medium text-[#dce9ca] transition-colors text-center"
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. DISTRICT QUICK TELEPORT NAVIGATION */}
+      <div className="pointer-events-auto bg-[#171d18]/94 border border-[#39443a] p-2 rounded-xl backdrop-blur-md shadow-2xl flex flex-col gap-1 min-w-[245px]">
         <span className="text-[10px] font-mono tracking-wider text-[#c6a76a] uppercase px-1">
           TACTICAL DISTRICTS
         </span>
@@ -125,11 +205,7 @@ export default function WorldHUD({ onCameraPreset, onFocusDistrict }: WorldHUDPr
           {districts.map((d) => (
             <button
               key={d.id}
-              onClick={() => {
-                if (onFocusDistrict) {
-                  onFocusDistrict(d.id);
-                }
-              }}
+              onClick={() => handleDistrictClick(d.id)}
               className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-[#1f2821]/80 hover:bg-[#2a362d] border border-[#2f3d31] text-xs transition-colors text-left"
             >
               <div className="flex items-center gap-2">
@@ -144,4 +220,3 @@ export default function WorldHUD({ onCameraPreset, onFocusDistrict }: WorldHUDPr
     </div>
   );
 }
-
