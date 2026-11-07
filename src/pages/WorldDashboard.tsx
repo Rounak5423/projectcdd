@@ -1,24 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Users,
   TrendingUp,
   Leaf,
   ShieldCheck,
-  MapPin,
   Target,
-  ArrowUpRight,
+  ArrowRight,
   Hammer,
   GitBranch,
-  Sliders,
-  Play,
-  Sparkles,
-  Building2,
-  Calendar,
+  FlaskConical,
+  Coins,
   Crown,
   Trophy,
-  Rocket,
-  Coins,
-  CheckCircle2,
+  X,
+  Droplets,
+  Wheat,
+  Zap,
+  GraduationCap,
+  HeartPulse,
+  Flame,
+  Clock,
+  Sparkles,
+  BookOpen,
 } from 'lucide-react';
 import { useGameState } from '../context/GameStateContext';
 import { soundFx } from '../services/soundFx';
@@ -34,100 +37,174 @@ export default function WorldDashboard({
     civilization,
     resources,
     rates,
-    placedBuildings,
-    quests,
-    claimQuest,
+    missions,
+    claimMission,
+    chronicle,
+    economyReport,
+    eras,
   } = useGameState();
 
-  const stats = [
+  const [timelineFilter, setTimelineFilter] = useState<string>('all');
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  const { resources: resFlow, economy } = economyReport;
+
+  // 10 Civilisation Health Indicators as specified in Part 4
+  const healthIndicators = [
     {
-      label: 'TOTAL POPULATION',
-      value: `${(resources.population / 1000000).toFixed(3)}M`,
-      change: `+${rates.populationGrowthRate}%/cycle`,
-      icon: Users,
-      color: '#7ea376',
+      id: 'pop_growth',
+      name: 'Population Growth',
+      val: `+${rates.populationGrowthRate}%/yr`,
+      pct: 78,
+      status: 'Optimal',
+      color: '#8FA879',
+      desc: 'Steady demographic expansion sustained by housing availability.',
     },
     {
-      label: 'GROSS PRODUCT (GDP)',
-      value: `${resources.gdp}B Cr`,
-      change: `+${rates.gdpGrowthRate}%/cycle`,
-      icon: TrendingUp,
-      color: '#c29b38',
+      id: 'food_sec',
+      name: 'Food Security',
+      val: resFlow.foodNet >= 0 ? `+${resFlow.foodNet} /day` : `${resFlow.foodNet} /day`,
+      pct: resFlow.foodNet >= 0 ? 88 : 34,
+      status: resFlow.foodNet >= 0 ? 'Surplus' : 'Deficit',
+      color: resFlow.foodNet >= 0 ? '#C5A66A' : '#C87569',
+      desc: 'Nutritional yields from Bio-Domes and agrarian basin terraces.',
     },
     {
-      label: 'PUBLIC HAPPINESS',
-      value: `${resources.happiness} / 100`,
-      change: 'Harmonious Welfare',
-      icon: Leaf,
-      color: '#7ea376',
+      id: 'water_sec',
+      name: 'Water Security',
+      val: resFlow.waterNet >= 0 ? `+${resFlow.waterNet} kL/day` : `${resFlow.waterNet} kL/day`,
+      pct: resFlow.waterNet >= 0 ? 92 : 28,
+      status: resFlow.waterNet >= 0 ? 'Optimal' : 'Shortage',
+      color: resFlow.waterNet >= 0 ? '#6e98b3' : '#C87569',
+      desc: 'Aqueduct networks carrying filtered mountain basin water.',
     },
     {
-      label: 'CIVIC STABILITY',
-      value: `${resources.stability} / 100`,
-      change: 'High Order',
-      icon: ShieldCheck,
-      color: '#5b87a8',
+      id: 'energy_sec',
+      name: 'Energy Security',
+      val: resFlow.energyNetMW >= 0 ? `+${resFlow.energyNetMW} MW` : `${resFlow.energyNetMW} MW`,
+      pct: resFlow.energyNetMW >= 0 ? 84 : 40,
+      status: resFlow.energyNetMW >= 0 ? 'Stable' : 'Strain',
+      color: resFlow.energyNetMW >= 0 ? '#D6A75E' : '#C87569',
+      desc: 'Solar concentrators and kinetic wind turbines grid balance.',
+    },
+    {
+      id: 'employment',
+      name: 'Workforce Participation',
+      val: `${resFlow.employmentRatePercent}%`,
+      pct: resFlow.employmentRatePercent,
+      status: resFlow.employmentRatePercent > 90 ? 'High' : 'Moderate',
+      color: '#8FA879',
+      desc: 'Active employment across civic, agrarian, and industrial sectors.',
+    },
+    {
+      id: 'education',
+      name: 'Education Index',
+      val: `${resources.educationIndex}%`,
+      pct: resources.educationIndex,
+      status: 'Advanced',
+      color: '#8FA879',
+      desc: 'Academy literacy and specialized cognitive research training.',
+    },
+    {
+      id: 'healthcare',
+      name: 'Public Health Index',
+      val: `${resources.health}%`,
+      pct: resources.health,
+      status: resources.health > 80 ? 'Optimal' : 'Distressed',
+      color: resources.health > 80 ? '#8FA879' : '#D6A75E',
+      desc: 'Hospital clinical access, sanitation, and longevity metrics.',
+    },
+    {
+      id: 'environment',
+      name: 'Biosphere Purity',
+      val: `${resources.environmentalIndex}%`,
+      pct: resources.environmentalIndex,
+      status: resources.environmentalIndex > 80 ? 'Pristine' : 'Caution',
+      color: '#8FA879',
+      desc: 'River clarity, air filtration, and ecological sanctuary balance.',
+    },
+    {
+      id: 'stability',
+      name: 'Civic & Social Order',
+      val: `${resources.stability}/100`,
+      pct: resources.stability,
+      status: resources.stability > 85 ? 'Harmonious' : 'Tense',
+      color: '#8FA879',
+      desc: 'Trust in High Council decrees and low civil discontent.',
+    },
+    {
+      id: 'economy_perf',
+      name: 'Economic Output',
+      val: `${resources.gdp}B Cr`,
+      pct: 82,
+      status: 'Prosperous',
+      color: '#C5A66A',
+      desc: 'Aggregate gross product generated by trade corridors and industry.',
     },
   ];
 
-  const victoryTracks = [
-    { name: 'Technological Ascension', progress: 54, icon: Rocket, color: '#5b87a8', req: 'Research Quantum AI & Erect Astronomical Academy' },
-    { name: 'Commercial Sovereign', progress: 68, icon: Coins, color: '#c29b38', req: 'Reach 5,000 GRC Treasury & 3 Trade Corridors' },
-    { name: 'Biosphere Eden', progress: 82, icon: Leaf, color: '#7ea376', req: 'Maintain 90% Biosphere Purity for 5 Years' },
-  ];
+  const filteredChronicle = chronicle.filter((item) => {
+    if (timelineFilter === 'all') return true;
+    return item.category.toLowerCase() === timelineFilter.toLowerCase();
+  });
+
+  const selectedEvent = chronicle.find((e) => e.id === selectedEventId);
 
   return (
-    <div className="p-5 lg:p-7 space-y-5 overflow-y-auto custom-scrollbar text-[#ede8dc] max-w-7xl mx-auto">
-      {/* ================= LEADER PROFILE & SETTLEMENT BANNER ================= */}
-      <div className="p-4 rounded-lg bg-[#161c20] border border-[#2b353b] shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          {/* Leader Emblem */}
-          <div className="relative shrink-0">
-            <div className="w-13 h-13 rounded-md bg-[#1f262c] border border-[#8f7742] flex items-center justify-center text-[#c29b38] shadow-sm">
-              <Crown size={24} />
-            </div>
-            <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded bg-[#101416] border border-[#8f7742] text-[9px] font-mono font-bold text-[#dfb74a]">
-              L{civilization.level}
-            </span>
+    <div className="p-5 lg:p-7 space-y-6 overflow-y-auto custom-scrollbar text-[#EAE3D2] max-w-7xl mx-auto">
+      {/* ================= TOP CIVILISATION BANNER ================= */}
+      <div className="p-5 rounded-lg bg-[#202820] border border-[#2B372C] shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-[#C5A66A]" />
+
+        <div className="flex items-center gap-4">
+          {/* Imperial Crest */}
+          <div className="w-14 h-14 rounded bg-[#171D18] border border-[#C5A66A] flex items-center justify-center text-[#C5A66A] shadow-md shrink-0">
+            <Crown size={28} />
           </div>
 
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg lg:text-xl font-bold text-[#ede8dc] tracking-wide">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl lg:text-2xl font-bold font-cinzel text-[#EAE3D2] tracking-wider">
                 {civilization.name}
               </h1>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1f272e] text-[#aba393] border border-[#34424d]">
-                {civilization.era} Era
+              <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[#171D18] text-[#C5A66A] border border-[#C5A66A]/40 uppercase tracking-wider">
+                {civilization.era}
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#17231B] text-[#8FA879] border border-[#3D4F3F]">
+                Level {civilization.level} Imperial Core
               </span>
             </div>
-            <p className="text-xs text-[#8a8376] mt-0.5">
-              Leader: <span className="text-[#ede8dc] font-semibold">{civilization.leaderTitle}</span> · {civilization.governanceModel} on {civilization.planet}
+            <p className="text-xs text-[#A5AD9D] mt-1 font-garamond italic text-sm">
+              Reigning Title: <span className="text-[#EAE3D2] font-semibold not-italic font-sans text-xs">{civilization.leaderTitle}</span> · Sovereign {civilization.governanceModel} founded Year {civilization.foundingYear.toString().padStart(3, '0')}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Level XP Progress */}
-          <div className="bg-[#101416] p-3 rounded-md border border-[#232b30] lg:w-72 space-y-1.5">
+        {/* Command XP & Progression Gauge */}
+        <div className="flex items-center gap-4">
+          <div className="bg-[#171D18] p-3.5 rounded border border-[#2B372C] lg:w-80 space-y-2">
             <div className="flex justify-between text-xs font-mono">
-              <span className="text-[#8a8376] text-[11px]">Command XP</span>
-              <span className="text-[#dfb74a] font-bold text-[11px]">
+              <span className="text-[#A5AD9D] text-[11px] uppercase tracking-wider">Civilisation XP</span>
+              <span className="text-[#C5A66A] font-bold text-[11px]">
                 {civilization.xp} / {civilization.xpToNextLevel} XP
               </span>
             </div>
 
-            <div className="h-2 rounded-full bg-[#1b2227] overflow-hidden p-0.5">
+            <div className="h-2 rounded-full bg-[#121713] overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-[#7ea376] to-[#c29b38] rounded-full transition-all duration-300"
+                className="h-full bg-gradient-to-r from-[#8FA879] via-[#C5A66A] to-[#E4C88A] rounded-full transition-all duration-300"
                 style={{
                   width: `${Math.min(100, (civilization.xp / civilization.xpToNextLevel) * 100)}%`,
                 }}
               />
             </div>
 
-            <p className="text-[10px] font-mono text-[#7ea376]">
-              ★ Next Level Unlock: Tier {civilization.level + 1} Arcology & Clean Fusion
-            </p>
+            <div className="flex justify-between items-center text-[10px] font-mono text-[#8FA879]">
+              <span>★ Next Unlock: Tier {civilization.level + 1} Arcology Architecture</span>
+              <span className="text-[#C5A66A] font-bold">
+                {Math.round((civilization.xp / civilization.xpToNextLevel) * 100)}%
+              </span>
+            </div>
           </div>
 
           {onClose && (
@@ -136,243 +213,252 @@ export default function WorldDashboard({
                 soundFx.playClick();
                 onClose();
               }}
-              className="px-3 py-2 rounded-md bg-[#222b31] hover:bg-[#c94c4c] border border-[#3d4b55] text-xs font-bold text-[#ede8dc] transition-colors flex items-center gap-1.5 shrink-0 shadow-md"
+              className="p-2.5 rounded bg-[#171D18] hover:bg-[#283228] border border-[#2B372C] text-[#A5AD9D] hover:text-[#C87569] transition-colors"
               title="Return to 3D World Viewport (ESC)"
             >
-              <span>🌲</span>
-              <span className="hidden sm:inline">3D World [ESC]</span>
+              <X size={20} />
             </button>
           )}
         </div>
       </div>
 
-      {/* ================= 4 CORE RESOURCE TILES ================= */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.label}
-              className="p-3.5 rounded-lg bg-[#161c20] border border-[#2b353b] hover:border-[#445663] transition-all shadow-xs"
-            >
-              <div className="flex justify-between items-center">
-                <span className="text-[9px] font-mono tracking-wider text-[#8a8376]">{stat.label}</span>
-                <div
-                  className="w-6 h-6 rounded flex items-center justify-center"
-                  style={{ backgroundColor: `${stat.color}15` }}
-                >
-                  <Icon size={13} style={{ color: stat.color }} />
-                </div>
-              </div>
-              <p className="text-xl font-bold text-[#ede8dc] mt-1.5 tracking-tight font-mono">{stat.value}</p>
-              <p className="text-[10px] text-[#7ea376] mt-0.5 font-mono">{stat.change}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ================= ACTIVE CAMPAIGN QUESTS & BOUNTIES ================= */}
-      <div className="p-4 rounded-lg bg-[#161c20] border border-[#2b353b] space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-[#252f36]">
-          <div className="flex items-center gap-2">
-            <Trophy size={15} className="text-[#c29b38]" />
-            <h2 className="text-xs font-bold text-[#ede8dc] uppercase tracking-wider">
-              Settlement Quests & Directives
+      {/* ================= SECTION 1: CIVILISATION HEALTH MATRIX ================= */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold font-cinzel text-[#EAE3D2] uppercase tracking-wider">
+              Civilisation Health Matrix
             </h2>
+            <p className="text-xs text-[#A5AD9D]">
+              Real-time multi-dimensional assessment of social welfare, ecological purity, and economic security.
+            </p>
           </div>
-          <span className="text-[11px] font-mono text-[#dfb74a]">
-            Accomplish directives to earn GRC & XP
+          <span className="text-[10px] font-mono text-[#C5A66A] bg-[#202820] px-2.5 py-1 rounded border border-[#2B372C] uppercase font-bold">
+            10 Authoritative Sectors
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {quests.map((q) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {healthIndicators.map((ind) => (
             <div
-              key={q.id}
-              className={`p-3 rounded-md border flex flex-col justify-between transition-all ${
-                q.isCompleted && !q.isClaimed
-                  ? 'bg-[#1b221a] border-[#8f7742] shadow-sm'
-                  : q.isClaimed
-                  ? 'bg-[#121618] border-[#222a30] opacity-60'
-                  : 'bg-[#14191d] border-[#252f36]'
-              }`}
+              key={ind.id}
+              className="p-3 rounded bg-[#202820] border border-[#2B372C] hover:border-[#3D4F3F] transition-all space-y-2 group"
             >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-mono font-bold uppercase text-[#8a8376]">
-                    {q.category}
-                  </span>
-                  <span className="text-[10px] font-mono font-bold text-[#dfb74a]">
-                    +{q.rewardGrc} GRC · +{q.rewardXp} XP
-                  </span>
-                </div>
-
-                <h3 className="text-xs font-bold text-[#ede8dc] mt-1">{q.title}</h3>
-                <p className="text-[11px] text-[#8a8376] mt-0.5">{q.target}</p>
-
-                {/* Progress bar */}
-                <div className="mt-2.5 space-y-1">
-                  <div className="flex justify-between text-[9px] font-mono">
-                    <span className="text-[#8a8376]">Progress</span>
-                    <span className="text-[#7ea376] font-bold">
-                      {q.progress} / {q.maxProgress}
-                    </span>
-                  </div>
-                  <div className="h-1 rounded-full bg-[#0e1214] overflow-hidden">
-                    <div
-                      className="h-full bg-[#7ea376] rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, (q.progress / q.maxProgress) * 100)}%` }}
-                    />
-                  </div>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-[#A5AD9D] truncate font-medium">
+                  {ind.name}
+                </span>
+                <span
+                  className="text-[9px] font-mono px-1.5 py-0.2 rounded font-bold uppercase"
+                  style={{ backgroundColor: `${ind.color}15`, color: ind.color, border: `1px solid ${ind.color}35` }}
+                >
+                  {ind.status}
+                </span>
               </div>
 
-              {/* Action Button */}
-              <div className="mt-3 pt-2 border-t border-[#232b31] flex items-center justify-between">
-                {q.isClaimed ? (
-                  <span className="text-[11px] font-mono font-bold text-[#8a8376] flex items-center gap-1">
-                    <CheckCircle2 size={12} className="text-[#7ea376]" /> Claimed
-                  </span>
-                ) : q.isCompleted ? (
-                  <button
-                    onClick={() => claimQuest(q.id)}
-                    className="w-full py-1.5 rounded btn-game-gold text-xs font-bold flex items-center justify-center gap-1 shadow-xs"
-                  >
-                    <Sparkles size={12} />
-                    <span>CLAIM DIRECTIVE (+{q.rewardGrc} GRC)</span>
-                  </button>
-                ) : (
-                  <span className="text-[10px] font-mono text-[#8a8376]">In Progress...</span>
-                )}
+              <div className="text-sm font-bold font-mono text-[#EAE3D2]">
+                {ind.val}
               </div>
+
+              <div className="h-1 rounded-full bg-[#171D18] overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{ width: `${ind.pct}%`, backgroundColor: ind.color }}
+                />
+              </div>
+
+              <p className="text-[10px] text-[#7A8473] leading-snug line-clamp-2">
+                {ind.desc}
+              </p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ================= 3D INTERACTIVE SETTLEMENT PREVIEW ================= */}
-      <section className="rounded-lg overflow-hidden bg-[#161c20] border border-[#2b353b] shadow-md group">
-        <div className="p-3 border-b border-[#252f36] flex justify-between items-center bg-[#121619]">
+      {/* ================= SECTION 2: HORIZONTAL HISTORICAL TIMELINE ================= */}
+      <div className="p-4 rounded-lg bg-[#202820] border border-[#2B372C] space-y-3 shadow-md">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#7ea376] animate-pulse" />
-            <h2 className="text-xs font-bold tracking-wider text-[#ede8dc] uppercase">
-              3D Settlement Territory ({placedBuildings.length} Municipal Facilities)
-            </h2>
+            <BookOpen size={16} className="text-[#C5A66A]" />
+            <h3 className="text-xs font-bold font-cinzel text-[#EAE3D2] uppercase tracking-wider">
+              Chronicles of Aurora: Historical Timeline
+            </h3>
           </div>
 
-          <button
-            onClick={() => {
-              soundFx.playClick();
-              onNavigate('World Explorer');
-            }}
-            className="text-xs font-semibold text-[#dfb74a] hover:text-[#ffffff] flex items-center gap-1 transition-colors"
-          >
-            <span>Launch Aerial Strategy Viewport</span>
-            <ArrowUpRight size={13} />
-          </button>
+          <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar text-[10px] font-mono">
+            {['all', 'founding', 'milestone', 'economic', 'environmental', 'policy'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setTimelineFilter(cat)}
+                className={`px-2 py-0.5 rounded capitalize transition-colors ${
+                  timelineFilter === cat
+                    ? 'bg-[#C5A66A] text-[#121713] font-bold'
+                    : 'bg-[#171D18] text-[#A5AD9D] hover:text-[#EAE3D2] border border-[#2B372C]'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div
-          onClick={() => {
-            soundFx.playClick();
-            onNavigate('World Explorer');
-          }}
-          className="relative min-h-[220px] flex items-center justify-center cursor-pointer overflow-hidden p-6 text-center select-none bg-gradient-to-br from-[#1d272c] via-[#161e22] to-[#12181a]"
-        >
-          <div className="relative z-10 max-w-md px-6 py-5 rounded-lg bg-[#14181b]/95 border border-[#3d4b55] backdrop-blur-md shadow-xl group-hover:border-[#8f7742] transition-colors">
-            <div className="w-10 h-10 rounded-md bg-[#1f272e] border border-[#8f7742] flex items-center justify-center mx-auto mb-2.5 text-[#c29b38]">
-              <MapPin size={20} />
+        {/* Timeline Horizontal Ribbon */}
+        <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-2 pt-1">
+          {filteredChronicle.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => setSelectedEventId(item.id === selectedEventId ? null : item.id)}
+              className={`p-3 rounded border shrink-0 w-64 transition-all cursor-pointer relative ${
+                selectedEventId === item.id
+                  ? 'bg-[#1C231E] border-[#C5A66A] shadow-md ring-1 ring-[#C5A66A]/30'
+                  : 'bg-[#171D18] border-[#2B372C] hover:border-[#3D4F3F]'
+              }`}
+            >
+              <div className="flex items-center justify-between text-[10px] font-mono text-[#7A8473] mb-1">
+                <span>Yr {item.year.toString().padStart(3, '0')}, D{item.day}</span>
+                <span className="text-[#C5A66A] font-bold uppercase">{item.category}</span>
+              </div>
+              <h4 className="text-xs font-bold font-cinzel text-[#EAE3D2] line-clamp-1 mb-1">
+                {item.title}
+              </h4>
+              <p className="text-[11px] text-[#A5AD9D] line-clamp-2 leading-relaxed">
+                {item.description}
+              </p>
+              <div className="mt-2 pt-1.5 border-t border-[#2B372C] text-[10px] text-[#8FA879] truncate">
+                ✓ {item.impactSummary}
+              </div>
             </div>
+          ))}
+        </div>
 
-            <h3 className="text-base font-bold text-[#ede8dc] tracking-wide">
-              Explore Living 3D Settlement
-            </h3>
-
-            <p className="text-xs text-[#8a8376] mt-1.5 leading-relaxed">
-              Inspect cobblestone streets, agricultural windmills, and industrial mills with realistic daylight shadows and dynamic camera controls.
-            </p>
-
-            <button className="mt-3.5 px-5 py-2 rounded btn-game-gold text-xs font-bold inline-flex items-center gap-1.5 shadow-md">
-              <Play size={12} className="fill-current" />
-              <span>ENTER 3D WORLD EXPLORER</span>
+        {/* Event Detail Inspector if selected */}
+        {selectedEvent && (
+          <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/40 flex items-start justify-between gap-3 animate-in fade-in duration-150">
+            <div className="text-xs space-y-1">
+              <span className="text-[10px] font-mono text-[#C5A66A] uppercase font-bold">
+                Detailed Historical Event Record · Year {selectedEvent.year}, Day {selectedEvent.day} ({selectedEvent.era})
+              </span>
+              <h4 className="text-sm font-bold font-cinzel text-[#EAE3D2]">{selectedEvent.title}</h4>
+              <p className="text-[#A5AD9D] leading-relaxed">{selectedEvent.description}</p>
+              <p className="text-[#8FA879] font-mono text-[11px]">Impact: {selectedEvent.impactSummary}</p>
+            </div>
+            <button
+              onClick={() => setSelectedEventId(null)}
+              className="p-1 rounded text-[#7A8473] hover:text-[#EAE3D2]"
+            >
+              <X size={14} />
             </button>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
 
-      {/* ================= VICTORY GOALS & QUICK COMMANDS ================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Victory Paths */}
-        <div className="p-4 rounded-lg bg-[#161c20] border border-[#2b353b] space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-[#252f36]">
-            <span className="text-xs font-bold text-[#ede8dc] uppercase tracking-wider">
-              Civilisation Campaign Milestones
-            </span>
-            <Rocket size={14} className="text-[#5b87a8]" />
+      {/* ================= SECTION 3: MISSIONS, PROGRESSION & COMMAND DECK ================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Active Mandates & Missions */}
+        <div className="lg:col-span-2 p-4 rounded-lg bg-[#202820] border border-[#2B372C] space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Target size={16} className="text-[#C5A66A]" />
+              <h3 className="text-xs font-bold font-cinzel text-[#EAE3D2] uppercase tracking-wider">
+                Active Civil Directives & Missions
+              </h3>
+            </div>
+            <button
+              onClick={() => onNavigate('Missions & Challenges')}
+              className="text-xs text-[#C5A66A] hover:text-[#EAE3D2] flex items-center gap-1 font-mono transition-colors"
+            >
+              <span>All Missions</span>
+              <ArrowRight size={12} />
+            </button>
           </div>
 
           <div className="space-y-2.5">
-            {victoryTracks.map((v) => {
-              const Icon = v.icon;
-              return (
-                <div key={v.name} className="space-y-1 p-2.5 rounded bg-[#101416] border border-[#22292f]">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-1.5 font-semibold text-[#ede8dc]">
-                      <Icon size={12} style={{ color: v.color }} />
-                      {v.name}
+            {missions.slice(0, 3).map((msn) => (
+              <div
+                key={msn.id}
+                className="p-3 rounded bg-[#171D18] border border-[#2B372C] flex items-center justify-between gap-3"
+              >
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#202820] text-[#C5A66A] border border-[#2B372C] uppercase font-bold">
+                      {msn.category}
                     </span>
-                    <span className="font-mono font-bold text-[11px]" style={{ color: v.color }}>
-                      {v.progress}%
-                    </span>
+                    <h4 className="text-xs font-bold font-cinzel text-[#EAE3D2] truncate">
+                      {msn.title}
+                    </h4>
                   </div>
-
-                  <div className="h-1.5 rounded-full bg-[#1b2227] overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{ width: `${v.progress}%`, backgroundColor: v.color }}
-                    />
+                  <p className="text-[11px] text-[#A5AD9D] truncate">
+                    {msn.description}
+                  </p>
+                  <div className="flex items-center gap-3 text-[10px] font-mono text-[#7A8473]">
+                    <span>Criteria: {msn.requirements}</span>
+                    <span className="text-[#C5A66A]">+{msn.rewardCrc} CRC</span>
+                    <span className="text-[#8FA879]">+{msn.rewardXp} XP</span>
                   </div>
-
-                  <p className="text-[10px] text-[#8a8376] font-mono">{v.req}</p>
                 </div>
-              );
-            })}
+
+                <div className="shrink-0">
+                  {msn.status === 'Completed' ? (
+                    <button
+                      onClick={() => claimMission(msn.id)}
+                      className="btn-civ-gold px-3 py-1 rounded text-xs animate-pulse"
+                    >
+                      Claim
+                    </button>
+                  ) : msn.status === 'Claimed' ? (
+                    <span className="text-[10px] font-mono text-[#8FA879] font-bold px-2 py-1 rounded bg-[#17231B] border border-[#3D4F3F]">
+                      Ratified
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono text-[#A5AD9D] px-2 py-1 rounded bg-[#202820] border border-[#2B372C]">
+                      In Progress
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Strategic Quick Actions */}
-        <div className="p-4 rounded-lg bg-[#161c20] border border-[#2b353b] space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-[#252f36]">
-            <span className="text-xs font-bold text-[#ede8dc] uppercase tracking-wider">
-              Executive Directives
-            </span>
-            <Sparkles size={13} className="text-[#c29b38]" />
+        {/* Strategic Command Deck Shortcuts */}
+        <div className="p-4 rounded-lg bg-[#202820] border border-[#2B372C] space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-[#C5A66A]" />
+            <h3 className="text-xs font-bold font-cinzel text-[#EAE3D2] uppercase tracking-wider">
+              Imperial Command Deck
+            </h3>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-2">
             {[
-              { label: 'Erect Architecture', icon: Hammer, target: 'Infrastructure', color: '#c29b38', desc: 'Construct timber mills & municipal works' },
-              { label: 'Technology Tree', icon: GitBranch, target: 'Technology', color: '#7ea376', desc: 'Advance paradigms & Eureka moments' },
-              { label: 'Policy Cabinet', icon: Sliders, target: 'Policy Laboratory', color: '#5b87a8', desc: 'Slot civics & calibrate social edicts' },
-              { label: 'Future Simulator', icon: Sparkles, target: 'Future Simulator', color: '#aa9b8d', desc: 'Model 50-year settlement outcomes' },
+              { label: 'Population Intelligence', page: 'Population', icon: Users, desc: 'Inspect citizen registry and demographic health' },
+              { label: 'Infrastructure Catalogue', page: 'Infrastructure', icon: Hammer, desc: 'Commission new buildings and expand the civic grid' },
+              { label: 'Technology Tree', page: 'Technology Tree', icon: GitBranch, desc: 'Direct RP research toward epochal breakthroughs' },
+              { label: 'Policy Laboratory', page: 'Policy Laboratory', icon: FlaskConical, desc: 'Draft legislative decrees and test civic covenants' },
+              { label: 'Civilisation Chronicle', page: 'Civilisation Chronicle', icon: BookOpen, desc: 'Consult the historical archive of Aurora Prime' },
             ].map((btn) => {
               const Icon = btn.icon;
               return (
                 <button
-                  key={btn.label}
+                  key={btn.page}
                   onClick={() => {
                     soundFx.playClick();
-                    onNavigate(btn.target);
+                    onNavigate(btn.page);
                   }}
-                  className="p-3 rounded-md bg-[#101416] hover:bg-[#1a2126] border border-[#22292f] hover:border-[#3d4b55] text-left transition-all flex flex-col justify-between group"
+                  className="w-full p-2.5 rounded bg-[#171D18] hover:bg-[#283228] border border-[#2B372C] hover:border-[#C5A66A]/40 text-left transition-all group flex items-center justify-between"
                 >
-                  <Icon size={16} style={{ color: btn.color }} />
-                  <div>
-                    <span className="text-xs font-semibold text-[#ede8dc] group-hover:text-[#ffffff] transition-colors mt-1.5 block">
-                      {btn.label}
-                    </span>
-                    <span className="text-[10px] text-[#8a8376] line-clamp-1 mt-0.5">{btn.desc}</span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon size={16} className="text-[#C5A66A] shrink-0" />
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-[#EAE3D2] group-hover:text-[#C5A66A] transition-colors block font-cinzel truncate">
+                        {btn.label}
+                      </span>
+                      <span className="text-[10px] text-[#7A8473] truncate block">
+                        {btn.desc}
+                      </span>
+                    </div>
                   </div>
+                  <ArrowRight size={13} className="text-[#7A8473] group-hover:text-[#C5A66A] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
                 </button>
               );
             })}

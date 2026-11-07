@@ -1,35 +1,111 @@
 @import "tailwindcss";
 
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: #ede8dc;
-  background: #111416;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #EAE3D2;
+  background: #171D18;
 
-  /* Natural Strategy Game Color System (Anno 1800 / Manor Lords / Civ VII) */
-  --bg-main: #101315;
-  --bg-surface: #161b1e;
-  --bg-surface-elevated: #1e2428;
-  --bg-slate: #242b30;
-  
-  --border-subtle: #293238;
-  --border-strong: #3d4a52;
-  --border-brass: #8f7742;
+  /* Official CIVORA Brand Palette */
+  --civ-bg-primary: #171D18;
+  --civ-bg-secondary: #202820;
+  --civ-bg-elevated: #283228;
+  --civ-bg-forest: #17231B;
+  --civ-bg-darkest: #0E130F;
 
-  --text-primary: #ede8dc;
-  --text-secondary: #aba393;
-  --text-muted: #797365;
+  --civ-gold-antique: #C5A66A;
+  --civ-gold-muted: #9F8859;
+  --civ-gold-bright: #E4C88A;
 
-  --accent-forest: #3c5938;
-  --accent-forest-hover: #4b6f46;
-  --accent-olive: #687d55;
-  --accent-earth: #80684f;
-  
-  --brass-gold: #c29b38;
-  --brass-light: #dfb74a;
-  --brass-dark: #7a6126;
+  --civ-ivory: #EAE3D2;
+  --civ-parchment: #D8CBAA;
+  --civ-text-secondary: #A5AD9D;
+  --civ-text-muted: #7A8473;
 
-  --danger-crimson: #c94c4c;
-  --sky-blue: #5b87a8;
+  --civ-warning: #D6A75E;
+  --civ-danger: #C87569;
+  --civ-success: #8FA879;
+
+  --civ-border-subtle: #2B372C;
+  --civ-border-gold: rgba(197, 166, 106, 0.35);
+  --civ-border-strong: #3D4F3F;
+}
+
+/* Typography Utility Classes */
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.font-garamond {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+.font-inter {
+  font-family: 'Inter', sans-serif;
+}
+
+/* ================= HISTORICAL STRATEGY GAME PANELS ================= */
+
+/* Stone Surface Panel */
+.panel-civora {
+  background: #202820;
+  border: 1px solid #2B372C;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+.panel-civora-elevated {
+  background: #283228;
+  border: 1px solid #3D4F3F;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+/* Parchment Historical Manuscript Card */
+.parchment-card {
+  background: #1C231E;
+  background-image: radial-gradient(circle at 50% 50%, rgba(216, 203, 170, 0.03) 0%, transparent 80%);
+  border: 1px solid #364438;
+  border-left: 3px solid #C5A66A;
+  border-radius: 4px;
+}
+
+/* Antique Gold Divider Line */
+.gold-separator {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #C5A66A 50%, transparent 100%);
+  opacity: 0.45;
+}
+
+/* Tactile Strategy Buttons */
+.btn-civ-gold {
+  background: linear-gradient(180deg, #C5A66A 0%, #9F8859 100%);
+  color: #121713;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border: 1px solid #E4C88A;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 0.15s ease-out;
+}
+
+.btn-civ-gold:hover {
+  background: linear-gradient(180deg, #D4B67A 0%, #AF9765 100%);
+  border-color: #F0D598;
+  box-shadow: 0 4px 12px rgba(197, 166, 106, 0.25);
+}
+
+.btn-civ-stone {
+  background: #202820;
+  color: #EAE3D2;
+  border: 1px solid #2B372C;
+  border-radius: 4px;
+  transition: all 0.15s ease-out;
+}
+
+.btn-civ-stone:hover {
+  background: #283228;
+  border-color: #C5A66A;
+  color: #FFFFFF;
 }
 
 * {

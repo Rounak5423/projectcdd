@@ -21,6 +21,9 @@ import {
   CityMilestone,
   ZonedTile,
   UtilityStats,
+  CivoraMission,
+  ChronicleEntry,
+  ResearchTransaction,
 } from '../types/game';
 import {
   initialCivilization,
@@ -37,6 +40,13 @@ import {
   initialExperiments,
   initialAchievements,
   initialEvents,
+  initialChronicleEntries,
+  initialMissions,
+  initialTransactions,
+  historicalErasList,
+  playerTitlesList,
+  HistoricalEraDefinition,
+  PlayerTitle,
 } from '../data/initialGameData';
 import { historicalTwinProtests } from '../data/protestData';
 import {
@@ -134,6 +144,13 @@ interface GameStateContextType {
   events: GameEvent[];
   economyReport: CitySimulationReport;
   quests: GameQuest[];
+  missions: CivoraMission[];
+  claimMission: (missionId: string) => void;
+  chronicle: ChronicleEntry[];
+  transactions: ResearchTransaction[];
+  eras: HistoricalEraDefinition[];
+  playerTitles: PlayerTitle[];
+  claimTitle: (titleId: string) => void;
   toasts: GameToast[];
   levelUpCelebration: { level: number; era: string; perks: string[] } | null;
   
@@ -238,6 +255,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [achievements, setAchievements] = useState<Achievement[]>(initialAchievements);
   const [events, setEvents] = useState<GameEvent[]>(initialEvents);
   const [quests, setQuests] = useState<GameQuest[]>(initialQuests);
+  const [missions, setMissions] = useState<CivoraMission[]>(initialMissions);
+  const [chronicle, setChronicle] = useState<ChronicleEntry[]>(initialChronicleEntries);
+  const [transactions, setTransactions] = useState<ResearchTransaction[]>(initialTransactions);
+  const [eras, setEras] = useState<HistoricalEraDefinition[]>(historicalErasList);
+  const [playerTitles, setPlayerTitles] = useState<PlayerTitle[]>(playerTitlesList);
   const [toasts, setToasts] = useState<GameToast[]>([]);
   const [levelUpCelebration, setLevelUpCelebration] = useState<{
     level: number;
@@ -261,6 +283,67 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const dismissLevelUp = useCallback(() => {
     setLevelUpCelebration(null);
   }, []);
+
+  const claimMission = useCallback((missionId: string) => {
+    setMissions((prev) => {
+      const target = prev.find((m) => m.id === missionId);
+      if (!target || target.status !== 'Completed') return prev;
+
+      setResources((r) => ({
+        ...r,
+        grc: r.grc + target.rewardCrc,
+      }));
+
+      setCivilization((c) => ({
+        ...c,
+        xp: c.xp + target.rewardXp,
+      }));
+
+      setTransactions((txs) => [
+        {
+          id: `tx-${Date.now()}`,
+          timestamp: `Year ${civilization.currentYear.toString().padStart(3, '0')}, Day ${civilization.currentDay.toString().padStart(3, '0')}`,
+          simYear: civilization.currentYear,
+          simDay: civilization.currentDay,
+          type: 'Reward',
+          description: `Mission Claimed: ${target.title}`,
+          amount: target.rewardCrc,
+          balanceAfter: resources.grc + target.rewardCrc,
+          status: 'Confirmed',
+        },
+        ...txs,
+      ]);
+
+      soundFx.playRewardClaim();
+      triggerToast({
+        type: 'reward',
+        title: `MISSION REWARD CLAIMED`,
+        subtitle: `+${target.rewardCrc} CRC & +${target.rewardXp} Civilisation XP`,
+      });
+
+      return prev.map((m) => (m.id === missionId ? { ...m, status: 'Claimed' as const } : m));
+    });
+  }, [civilization.currentYear, civilization.currentDay, resources.grc, triggerToast]);
+
+  const claimTitle = useCallback((titleId: string) => {
+    setPlayerTitles((prev) =>
+      prev.map((t) =>
+        t.id === titleId
+          ? {
+              ...t,
+              isUnlocked: true,
+              unlockedAt: `Year ${civilization.currentYear.toString().padStart(3, '0')}, Day ${civilization.currentDay.toString().padStart(3, '0')}`,
+            }
+          : t
+      )
+    );
+    soundFx.playRewardClaim();
+    triggerToast({
+      type: 'levelup',
+      title: 'TITLE CONFERRED',
+      subtitle: `Honoured by the High Council of Civora`,
+    });
+  }, [civilization.currentYear, civilization.currentDay, triggerToast]);
   
   const [taxRate, setTaxRate] = useState<number>(18); // %
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -1544,6 +1627,13 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         claimAchievement,
         quests,
         claimQuest,
+        missions,
+        claimMission,
+        chronicle,
+        transactions,
+        eras,
+        playerTitles,
+        claimTitle,
         triggerEureka,
         toasts,
         triggerToast,

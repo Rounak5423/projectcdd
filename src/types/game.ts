@@ -125,7 +125,8 @@ export type BuildingCategory =
   | 'healthcare'
   | 'energy'
   | 'government'
-  | 'environment';
+  | 'environment'
+  | 'transportation';
 
 export interface BuildingCatalogItem {
   id: string;
@@ -236,12 +237,14 @@ export type TechEra = 'Foundational' | 'Industrial' | 'Digital' | 'Synthetic / A
 export type TechCategory =
   | 'Agriculture'
   | 'Medicine'
+  | 'Engineering'
   | 'Artificial Intelligence'
   | 'Robotics'
   | 'Energy'
   | 'Transportation'
   | 'Education'
-  | 'Environmental Science';
+  | 'Environmental Science'
+  | 'Governance';
 
 export interface Technology {
   id: string;
@@ -411,6 +414,79 @@ export interface ProtestEvent {
   districtId: string;
   districtName: string;
   options: ProtestOption[];
+}
+
+// ================= AAA PROGRESSION, CHRONICLE & RESEARCH WALLET =================
+
+export type HistoricalEra =
+  | 'Settlement Age'
+  | 'Agricultural Age'
+  | 'Industrial Age'
+  | 'Knowledge Age'
+  | 'Digital Age'
+  | 'Advanced Civilisation';
+
+export type MissionCategory =
+  | 'Founding'
+  | 'Population'
+  | 'Infrastructure'
+  | 'Economic'
+  | 'Research'
+  | 'Environmental'
+  | 'Technology'
+  | 'Long-term';
+
+export type MissionStatus = 'Available' | 'In Progress' | 'Completed' | 'Claimed' | 'Expired';
+
+export interface CivoraMission {
+  id: string;
+  title: string;
+  category: MissionCategory;
+  description: string;
+  requirements: string;
+  progress: number;
+  maxProgress: number;
+  rewardCrc: number;
+  rewardXp: number;
+  status: MissionStatus;
+  expiresInDays?: number;
+}
+
+export type ChronicleCategory =
+  | 'Founding'
+  | 'Milestone'
+  | 'Breakthrough'
+  | 'Policy'
+  | 'Economic'
+  | 'Environmental'
+  | 'Crisis'
+  | 'Ascension';
+
+export interface ChronicleEntry {
+  id: string;
+  year: number;
+  day: number;
+  era: string;
+  title: string;
+  category: ChronicleCategory;
+  description: string;
+  sealUrl?: string;
+  relatedDistrict?: string;
+  relatedPolicy?: string;
+  relatedTech?: string;
+  impactSummary: string;
+}
+
+export interface ResearchTransaction {
+  id: string;
+  timestamp: string;
+  simYear: number;
+  simDay: number;
+  type: 'Reward' | 'Experiment' | 'Scenario' | 'Grant' | 'Facility Upgrade';
+  description: string;
+  amount: number; // positive = credit, negative = debit
+  balanceAfter: number;
+  status: 'Confirmed' | 'Pending' | 'Settled';
 }
 
 

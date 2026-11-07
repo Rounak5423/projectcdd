@@ -4,13 +4,10 @@ import {
   Pause,
   FastForward,
   Calendar,
-  History,
-  RotateCw,
   Volume2,
   VolumeX,
-  Grid,
-  Trash2,
-  Trophy,
+  Radio,
+  StepForward,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
@@ -25,7 +22,7 @@ export default function BottomControls() {
     setSpeed,
     advanceTick,
     advanceYear,
-    setActiveDrawer,
+    events,
     activeZoneTool,
     setActiveZoneTool,
     isBulldozerActive,
@@ -34,6 +31,8 @@ export default function BottomControls() {
   } = useGameState();
 
   const [isMuted, setIsMuted] = useState(soundFx.getIsMuted());
+
+  const latestEvent = events[0];
 
   const handleToggleMute = () => {
     const muted = soundFx.toggleMute();
@@ -52,51 +51,65 @@ export default function BottomControls() {
   };
 
   return (
-    <footer className="h-[50px] shrink-0 bg-[#14181b] border-t border-[#262f35] flex items-center justify-between px-3 lg:px-5 select-none text-[#ede8dc] shadow-lg z-30">
-      {/* Left: Date, Chronicle, Audio & Cities: Skylines 2 RCI Demand */}
-      <div className="flex items-center gap-2.5">
-        <div className="flex items-center gap-2 bg-[#0f1214] px-3 py-1 rounded-md border border-[#232b30] text-xs font-mono">
-          <Calendar size={13} className="text-[#c29b38]" />
+    <footer className="h-[52px] shrink-0 bg-[#171D18] border-t border-[#2B372C] flex items-center justify-between px-3 lg:px-5 select-none text-[#EAE3D2] shadow-xl z-30">
+      {/* Left: Simulated Date, State Indicator & Latest Civil Event */}
+      <div className="flex items-center gap-2.5 min-w-0">
+        {/* Date Display */}
+        <div className="flex items-center gap-2 bg-[#121713] px-3 py-1 rounded border border-[#2B372C] text-xs font-mono">
+          <Calendar size={13} className="text-[#C5A66A]" />
           <div>
-            <span className="text-[11px] font-bold text-[#ede8dc]">
-              Year {civilization.currentYear.toString().padStart(3, '0')}, Day {civilization.currentDay.toString().padStart(3, '0')}
+            <span className="text-[11px] font-bold text-[#EAE3D2] font-cinzel">
+              Yr {civilization.currentYear.toString().padStart(3, '0')}, D{civilization.currentDay.toString().padStart(3, '0')}
             </span>
           </div>
         </div>
 
-        {/* Chronicle Archive Drawer */}
-        <button
-          onClick={() => {
-            soundFx.playClick();
-            setActiveDrawer('timeline');
-          }}
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#192025] hover:bg-[#222a30] border border-[#2b353b] text-xs text-[#aba393] hover:text-[#ede8dc] transition-colors"
-          title="Open Civilisation Chronicle Log"
+        {/* Live Simulation State Indicator */}
+        <div
+          className={`hidden sm:flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-mono font-bold uppercase tracking-wider border ${
+            isPlaying
+              ? 'bg-[#17231B] text-[#8FA879] border-[#3D4F3F]'
+              : 'bg-[#202820] text-[#D6A75E] border-[#2B372C]'
+          }`}
         >
-          <History size={12} className="text-[#c29b38]" />
-          <span className="text-[11px]">Chronicle</span>
-        </button>
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              isPlaying ? 'bg-[#8FA879] animate-pulse' : 'bg-[#D6A75E]'
+            }`}
+          />
+          <span>{isPlaying ? 'Engine Live' : 'Simulation Paused'}</span>
+        </div>
+
+        {/* Latest Event Indicator Ticker */}
+        {latestEvent && (
+          <div className="hidden xl:flex items-center gap-2 px-2.5 py-1 rounded bg-[#121713] border border-[#2B372C] text-xs max-w-sm truncate">
+            <Radio size={12} className="text-[#C5A66A] shrink-0 animate-pulse" />
+            <span className="text-[11px] text-[#A5AD9D] truncate">
+              {latestEvent.title}
+            </span>
+          </div>
+        )}
 
         {/* Audio Mute/Unmute */}
         <button
           onClick={handleToggleMute}
-          className={`p-1.5 rounded-md border transition-colors ${
+          className={`p-1.5 rounded border transition-colors ${
             isMuted
-              ? 'bg-[#201515] border-[#442828] text-[#c94c4c]'
-              : 'bg-[#192025] border-[#2b353b] text-[#7ea376] hover:text-[#ede8dc]'
+              ? 'bg-[#C87569]/15 border-[#C87569]/40 text-[#C87569]'
+              : 'bg-[#202820] border-[#2B372C] text-[#8FA879] hover:text-[#EAE3D2]'
           }`}
           title={isMuted ? 'Sound SFX Muted' : 'Sound SFX Active'}
         >
-          {isMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+          {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
         </button>
 
         {/* Cities: Skylines II RCI Demand Meters */}
-        <div className="hidden lg:flex items-center ml-1">
+        <div className="hidden md:flex items-center ml-1">
           <CS2RciDemandMeter />
         </div>
       </div>
 
-      {/* Center: Playback Speed Controls */}
+      {/* Center: Playback Speed & Step Controls */}
       <div className="flex items-center gap-2">
         {/* Play/Pause Button */}
         <button
@@ -104,19 +117,19 @@ export default function BottomControls() {
             soundFx.playClick();
             togglePlay();
           }}
-          className={`w-7 h-7 rounded-md flex items-center justify-center transition-all ${
+          className={`w-7 h-7 rounded flex items-center justify-center transition-all ${
             isPlaying
-              ? 'bg-[#c29b38] hover:bg-[#dfb74a] text-[#111416]'
-              : 'bg-[#20272d] hover:bg-[#29323a] text-[#ede8dc] border border-[#3b4750]'
+              ? 'bg-[#C5A66A] hover:bg-[#D4B67A] text-[#121713] font-bold shadow-md'
+              : 'bg-[#202820] hover:bg-[#283228] text-[#EAE3D2] border border-[#3D4F3F]'
           }`}
           aria-label={isPlaying ? 'Pause simulation' : 'Play simulation'}
-          title={isPlaying ? 'Pause [Space]' : 'Start [Space]'}
+          title={isPlaying ? 'Pause Simulation [Space]' : 'Resume Simulation [Space]'}
         >
           {isPlaying ? <Pause size={13} className="fill-current" /> : <Play size={13} className="fill-current ml-0.5" />}
         </button>
 
-        {/* Speed Multipier Pips */}
-        <div className="flex items-center bg-[#0f1214] p-0.5 rounded-md border border-[#232b30] gap-0.5">
+        {/* Speed Multiplier Pips */}
+        <div className="flex items-center bg-[#121713] p-0.5 rounded border border-[#2B372C] gap-0.5">
           {(['1x', '2x', '5x', '10x'] as const).map((val) => (
             <button
               key={val}
@@ -126,8 +139,8 @@ export default function BottomControls() {
               }}
               className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-all ${
                 speed === val
-                  ? 'bg-[#27323b] text-[#ede8dc] border border-[#445563]'
-                  : 'text-[#6c767e] hover:text-[#ede8dc]'
+                  ? 'bg-[#283228] text-[#C5A66A] border border-[#C5A66A]/40'
+                  : 'text-[#7A8473] hover:text-[#EAE3D2]'
               }`}
             >
               {val}
@@ -135,18 +148,28 @@ export default function BottomControls() {
           ))}
         </div>
 
+        {/* Advance 1 Day Button */}
+        <button
+          onClick={handleNextTurn}
+          className="flex items-center gap-1 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#2B372C] text-xs text-[#A5AD9D] hover:text-[#EAE3D2] transition-colors"
+          title="Advance single tick cycle (+1 Day)"
+        >
+          <StepForward size={12} className="text-[#8FA879]" />
+          <span className="text-[11px] font-medium hidden sm:inline">+1 Day</span>
+        </button>
+
         {/* Advance 1 Year Button */}
         <button
           onClick={handleNextYear}
-          className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#192025] hover:bg-[#222a30] border border-[#2b353b] text-xs text-[#aba393] hover:text-[#ede8dc] transition-colors"
+          className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#2B372C] text-xs text-[#A5AD9D] hover:text-[#EAE3D2] transition-colors"
           title="Advance full year (+365 Days)"
         >
-          <FastForward size={11} className="text-[#c29b38]" />
+          <FastForward size={12} className="text-[#C5A66A]" />
           <span className="text-[11px] font-medium">+1 Year</span>
         </button>
       </div>
 
-      {/* Right: CS2 Tools & Integrated Turn Advancement Button */}
+      {/* Right: Tools & Turn Advance Master */}
       <div className="flex items-center gap-2">
         {/* CS2 Zoning Tool Button */}
         <button
@@ -154,57 +177,54 @@ export default function BottomControls() {
             soundFx.playClick();
             setActiveZoneTool(activeZoneTool ? null : 'residential_high');
           }}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono font-bold transition-all border ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-mono font-bold transition-all border ${
             activeZoneTool
-              ? 'bg-[#1e3325] border-[#2ecc71] text-[#2ecc71] shadow-sm'
-              : 'bg-[#192025] hover:bg-[#222a30] border-[#2b353b] text-[#aba393] hover:text-[#ede8dc]'
+              ? 'bg-[#17231B] border-[#8FA879] text-[#8FA879] shadow-sm'
+              : 'bg-[#202820] hover:bg-[#283228] border-[#2B372C] text-[#A5AD9D] hover:text-[#EAE3D2]'
           }`}
-          title="Cities: Skylines II Zoning Tool (Residential, Commercial, Industrial, Office)"
+          title="Toggle Cities: Skylines 2 Lot Zoning Tools"
         >
-          <Grid size={13} className="text-[#2ecc71]" />
-          <span className="hidden sm:inline text-[11px]">Zoning</span>
+          <span className="text-xs">📐</span>
+          <span className="hidden sm:inline">Zoning</span>
         </button>
 
-        {/* CS2 Bulldozer Demolition Tool [B] */}
+        {/* CS2 Bulldozer Tool Button */}
         <button
           onClick={() => {
             soundFx.playClick();
             setIsBulldozerActive(!isBulldozerActive);
           }}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono font-bold transition-all border ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-mono font-bold transition-all border ${
             isBulldozerActive
-              ? 'bg-[#3b1c1e] border-[#e74c3c] text-[#e74c3c] shadow-sm animate-pulse'
-              : 'bg-[#192025] hover:bg-[#222a30] border-[#2b353b] text-[#aba393] hover:text-[#ede8dc]'
+              ? 'bg-[#C87569]/20 border-[#C87569] text-[#C87569] shadow-sm animate-pulse'
+              : 'bg-[#202820] hover:bg-[#283228] border-[#2B372C] text-[#A5AD9D] hover:text-[#EAE3D2]'
           }`}
-          title="Cities: Skylines II Bulldozer Tool [B] (Demolish structures & reclaim materials)"
+          title="Toggle Bulldozer Demolition Tool"
         >
-          <Trash2 size={13} className="text-[#e74c3c]" />
-          <span className="hidden sm:inline text-[11px]">Bulldozer</span>
+          <span className="text-xs">🚜</span>
+          <span className="hidden sm:inline">Demolish</span>
         </button>
 
-        {/* CS2 City Milestones Button */}
+        {/* CS2 City Milestones Progression Road Button */}
         <button
           onClick={() => {
             soundFx.playClick();
             setIsMilestonesModalOpen(true);
           }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#251f14] hover:bg-[#332b1b] border border-[#786128] text-xs font-mono font-bold text-[#dfb74a] transition-all shadow-xs"
-          title="Cities: Skylines II City Milestones & Growth Unlocks"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-mono font-bold bg-[#202820] hover:bg-[#283228] border border-[#C5A66A]/40 text-[#C5A66A] transition-all shadow-xs"
+          title="Open City Milestones Progression Road"
         >
-          <Trophy size={13} className="text-[#dfb74a]" />
-          <span className="hidden sm:inline text-[11px]">Milestones</span>
+          <span className="text-xs">🏆</span>
+          <span className="hidden sm:inline">Milestones</span>
         </button>
 
-        {/* Advance Turn Button */}
+        {/* Master Turn Advancement Action Button */}
         <button
           onClick={handleNextTurn}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-md btn-game-gold text-xs transition-all"
-          title="Advance to Next Simulated Day [Space / Enter]"
+          className="btn-civ-gold px-3.5 py-1.5 rounded text-xs flex items-center gap-1.5 transition-all shrink-0"
+          title="Advance simulation by 1 day"
         >
-          <RotateCw size={13} />
-          <span className="font-bold tracking-wide uppercase text-[11px]">
-            Advance Turn
-          </span>
+          <span>Cycle</span>
         </button>
       </div>
     </footer>

@@ -110,6 +110,14 @@ class SoundFX {
     } catch (e) {}
   }
 
+  public playReward() {
+    this.playRewardClaim();
+  }
+
+  public playSuccess() {
+    this.playRewardClaim();
+  }
+
   // Eureka Breakthrough Chime
   public playEureka() {
     if (this.isMuted) return;

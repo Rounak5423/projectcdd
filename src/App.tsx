@@ -14,6 +14,9 @@ import DemoShowcaseModal from './components/game/DemoShowcaseModal';
 import WorldDashboard from './pages/WorldDashboard';
 import WorldExplorerPage from './pages/WorldExplorerPage';
 import PopulationPage from './pages/PopulationPage';
+import InfrastructurePage from './pages/InfrastructurePage';
+import ChroniclesPage from './pages/ChroniclesPage';
+import MissionsPage from './pages/MissionsPage';
 import EconomyPage from './pages/EconomyPage';
 import ResourcesPage from './pages/ResourcesPage';
 import TechnologyPage from './pages/TechnologyPage';
@@ -58,13 +61,10 @@ function GameApp() {
     }
   }, [isLoading, isAuthenticated]);
 
-  // Handle Infrastructure & Portal navigation
+  // Handle Navigation across Civora Empire & Shell
   const handleNavigate = (page: string) => {
     soundFx.playClick();
-    if (page === 'Infrastructure') {
-      setActivePage('World Explorer');
-      setConstructionMode(true);
-    } else if (page === 'CIVORA Landing') {
+    if (page === 'CIVORA Landing') {
       setStage('landing');
     } else if (page === 'Genesis Portal') {
       setActivePage('Genesis Portal');
@@ -116,6 +116,14 @@ function GameApp() {
             <WorldDashboard onNavigate={handleNavigate} onClose={handleClose} />
           </div>
         );
+      case 'Infrastructure':
+        return <InfrastructurePage onNavigate={handleNavigate} onClose={handleClose} />;
+      case 'Civilisation Chronicle':
+      case 'Chronicle':
+        return <ChroniclesPage onClose={handleClose} />;
+      case 'Missions & Challenges':
+      case 'Missions':
+        return <MissionsPage onClose={handleClose} />;
       case 'Technology':
         return <TechnologyPage onClose={handleClose} />;
       case 'Economy':
@@ -125,25 +133,25 @@ function GameApp() {
       case 'Population':
         return (
           <div className="relative w-full h-full flex flex-col justify-start">
-            <PopulationPage />
+            <PopulationPage onClose={handleClose} />
           </div>
         );
       case 'Policy Laboratory':
-        return <PolicyLaboratoryPage />;
+        return <PolicyLaboratoryPage onClose={handleClose} />;
       case 'Future Simulator':
-        return <FutureSimulatorPage />;
+        return <FutureSimulatorPage onClose={handleClose} />;
       case 'Research Observatory':
-        return <ResearchObservatoryPage />;
+        return <ResearchObservatoryPage onClose={handleClose} />;
       case 'Research Wallet':
-        return <ResearchWalletPage />;
+        return <ResearchWalletPage onClose={handleClose} />;
       case 'Achievements':
-        return <AchievementsPage />;
+        return <AchievementsPage onClose={handleClose} />;
       case 'Genesis Portal':
         return <GenesisPortalPage onNavigate={handleNavigate} />;
       case 'World Creation Studio':
         return <WorldCreationStudioPage onNavigate={handleNavigate} />;
       case 'Settings':
-        return <SettingsPage />;
+        return <SettingsPage onClose={handleClose} />;
       case 'Admin Console':
         return <AdminConsolePage />;
       default:

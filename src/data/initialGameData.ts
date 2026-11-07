@@ -1874,3 +1874,316 @@ export const initialEvents: GameEvent[] = [
   },
 ];
 
+// ================= THE CHRONICLES OF CIVORA =================
+
+export interface HistoricalEraDefinition {
+  id: string;
+  name: string;
+  levelRequired: number;
+  description: string;
+  unlockedTechnologies: string[];
+  unlockedInfrastructure: string[];
+  unlockedPolicies: string[];
+  historicalSeals: string;
+  isUnlocked: boolean;
+}
+
+export const historicalErasList: HistoricalEraDefinition[] = [
+  {
+    id: 'era-1',
+    name: 'Settlement Age',
+    levelRequired: 1,
+    description: 'The foundation of the initial colony, stone quays, river bastions, and the awakening of the civic grid.',
+    unlockedTechnologies: ['Hydroponic Precision', 'Basic Masonry', 'Solar Concentrators'],
+    unlockedInfrastructure: ['Settler Habitation', 'Bio-Dome Alpha', 'Clean Well Station'],
+    unlockedPolicies: ['Colonial Rationing', 'Emergency Civic Curfew'],
+    historicalSeals: '🏛️',
+    isUnlocked: true,
+  },
+  {
+    id: 'era-2',
+    name: 'Agricultural Age',
+    levelRequired: 3,
+    description: 'Transformation of the river valleys into terraced agrarian hubs, food security, and demographic surplus.',
+    unlockedTechnologies: ['Automated Harvesting', 'Aqueduct Networks', 'Food Preservation'],
+    unlockedInfrastructure: ['Terraced Greenhouses', 'Grain Silo Reserve', 'Canal Gateways'],
+    unlockedPolicies: ['Agrarian Subsidies', 'Water Rights Covenant'],
+    historicalSeals: '🌾',
+    isUnlocked: true,
+  },
+  {
+    id: 'era-3',
+    name: 'Industrial Age',
+    levelRequired: 6,
+    description: 'High-heat metallurgy, kinetic fabrication, steam and geothermal dynamos driving economic expansion.',
+    unlockedTechnologies: ['Kinetic Smelting', 'Foundry Automation', 'Rail Transits'],
+    unlockedInfrastructure: ['Vulcan Nanofab Smelter', 'Thermal Power Hub', 'Freight Terminal'],
+    unlockedPolicies: ['Industrial Carbon Tariffs', 'Worker Safety Charter'],
+    historicalSeals: '⚙️',
+    isUnlocked: true,
+  },
+  {
+    id: 'era-4',
+    name: 'Knowledge Age',
+    levelRequired: 10,
+    description: 'The rise of academic observatories, scientific peer networks, and advanced biotechnology.',
+    unlockedTechnologies: ['Sub-Atomic Sensors', 'Genome Sequencing', 'Optical Computation'],
+    unlockedInfrastructure: ['Research Observatory', 'Academy of Sciences', 'Clinical Center'],
+    unlockedPolicies: ['Research Grants Act', 'Free University Mandate'],
+    historicalSeals: '📜',
+    isUnlocked: false,
+  },
+  {
+    id: 'era-5',
+    name: 'Digital Age',
+    levelRequired: 15,
+    description: 'Neural networks, autonomous civic infrastructure, AI assistants, and cybernetic coordination.',
+    unlockedTechnologies: ['Quantum AI Synthesis', 'Mesh Grid Power', 'Algorithmic Logistics'],
+    unlockedInfrastructure: ['AI Core Citadel', 'Autonomous Transit Hub', 'Smart Arcology'],
+    unlockedPolicies: ['AI Access Rights', 'Universal Basic Income', 'Automation Surcharge'],
+    historicalSeals: '🌐',
+    isUnlocked: false,
+  },
+  {
+    id: 'era-6',
+    name: 'Advanced Civilisation',
+    levelRequired: 20,
+    description: 'Ecological equilibrium, planetary stewardship, quantum synthesis, and eternity ascension.',
+    unlockedTechnologies: ['Zero-Point Energy', 'Biosphere Restoration', 'Planetary Consciousness'],
+    unlockedInfrastructure: ['Planetary Gateway', 'Ecological Sanctuary Core', 'Ascension Monolith'],
+    unlockedPolicies: ['Planetary Harmony Treaty', 'Eternity Covenant'],
+    historicalSeals: '👑',
+    isUnlocked: false,
+  },
+];
+
+export interface PlayerTitle {
+  id: string;
+  title: string;
+  description: string;
+  requiredAchievementId: string;
+  isUnlocked: boolean;
+  unlockedAt?: string;
+  era?: string;
+}
+
+export const playerTitlesList: PlayerTitle[] = [
+  {
+    id: 'title-founder',
+    title: 'Founder of the First Settlement',
+    description: 'Erected the first High Council Citadel and laid down the founding stone of Civora.',
+    requiredAchievementId: 'ach-01',
+    isUnlocked: true,
+    unlockedAt: 'Year 001, Day 01',
+  },
+  {
+    id: 'title-architect',
+    title: 'Architect of Industry',
+    description: 'Commissioned 5 operational factories and smelters producing 500+ tons of daily materials.',
+    requiredAchievementId: 'ach-03',
+    isUnlocked: true,
+    unlockedAt: 'Year 008, Day 140',
+  },
+  {
+    id: 'title-guardian',
+    title: 'Guardian of Nature',
+    description: 'Maintained 90%+ Biosphere Purity across all urban sectors for three consecutive years.',
+    requiredAchievementId: 'ach-04',
+    isUnlocked: false,
+  },
+  {
+    id: 'title-master',
+    title: 'Master of Innovation',
+    description: 'Discovered 15 historical technologies and unlocked Quantum AI Synthesis.',
+    requiredAchievementId: 'ach-02',
+    isUnlocked: false,
+  },
+  {
+    id: 'title-future',
+    title: 'Architect of the Future',
+    description: 'Executed 10 branch scenarios in the Future Simulator and resolved the AI Dependency Paradox.',
+    requiredAchievementId: 'ach-future',
+    isUnlocked: false,
+  },
+];
+
+export const initialChronicleEntries = [
+  {
+    id: 'chr-01',
+    year: 1,
+    day: 1,
+    era: 'Settlement Age',
+    title: 'The Great Awakening of Aurora Prime',
+    category: 'Founding' as const,
+    description: 'The ancient stone gates opened. The High Council grounded the first municipal pillar beside the sacred river, raising the official emblem of Civora.',
+    impactSummary: 'Civilisation founded with 150,000 pioneer citizens.',
+    relatedDistrict: 'Citadel Heights',
+  },
+  {
+    id: 'chr-02',
+    year: 3,
+    day: 120,
+    era: 'Agricultural Age',
+    title: 'Completion of the Grand River Aqueducts',
+    category: 'Milestone' as const,
+    description: 'Monumental masonry aqueducts were linked from the northern alpine reservoir, guaranteeing clean water and irrigation to all eastern farm basins.',
+    impactSummary: '+150 kL daily freshwater surplus, infant mortality dropped by 64%.',
+    relatedDistrict: 'Agri-Basin East',
+    relatedTech: 'Aqueduct Networks',
+  },
+  {
+    id: 'chr-03',
+    year: 6,
+    day: 215,
+    era: 'Industrial Age',
+    title: 'Ignition of Vulcan Smelter Hub Alpha',
+    category: 'Economic' as const,
+    description: 'Heavy structural titanium and alloy fabrication achieved self-sufficiency, supplying civil building programs with 250 tons/day of refined materials.',
+    impactSummary: 'National materials throughput surged by 180%.',
+    relatedDistrict: 'Industrial Sector Gamma',
+  },
+  {
+    id: 'chr-04',
+    year: 9,
+    day: 80,
+    era: 'Industrial Age',
+    title: 'The Great Northern Heat Anomaly',
+    category: 'Environmental' as const,
+    description: 'Sudden geothermal surge threatened turbine foundations; emergency bypass valves and automated cooling dampers prevented grid collapse.',
+    impactSummary: 'Zero civilian casualties; reinforced volcanic monitoring protocols established.',
+    relatedDistrict: 'Northern Ridges',
+  },
+  {
+    id: 'chr-05',
+    year: 11,
+    day: 300,
+    era: 'Industrial Age',
+    title: 'Passage of the Universal Education Covenant',
+    category: 'Policy' as const,
+    description: 'The High Council ratified a landmark decree providing free civic academies and technical apprenticeships to every citizen youth.',
+    impactSummary: 'Workforce literacy reached 94%, high-tech R&D output boosted by 25%.',
+    relatedPolicy: 'Universal Education Act',
+  },
+];
+
+export const initialMissions = [
+  {
+    id: 'msn-01',
+    title: 'The Awakening Foundation',
+    category: 'Founding' as const,
+    description: 'Maintain 5 core municipal structures and house at least 500,000 citizens in residential arcologies.',
+    requirements: '5 Active Municipal Structures & 500k Population',
+    progress: 500000,
+    maxProgress: 500000,
+    rewardCrc: 250,
+    rewardXp: 500,
+    status: 'Completed' as const,
+  },
+  {
+    id: 'msn-02',
+    title: 'Agrarian Sovereignty',
+    category: 'Economic' as const,
+    description: 'Sustain a daily food surplus of +120 rations/day for 30 consecutive simulated days.',
+    requirements: '+120 Food/day surplus maintained',
+    progress: 142,
+    maxProgress: 120,
+    rewardCrc: 180,
+    rewardXp: 350,
+    status: 'Available' as const,
+  },
+  {
+    id: 'msn-03',
+    title: 'Grid Power Dominance',
+    category: 'Infrastructure' as const,
+    description: 'Produce over 150 MW of clean renewable energy with zero reliance on fossil hydrocarbons.',
+    requirements: '150 MW Renewable Generation Capacity',
+    progress: 112,
+    maxProgress: 150,
+    rewardCrc: 300,
+    rewardXp: 450,
+    status: 'In Progress' as const,
+  },
+  {
+    id: 'msn-04',
+    title: 'The AI Paradox Inquiry',
+    category: 'Research' as const,
+    description: 'Complete the midpoint audit of the AI Dependency Paradox scientific experiment in the Observatory.',
+    requirements: 'Research Observatory Experiment: 50% Audit Complete',
+    progress: 1,
+    maxProgress: 1,
+    rewardCrc: 400,
+    rewardXp: 600,
+    status: 'Completed' as const,
+  },
+  {
+    id: 'msn-05',
+    title: 'Planetary Biosphere Sanctuary',
+    category: 'Environmental' as const,
+    description: 'Erect 2 Environmental Recreation Pavilions and sustain 85%+ Biosphere Purity in all districts.',
+    requirements: '2 Ecological Pavilions & 85% Biosphere Purity',
+    progress: 1,
+    maxProgress: 2,
+    rewardCrc: 350,
+    rewardXp: 500,
+    status: 'In Progress' as const,
+  },
+];
+
+export const initialTransactions = [
+  {
+    id: 'tx-1001',
+    timestamp: 'Year 012, Day 144',
+    simYear: 12,
+    simDay: 144,
+    type: 'Reward' as const,
+    description: 'Mission Completed: The Awakening Foundation',
+    amount: 250,
+    balanceAfter: 1420,
+    status: 'Confirmed' as const,
+  },
+  {
+    id: 'tx-1002',
+    timestamp: 'Year 012, Day 138',
+    simYear: 12,
+    simDay: 138,
+    type: 'Reward' as const,
+    description: 'Scientific Audit Milestone: AI Dependency Paradox',
+    amount: 400,
+    balanceAfter: 1170,
+    status: 'Confirmed' as const,
+  },
+  {
+    id: 'tx-1003',
+    timestamp: 'Year 012, Day 110',
+    simYear: 12,
+    simDay: 110,
+    type: 'Experiment' as const,
+    description: 'Funded Research Observatory Experiment: Cognitive Coprocessors Trial',
+    amount: -150,
+    balanceAfter: 770,
+    status: 'Settled' as const,
+  },
+  {
+    id: 'tx-1004',
+    timestamp: 'Year 012, Day 085',
+    simYear: 12,
+    simDay: 85,
+    type: 'Grant' as const,
+    description: 'Treasury Dividend: Circular Carbon Accord Adherence',
+    amount: 180,
+    balanceAfter: 920,
+    status: 'Confirmed' as const,
+  },
+  {
+    id: 'tx-1005',
+    timestamp: 'Year 012, Day 040',
+    simYear: 12,
+    simDay: 40,
+    type: 'Scenario' as const,
+    description: 'Simulated 10-Year Horizon: Green Civilisation Transition',
+    amount: -80,
+    balanceAfter: 740,
+    status: 'Settled' as const,
+  },
+];
+
