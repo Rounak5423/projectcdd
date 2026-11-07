@@ -21,7 +21,10 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.db-wal
+*.db-shm
 
 # Editor
 .vscode/
 .idea/
+
