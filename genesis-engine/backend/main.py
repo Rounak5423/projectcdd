@@ -503,6 +503,114 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str):
         ws_manager.disconnect(world_id, websocket)
 
 
+@app.get("/api/civilisations/{civ_id}/state")
+async def get_civilisation_state_alias(civ_id: str):
+    """Universal state endpoint supporting master instruction schema."""
+    conn = get_db_connection()
+    target_id = "aurora-prime" if civ_id in ["aurora-prime", "civ_aurora_prime", "default", "prime"] else civ_id
+    world = conn.execute("SELECT * FROM worlds WHERE id = ?", (target_id,)).fetchone()
+    if not world:
+        world = conn.execute("SELECT * FROM worlds LIMIT 1").fetchone()
+
+    if not world:
+        conn.close()
+        raise HTTPException(status_code=404, detail=f"Civilisation '{civ_id}' not found")
+
+    w_id = world["id"]
+    econ = conn.execute("SELECT * FROM economy_resources WHERE world_id = ?", (w_id,)).fetchone()
+    prog = conn.execute("SELECT * FROM progression WHERE world_id = ?", (w_id,)).fetchone()
+    blds = conn.execute("SELECT * FROM buildings WHERE world_id = ?", (w_id,)).fetchall()
+    pols = conn.execute("SELECT * FROM policies WHERE world_id = ?", (w_id,)).fetchall()
+    techs = conn.execute("SELECT * FROM technologies WHERE world_id = ?", (w_id,)).fetchall()
+    conn.close()
+
+    return {
+        "id": w_id,
+        "name": world["name"],
+        "level": prog["level"] if prog else 1,
+        "xp": prog["xp"] if prog else 0,
+        "grc_balance": prog["grc_balance"] if prog else 500.0,
+        "year": world["year"],
+        "day": world["day"],
+        "tick": world["tick"],
+        "demographics": {
+            "population": econ["population"] if econ else 1000,
+            "employment_rate": 0.94,
+            "unemployment_rate": 0.06,
+        },
+        "economy": {
+            "gdp": econ["gdp"] if econ else 100000.0,
+            "gini_coefficient": econ["gini_coefficient"] if econ else 0.32,
+            "civic_stability": econ["civic_stability"] if econ else 0.85,
+        },
+        "resources": {
+            "food": econ["food"] if econ else 5000.0,
+            "water": econ["water"] if econ else 5000.0,
+            "energy": econ["energy"] if econ else 2500.0,
+            "materials": econ["materials"] if econ else 3000.0,
+            "research_points": econ["research_points"] if econ else 800.0,
+            "grc": prog["grc_balance"] if prog else 500.0,
+        },
+        "buildings": [dict(b) for b in blds],
+        "policies": [dict(p) for p in pols],
+        "technologies": [dict(t) for t in techs]
+    }
+
+
+@app.post("/api/experiments/execute")
+async def execute_experiment_alias(payload: Dict[str, Any]):
+    """Atomic GRC deduction and counterfactual branching projection."""
+    civ_id = payload.get("civ_id", "aurora-prime")
+    target_id = "aurora-prime" if civ_id in ["aurora-prime", "civ_aurora_prime", "default", "prime"] else civ_id
+    horizon_years = payload.get("horizon_years", 5)
+    overrides = payload.get("policy_overrides", {})
+
+    grc_cost = 150.0 + (horizon_years * 12.0)
+
+    conn = get_db_connection()
+    prog = conn.execute("SELECT grc_balance FROM progression WHERE world_id = ?", (target_id,)).fetchone()
+    if not prog or prog["grc_balance"] < grc_cost:
+        conn.close()
+        raise HTTPException(
+            status_code=402,
+            detail=f"Insufficient Genesis Research Credits (GRC). Required: {grc_cost} GRC, Available: {prog['grc_balance'] if prog else 0} GRC"
+        )
+
+    # Deduct atomically
+    with conn:
+        conn.execute("UPDATE progression SET grc_balance = grc_balance - ? WHERE world_id = ?", (grc_cost, target_id))
+        conn.execute("UPDATE economy_resources SET genesis_research_credits = genesis_research_credits - ? WHERE world_id = ?", (grc_cost, target_id))
+
+    remaining_grc = prog["grc_balance"] - grc_cost
+    conn.close()
+
+    # Calculate baseline vs intervention trajectories
+    scaffolding = float(overrides.get("cognitive_scaffolding", 0.85))
+    ai_access = float(overrides.get("ai_automation_tier", 0.8))
+
+    baseline_traj = []
+    projected_traj = []
+
+    for y in range(horizon_years + 1):
+        b_atrophy = 1.0 * 0.015 * 0.5 * (y * 4)
+        b_reason = max(0.15, 0.82 - b_atrophy)
+        baseline_traj.append({"year": y, "reasoning": round(b_reason, 3), "gini": round(0.32 + y * 0.01, 3)})
+
+        p_atrophy = (1.0 - scaffolding) * 0.015 * ai_access * (y * 4)
+        p_reason = max(0.15, 0.82 - p_atrophy)
+        projected_traj.append({"year": y, "reasoning": round(p_reason, 3), "gini": round(0.28 + y * 0.005, 3)})
+
+    return {
+        "success": True,
+        "civ_id": target_id,
+        "grc_deducted": grc_cost,
+        "remaining_grc": remaining_grc,
+        "baseline_trajectory": baseline_traj,
+        "projected_trajectory": projected_traj,
+        "findings": f"Counterfactual projection complete: Scaffolding at {scaffolding*100:.0f}% mitigated cognitive decay over {horizon_years} simulated years."
+    }
+
+
 @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
 async def serve_spa_fallback(full_path: str):
     dist_dir = os.path.join(FRONTEND_DIR, "dist")

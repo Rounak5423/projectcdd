@@ -18,6 +18,7 @@ import {
   Gift,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
+import { useAuth } from '../../context/AuthContext';
 import { soundFx } from '../../services/soundFx';
 import { CivoraIcon } from '../brand/CivoraLogo';
 
@@ -40,6 +41,7 @@ export default function Topbar({
     setIsProtestModalOpen,
     setIsDemoModalOpen,
   } = useGameState();
+  const { user, isAdmin, setIsAuthModalOpen } = useAuth();
   const unreadCount = events.filter((e) => !e.isRead).length;
 
   const activeUnclaimedQuest = quests?.find((q) => q.isCompleted && !q.isClaimed);
@@ -141,6 +143,34 @@ export default function Topbar({
           <Coins size={11} />
           <span>{resources.grc}</span>
         </div>
+
+        {/* User Account / Role Switcher Pill */}
+        <button
+          onClick={() => {
+            soundFx.playClick();
+            setIsAuthModalOpen(true);
+          }}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all border ${
+            isAdmin
+              ? 'bg-[#2b2110] hover:bg-[#3d2e16] border-[#dfb74a] text-[#f7e3af]'
+              : 'bg-[#15231c] hover:bg-[#1e3328] border-[#386b52] text-[#b3dec6]'
+          }`}
+          title={`Active User: ${user?.username || 'Guest'} (${user?.role?.toUpperCase() || 'OFFLINE'}). Click to switch or sign in/out.`}
+        >
+          <span className="text-xs">{isAdmin ? '👑' : '👤'}</span>
+          <span className="font-mono text-[11px] truncate max-w-[80px] lg:max-w-[120px]">
+            {user?.username || 'Sign In'}
+          </span>
+          <span
+            className={`text-[8px] font-mono px-1 py-0.2 rounded border uppercase ${
+              isAdmin
+                ? 'bg-[#1a140a] text-[#dfb74a] border-[#8f7742]'
+                : 'bg-[#0f1713] text-[#7ea376] border-[#2b4c3e]'
+            }`}
+          >
+            {user?.role || 'Guest'}
+          </span>
+        </button>
 
         {/* Showcase Capabilities Presenter Suite Button */}
         <button

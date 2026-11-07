@@ -17,8 +17,10 @@ import {
   Crown,
   ChevronLeft,
   ChevronRight,
+  ShieldAlert,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
+import { useAuth } from '../../context/AuthContext';
 import { CivoraIcon } from '../brand/CivoraLogo';
 
 type SidebarProps = {
@@ -26,40 +28,51 @@ type SidebarProps = {
   onNavigate: (page: string) => void;
 };
 
-const navigation = [
-  {
-    title: 'SETTLEMENT',
-    items: [
-      { name: 'Overview', icon: LayoutDashboard },
-      { name: 'World Explorer', icon: Globe2, badge: '3D' },
-      { name: 'Population', icon: Users },
-      { name: 'Economy', icon: ChartNoAxesCombined },
-      { name: 'Infrastructure', icon: Building2 },
-      { name: 'Resources', icon: Boxes },
-    ],
-  },
-  {
-    title: 'GOVERNANCE & SCIENCE',
-    items: [
-      { name: 'Technology', icon: GitBranch },
-      { name: 'Policy Laboratory', icon: FlaskConical },
-      { name: 'Future Simulator', icon: Microscope },
-      { name: 'Research Observatory', icon: Compass },
-    ],
-  },
-  {
-    title: 'PROGRESSION',
-    items: [
-      { name: 'Research Wallet', icon: Coins },
-      { name: 'Achievements', icon: Trophy },
-      { name: 'World Creation Studio', icon: PlusCircle },
-    ],
-  },
-];
-
 export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
   const { civilization } = useGameState();
+  const { isAdmin } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const navigation = [
+    {
+      title: 'SETTLEMENT',
+      items: [
+        { name: 'Overview', icon: LayoutDashboard },
+        { name: 'World Explorer', icon: Globe2, badge: '3D' },
+        { name: 'Population', icon: Users },
+        { name: 'Economy', icon: ChartNoAxesCombined },
+        { name: 'Infrastructure', icon: Building2 },
+        { name: 'Resources', icon: Boxes },
+      ],
+    },
+    {
+      title: 'GOVERNANCE & SCIENCE',
+      items: [
+        { name: 'Technology', icon: GitBranch },
+        { name: 'Policy Laboratory', icon: FlaskConical },
+        { name: 'Future Simulator', icon: Microscope },
+        { name: 'Research Observatory', icon: Compass },
+      ],
+    },
+    {
+      title: 'PROGRESSION',
+      items: [
+        { name: 'Research Wallet', icon: Coins },
+        { name: 'Achievements', icon: Trophy },
+        { name: 'World Creation Studio', icon: PlusCircle },
+      ],
+    },
+    ...(isAdmin
+      ? [
+          {
+            title: 'ADMINISTRATION',
+            items: [
+              { name: 'Admin Console', icon: ShieldAlert, badge: 'ADMIN' },
+            ],
+          },
+        ]
+      : []),
+  ];
 
   return (
     <aside

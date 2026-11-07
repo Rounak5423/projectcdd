@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import BottomControls from './components/layout/BottomControls';
 import RightInfoPanel from './components/layout/RightInfoPanel';
 import GameModals from './components/layout/GameModals';
+import AuthModal from './components/auth/AuthModal';
 import FloatingRewardBanner from './components/game/FloatingRewardBanner';
 import ProtestResolutionModal from './components/game/ProtestResolutionModal';
 import DemoShowcaseModal from './components/game/DemoShowcaseModal';
@@ -25,6 +27,7 @@ import AchievementsPage from './pages/AchievementsPage';
 import GenesisPortalPage from './pages/GenesisPortalPage';
 import WorldCreationStudioPage from './pages/WorldCreationStudioPage';
 import SettingsPage from './pages/SettingsPage';
+import AdminConsolePage from './pages/AdminConsolePage';
 import CivoraLanding from './pages/CivoraLanding';
 import { soundFx } from './services/soundFx';
 
@@ -33,6 +36,14 @@ function GameApp() {
   const [activePage, setActivePage] = useState<string>('Landing');
   const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(false);
   const { togglePlay, setSpeed, selectedBuilding, setConstructionMode } = useGameState();
+  const { isAdmin } = useAuth();
+
+  // If a non-admin is viewing the Admin Console, immediately bounce back
+  useEffect(() => {
+    if (activePage === 'Admin Console' && !isAdmin) {
+      setActivePage('World Explorer');
+    }
+  }, [activePage, isAdmin]);
 
   // Auto-open tactical inspector when a building is selected in 3D world
   useEffect(() => {
@@ -127,6 +138,8 @@ function GameApp() {
         return <WorldCreationStudioPage onNavigate={handleNavigate} />;
       case 'Settings':
         return <SettingsPage />;
+      case 'Admin Console':
+        return <AdminConsolePage />;
       default:
         return null;
     }
@@ -183,6 +196,7 @@ function GameApp() {
 
       {/* Game Modals, Drawers & Protest Chronicle */}
       <GameModals />
+      <AuthModal />
       <ProtestResolutionModal />
       <DemoShowcaseModal onNavigate={handleNavigate} />
     </div>
@@ -191,8 +205,10 @@ function GameApp() {
 
 export default function App() {
   return (
-    <GameStateProvider>
-      <GameApp />
-    </GameStateProvider>
+    <AuthProvider>
+      <GameStateProvider>
+        <GameApp />
+      </GameStateProvider>
+    </AuthProvider>
   );
 }
