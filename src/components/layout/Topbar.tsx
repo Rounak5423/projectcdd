@@ -115,12 +115,15 @@ export default function Topbar({
       <div className="hidden xl:flex items-center gap-4 bg-[#141914] px-4 py-2 rounded-xl border border-[#2b352c]">
         {resourceItems.map((res) => {
           const Icon = res.icon;
+          const isPop = res.label === 'POPULATION';
           return (
             <div
               key={res.label}
+              onClick={isPop ? () => setActiveDrawer('citizens') : undefined}
               className={`flex items-center gap-2 px-2 py-1 rounded transition-colors ${
                 res.highlight ? 'bg-[#262215] border border-[#4d3f23]' : ''
-              }`}
+              } ${isPop ? 'cursor-pointer hover:bg-[#202921] border border-transparent hover:border-[#3d503f]' : ''}`}
+              title={isPop ? 'Open Citizen Intelligence & Social Behaviour Dashboard' : undefined}
             >
               <div
                 className="w-6 h-6 rounded flex items-center justify-center"

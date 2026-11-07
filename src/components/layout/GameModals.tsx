@@ -16,6 +16,7 @@ import {
 import { useGameState } from '../../context/GameStateContext';
 import CityEconomyDashboard from '../dashboard/CityEconomyDashboard';
 import DisasterManagementDashboard from '../dashboard/DisasterManagementDashboard';
+import CitizenIntelligenceDashboard from '../dashboard/CitizenIntelligenceDashboard';
 
 export default function GameModals() {
   const {
@@ -257,6 +258,11 @@ export default function GameModals() {
       {/* ================= NATURAL DISASTERS & INTELLIGENT EMERGENCY RESPONSE ================= */}
       {activeDrawer === 'disaster' && (
         <DisasterManagementDashboard onClose={() => setActiveDrawer('none')} />
+      )}
+
+      {/* ================= CITIZEN INTELLIGENCE & SOCIAL BEHAVIOUR DASHBOARD ================= */}
+      {activeDrawer === 'citizens' && (
+        <CitizenIntelligenceDashboard onClose={() => setActiveDrawer('none')} />
       )}
     </div>
   );

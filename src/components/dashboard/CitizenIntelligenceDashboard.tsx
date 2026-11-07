@@ -331,13 +331,13 @@ export default function CitizenIntelligenceDashboard({ onClose }: CitizenDashboa
 
                     {/* Drivers Breakdown */}
                     <div className="text-xs space-y-1 pt-2 border-t border-[#253227]">
-                      {need.positiveDrivers.map((d, i) => (
+                      {need.positiveDrivers.map((d: string, i: number) => (
                         <div key={i} className="flex items-center gap-1.5 text-[#a6bd82] text-[11px]">
                           <CheckCircle2 size={12} className="shrink-0" />
                           <span>{d}</span>
                         </div>
                       ))}
-                      {need.negativeDrivers.map((d, i) => (
+                      {need.negativeDrivers.map((d: string, i: number) => (
                         <div key={i} className="flex items-center gap-1.5 text-[#e74c3c] text-[11px]">
                           <AlertTriangle size={12} className="shrink-0" />
                           <span>{d}</span>

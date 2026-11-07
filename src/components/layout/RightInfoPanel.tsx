@@ -242,6 +242,14 @@ export default function RightInfoPanel({ isOpen, onClose }: { isOpen: boolean; o
                   );
                 })}
               </div>
+
+              <button
+                onClick={() => setActiveDrawer('citizens')}
+                className="mt-3 w-full py-1.5 px-2 rounded-lg bg-[#273328] hover:bg-[#344435] text-[#dce9ca] border border-[#445b42] text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Users size={13} className="text-[#a6bd82]" />
+                <span>Open Citizen Intelligence Dashboard</span>
+              </button>
             </div>
 
             {/* Strategic Objectives */}

@@ -120,3 +120,4 @@ export interface CitizenSimulationReport {
   // Current dominant societal mood
   societalMood: 'Ecstatic' | 'Prosperous' | 'Content' | 'Restless' | 'Distressed';
 }
+

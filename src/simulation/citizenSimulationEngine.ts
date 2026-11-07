@@ -180,7 +180,7 @@ export function calculateCitizenNeeds(
 
   // H. TRANSPORTATION
   let transitScore = clamp(trafficFlowEfficiency);
-  const transit: CitizenNeedItem = {
+  const transportation: CitizenNeedItem = {
     id: 'transportation',
     name: 'Transit & Road Mobility',
     category: 'infrastructure',
@@ -564,4 +564,49 @@ export function runCitizenSimulationTick(
     activeProblems,
     societalMood: mood,
   };
+}
+
+/**
+ * 7. Factory to initialize detailed citizen agent cohorts
+ */
+export function createInitialDetailedAgents(baseCitizens: any[]): DetailedCitizenAgent[] {
+  return baseCitizens.map((c) => {
+    let ageGroup: 'youth' | 'adult' | 'elder' = 'adult';
+    if (c.age < 22) ageGroup = 'youth';
+    else if (c.age >= 60) ageGroup = 'elder';
+
+    const residenceMap: Record<string, string> = {
+      'Oasis Terraces': 'Arcology Spire Alpha',
+      'Elysium Citadel': 'Citadel Senates Quarters',
+      'Verdant Vale Agrisector': 'Agrisector Bio-Habitats',
+      'Vulcan Forge Basin': 'Foundry Operator Housing',
+      'Aethel Ridge Science Park': 'Polytechnic Scholar Towers',
+    };
+
+    const workplaceMap: Record<string, string> = {
+      'Aethel Ridge Science Park': 'Quantum AI Laboratory',
+      'Vulcan Forge Basin': 'Vulcan Smelter Hub A',
+      'Verdant Vale Agrisector': 'Bio-Dome Prime',
+      'Elysium Citadel': 'Elysium High Senate',
+      'Oasis Terraces': 'Oasis Cellular Care Clinic',
+    };
+
+    return {
+      ...c,
+      ageGroup,
+      residenceBuildingId: 'bld-arcology-01',
+      residenceName: residenceMap[c.district] || 'Arcology Spire Habitat',
+      workplaceBuildingId: 'bld-foundry-01',
+      workplaceName: workplaceMap[c.district] || 'Municipal Workstation',
+      currentActivity: 'working',
+      currentDestinationName: workplaceMap[c.district] || 'District Station',
+      commuteSatisfaction: 88,
+      personalNeeds: {
+        housing: 92,
+        healthcare: 86,
+        recreation: 80,
+        safety: 90,
+      },
+    };
+  });
 }

@@ -139,6 +139,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [technologies, setTechnologies] = useState<Technology[]>(initialTechnologies);
   const [policies, setPolicies] = useState<Policy[]>(initialPolicies);
   const [citizens] = useState<Citizen[]>(initialCitizens);
+  const [detailedAgents, setDetailedAgents] = useState<DetailedCitizenAgent[]>(() =>
+    createInitialDetailedAgents(initialCitizens)
+  );
   const [scenarios] = useState<SimulationScenario[]>(simulationScenarios);
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [achievements, setAchievements] = useState<Achievement[]>(initialAchievements);
@@ -193,6 +196,19 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const economyReport = useMemo(() => {
     return calculateCitySimulation(placedBuildings, buildingCatalog, resources, districts, taxRate);
   }, [placedBuildings, resources, districts, taxRate]);
+
+  // Centralized Intelligent Citizen & Social Behaviour Simulation Report
+  const citizenReport = useMemo(() => {
+    return runCitizenSimulationTick(
+      resources,
+      placedBuildings,
+      districts,
+      economyReport,
+      disasterState,
+      detailedAgents,
+      (civilization.currentDay * 3.5) % 24
+    );
+  }, [resources, placedBuildings, districts, economyReport, disasterState, detailedAgents, civilization.currentDay]);
 
   // Simulation Tick Logic
   const advanceTick = useCallback(() => {
@@ -465,7 +481,14 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         emergencyForces: currentForces,
       };
     });
-  }, [rates, civilization, placedBuildings, resources, economyReport]);
+
+    // 7. Advance Citizen Social Behaviour & Daily Routines
+    setDetailedAgents((prevAgents) => {
+      const needs = calculateCitizenNeeds(resources, placedBuildings, economyReport, disasterState);
+      const hour = (civilization.currentDay * 3.5) % 24;
+      return updateCitizenRoutines(prevAgents, hour, disasterState?.activeDisaster, needs);
+    });
+  }, [rates, civilization, placedBuildings, resources, economyReport, disasterState]);
 
   // Advance by a full year
   const advanceYear = useCallback(() => {
@@ -1254,6 +1277,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         events,
         economyReport,
         disasterState,
+        citizenReport,
         isPlaying,
         speed,
         selectedBuildingId,

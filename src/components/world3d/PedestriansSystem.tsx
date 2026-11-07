@@ -329,7 +329,7 @@ function PedestrianAvatar({
  */
 function PedestriansSystem() {
   const isNight = useIsNight();
-  const { isPlaying, speed: simSpeed, resources, districts } = useGameState();
+  const { isPlaying, speed: simSpeed, resources, districts, disasterState } = useGameState();
   const groupRef = useRef<THREE.Group>(null);
 
   // Generate 32 Varied Citizen Agents distributed across the city districts
@@ -420,6 +420,8 @@ function PedestriansSystem() {
     const dt = Math.min(delta, 0.1) * mult;
 
     const signal = getGlobalTrafficSignal();
+    const isCrisis = !!disasterState?.activeDisaster;
+    const speedBoost = isCrisis ? 1.45 : 1.0;
 
     agents.forEach((agent, idx) => {
       const child = groupRef.current?.children[idx];
@@ -464,9 +466,9 @@ function PedestriansSystem() {
 
       // Update position only when not waiting for traffic
       if (!isWaiting) {
-        const step = (agent.speed * agent.direction * dt) / totalDist;
+        const step = (agent.speed * speedBoost * agent.direction * dt) / totalDist;
         progressRef.current[idx] = (progressRef.current[idx] + step + 1.0) % 1.0;
-        walkPhaseRef.current[idx] += agent.speed * dt * 4.8;
+        walkPhaseRef.current[idx] += agent.speed * speedBoost * dt * 4.8;
       }
 
       // Exact 3D Ground & Sidewalk Coordinates
