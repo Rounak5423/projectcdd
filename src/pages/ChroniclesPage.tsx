@@ -346,3 +346,4 @@ ${e.relatedPolicy ? `- **Imperial Decree**: ${e.relatedPolicy}` : ''}
 };
 
 export default ChroniclesPage;
+
