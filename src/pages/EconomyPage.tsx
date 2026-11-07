@@ -72,7 +72,8 @@ const initialTradeRoutes: TradeRoute[] = [
 ];
 
 export default function EconomyPage() {
-  const { resources, rates, taxRate, setTaxRate, districts } = useGameState();
+  const { resources, rates, taxRate, setTaxRate, districts, economyReport } = useGameState();
+  const { economy, resources: resFlow, districts: distMetrics, alerts } = economyReport;
 
   const [activeTab, setActiveTab] = useState<'macro' | 'supply' | 'trade' | 'districts'>('macro');
   const [tradeRoutes, setTradeRoutes] = useState<TradeRoute[]>(initialTradeRoutes);
@@ -84,20 +85,15 @@ export default function EconomyPage() {
   const [commercialTariff, setCommercialTariff] = useState(8);
   const [wealthBracket, setWealthBracket] = useState(6);
 
-  // Total calculated revenue
-  const totalTaxYield = (
-    resources.gdp *
-    ((taxRate + automationSurcharge * 0.4 + commercialTariff * 0.3 + wealthBracket * 0.2) / 100) *
-    1000
-  ).toFixed(1);
+  // Total calculated revenue based on live simulation
+  const totalTaxYield = economy.totalAnnualRevenueBillion;
 
-  // Supply vs demand data
+  // Supply vs demand data from live simulation engine
   const supplyDemandData = [
-    { name: 'Food', production: 180, consumption: emergencyRationing ? 26 : 38, surplus: emergencyRationing ? 154 : 142 },
-    { name: 'Water', production: 290, consumption: emergencyRationing ? 56 : 80, surplus: emergencyRationing ? 234 : 210 },
-    { name: 'Energy (MW/10)', production: 34, consumption: 25.5, surplus: 8.5 },
-    { name: 'Materials', production: 220, consumption: emergencyRationing ? 90 : 126, surplus: emergencyRationing ? 130 : 94 },
-    { name: 'Research', production: 55, consumption: 19, surplus: 36 },
+    { name: 'Food (Rations)', production: resFlow.foodProduced, consumption: resFlow.foodConsumed, surplus: resFlow.foodNet },
+    { name: 'Water (kL)', production: resFlow.waterProduced, consumption: resFlow.waterConsumed, surplus: resFlow.waterNet },
+    { name: 'Energy (MW)', production: resFlow.energyProducedMW, consumption: resFlow.energyConsumedMW, surplus: resFlow.energyNetMW },
+    { name: 'Materials (T)', production: resFlow.materialsProduced, consumption: resFlow.materialsConsumed, surplus: resFlow.materialsNet },
   ];
 
   const handleEstablishTrade = (newRoute: TradeRoute) => {

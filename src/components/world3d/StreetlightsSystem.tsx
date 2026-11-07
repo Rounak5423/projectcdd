@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { useIsNight } from './DayNightController';
+import { useGameState } from '../../context/GameStateContext';
 import { getTerrainHeight } from './Terrain';
 
 interface StreetlightCoord {
@@ -136,22 +137,25 @@ export default React.memo(function StreetlightsSystem() {
     []
   );
 
+  const { economyReport } = useGameState();
+  const isBrownout = economyReport.hasCriticalPowerDeficit;
+
   const lensMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: isNight ? '#fff2b3' : '#4a4435',
-        emissive: isNight ? '#ffb938' : '#000000',
-        emissiveIntensity: isNight ? 2.8 : 0,
+        color: isNight ? (isBrownout ? '#ff8833' : '#fff2b3') : '#4a4435',
+        emissive: isNight ? (isBrownout ? '#ff5500' : '#ffb938') : '#000000',
+        emissiveIntensity: isNight ? (isBrownout ? 0.9 : 2.8) : 0,
         roughness: 0.2,
       }),
-    [isNight]
+    [isNight, isBrownout]
   );
 
   useEffect(() => {
-    lensMat.color.set(isNight ? '#fff2b3' : '#4a4435');
-    lensMat.emissive.set(isNight ? '#ffb938' : '#000000');
-    lensMat.emissiveIntensity = isNight ? 2.8 : 0;
-  }, [isNight, lensMat]);
+    lensMat.color.set(isNight ? (isBrownout ? '#ff8833' : '#fff2b3') : '#4a4435');
+    lensMat.emissive.set(isNight ? (isBrownout ? '#ff5500' : '#ffb938') : '#000000');
+    lensMat.emissiveIntensity = isNight ? (isBrownout ? 0.9 : 2.8) : 0;
+  }, [isNight, isBrownout, lensMat]);
 
   // Update instance matrices
   useEffect(() => {

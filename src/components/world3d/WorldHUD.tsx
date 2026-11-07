@@ -13,6 +13,8 @@ import {
   Play,
   Pause,
   FastForward,
+  DollarSign,
+  AlertTriangle,
 } from 'lucide-react';
 import { useDayNight, WeatherType } from './DayNightController';
 import { useGameState } from '../../context/GameStateContext';
@@ -37,7 +39,13 @@ export default function WorldHUD() {
     setTimeSpeedMultiplier,
   } = useDayNight();
 
-  const { districts, selectBuilding, placedBuildings } = useGameState();
+  const {
+    districts,
+    selectBuilding,
+    placedBuildings,
+    economyReport,
+    setActiveDrawer,
+  } = useGameState();
   const telemetry = usePerformanceTelemetry();
   const [showTelemetry, setShowTelemetry] = useState<boolean>(true);
   const [traffic, setTraffic] = useState(getTrafficFlowMetrics());
@@ -71,6 +79,41 @@ export default function WorldHUD() {
 
   return (
     <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2.5 pointer-events-none">
+      {/* 0. INTELLIGENT CITY ECONOMY & ALERTS TRIGGER */}
+      <div className="pointer-events-auto flex items-center gap-2 min-w-[260px] w-full">
+        <button
+          onClick={() => setActiveDrawer('economy')}
+          className="flex-1 flex items-center justify-between px-3 py-2 rounded-xl bg-[#171d18]/94 hover:bg-[#202921] border border-[#39443a] hover:border-[#4d5e4f] shadow-2xl backdrop-blur-md text-xs font-mono font-bold text-[#c6a76a] transition-all"
+        >
+          <div className="flex items-center gap-1.5">
+            <DollarSign size={14} className="text-[#c6a76a]" />
+            <span>CITY ECONOMY</span>
+          </div>
+          <span
+            className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase ${
+              economyReport.economy.fiscalHealth === 'Surplus'
+                ? 'bg-[#1b3823] text-[#2ecc71] border border-[#2b5936]'
+                : economyReport.economy.fiscalHealth === 'Balanced'
+                ? 'bg-[#332b17] text-[#f1c40f] border border-[#524424]'
+                : 'bg-[#3b1c1c] text-[#e74c3c] border border-[#5e2e2e]'
+            }`}
+          >
+            {economyReport.economy.netDailyCashFlow >= 0 ? `+${economyReport.economy.netDailyCashFlow}` : economyReport.economy.netDailyCashFlow} Cr
+          </span>
+        </button>
+
+        {economyReport.alerts.length > 0 && (
+          <button
+            onClick={() => setActiveDrawer('economy')}
+            title={`${economyReport.alerts.length} Active City Alerts`}
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-[#3b1c1c]/94 hover:bg-[#4d2525] border border-[#733535] shadow-2xl backdrop-blur-md text-[11px] font-mono font-bold text-[#e74c3c] transition-all animate-pulse"
+          >
+            <AlertTriangle size={13} />
+            <span>{economyReport.alerts.length} ALERTS</span>
+          </button>
+        )}
+      </div>
+
       {/* 1. REAL-TIME 3D PERFORMANCE TELEMETRY */}
       <div className="pointer-events-auto bg-[#171d18]/94 border border-[#39443a] p-2.5 rounded-xl backdrop-blur-md shadow-2xl flex flex-col gap-1.5 min-w-[260px]">
         <div className="flex items-center justify-between">

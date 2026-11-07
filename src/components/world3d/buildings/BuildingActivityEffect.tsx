@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PlacedBuilding } from '../../../types/game';
 import { useDayNight } from '../DayNightController';
+import { useGameState } from '../../../context/GameStateContext';
 
 interface BuildingActivityEffectProps {
   building: PlacedBuilding;
@@ -18,18 +19,26 @@ interface BuildingActivityEffectProps {
  * - Education: Colonnade portico wash lights & entrance beacons
  * - Government: Monumental staircase flickering torchieres & classical portico floodlights
  * - Agriculture: Geodesic dome photosynthetic violet night grow light
+ * - Dynamically responds to city power grid health (brownout flicker) and economic prosperity!
  */
 export default function BuildingActivityEffect({ building }: BuildingActivityEffectProps) {
   const { isNight, timeOfDay } = useDayNight();
+  const { economyReport } = useGameState();
   const isActive = building.status === 'active' && building.health > 25;
 
+  const isBrownout = economyReport.hasCriticalPowerDeficit;
+  const isProsperous = economyReport.isProsperous;
+
   // Evening/Night illumination transition (starts brightening at 18:00, peaks at night, fades by 6:30)
-  const nightIntensity = useMemo(() => {
+  const baseNightIntensity = useMemo(() => {
     if (timeOfDay >= 18.0 || timeOfDay < 6.0) return 1.0;
     if (timeOfDay >= 6.0 && timeOfDay < 7.5) return (7.5 - timeOfDay) / 1.5;
     if (timeOfDay >= 16.5 && timeOfDay < 18.0) return (timeOfDay - 16.5) / 1.5;
     return 0.0;
   }, [timeOfDay]);
+
+  // Modulate intensity based on power grid status and prosperity
+  const nightIntensity = isBrownout ? baseNightIntensity * 0.4 : isProsperous ? baseNightIntensity * 1.25 : baseNightIntensity;
 
   // Torch / furnace flicker reference
   const flickerRef = useRef<THREE.PointLight>(null);
@@ -42,7 +51,8 @@ export default function BuildingActivityEffect({ building }: BuildingActivityEff
 
     // 1. Torchier & furnace organic flame flicker
     if (flickerRef.current) {
-      const flicker = Math.sin(t * 7.3) * 0.15 + Math.cos(t * 13.1) * 0.1 + 0.9;
+      const brownoutFlicker = isBrownout ? (Math.sin(t * 16.0) > 0 ? 0.3 : 1.0) : 1.0;
+      const flicker = (Math.sin(t * 7.3) * 0.15 + Math.cos(t * 13.1) * 0.1 + 0.9) * brownoutFlicker;
       flickerRef.current.intensity = flicker * (isNight ? 1.6 : 0.8);
     }
 
