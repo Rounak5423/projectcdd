@@ -33,7 +33,6 @@ import {
 } from '../data/initialGameData';
 import { historicalTwinProtests } from '../data/protestData';
 import { soundFx } from '../services/soundFx';
-import { civilizationApi } from '../services/civilizationApi';
 
 export type MapLayer = 'all' | 'infrastructure' | 'population' | 'resources' | 'environment' | 'economy';
 export type ActiveDrawer = 'none' | 'notifications' | 'codex' | 'timeline' | 'construction' | 'buildingInspector';
@@ -222,7 +221,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   // Fun Historical Twin Citizen Protests & Unrest System
   const [activeProtest, setActiveProtest] = useState<ProtestEvent | null>(historicalTwinProtests[0]);
   const [isProtestModalOpen, setIsProtestModalOpen] = useState<boolean>(false);
-  const [, setProtestIndex] = useState<number>(0);
+  const [protestIndex, setProtestIndex] = useState<number>(0);
 
   const resolveProtest = useCallback(
     (optionId: string) => {
@@ -341,105 +340,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const selectedBuilding = placedBuildings.find((b) => b.id === selectedBuildingId) || null;
 
-  // Authoritative Backend Hydration
-  const syncWithBackend = useCallback(async () => {
-    try {
-      const res = await civilizationApi.getFullWorldState('aurora-prime');
-      if (res.success && res.data) {
-        const { world, economy, resources: backendRes, population, progression } = res.data;
-        if (world) {
-          setCivilization((prev) => ({
-            ...prev,
-            id: world.id,
-            name: world.name,
-            currentYear: world.year,
-            currentDay: world.day,
-            level: progression?.civilization_level || world.level || prev.level,
-          }));
-        }
-        if (economy || backendRes || population) {
-          setResources((prev) => ({
-            ...prev,
-            population: population?.total_population ?? (world?.population_count ?? prev.population),
-            gdp: economy?.gdp ? Number((economy.gdp / 1000000000).toFixed(1)) : prev.gdp,
-            happiness: population?.happiness ? Math.round(population.happiness * 100) : prev.happiness,
-            stability: economy?.civic_stability ? Math.round(economy.civic_stability * 100) : prev.stability,
-            materials: backendRes?.materials ?? prev.materials,
-            grc: backendRes?.genesis_research_credits ?? (progression?.grc_balance ?? prev.grc),
-            researchPoints: backendRes?.research_points ?? prev.researchPoints,
-            environmentalIndex: backendRes?.environmental_health ? Math.round(backendRes.environmental_health * 100) : prev.environmentalIndex,
-          }));
-        }
-        if (economy || backendRes || population) {
-          setRates((prev) => ({
-            ...prev,
-            populationGrowthRate: population?.growth_rate ? Number((population.growth_rate * 100).toFixed(1)) : prev.populationGrowthRate,
-            gdpGrowthRate: economy?.gdp_growth_rate ? Number((economy.gdp_growth_rate * 100).toFixed(1)) : prev.gdpGrowthRate,
-            foodRate: backendRes?.food_rate ?? prev.foodRate,
-            waterRate: backendRes?.water_rate ?? prev.waterRate,
-            energyRate: backendRes?.energy_rate ?? prev.energyRate,
-            materialsRate: backendRes?.materials_rate ?? prev.materialsRate,
-            researchRate: backendRes?.research_rate ?? prev.researchRate,
-          }));
-        }
-      }
-    } catch {
-      // Graceful local fallback if offline
-    }
-  }, []);
-
-  useEffect(() => {
-    syncWithBackend();
-  }, [syncWithBackend]);
-
-  // Live WebSocket Telemetry Stream
-  useEffect(() => {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = window.location.host || '127.0.0.1:8000';
-    const wsUrl = `${wsProtocol}//${wsHost}/ws/world/aurora-prime`;
-    let socket: WebSocket | null = null;
-    try {
-      socket = new WebSocket(wsUrl);
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'tick' && data.world) {
-            setCivilization((prev) => ({
-              ...prev,
-              currentYear: data.world.year || prev.currentYear,
-              currentDay: data.world.day || prev.currentDay,
-            }));
-          }
-        } catch {}
-      };
-    } catch {}
-    return () => {
-      if (socket) socket.close();
-    };
-  }, []);
-
-  // Simulation Tick Logic (Authoritative Server-Driven + Optimistic Client Feedback)
+  // Simulation Tick Logic
   const advanceTick = useCallback(() => {
-    // 0. Dispatch authoritative tick command to FastAPI backend
-    civilizationApi.advanceSimulationTicks('aurora-prime', mult).then((res) => {
-      if (res.success && res.data) {
-        const { year, day, economy, resources: backendRes, population } = res.data;
-        setCivilization((prev) => ({ ...prev, currentYear: year, currentDay: day }));
-        if (economy || backendRes || population) {
-          setResources((prev) => ({
-            ...prev,
-            population: population?.total_population ?? prev.population,
-            gdp: economy?.gdp ? Number((economy.gdp / 1000000000).toFixed(1)) : prev.gdp,
-            happiness: population?.happiness ? Math.round(population.happiness * 100) : prev.happiness,
-            materials: backendRes?.materials ?? prev.materials,
-            grc: backendRes?.genesis_research_credits ?? prev.grc,
-            researchPoints: backendRes?.research_points ?? prev.researchPoints,
-          }));
-        }
-      }
-    }).catch(() => {});
-
-    // 1. Advance Calendar (Local instant feedback)
+    // 1. Advance Calendar
     setCivilization((prev) => {
       let nextDay = prev.currentDay + 1;
       let nextYear = prev.currentYear;
@@ -532,17 +435,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(timer);
   }, [isPlaying, mult, advanceTick]);
 
-  const togglePlay = () => {
-    setIsPlaying((prev) => {
-      const next = !prev;
-      if (next) {
-        civilizationApi.startSimulation('aurora-prime').catch(() => {});
-      } else {
-        civilizationApi.pauseSimulation('aurora-prime').catch(() => {});
-      }
-      return next;
-    });
-  };
+  const togglePlay = () => setIsPlaying((p) => !p);
 
   const selectBuilding = (id: string | null) => {
     setSelectedBuildingId(id);
@@ -612,22 +505,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     };
 
     setPlacedBuildings((prev) => [...prev, newBuilding]);
-
-    // Persist building to authoritative backend SQLite
-    civilizationApi.constructFacility('aurora-prime', {
-      name: newBuilding.name,
-      category: newBuilding.category,
-      x: newBuilding.x,
-      y: newBuilding.y,
-      z: newBuilding.z,
-      rotation: newBuilding.rotation,
-    }).then((res) => {
-      if (res.success && res.data?.id) {
-        setPlacedBuildings((prev) =>
-          prev.map((b) => (b.id === newBuilding.id ? { ...b, id: res.data!.id } : b))
-        );
-      }
-    }).catch(() => {});
 
     // Update rates if it's a producing building
     if (item.productionType && item.productionAmount) {
@@ -706,9 +583,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       isRead: false,
     };
     setEvents((prev) => [event, ...prev]);
-
-    // Dispatch upgrade to authoritative backend
-    civilizationApi.upgradeFacility('aurora-prime', buildingId).catch(() => {});
     return true;
   };
 
@@ -737,9 +611,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       isRead: false,
     };
     setEvents((prev) => [event, ...prev]);
-
-    // Dispatch decommissioning to authoritative backend
-    civilizationApi.decommissionFacility('aurora-prime', buildingId).catch(() => {});
   };
 
   const startResearch = (techId: string) => {
@@ -756,9 +627,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         return t;
       })
     );
-
-    // Queue research with authoritative backend
-    civilizationApi.queueResearch('aurora-prime', techId).catch(() => {});
     return true;
   };
 
@@ -786,10 +654,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   };
 
   const togglePolicy = (policyId: string) => {
-    const policy = policies.find((p) => p.id === policyId);
-    if (policy) {
-      civilizationApi.enactPolicy('aurora-prime', policyId, policy.sliderValue).catch(() => {});
-    }
     setPolicies((prev) =>
       prev.map((p) => {
         if (p.id === policyId) {
@@ -812,7 +676,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   };
 
   const updatePolicySlider = (policyId: string, value: number) => {
-    civilizationApi.enactPolicy('aurora-prime', policyId, value).catch(() => {});
     setPolicies((prev) =>
       prev.map((p) => (p.id === policyId ? { ...p, sliderValue: value } : p))
     );
@@ -828,8 +691,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       ...prev,
       grc: prev.grc - scenario.grcCost,
     }));
-
-    civilizationApi.runQuantumScenario('aurora-prime', scenarioId, scenario.horizonYears).catch(() => {});
 
     const event: GameEvent = {
       id: `ev-${Date.now()}`,
@@ -854,8 +715,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       ...prev,
       grc: prev.grc - exp.grcCost,
     }));
-
-    civilizationApi.submitEmpiricalTrial('aurora-prime', experimentId).catch(() => {});
 
     setExperiments((prev) =>
       prev.map((e) => (e.id === experimentId ? { ...e, status: 'Active', currentDay: 0 } : e))

@@ -1,6 +1,6 @@
 import React from 'react';
 import * as THREE from 'three';
-import { useDayNight } from '../DayNightController';
+import { useIsNight } from '../DayNightController';
 import {
   ArchitecturalDoor,
   ArchitecturalWindow,
@@ -17,7 +17,7 @@ interface ModelProps {
 
 // 1. Community Medical Clinic
 export function ClinicModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
 
   return (
     <group>
@@ -75,7 +75,7 @@ export function ClinicModel({ isSelected, level }: ModelProps) {
 
 // 2. Cellular Care Healthcare Center
 export function HealthcareCenterModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
 
   return (
     <group>
@@ -127,7 +127,7 @@ export function HealthcareCenterModel({ isSelected, level }: ModelProps) {
 
 // 3. Central Regional Hospital (Campus with Helipad)
 export function HospitalModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
   const heightBoost = (level - 1) * 0.5;
 
   return (

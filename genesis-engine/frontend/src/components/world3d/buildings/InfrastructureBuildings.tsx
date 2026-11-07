@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useDayNight } from '../DayNightController';
+import { useIsNight } from '../DayNightController';
 import { AntennaMast } from './BuildingSharedElements';
 
 interface ModelProps {
@@ -163,7 +163,7 @@ export function ElectricalSubstationModel({ isSelected, level }: ModelProps) {
 
 // 4. Planetary Senate Citadel (Government & Civic Command)
 export function SenateCitadelModel({ isSelected, level }: ModelProps) {
-  const { isNight } = useDayNight();
+  const isNight = useIsNight();
 
   return (
     <group>

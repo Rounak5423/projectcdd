@@ -23,15 +23,6 @@ const apiClient = axios.create({
   },
 });
 
-// Auto-inject JWT token from localStorage if present
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('genesis_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -39,111 +30,16 @@ export interface ApiResponse<T> {
   isFallback?: boolean;
 }
 
-export interface AuthResponse {
-  access_token: string;
-  token_type: string;
-  user: {
-    id: string;
-    username: string;
-    email: string;
-    role: 'user' | 'admin';
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-  };
-}
-
-export interface AdminStats {
-  total_users: number;
-  active_users: number;
-  admin_count: number;
-  user_count: number;
-  total_worlds: number;
-  total_population: number;
-  total_gdp: number;
-}
-
-export interface AdminUser {
-  id: string;
-  username: string;
-  email: string;
-  role: 'user' | 'admin';
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  worlds_count: number;
-  worlds: Array<{
-    id: string;
-    name: string;
-    level: number;
-    population?: number;
-    gdp?: number;
-    thriving_score?: number;
-    simulation_status?: string;
-  }>;
-}
-
 /**
  * Service bridge prepared for FastAPI integration.
  * In development or when offline, methods log telemetry and provide typed fallbacks.
  */
 export const civilizationApi = {
-  // Civilization telemetry & full state hydration
-  async getFullWorldState(civId: string): Promise<ApiResponse<{
-    world: any;
-    economy: any;
-    resources: any;
-    population: any;
-    buildings: any[];
-    policies: any[];
-    technology: any[];
-    progression: any;
-  }>> {
-    try {
-      const [worldRes, econRes, resRes, popRes, bldRes, polRes, techRes, progRes] = await Promise.allSettled([
-        apiClient.get(`/worlds/${civId}`),
-        apiClient.get(`/worlds/${civId}/economy`),
-        apiClient.get(`/worlds/${civId}/resources`),
-        apiClient.get(`/worlds/${civId}/population`),
-        apiClient.get(`/worlds/${civId}/buildings`),
-        apiClient.get(`/worlds/${civId}/policies`),
-        apiClient.get(`/worlds/${civId}/technology`),
-        apiClient.get(`/worlds/${civId}/progression`),
-      ]);
-
-      return {
-        success: true,
-        data: {
-          world: worldRes.status === 'fulfilled' ? worldRes.value.data : null,
-          economy: econRes.status === 'fulfilled' ? econRes.value.data : null,
-          resources: resRes.status === 'fulfilled' ? resRes.value.data : null,
-          population: popRes.status === 'fulfilled' ? popRes.value.data : null,
-          buildings: bldRes.status === 'fulfilled' ? bldRes.value.data : [],
-          policies: polRes.status === 'fulfilled' ? polRes.value.data : [],
-          technology: techRes.status === 'fulfilled' ? techRes.value.data : [],
-          progression: progRes.status === 'fulfilled' ? progRes.value.data : null,
-        },
-      };
-    } catch {
-      return { success: false, isFallback: true };
-    }
-  },
-
+  // Civilization telemetry
   async getCivilization(civId: string): Promise<ApiResponse<CivilizationProfile>> {
     try {
-      const response = await apiClient.get<any>(`/worlds/${civId}`);
-      if (response.data) {
-        const w = response.data;
-        const profile: Partial<CivilizationProfile> = {
-          id: w.id,
-          name: w.name,
-          level: w.level || 4,
-          currentYear: w.year || 12,
-          currentDay: w.day || 146,
-        };
-        return { success: true, data: profile as CivilizationProfile };
-      }
-      return { success: true, isFallback: true };
+      const response = await apiClient.get<CivilizationProfile>(`/civilizations/${civId}`);
+      return { success: true, data: response.data };
     } catch {
       return {
         success: true,
@@ -153,75 +49,27 @@ export const civilizationApi = {
     }
   },
 
-  async advanceSimulationTicks(civId: string, ticks: number): Promise<ApiResponse<{
-    year: number;
-    day: number;
-    current_tick: number;
-    economy?: any;
-    resources?: any;
-    population?: any;
-  }>> {
+  async advanceSimulationTicks(civId: string, ticks: number): Promise<ApiResponse<{ ticksProcessed: number }>> {
     try {
-      const advanceRes = await apiClient.post(`/worlds/${civId}/simulation/advance`, { ticks });
-      const [econRes, resRes, popRes] = await Promise.allSettled([
-        apiClient.get(`/worlds/${civId}/economy`),
-        apiClient.get(`/worlds/${civId}/resources`),
-        apiClient.get(`/worlds/${civId}/population`),
-      ]);
-
+      const response = await apiClient.post(`/civilizations/${civId}/simulate`, { ticks });
+      return { success: true, data: response.data };
+    } catch {
       return {
         success: true,
-        data: {
-          year: advanceRes.data.year,
-          day: advanceRes.data.day,
-          current_tick: advanceRes.data.current_tick,
-          economy: econRes.status === 'fulfilled' ? econRes.value.data : undefined,
-          resources: resRes.status === 'fulfilled' ? resRes.value.data : undefined,
-          population: popRes.status === 'fulfilled' ? popRes.value.data : undefined,
-        },
-      };
-    } catch {
-      return {
-        success: false,
+        data: { ticksProcessed: ticks },
         isFallback: true,
       };
-    }
-  },
-
-  async startSimulation(civId: string): Promise<ApiResponse<{ status: string }>> {
-    try {
-      const response = await apiClient.post(`/worlds/${civId}/simulation/resume`);
-      return { success: true, data: response.data };
-    } catch {
-      return { success: false, isFallback: true };
-    }
-  },
-
-  async pauseSimulation(civId: string): Promise<ApiResponse<{ status: string }>> {
-    try {
-      const response = await apiClient.post(`/worlds/${civId}/simulation/pause`);
-      return { success: true, data: response.data };
-    } catch {
-      return { success: false, isFallback: true };
     }
   },
 
   // Building infrastructure commands
   async constructFacility(civId: string, payload: Partial<PlacedBuilding>): Promise<ApiResponse<PlacedBuilding>> {
     try {
-      const response = await apiClient.post<PlacedBuilding>(`/worlds/${civId}/buildings`, {
-        name: payload.name || 'Structure',
-        type: payload.category || 'Residential',
-        x: payload.x || 0.0,
-        y: payload.y || 0.6,
-        z: payload.z || 0.0,
-        orientation: payload.rotation || 0.0,
-        capacity: 100,
-      });
+      const response = await apiClient.post<PlacedBuilding>(`/civilizations/${civId}/buildings`, payload);
       return { success: true, data: response.data };
     } catch {
       return {
-        success: false,
+        success: true,
         message: 'Facility queued in client simulation state.',
         isFallback: true,
       };
@@ -230,7 +78,7 @@ export const civilizationApi = {
 
   async upgradeFacility(civId: string, buildingId: string): Promise<ApiResponse<{ buildingId: string; newLevel: number }>> {
     try {
-      const response = await apiClient.post(`/buildings/${buildingId}/upgrade`);
+      const response = await apiClient.patch(`/civilizations/${civId}/buildings/${buildingId}/upgrade`);
       return { success: true, data: response.data };
     } catch {
       return { success: true, isFallback: true };
@@ -239,7 +87,7 @@ export const civilizationApi = {
 
   async decommissionFacility(civId: string, buildingId: string): Promise<ApiResponse<{ buildingId: string }>> {
     try {
-      const response = await apiClient.delete(`/buildings/${buildingId}`);
+      const response = await apiClient.delete(`/civilizations/${civId}/buildings/${buildingId}`);
       return { success: true, data: response.data };
     } catch {
       return { success: true, isFallback: true };
@@ -249,8 +97,8 @@ export const civilizationApi = {
   // Science & Tech tree
   async queueResearch(civId: string, techId: string): Promise<ApiResponse<{ techId: string; status: string }>> {
     try {
-      const response = await apiClient.post(`/worlds/${civId}/technology/research`, { technology_id: techId });
-      return { success: true, data: { techId, status: 'researching' } };
+      const response = await apiClient.post(`/civilizations/${civId}/research/${techId}`);
+      return { success: true, data: response.data };
     } catch {
       return { success: true, isFallback: true };
     }
@@ -259,10 +107,7 @@ export const civilizationApi = {
   // Policy Laboratory
   async enactPolicy(civId: string, policyId: string, sliderValue: number): Promise<ApiResponse<Policy>> {
     try {
-      const response = await apiClient.post<Policy>(`/worlds/${civId}/policies`, {
-        policy_id: policyId,
-        parameters: { intensity: sliderValue },
-      });
+      const response = await apiClient.post<Policy>(`/civilizations/${civId}/policies/${policyId}`, { sliderValue });
       return { success: true, data: response.data };
     } catch {
       return { success: true, isFallback: true };
@@ -286,96 +131,6 @@ export const civilizationApi = {
       return { success: true, data: response.data };
     } catch {
       return { success: true, isFallback: true };
-    }
-  },
-
-  // Authentication Endpoints
-  async login(username: string, password: string): Promise<ApiResponse<AuthResponse>> {
-    try {
-      const response = await apiClient.post<AuthResponse>('/auth/login', { username, password });
-      return { success: true, data: response.data };
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Invalid username or password';
-      return { success: false, message: msg };
-    }
-  },
-
-  async register(username: string, email: string, password: string): Promise<ApiResponse<AuthResponse>> {
-    try {
-      const response = await apiClient.post<AuthResponse>('/auth/register', { username, email, password });
-      return { success: true, data: response.data };
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Account registration failed';
-      return { success: false, message: msg };
-    }
-  },
-
-  async getMe(): Promise<ApiResponse<AuthResponse['user']>> {
-    try {
-      const response = await apiClient.get<AuthResponse['user']>('/auth/me');
-      return { success: true, data: response.data };
-    } catch (err: any) {
-      return { success: false, message: 'Not authenticated' };
-    }
-  },
-
-  async logout(): Promise<ApiResponse<null>> {
-    try {
-      await apiClient.post('/auth/logout');
-      return { success: true };
-    } catch {
-      return { success: true };
-    }
-  },
-
-  // Administrator Controls (RBAC: Admin Role Required)
-  async getAdminStats(): Promise<ApiResponse<AdminStats>> {
-    try {
-      const response = await apiClient.get<AdminStats>('/admin/stats');
-      return { success: true, data: response.data };
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Admin statistics access restricted';
-      return { success: false, message: msg };
-    }
-  },
-
-  async getAdminUsers(): Promise<ApiResponse<AdminUser[]>> {
-    try {
-      const response = await apiClient.get<AdminUser[]>('/admin/users');
-      return { success: true, data: response.data };
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Admin roster access restricted';
-      return { success: false, message: msg };
-    }
-  },
-
-  async createAdminUser(data: { username: string; email: string; password: string; role: 'user' | 'admin' }): Promise<ApiResponse<AdminUser>> {
-    try {
-      const response = await apiClient.post<AdminUser>('/admin/users', data);
-      return { success: true, data: response.data };
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Failed to create user record';
-      return { success: false, message: msg };
-    }
-  },
-
-  async updateAdminUser(userId: string, data: Partial<{ email: string; role: 'user' | 'admin'; is_active: boolean; password?: string }>): Promise<ApiResponse<AdminUser>> {
-    try {
-      const response = await apiClient.put<AdminUser>(`/admin/users/${userId}`, data);
-      return { success: true, data: response.data };
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Failed to update user';
-      return { success: false, message: msg };
-    }
-  },
-
-  async deleteAdminUser(userId: string): Promise<ApiResponse<{ status: string; user_id: string }>> {
-    try {
-      const response = await apiClient.delete<{ status: string; user_id: string }>(`/admin/users/${userId}`);
-      return { success: true, data: response.data };
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Failed to delete user';
-      return { success: false, message: msg };
     }
   },
 };

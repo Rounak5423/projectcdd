@@ -4,25 +4,7 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameState } from '../../context/GameStateContext';
 import { getTerrainHeight, isNearRiver, isNearLake } from './Terrain';
-import {
-  WindTurbineModel,
-  ObservatoryModel,
-  ArcologySpireModel,
-  ModularHabitatModel,
-  CommercialExchangeModel,
-  CommercialPlazaModel,
-  AcademyModel,
-  HospitalModel,
-  FactoryModel,
-  WarehouseModel,
-  SolarArrayModel,
-  FusionPlantModel,
-  WaterTreatmentModel,
-  BotanicalParkModel,
-  HydroponicDomeModel,
-  AlgaeBasinModel,
-  CitadelModel,
-} from './BuildingModels';
+import { MasterBuildingRouter } from './BuildingModels';
 
 export default function PlacementSystem() {
   const {
@@ -131,47 +113,17 @@ export default function PlacementSystem() {
     placeBuilding(selectedCatalogItem.id, x, z, districtId, rotationAngle);
   };
 
-  // Render ghost model preview
+  // Render ghost model preview using MasterBuildingRouter
   const renderGhostMesh = () => {
-    switch (selectedCatalogItem.modelType) {
-      case 'turbine':
-        return <WindTurbineModel isSelected={false} level={1} />;
-      case 'observatory':
-        return <ObservatoryModel isSelected={false} level={1} />;
-      case 'solar':
-        return <SolarArrayModel isSelected={false} level={1} />;
-      case 'power_plant':
-        return <FusionPlantModel isSelected={false} level={1} />;
-      case 'water_treatment':
-        return <WaterTreatmentModel isSelected={false} level={1} />;
-      case 'warehouse':
-        return <WarehouseModel isSelected={false} level={1} />;
-      case 'park':
-        return <BotanicalParkModel isSelected={false} level={1} />;
-      case 'commercial':
-        return <CommercialPlazaModel isSelected={false} level={1} />;
-      case 'hospital':
-        return <HospitalModel isSelected={false} level={1} />;
-      case 'academy':
-        return <AcademyModel isSelected={false} level={1} />;
-      case 'factory':
-        return <FactoryModel isSelected={false} level={1} />;
-      case 'hydroponic':
-        return <HydroponicDomeModel isSelected={false} level={1} />;
-      case 'dome':
-        return <AlgaeBasinModel isSelected={false} level={1} />;
-      case 'citadel':
-        return <CitadelModel isSelected={false} level={1} />;
-      case 'tower':
-      default:
-        if (selectedCatalogItem.category === 'commercial') {
-          return <CommercialExchangeModel isSelected={false} level={1} />;
-        }
-        if (selectedCatalogItem.id.includes('modular')) {
-          return <ModularHabitatModel isSelected={false} level={1} />;
-        }
-        return <ArcologySpireModel isSelected={false} level={1} />;
-    }
+    return (
+      <MasterBuildingRouter
+        catalogId={selectedCatalogItem.id}
+        category={selectedCatalogItem.category}
+        modelType={selectedCatalogItem.modelType}
+        level={1}
+        isSelected={false}
+      />
+    );
   };
 
   const ringColor = validation.isValid ? '#2ecc71' : '#e74c3c';
