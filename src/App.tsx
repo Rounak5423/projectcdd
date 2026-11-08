@@ -214,8 +214,10 @@ function GameApp() {
       case 'Missions & Challenges':
       case 'Missions':
         return <MissionsPage onClose={handleClose} />;
+      case 'Technology Tree':
       case 'Technology':
         return <TechnologyPage onClose={handleClose} />;
+      case 'Economy & Resources':
       case 'Economy':
         return <EconomyPage onClose={handleClose} />;
       case 'Resources':

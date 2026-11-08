@@ -20,6 +20,7 @@ import { PerformanceSampler } from './PerformanceTelemetry';
 import WorldLabelManager, { triggerRoadSelection } from './WorldLabelManager';
 import ErrorBoundary from '../common/ErrorBoundary';
 import WeatherSystem from './WeatherSystem';
+import DisasterVisualEffects from './DisasterVisualEffects';
 import { useGraphics } from '../../context/GraphicsSettingsContext';
 
 function WebGLContextWatcher({
@@ -132,6 +133,9 @@ export default function CivilizationWorld3D() {
 
             {/* Dynamic Atmospheric Clouds & Weather Particle Simulation */}
             {weatherEffects && <WeatherSystem weather="rain" />}
+
+            {/* Procedural 3D Natural Disaster Visual Effects */}
+            <DisasterVisualEffects />
 
             {/* Procedural Vertex-Colored Landscape */}
             <Terrain activeLayer={activeLayer} />

@@ -6,7 +6,6 @@ import sqlite3
 import os
 from datetime import datetime, timezone
 from typing import List, Tuple, Callable
-from db.database import get_db_connection
 
 
 def create_migration_table(conn: sqlite3.Connection):
@@ -175,14 +174,26 @@ def migration_v3_cs2_simulation_depth(conn: sqlite3.Connection):
     """)
 
 
+def migration_v4_civilization_tech_tree(conn: sqlite3.Connection):
+    """Adds Civ VI science & tech tree columns and seeds the foundational paradigms."""
+    from engine.technology_engine import ensure_tech_table_columns, seed_civilization_technologies
+    ensure_tech_table_columns(conn)
+
+    worlds = conn.execute("SELECT id FROM worlds").fetchall()
+    for w in worlds:
+        seed_civilization_technologies(conn, w["id"])
+
+
 MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (1, "baseline_init", migration_v1_baseline),
     (2, "save_slots_and_autosaves", migration_v2_save_slots),
     (3, "cs2_simulation_depth_and_infrastructure", migration_v3_cs2_simulation_depth),
+    (4, "civilization_tech_tree", migration_v4_civilization_tech_tree),
 ]
 
 
 def run_migrations():
+    from db.database import get_db_connection
     conn = get_db_connection()
     create_migration_table(conn)
 

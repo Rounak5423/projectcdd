@@ -63,9 +63,40 @@ import {
   calculateCitySimulation,
   CitySimulationReport,
 } from '../simulation/economySimulationEngine';
+import {
+  DisasterType,
+  DisasterIntensity,
+  DisasterSimulationState,
+} from '../types/disaster';
+import {
+  calculateDisasterRisks,
+  calculateEmergencyForces,
+  createDisaster,
+  advanceDisasterSimulation,
+  emergencyFullCivilizationRestoration,
+} from '../simulation/disasterSimulationEngine';
+import {
+  CitizenSimulationReport,
+  DetailedCitizenAgent,
+} from '../types/citizen';
+import {
+  runCitizenSimulationTick,
+  createInitialDetailedAgents,
+  calculateCitizenNeeds,
+  updateCitizenRoutines,
+} from '../simulation/citizenSimulationEngine';
 
 export type MapLayer = 'all' | 'infrastructure' | 'population' | 'resources' | 'environment' | 'economy';
-export type ActiveDrawer = 'none' | 'notifications' | 'codex' | 'timeline' | 'construction' | 'buildingInspector' | 'economy';
+export type ActiveDrawer =
+  | 'none'
+  | 'notifications'
+  | 'codex'
+  | 'timeline'
+  | 'construction'
+  | 'buildingInspector'
+  | 'economy'
+  | 'disaster'
+  | 'citizens';
 
 export interface GameToast {
   id: string;
@@ -143,6 +174,12 @@ interface GameStateContextType {
   achievements: Achievement[];
   events: GameEvent[];
   economyReport: CitySimulationReport;
+  disasterState: DisasterSimulationState;
+  citizenReport: CitizenSimulationReport;
+  triggerDisaster: (type: DisasterType, intensity: DisasterIntensity, districtId?: string) => void;
+  dispatchEmergencyResponse: () => void;
+  restoreAllDisasters: () => void;
+  toggleAutoDisasters: () => void;
   quests: GameQuest[];
   missions: CivoraMission[];
   claimMission: (missionId: string) => void;
@@ -628,10 +665,40 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const selectedBuilding = placedBuildings.find((b) => b.id === selectedBuildingId) || null;
 
+  // Natural Disaster Simulation State
+  const [disasterState, setDisasterState] = useState<DisasterSimulationState>(() => ({
+    activeDisaster: null,
+    risks: calculateDisasterRisks('clear', 12, initialResources, { resources: { waterNet: 0 } } as any, initialPlacedBuildings),
+    emergencyForces: calculateEmergencyForces(initialPlacedBuildings, initialResources),
+    settings: {
+      autoDisastersEnabled: true,
+      disasterFrequency: 'moderate',
+    },
+    historicalDisasterCount: 0,
+  }));
+
+  // Detailed Citizen Agent Multi-Need Social Intelligence
+  const [detailedAgents, setDetailedAgents] = useState<DetailedCitizenAgent[]>(() =>
+    createInitialDetailedAgents(initialCitizens)
+  );
+
   // Centralized City Simulation Report (Calculates fiscal flows, resource accounting, district metrics, demands & alerts)
   const economyReport = useMemo(() => {
     return calculateCitySimulation(placedBuildings, buildingCatalog, resources, districts, taxRate);
   }, [placedBuildings, resources, districts, taxRate]);
+
+  const citizenReport = useMemo(() => {
+    const timeOfDay = (civilization.currentDay * 8) % 24;
+    return runCitizenSimulationTick(
+      resources,
+      placedBuildings,
+      districts,
+      economyReport,
+      disasterState,
+      detailedAgents,
+      timeOfDay
+    );
+  }, [resources, placedBuildings, districts, economyReport, disasterState, detailedAgents, civilization.currentDay]);
 
   // Simulation Tick Logic
   const advanceTick = useCallback(() => {
@@ -858,9 +925,36 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setChirperFeed((prev) => [newChirp, ...prev.slice(0, 24)]);
     }
 
-    // 8. Fire background tick to FastAPI backend
+    // 7. Disaster Simulation Progression
+    setDisasterState((prevDisaster) => {
+      if (!prevDisaster.activeDisaster) return prevDisaster;
+      const { updatedDisaster, updatedBuildings } = advanceDisasterSimulation(
+        prevDisaster.activeDisaster,
+        placedBuildings,
+        prevDisaster.emergencyForces,
+        0.5
+      );
+
+      if (updatedBuildings) {
+        setPlacedBuildings(updatedBuildings);
+      }
+
+      return {
+        ...prevDisaster,
+        activeDisaster: updatedDisaster,
+      };
+    });
+
+    // 8. Update detailed citizen routines
+    setDetailedAgents((prevAgents) => {
+      const hour = (civilization.currentDay * 8) % 24;
+      const needs = calculateCitizenNeeds(resources, placedBuildings, economyReport, disasterState);
+      return updateCitizenRoutines(prevAgents, hour, disasterState?.activeDisaster, needs);
+    });
+
+    // 9. Fire background tick to FastAPI backend
     civilizationApi.advanceSimulationTicks(civilization.id, 1).catch(() => {});
-  }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts, civilization]);
+  }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts, civilization, utilityStats, economyReport, disasterState]);
 
   // Advance by a full year
   const advanceYear = useCallback(() => {
@@ -1650,6 +1744,75 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setEvents((prev) => [event, ...prev]);
   };
 
+  const triggerDisaster = (type: DisasterType, intensity: DisasterIntensity, districtId?: string) => {
+    const dId = districtId || 'dist-residential';
+    const newDisaster = createDisaster(type, intensity, dId);
+    setDisasterState((prev) => ({
+      ...prev,
+      activeDisaster: newDisaster,
+      emergencyForces: {
+        ...prev.emergencyForces,
+        medicalUnitsActive: Math.min(prev.emergencyForces.medicalUnitsTotal, 3),
+        fireCrewsActive: type === 'wildfire' ? prev.emergencyForces.fireCrewsTotal : 2,
+        rescueTeamsActive: 2,
+        repairEngineersActive: 3,
+      },
+    }));
+
+    setEvents((prev) => [
+      {
+        id: `ev-${Date.now()}-disaster`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: `CRISIS ALERT: ${newDisaster.name}`,
+        description: `Natural disaster detected in ${districts.find((d) => d.id === dId)?.name || 'city sector'}. Emergency response units dispatched.`,
+        category: 'crisis',
+        severity: 'critical',
+        isRead: false,
+      },
+      ...prev,
+    ]);
+  };
+
+  const dispatchEmergencyResponse = () => {
+    setDisasterState((prev) => {
+      if (!prev.activeDisaster) return prev;
+      return {
+        ...prev,
+        activeDisaster: {
+          ...prev.activeDisaster,
+          containmentPercent: Math.min(100, prev.activeDisaster.containmentPercent + 35),
+          stage: prev.activeDisaster.containmentPercent + 35 >= 100 ? 'recovering' : 'containing',
+        },
+      };
+    });
+  };
+
+  const restoreAllDisasters = () => {
+    setPlacedBuildings((prev) => emergencyFullCivilizationRestoration(prev));
+    setDisasterState((prev) => ({
+      ...prev,
+      activeDisaster: null,
+      emergencyForces: {
+        ...prev.emergencyForces,
+        medicalUnitsActive: 0,
+        fireCrewsActive: 0,
+        rescueTeamsActive: 0,
+        repairEngineersActive: 0,
+      },
+    }));
+  };
+
+  const toggleAutoDisasters = () => {
+    setDisasterState((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        autoDisastersEnabled: !prev.settings.autoDisastersEnabled,
+      },
+    }));
+  };
+
   const createNewCivilization = (data: Partial<CivilizationProfile>) => {
     const newCiv: CivilizationProfile = {
       id: `civ-${Date.now().toString().slice(-4)}`,
@@ -1702,6 +1865,12 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         achievements,
         events,
         economyReport,
+        disasterState,
+        citizenReport,
+        triggerDisaster,
+        dispatchEmergencyResponse,
+        restoreAllDisasters,
+        toggleAutoDisasters,
         isPlaying,
         speed,
         selectedBuildingId,

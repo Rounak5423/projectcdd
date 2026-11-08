@@ -37,6 +37,7 @@ import {
 import { useGameState } from '../context/GameStateContext';
 import { Citizen } from '../types/game';
 import AnnoCitizenCard from '../components/game/AnnoCitizenCard';
+import CitizenIntelligenceDashboard from '../components/dashboard/CitizenIntelligenceDashboard';
 import { soundFx } from '../services/soundFx';
 
 interface PopulationPageProps {
@@ -119,6 +120,7 @@ export const PopulationPage: React.FC<PopulationPageProps> = ({ onClose }) => {
   const [search, setSearch] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [inspectedCitizen, setInspectedCitizen] = useState<Citizen | null>(citizens[0] || null);
+  const [activeTab, setActiveTab] = useState<'intelligence' | 'census'>('intelligence');
 
   const filteredCitizens = citizens.filter((c) => {
     const matchesSearch =
@@ -171,6 +173,34 @@ export const PopulationPage: React.FC<PopulationPageProps> = ({ onClose }) => {
             <p className="text-xs text-[#A5AD9D] font-sans mt-0.5">
               Demographic distribution, workforce mobility, living conditions, and individual citizen dossiers.
             </p>
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={() => {
+                  soundFx.playClick();
+                  setActiveTab('intelligence');
+                }}
+                className={`px-3 py-1 text-xs font-serif uppercase tracking-wider rounded transition-all ${
+                  activeTab === 'intelligence'
+                    ? 'bg-[#C5A66A] text-[#171D18] font-bold shadow-sm'
+                    : 'bg-[#202820] text-[#A5AD9D] hover:text-[#EAE3D2] border border-[#C5A66A]/20'
+                }`}
+              >
+                🧠 Citizen Intelligence Engine
+              </button>
+              <button
+                onClick={() => {
+                  soundFx.playClick();
+                  setActiveTab('census');
+                }}
+                className={`px-3 py-1 text-xs font-serif uppercase tracking-wider rounded transition-all ${
+                  activeTab === 'census'
+                    ? 'bg-[#C5A66A] text-[#171D18] font-bold shadow-sm'
+                    : 'bg-[#202820] text-[#A5AD9D] hover:text-[#EAE3D2] border border-[#C5A66A]/20'
+                }`}
+              >
+                📊 Census & Social Tiers
+              </button>
+            </div>
           </div>
         </div>
 
@@ -184,8 +214,15 @@ export const PopulationPage: React.FC<PopulationPageProps> = ({ onClose }) => {
         )}
       </div>
 
-      {/* Demographic KPIs Bar */}
-      <div className="flex-shrink-0 grid grid-cols-2 md:grid-cols-6 gap-3 px-8 py-3.5 bg-[#17231B]/60 border-b border-[#C5A66A]/15 font-sans">
+      {/* Tab Content */}
+      {activeTab === 'intelligence' ? (
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+          <CitizenIntelligenceDashboard onClose={onClose} />
+        </div>
+      ) : (
+        <>
+          {/* Demographic KPIs Bar */}
+          <div className="flex-shrink-0 grid grid-cols-2 md:grid-cols-6 gap-3 px-8 py-3.5 bg-[#17231B]/60 border-b border-[#C5A66A]/15 font-sans">
         <div className="flex flex-col">
           <span className="text-[10px] uppercase tracking-wider text-[#A5AD9D]">Total Population</span>
           <span className="text-lg font-serif font-bold text-[#EAE3D2] mt-0.5">
@@ -479,7 +516,9 @@ export const PopulationPage: React.FC<PopulationPageProps> = ({ onClose }) => {
           </div>
         </div>
       </div>
-    </div>
+    </>
+  )}
+</div>
   );
 };
 

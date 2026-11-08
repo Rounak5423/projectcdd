@@ -308,17 +308,49 @@ class TechnologyNode(BaseModel):
     id: str
     name: str
     category: str
-    description: str
-    level_required: int
-    research_cost: float
-    research_progress: float
-    is_unlocked: bool
-    is_researching: bool
-    effects: Dict[str, Any]
+    description: str = ""
+    level_required: int = 1
+    research_cost: float = 1000.0
+    research_progress: float = 0.0
+    is_unlocked: bool = False
+    is_researching: bool = False
+    effects: Dict[str, Any] = {}
+    era: Optional[str] = "Foundational"
+    turns: Optional[int] = 5
+    icon: Optional[str] = "🔬"
+    is_boosted: Optional[bool] = False
+    boost_text: Optional[str] = ""
+    unlocked_effects: Optional[List[str]] = None
+    prerequisites: Optional[List[str]] = None
+    unlocks: Optional[List[str]] = None
+    cost_points: Optional[int] = 300
 
 
 class TechResearchRequest(BaseModel):
     technology_id: str
+
+
+class TechnologyOverviewResponse(BaseModel):
+    world_id: str
+    science_per_turn: float
+    active_technology: Optional[TechnologyNode] = None
+    turns_remaining: int = 0
+    unlocked_count: int = 0
+    total_technologies: int = 0
+    current_era: str = "Foundational"
+    technologies: List[TechnologyNode] = []
+
+
+class EurekaBoostRequest(BaseModel):
+    technology_id: Optional[str] = None
+
+
+class EurekaBoostResponse(BaseModel):
+    success: bool
+    technology: TechnologyNode
+    turns_saved: int
+    discount_applied: float
+    message: str
 
 
 # ---------------------------------------------------------------------------

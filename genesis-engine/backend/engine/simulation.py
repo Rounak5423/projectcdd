@@ -332,6 +332,10 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     """
     conn = get_db_connection()
     world = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
+    if not world and world_id in ["civ-aurora-01", "civ-default", "prime", "default"]:
+        world_id = "aurora-prime"
+        world = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
+
     if not world:
         conn.close()
         raise ValueError(f"World '{world_id}' not found")
@@ -414,13 +418,14 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
         # Research tech progress
         active_tech = conn.execute("SELECT * FROM technologies WHERE world_id = ? AND is_researching = 1", (world_id,)).fetchall()
         for t in active_tech:
-            add_prog = research_prod * 0.5
+            add_prog = research_prod * 0.5 * ticks
             total_prog = t["research_progress"] + add_prog
-            if total_prog >= t["research_cost"]:
+            cost = float(t["cost_points"] if "cost_points" in t.keys() and t["cost_points"] else t["research_cost"])
+            if total_prog >= cost:
                 conn.execute("""
-                UPDATE technologies SET research_progress = ?, is_unlocked = 1, is_researching = 0
+                UPDATE technologies SET research_progress = ?, is_unlocked = 1, is_researching = 0, turns_remaining = 0
                 WHERE world_id = ? AND id = ?
-                """, (t["research_cost"], world_id, t["id"]))
+                """, (cost, world_id, t["id"]))
                 evt_id = f"evt_{uuid.uuid4().hex[:8]}"
                 conn.execute("""
                 INSERT INTO events (id, world_id, year, day, title, category, description, created_at)
@@ -428,10 +433,11 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
                 """, (evt_id, world_id, new_year, new_day, f"Research Breakthrough: {t['name']}",
                       f"Civilisation successfully unlocked {t['name']}.", datetime.now(timezone.utc).isoformat()))
             else:
+                rem_turns = max(1, math.ceil((cost - total_prog) / max(add_prog, 1.0)))
                 conn.execute("""
-                UPDATE technologies SET research_progress = ?
+                UPDATE technologies SET research_progress = ?, turns_remaining = ?
                 WHERE world_id = ? AND id = ?
-                """, (total_prog, world_id, t["id"]))
+                """, (total_prog, rem_turns, world_id, t["id"]))
 
         # Missions evaluation
         missions = conn.execute("SELECT * FROM missions WHERE world_id = ?", (world_id,)).fetchall()
