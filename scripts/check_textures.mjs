@@ -7,3 +7,4 @@ const jsonStr = buf.toString('utf8', 20, 20 + chunkLength);
 const gltf = JSON.parse(jsonStr);
 
 console.log('Images in male GLB:', gltf.images);
+

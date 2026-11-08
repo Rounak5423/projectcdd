@@ -15,3 +15,4 @@ function inspectMeshes(filePath) {
 inspectMeshes('public/models/council/real_carl_manfred.glb');
 inspectMeshes('public/models/council/real_undead_wizard.glb');
 inspectMeshes('public/models/council/real_freefire_pace.glb');
+

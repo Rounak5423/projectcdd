@@ -185,17 +185,20 @@ export const CouncilChamber3D: React.FC<CouncilChamber3DProps> = ({
             <CouncilArchitecture />
             <CouncilTable modelMapping={modelMapping} />
             <CouncilThrone />
+            <AdvisorCameraController
+              preset={cameraPreset}
+              selectedAdvisorId={selectedAdvisorId}
+              cinematicDrift={cinematicDrift}
+            />
+          </Suspense>
+
+          <Suspense fallback={null}>
             <AdvisorGroup
               advisors={advisors}
               selectedAdvisorId={selectedAdvisorId}
               speakingAdvisorId={activeSpeakingId}
               modelMapping={modelMapping}
               onAdvisorSelect={handleAdvisorSelect}
-            />
-            <AdvisorCameraController
-              preset={cameraPreset}
-              selectedAdvisorId={selectedAdvisorId}
-              cinematicDrift={cinematicDrift}
             />
           </Suspense>
         </Canvas>

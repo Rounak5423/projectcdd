@@ -31,3 +31,4 @@ inspectRootTransforms('public/models/council/real_carl_manfred.glb');
 inspectRootTransforms('public/models/council/real_fullbody_male.glb');
 inspectRootTransforms('public/models/council/real_undead_wizard.glb');
 inspectRootTransforms('public/models/council/real_freefire_pace.glb');
+

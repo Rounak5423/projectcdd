@@ -39,3 +39,4 @@ readGLBBounds('public/models/council/downloaded/carl_manfred.glb');
 readGLBBounds('public/models/council/downloaded/freefire_pace.glb');
 readGLBBounds('public/models/council/downloaded/undead_wizard.glb');
 readGLBBounds('public/models/council/downloaded/male_character/source/f5d0c392-bf4b-4897-b00f-b369dfcb0274.glb');
+

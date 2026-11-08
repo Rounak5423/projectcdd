@@ -153,14 +153,14 @@ export const THEME_PRESETS = {
   real_enhanced: {
     label: 'Real 3D Enhanced',
     icon: '⚡',
-    description: 'Realistic 3D Models with Carl Manfred, Fullbody Avatar, Archmagus & Vanguard',
+    description: 'Realistic 3D Models with Carl Manfred, Fullbody Avatar & Vanguard',
     mapping: {
-      'adv-chancellor': 'real-carl',       // Carl Manfred as the distinguished grand chancellor / elder
-      'adv-scholar': 'real-magus',          // Archmagus as grand scholar
+      'adv-chancellor': 'real-carl',       // Carl Manfred (Detroit: Become Human) as distinguished grand chancellor / elder
       'adv-architect': 'real-avatar',       // Real full-body male avatar as master architect
       'adv-treasurer': 'real-tactical',     // Tactical commander as imperial treasurer / security
-      'adv-physician': 'adv-physician',     // High physician with headdress & vial
-      'adv-keeper': 'adv-keeper',           // Keeper of nature with laurel circlet
+      'adv-scholar': 'adv-scholar',         // Grand scholar
+      'adv-physician': 'adv-physician',     // High physician
+      'adv-keeper': 'adv-keeper',           // Keeper of nature
     },
   },
 };
@@ -199,3 +199,4 @@ export function saveModelMapping(
     localStorage.setItem(STORAGE_KEY_MAP, JSON.stringify(mapping));
   } catch {}
 }
+

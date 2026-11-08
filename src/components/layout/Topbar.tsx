@@ -30,11 +30,13 @@ export default function Topbar({
   onToggleRightPanel,
   user,
   onLogout,
+  onNavigate,
 }: {
   isRightPanelOpen: boolean;
   onToggleRightPanel: () => void;
   user?: AuthUser | null;
   onLogout?: () => void;
+  onNavigate?: (page: string) => void;
 }) {
   const {
     resources,
@@ -242,6 +244,24 @@ export default function Topbar({
               <Gift size={12} className="text-[#C5A66A]" />
               <span className="hidden sm:inline">Reward Available</span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#C5A66A] animate-ping" />
+            </button>
+          )}
+
+          {/* High Council Chamber Direct Shortcut */}
+          {onNavigate && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onNavigate('Council of Advisors');
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#C5A66A]/20 border border-[#C5A66A]/60 text-[#C5A66A] font-serif text-xs font-bold transition-all shadow-sm"
+              title="Open Royal Council Chamber (3D)"
+            >
+              <Crown size={13} className="text-[#C5A66A]" />
+              <span className="hidden sm:inline">The Council</span>
+              <span className="px-1 py-0.2 rounded bg-[#C5A66A]/20 text-[8px] font-mono font-bold text-[#EAE3D2]">
+                3D
+              </span>
             </button>
           )}
 

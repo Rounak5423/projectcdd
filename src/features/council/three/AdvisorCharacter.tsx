@@ -127,6 +127,31 @@ const AdvisorCharacterModel: React.FC<AdvisorCharacterModelProps> = ({
   return <primitive object={wrapper} />;
 };
 
+const AdvisorLoadingPlaceholder: React.FC<{ seat: AdvisorSeatConfig }> = ({ seat }) => {
+  return (
+    <group position={[0, 0.52, 0]}>
+      <mesh position={[0, 0.32, -0.04]}>
+        <boxGeometry args={[0.42, 0.44, 0.26]} />
+        <meshStandardMaterial
+          color={seat.primaryColor || '#C5A66A'}
+          transparent
+          opacity={0.4}
+          roughness={0.5}
+        />
+      </mesh>
+      <mesh position={[0, 0.72, -0.04]}>
+        <sphereGeometry args={[0.12, 12, 12]} />
+        <meshStandardMaterial
+          color={seat.accentColor || '#C5A66A'}
+          transparent
+          opacity={0.5}
+          roughness={0.4}
+        />
+      </mesh>
+    </group>
+  );
+};
+
 interface AdvisorCharacterProps {
   seat: AdvisorSeatConfig;
   advisor?: Advisor;
@@ -238,12 +263,14 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
       )}
 
       {/* 2. Realistic 3D Advisor Character Model Loaded via GLTF */}
-      <AdvisorCharacterModel
-        modelKey={activeModelKey}
-        isSpeaking={isSpeaking}
-        prefersReducedMotion={prefersReducedMotion}
-        seed={seed}
-      />
+      <React.Suspense fallback={<AdvisorLoadingPlaceholder seat={seat} />}>
+        <AdvisorCharacterModel
+          modelKey={activeModelKey}
+          isSpeaking={isSpeaking}
+          prefersReducedMotion={prefersReducedMotion}
+          seed={seed}
+        />
+      </React.Suspense>
 
       {/* 3. Floating Status Gem for Critical/Warning States */}
       {hasCritical && (
@@ -324,7 +351,9 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
   );
 };
 
-// Preload all models to eliminate runtime pop-in
+// Preload models under 25MB to eliminate runtime pop-in without blocking memory
 Object.values(COUNCIL_MODELS).forEach((cfg) => {
-  useGLTF.preload(cfg.modelPath);
+  if (cfg.id !== 'real-magus') {
+    useGLTF.preload(cfg.modelPath);
+  }
 });

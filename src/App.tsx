@@ -214,6 +214,7 @@ function GameApp() {
             logout();
             setStage('auth');
           }}
+          onNavigate={handleNavigate}
         />
 
         {/* 3D World Stage + Tactile Game Overlays */}

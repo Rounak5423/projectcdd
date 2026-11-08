@@ -14,3 +14,4 @@ function checkEmbedded(filePath) {
 checkEmbedded('public/models/council/downloaded/carl_manfred.glb');
 checkEmbedded('public/models/council/downloaded/freefire_pace.glb');
 checkEmbedded('public/models/council/downloaded/undead_wizard.glb');
+
