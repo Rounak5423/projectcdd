@@ -22,7 +22,11 @@ export function CameraHUD() {
   return <CameraManager />;
 }
 
-export default function CivilizationWorld3D() {
+export interface CivilizationWorld3DProps {
+  isPaused?: boolean;
+}
+
+export default function CivilizationWorld3D({ isPaused = false }: CivilizationWorld3DProps) {
   const {
     placedBuildings,
     selectedBuildingId,
@@ -47,7 +51,10 @@ export default function CivilizationWorld3D() {
       <div className="w-full h-full relative bg-[#121714] select-none overflow-hidden">
         {/* 3D WebGL Canvas */}
         <Canvas
+          frameloop={isPaused ? 'never' : 'always'}
           camera={{ position: [30, 26, 38], fov: 40, near: 0.5, far: 350 }}
+          dpr={[1, 1.25]}
+          performance={{ min: 0.5 }}
           shadows
           gl={{
             antialias: true,

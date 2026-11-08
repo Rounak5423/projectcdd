@@ -221,9 +221,10 @@ function GameApp() {
 
         {/* 3D World Stage + Tactile Game Overlays */}
         <div className="flex-1 min-h-0 flex overflow-hidden relative">
-          {/* PERSISTENT 3D WORLD: Never gets unmounted, always alive */}
+          {/* PERSISTENT 3D WORLD: Frameloop pauses when an overlay page is open to eliminate GPU contention & lag */}
           <div className="absolute inset-0 z-0">
             <WorldExplorerPage
+              isPaused={activePage !== 'World Explorer'}
               onOpenTech={() => setActivePage('Technology')}
               onOpenEconomy={() => setActivePage('Economy')}
             />

@@ -1,24 +1,67 @@
-// Native Web Audio API Sound Synthesizer for Strategy Game Sound FX
-// Zero external dependencies, pure browser audio synthesis
+// =============================================================================
+// CIVORA — AAA Master Web Audio Engine
+// Warm, cinematic, non-clipping analog-modeled sound synthesis
+// Zero external dependencies, pure Web Audio with master compressor & limiter
+// =============================================================================
 
 class SoundFX {
   private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
+  private masterFilter: BiquadFilterNode | null = null;
+  private compressor: DynamicsCompressorNode | null = null;
   private isMuted: boolean = false;
+  private lastClickTime: number = 0;
 
   private initContext() {
-    if (!this.ctx && typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return;
+
+    if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
+
+        // 1. Master Output Dynamics Compressor / Limiter
+        // Mathematically eliminates hard digital clipping, speaker distortion, and crackles
+        this.compressor = this.ctx.createDynamicsCompressor();
+        this.compressor.threshold.setValueAtTime(-14, this.ctx.currentTime);
+        this.compressor.knee.setValueAtTime(24, this.ctx.currentTime);
+        this.compressor.ratio.setValueAtTime(5, this.ctx.currentTime);
+        this.compressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
+        this.compressor.release.setValueAtTime(0.2, this.ctx.currentTime);
+
+        // 2. Master Warmth Low-Pass Filter
+        // Cuts harsh digital aliasing over 7.5 kHz, giving rich, warm, analog acoustic presence
+        this.masterFilter = this.ctx.createBiquadFilter();
+        this.masterFilter.type = 'lowpass';
+        this.masterFilter.frequency.setValueAtTime(7500, this.ctx.currentTime);
+        this.masterFilter.Q.setValueAtTime(0.7, this.ctx.currentTime);
+
+        // 3. Master Gain
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.42, this.ctx.currentTime);
+
+        // Audio Graph: [Effects] -> masterFilter -> compressor -> masterGain -> destination
+        this.masterFilter.connect(this.compressor);
+        this.compressor.connect(this.masterGain);
+        this.masterGain.connect(this.ctx.destination);
       }
     }
+
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
+  }
+
+  public getDestination(): AudioNode | null {
+    this.initContext();
+    return this.masterFilter || (this.ctx ? this.ctx.destination : null);
   }
 
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.42, this.ctx.currentTime);
+    }
     return this.isMuted;
   }
 
@@ -26,86 +69,131 @@ class SoundFX {
     return this.isMuted;
   }
 
-  // Crisp mechanical UI click
+  // ---------------------------------------------------------------------------
+  // 1. Crisp, tactile, smooth UI click (Wood/Parchment tactile click)
+  // Replaces harsh 600Hz triangle frequency pop with smooth marimba click
+  // ---------------------------------------------------------------------------
   public playClick() {
     if (this.isMuted) return;
+    const nowMs = Date.now();
+    if (nowMs - this.lastClickTime < 35) return; // Debounce rapid click spam
+    this.lastClickTime = nowMs;
+
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
+      const now = this.ctx.currentTime;
+
+      // Soft tactile click: gentle dual sine pop with instant exponential decay
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(600, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.04);
-      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.05);
-    } catch (e) {
-      // Audio fallback silent
-    }
+      const filter = this.ctx.createBiquadFilter();
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2200, now);
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1100, now);
+      osc.frequency.exponentialRampToValueAtTime(320, now + 0.024);
+
+      // Smooth anti-pop attack and natural acoustic decay
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.09, now + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.028);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + 0.032);
+    } catch (e) {}
   }
 
-  // Civ VI Style "Next Turn / Advance Day" drum + resonance
+  // ---------------------------------------------------------------------------
+  // 2. Day / Turn Advance: Resonant orchestral drum + warm horn chime
+  // ---------------------------------------------------------------------------
   public playTurnAdvance() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
 
-      // Bass drum impact
-      const osc1 = this.ctx.createOscillator();
-      const gain1 = this.ctx.createGain();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(150, now);
-      osc1.frequency.exponentialRampToValueAtTime(35, now + 0.25);
-      gain1.gain.setValueAtTime(0.3, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-      osc1.connect(gain1);
-      gain1.connect(this.ctx.destination);
-      osc1.start(now);
-      osc1.stop(now + 0.3);
+      // 1. Warm felt timpani drum impact
+      const drumOsc = this.ctx.createOscillator();
+      const drumGain = this.ctx.createGain();
+      const drumFilter = this.ctx.createBiquadFilter();
 
-      // Resonant brass horn chime
-      const osc2 = this.ctx.createOscillator();
-      const gain2 = this.ctx.createGain();
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(261.63, now); // C4
-      osc2.frequency.setValueAtTime(329.63, now + 0.08); // E4
-      osc2.frequency.setValueAtTime(392.00, now + 0.16); // G4
-      gain2.gain.setValueAtTime(0.01, now);
-      gain2.gain.linearRampToValueAtTime(0.15, now + 0.1);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-      osc2.connect(gain2);
-      gain2.connect(this.ctx.destination);
-      osc2.start(now);
-      osc2.stop(now + 0.5);
+      drumFilter.type = 'lowpass';
+      drumFilter.frequency.setValueAtTime(220, now);
+
+      drumOsc.type = 'sine';
+      drumOsc.frequency.setValueAtTime(120, now);
+      drumOsc.frequency.exponentialRampToValueAtTime(42, now + 0.22);
+
+      drumGain.gain.setValueAtTime(0.0001, now);
+      drumGain.gain.linearRampToValueAtTime(0.24, now + 0.006);
+      drumGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+
+      drumOsc.connect(drumFilter);
+      drumFilter.connect(drumGain);
+      drumGain.connect(dest);
+      drumOsc.start(now);
+      drumOsc.stop(now + 0.3);
+
+      // 2. Warm acoustic brass horn resonance (C4 + G4)
+      [261.63, 392.0].forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + 0.04);
+
+        gain.gain.setValueAtTime(0.0001, now + 0.04);
+        gain.gain.linearRampToValueAtTime(0.07 / (i + 1), now + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(now + 0.04);
+        osc.stop(now + 0.45);
+      });
     } catch (e) {}
   }
 
-  // Celebratory reward claim chime (Major Chord arpeggio + sparkle)
+  // ---------------------------------------------------------------------------
+  // 3. Celebratory Reward & Success Claim: Crystalline glockenspiel arpeggio
+  // ---------------------------------------------------------------------------
   public playRewardClaim() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
-      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
 
       notes.forEach((freq, idx) => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();
+        const noteTime = now + idx * 0.07;
+
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
-        gain.gain.setValueAtTime(0.18, now + idx * 0.08);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+        osc.frequency.setValueAtTime(freq, noteTime);
+
+        gain.gain.setValueAtTime(0.0001, noteTime);
+        gain.gain.linearRampToValueAtTime(0.12, noteTime + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.36);
+
         osc.connect(gain);
-        gain.connect(this.ctx!.destination);
-        osc.start(now + idx * 0.08);
-        osc.stop(now + idx * 0.08 + 0.4);
+        gain.connect(dest);
+        osc.start(noteTime);
+        osc.stop(noteTime + 0.38);
       });
     } catch (e) {}
   }
@@ -118,323 +206,393 @@ class SoundFX {
     this.playRewardClaim();
   }
 
-  // Eureka Breakthrough Chime
+  // ---------------------------------------------------------------------------
+  // 4. Eureka Breakthrough: Celestial harmonic chime
+  // ---------------------------------------------------------------------------
   public playEureka() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.18);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.42);
+
+      [523.25, 783.99, 1046.5, 1318.51].forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.04);
+
+        gain.gain.setValueAtTime(0.0001, now + i * 0.04);
+        gain.gain.linearRampToValueAtTime(0.1 / (i + 1), now + i * 0.04 + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.04 + 0.45);
+
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(now + i * 0.04);
+        osc.stop(now + i * 0.04 + 0.5);
+      });
     } catch (e) {}
   }
 
-  // High-tech Research Start hum
+  // ---------------------------------------------------------------------------
+  // 5. Research Start: Warm resonant acoustic chord
+  // Replaces harsh buzzing sawtooth
+  // ---------------------------------------------------------------------------
   public playResearchStart() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(220, now);
-      osc.frequency.exponentialRampToValueAtTime(587.33, now + 0.2);
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.36);
+
+      [329.63, 440.0, 659.25].forEach((freq, idx) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(0.08 / (idx + 1), now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      });
     } catch (e) {}
   }
 
-  // Construction / Hammer Upgrade Sound
+  // ---------------------------------------------------------------------------
+  // 6. Construction / Hammer: Warm stone masonry tap
+  // ---------------------------------------------------------------------------
   public playHammerBuild() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
-      // Anvil strike metallic ping
+
+      // Wooden mallet on stone tap
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(680, now);
+      filter.Q.setValueAtTime(2.0, now);
+
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(987.77, now);
-      osc.frequency.exponentialRampToValueAtTime(300, now + 0.12);
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      osc.frequency.setValueAtTime(480, now);
+      osc.frequency.exponentialRampToValueAtTime(160, now + 0.09);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.14, now + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(dest);
+
       osc.start(now);
-      osc.stop(now + 0.22);
+      osc.stop(now + 0.16);
     } catch (e) {}
   }
 
-  // Error / Insufficient Funds Buzz
+  // ---------------------------------------------------------------------------
+  // 7. Error / Insufficient Funds: Soft muted marimba low dyad
+  // Replaces harsh 120Hz sawtooth buzz that sounded like broken speakers
+  // ---------------------------------------------------------------------------
   public playError() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(120, now);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.2);
-    } catch (e) {}
-  }
 
-  // Street Protest Crowd Murmur & Whistle
-  public playCrowdChant() {
-    if (this.isMuted) return;
-    try {
-      this.initContext();
-      if (!this.ctx) return;
-      const now = this.ctx.currentTime;
-      // Rhythmic marching beat
-      const osc1 = this.ctx.createOscillator();
-      const gain1 = this.ctx.createGain();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(90, now);
-      osc1.frequency.exponentialRampToValueAtTime(45, now + 0.15);
-      gain1.gain.setValueAtTime(0.25, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-      osc1.connect(gain1);
-      gain1.connect(this.ctx.destination);
-      osc1.start(now);
-      osc1.stop(now + 0.22);
-
-      // Protest whistle
-      const osc2 = this.ctx.createOscillator();
-      const gain2 = this.ctx.createGain();
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(1400, now + 0.05);
-      osc2.frequency.exponentialRampToValueAtTime(1800, now + 0.22);
-      gain2.gain.setValueAtTime(0.12, now + 0.05);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-      osc2.connect(gain2);
-      gain2.connect(this.ctx.destination);
-      osc2.start(now + 0.05);
-      osc2.stop(now + 0.28);
-    } catch (e) {}
-  }
-
-  // Grand Carnival Fanfare & Festive Cheering
-  public playCarnivalCheer() {
-    if (this.isMuted) return;
-    try {
-      this.initContext();
-      if (!this.ctx) return;
-      const now = this.ctx.currentTime;
-      const fanfareNotes = [392, 523.25, 659.25, 783.99, 1046.5]; // G4, C5, E5, G5, C6
-      fanfareNotes.forEach((freq, idx) => {
+      // Soft muted wooden marimba clunk
+      [180, 165].forEach((freq, idx) => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.07);
-        gain.gain.setValueAtTime(0.2, now + idx * 0.07);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.35);
-        osc.connect(gain);
-        gain.connect(this.ctx!.destination);
-        osc.start(now + idx * 0.07);
-        osc.stop(now + idx * 0.07 + 0.4);
+        const filter = this.ctx!.createBiquadFilter();
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(500, now);
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+
+        gain.gain.setValueAtTime(0.0001, now + idx * 0.06);
+        gain.gain.linearRampToValueAtTime(0.12, now + idx * 0.06 + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.06 + 0.18);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(dest);
+
+        osc.start(now + idx * 0.06);
+        osc.stop(now + idx * 0.06 + 0.2);
       });
     } catch (e) {}
   }
 
-  // Imperial Gavel Edict Strike
+  // ---------------------------------------------------------------------------
+  // 8. Imperial Gavel: Deep polished mahogany gavel strike
+  // ---------------------------------------------------------------------------
   public playGavel() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
+
+      // Heavy wood impact
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(450, now);
+
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(220, now);
-      osc.frequency.exponentialRampToValueAtTime(55, now + 0.15);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.exponentialRampToValueAtTime(48, now + 0.16);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.25, now + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(dest);
+
       osc.start(now);
-      osc.stop(now + 0.28);
+      osc.stop(now + 0.26);
     } catch (e) {}
   }
 
-  // Demolition & Rubble Sound (Bulldozer)
-  public playExplosion() {
-    this.playFireworksExplosion();
+  // ---------------------------------------------------------------------------
+  // 9. Protest & Civic Chants: Soft distant civic crowd ambience
+  // ---------------------------------------------------------------------------
+  public playCrowdChant() {
+    if (this.isMuted) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
+      const now = this.ctx.currentTime;
+
+      // Rhythmic distant marching cadence
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(320, now);
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(80, now);
+      osc.frequency.exponentialRampToValueAtTime(38, now + 0.16);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.12, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(dest);
+
+      osc.start(now);
+      osc.stop(now + 0.24);
+    } catch (e) {}
   }
 
-  // Celebratory 3D Fireworks Detonation
+  // ---------------------------------------------------------------------------
+  // 10. Grand Carnival & Festive Cheering
+  // ---------------------------------------------------------------------------
+  public playCarnivalCheer() {
+    if (this.isMuted) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
+      const now = this.ctx.currentTime;
+      const fanfareNotes = [392, 523.25, 659.25, 783.99, 1046.5]; // G4, C5, E5, G5, C6
+
+      fanfareNotes.forEach((freq, idx) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        const noteTime = now + idx * 0.06;
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, noteTime);
+
+        gain.gain.setValueAtTime(0.0001, noteTime);
+        gain.gain.linearRampToValueAtTime(0.09, noteTime + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.32);
+
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(noteTime);
+        osc.stop(noteTime + 0.35);
+      });
+    } catch (e) {}
+  }
+
+  // ---------------------------------------------------------------------------
+  // 11. Fireworks Detonation
+  // ---------------------------------------------------------------------------
   public playFireworksExplosion() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
 
-      // 1. Rising rocket whistle
-      const whistleOsc = this.ctx.createOscillator();
-      const whistleGain = this.ctx.createGain();
-      whistleOsc.type = 'sawtooth';
-      whistleOsc.frequency.setValueAtTime(400, now);
-      whistleOsc.frequency.exponentialRampToValueAtTime(1400, now + 0.25);
-      whistleGain.gain.setValueAtTime(0.08, now);
-      whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
-      whistleOsc.connect(whistleGain);
-      whistleGain.connect(this.ctx.destination);
-      whistleOsc.start(now);
-      whistleOsc.stop(now + 0.27);
-
-      // 2. Deep aerial burst boom
+      // Soft aerial pop
       const boomOsc = this.ctx.createOscillator();
       const boomGain = this.ctx.createGain();
-      boomOsc.type = 'sine';
-      boomOsc.frequency.setValueAtTime(180, now + 0.25);
-      boomOsc.frequency.exponentialRampToValueAtTime(35, now + 0.55);
-      boomGain.gain.setValueAtTime(0.35, now + 0.25);
-      boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
-      boomOsc.connect(boomGain);
-      boomGain.connect(this.ctx.destination);
-      boomOsc.start(now + 0.25);
-      boomOsc.stop(now + 0.7);
+      const filter = this.ctx.createBiquadFilter();
 
-      // 3. Crackling sparkle notes
-      const sparkles = [880, 1100, 1320, 1760];
-      sparkles.forEach((freq, idx) => {
-        const sOsc = this.ctx!.createOscillator();
-        const sGain = this.ctx!.createGain();
-        sOsc.type = 'triangle';
-        sOsc.frequency.setValueAtTime(freq, now + 0.35 + idx * 0.05);
-        sGain.gain.setValueAtTime(0.08, now + 0.35 + idx * 0.05);
-        sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45 + idx * 0.05);
-        sOsc.connect(sGain);
-        sGain.connect(this.ctx!.destination);
-        sOsc.start(now + 0.35 + idx * 0.05);
-        sOsc.stop(now + 0.5 + idx * 0.05);
-      });
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(280, now);
+
+      boomOsc.type = 'sine';
+      boomOsc.frequency.setValueAtTime(140, now);
+      boomOsc.frequency.exponentialRampToValueAtTime(36, now + 0.3);
+
+      boomGain.gain.setValueAtTime(0.0001, now);
+      boomGain.gain.linearRampToValueAtTime(0.2, now + 0.008);
+      boomGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+
+      boomOsc.connect(filter);
+      filter.connect(boomGain);
+      boomGain.connect(dest);
+
+      boomOsc.start(now);
+      boomOsc.stop(now + 0.38);
     } catch (e) {}
   }
 
-  // Heroic Overture: Cinematic bass impact + majestic imperial chord swell
+  public playExplosion() {
+    this.playFireworksExplosion();
+  }
+
+  // ---------------------------------------------------------------------------
+  // 12. Heroic Overture: Cinematic imperial brass swell
+  // ---------------------------------------------------------------------------
   public playHeroicOverture() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
 
-      // 1. Sub-bass tectonic impact (war drum)
-      const drumOsc = this.ctx.createOscillator();
-      const drumGain = this.ctx.createGain();
-      drumOsc.type = 'sine';
-      drumOsc.frequency.setValueAtTime(110, now);
-      drumOsc.frequency.exponentialRampToValueAtTime(32, now + 0.5);
-      drumGain.gain.setValueAtTime(0.4, now);
-      drumGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-      drumOsc.connect(drumGain);
-      drumGain.connect(this.ctx.destination);
-      drumOsc.start(now);
-      drumOsc.stop(now + 0.65);
-
-      // 2. Imperial brass harmonic chord swell: C3 (130.81), G3 (196.00), C4 (261.63), E4 (329.63)
-      const chord = [130.81, 196.00, 261.63, 329.63];
+      // Imperial brass chord swell: C3 (130.81), G3 (196.00), C4 (261.63), E4 (329.63)
+      const chord = [130.81, 196.0, 261.63, 329.63];
       chord.forEach((freq, i) => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + 0.05);
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.08 / (i + 1), now + 0.3);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
-        osc.connect(gain);
-        gain.connect(this.ctx!.destination);
-        osc.start(now + 0.05);
-        osc.stop(now + 1.3);
-      });
+        osc.frequency.setValueAtTime(freq, now + 0.02);
 
-      // 3. Ethereal celestial shimmer
-      const chimeOsc = this.ctx.createOscillator();
-      const chimeGain = this.ctx.createGain();
-      chimeOsc.type = 'sine';
-      chimeOsc.frequency.setValueAtTime(1046.5, now + 0.15); // C6
-      chimeOsc.frequency.exponentialRampToValueAtTime(2093, now + 0.45); // C7
-      chimeGain.gain.setValueAtTime(0.05, now + 0.15);
-      chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
-      chimeOsc.connect(chimeGain);
-      chimeGain.connect(this.ctx.destination);
-      chimeOsc.start(now + 0.15);
-      chimeOsc.stop(now + 0.95);
+        gain.gain.setValueAtTime(0.0001, now + 0.02);
+        gain.gain.linearRampToValueAtTime(0.06 / (i + 1), now + 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
+
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(now + 0.02);
+        osc.stop(now + 0.9);
+      });
     } catch (e) {}
   }
 
-  // Triumphant Royal Fanfare
+  // ---------------------------------------------------------------------------
+  // 13. Triumphant Royal Fanfare
+  // ---------------------------------------------------------------------------
   public playHeroicFanfare() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
-      const fanfareNotes = [261.63, 329.63, 392.00, 523.25, 659.25]; // C4, E4, G4, C5, E5
+      const fanfareNotes = [261.63, 329.63, 392.0, 523.25, 659.25]; // C4, E4, G4, C5, E5
+
       fanfareNotes.forEach((freq, i) => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();
+        const noteTime = now + i * 0.08;
+
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + i * 0.09);
-        gain.gain.setValueAtTime(0.15, now + i * 0.09);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.4);
+        osc.frequency.setValueAtTime(freq, noteTime);
+
+        gain.gain.setValueAtTime(0.0001, noteTime);
+        gain.gain.linearRampToValueAtTime(0.09, noteTime + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.32);
+
         osc.connect(gain);
-        gain.connect(this.ctx!.destination);
-        osc.start(now + i * 0.09);
-        osc.stop(now + i * 0.09 + 0.45);
+        gain.connect(dest);
+        osc.start(noteTime);
+        osc.stop(noteTime + 0.35);
       });
     } catch (e) {}
   }
 
-  // Heavy Tectonic Stone Gate Parting Rumble
+  // ---------------------------------------------------------------------------
+  // 14. Heavy Stone Gate Rumble: Filtered cinematic sub-bass
+  // ---------------------------------------------------------------------------
   public playStoneGateRumble() {
     if (this.isMuted) return;
     try {
       this.initContext();
       if (!this.ctx) return;
+      const dest = this.getDestination();
+      if (!dest) return;
       const now = this.ctx.currentTime;
+
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(45, now);
-      osc.frequency.linearRampToValueAtTime(65, now + 0.4);
-      osc.frequency.linearRampToValueAtTime(30, now + 0.9);
-      gain.gain.setValueAtTime(0.01, now);
-      gain.gain.linearRampToValueAtTime(0.2, now + 0.2);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      const filter = this.ctx.createBiquadFilter();
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(140, now);
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(55, now);
+      osc.frequency.exponentialRampToValueAtTime(32, now + 0.6);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.18, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(dest);
+
       osc.start(now);
-      osc.stop(now + 1.05);
+      osc.stop(now + 0.75);
     } catch (e) {}
   }
 }
 
 export const soundFx = new SoundFX();
-

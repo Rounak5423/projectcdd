@@ -53,11 +53,13 @@ const PRIMARY_CATEGORIES: { id: string; label: string; icon: React.ElementType }
 export interface WorldExplorerPageProps {
   onOpenTech?: () => void;
   onOpenEconomy?: () => void;
+  isPaused?: boolean;
 }
 
 export default function WorldExplorerPage({
   onOpenTech,
   onOpenEconomy,
+  isPaused = false,
 }: WorldExplorerPageProps = {}) {
   const {
     activeLayer,
@@ -115,7 +117,7 @@ export default function WorldExplorerPage({
     <div className="relative w-full h-full overflow-hidden bg-[#121619] select-none flex flex-col font-sans">
       {/* 3D React Three Fiber Viewport */}
       <div className="flex-1 w-full h-full relative">
-        <CivilizationWorld3D />
+        <CivilizationWorld3D isPaused={isPaused} />
 
         {/* COMPACT LAYER TOGGLE (Non-intrusive lens button) */}
         <div

@@ -19,3 +19,4 @@ function inspectGLB(filePath) {
 
 inspectGLB('public/models/council/real_carl_manfred.glb');
 inspectGLB('public/models/council/real_fullbody_male.glb');
+
