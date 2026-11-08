@@ -4,34 +4,28 @@ import { Html, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { Advisor } from '../types/advisor';
 import { AdvisorSeatConfig } from './Council3DTypes';
+import { COUNCIL_MODELS, CouncilModelConfig } from './CouncilModelRegistry';
 import { soundFx } from '../../../services/soundFx';
 
-export const ADVISOR_MODEL_PATHS: Record<string, string> = {
-  'adv-chancellor': '/models/council/adv_chancellor.glb',
-  'adv-treasurer': '/models/council/adv_treasurer.glb',
-  'adv-scholar': '/models/council/adv_scholar.glb',
-  'adv-architect': '/models/council/adv_architect.glb',
-  'adv-physician': '/models/council/adv_physician.glb',
-  'adv-keeper': '/models/council/adv_keeper.glb',
-};
-
 interface AdvisorCharacterModelProps {
-  modelPath: string;
+  modelKey: string;
   isSpeaking: boolean;
   prefersReducedMotion: boolean;
   seed: number;
 }
 
 const AdvisorCharacterModel: React.FC<AdvisorCharacterModelProps> = ({
-  modelPath,
+  modelKey,
   isSpeaking,
   prefersReducedMotion,
   seed,
 }) => {
-  const { scene } = useGLTF(modelPath);
+  const config: CouncilModelConfig =
+    COUNCIL_MODELS[modelKey] || COUNCIL_MODELS['adv-chancellor'];
+  const { scene } = useGLTF(config.modelPath);
 
   // Deep clone so each advisor instance has independent transforms and material states
-  const clonedScene = useMemo(() => {
+  const { wrapper, torsoNode, headNode, rightArmNode } = useMemo(() => {
     const clone = scene.clone(true);
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
@@ -39,19 +33,65 @@ const AdvisorCharacterModel: React.FC<AdvisorCharacterModelProps> = ({
         child.receiveShadow = true;
       }
     });
-    return clone;
-  }, [scene]);
 
-  // Target animation joints in the realistic GLTF hierarchy
-  const torsoNode = useRef<THREE.Object3D | null>(null);
-  const headNode = useRef<THREE.Object3D | null>(null);
-  const rightArmNode = useRef<THREE.Object3D | null>(null);
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
 
-  useEffect(() => {
-    torsoNode.current = clonedScene.getObjectByName('TorsoAssembly') || null;
-    headNode.current = clonedScene.getObjectByName('HeadAssembly') || null;
-    rightArmNode.current = clonedScene.getObjectByName('RightArmAssembly') || null;
-  }, [clonedScene]);
+    const container = new THREE.Group();
+    container.name = `CouncilModel_${config.id}`;
+
+    if (config.category === 'historical') {
+      // Historical models were exported with exact seat geometry
+      container.add(clone);
+    } else {
+      // Real downloaded models: normalize height, auto-center lateral bounds, ground feet to floor Y=0
+      const targetHeight = config.targetHeight || 1.6;
+      const rawHeight = size.y > 0.05 ? size.y : 1.0;
+      const scale = targetHeight / rawHeight;
+
+      clone.position.set(
+        -center.x + (config.offsetX || 0),
+        -box.min.y + (config.offsetY || 0),
+        -center.z + (config.offsetZ || 0)
+      );
+      if (config.rotationY) {
+        clone.rotation.y = config.rotationY;
+      }
+      container.scale.set(scale, scale, scale);
+      container.add(clone);
+    }
+
+    // Identify animation joints
+    const torso =
+      clone.getObjectByName('TorsoAssembly') ||
+      clone.getObjectByName('Spine1') ||
+      clone.getObjectByName('Spine') ||
+      clone.getObjectByName('U9M5FGRXTON58PON5RWIMVVJA') ||
+      null;
+
+    const head =
+      clone.getObjectByName('HeadAssembly') ||
+      clone.getObjectByName('Head') ||
+      clone.getObjectByName('U9M5FGRXTON58PON5RWIMVVJA_Modelpart1_head_Material005_0') ||
+      null;
+
+    const rightArm =
+      clone.getObjectByName('RightArmAssembly') ||
+      clone.getObjectByName('RightArm') ||
+      clone.getObjectByName('RightForeArm') ||
+      clone.getObjectByName('U9M5FGRXTON58PON5RWIMVVJA_Modelpart1_armr_Material003_0') ||
+      null;
+
+    return {
+      wrapper: container,
+      torsoNode: torso,
+      headNode: head,
+      rightArmNode: rightArm,
+    };
+  }, [scene, config]);
 
   // Subtle breathing and expressive speaking animation
   useFrame((state) => {
@@ -60,40 +100,31 @@ const AdvisorCharacterModel: React.FC<AdvisorCharacterModelProps> = ({
     const t = state.clock.getElapsedTime();
 
     // 1. Natural idle breathing on torso
-    if (torsoNode.current) {
-      const breath = Math.sin(t * 1.8 + seed) * 0.005;
-      torsoNode.current.position.y = 0.52 + breath;
-      torsoNode.current.scale.set(
-        1 + breath * 0.5,
-        1 + breath,
-        1 + breath * 0.5
-      );
+    if (torsoNode) {
+      const breath = Math.sin(t * 1.8 + seed) * 0.003;
+      torsoNode.position.y += breath * 0.15;
     }
 
     // 2. Head micro-movements or speaking nodding
-    if (headNode.current) {
+    if (headNode) {
       if (isSpeaking) {
-        headNode.current.rotation.x = Math.sin(t * 4.5) * 0.05;
-        headNode.current.rotation.y = Math.sin(t * 2.2) * 0.08;
+        headNode.rotation.x = Math.sin(t * 4.5) * 0.04;
+        headNode.rotation.y = Math.sin(t * 2.2) * 0.06;
       } else {
-        headNode.current.rotation.y = Math.sin(t * 0.6 + seed) * 0.04;
-        headNode.current.rotation.x = Math.cos(t * 0.9 + seed) * 0.015;
+        headNode.rotation.y = Math.sin(t * 0.6 + seed) * 0.02;
+        headNode.rotation.x = Math.cos(t * 0.9 + seed) * 0.01;
       }
     }
 
     // 3. Expressive gesture on right arm
-    if (rightArmNode.current) {
+    if (rightArmNode) {
       if (isSpeaking) {
-        rightArmNode.current.rotation.x = Math.sin(t * 3.8) * 0.08;
-        rightArmNode.current.rotation.z = Math.sin(t * 2.0) * 0.04;
-      } else {
-        rightArmNode.current.rotation.x = Math.sin(t * 0.5 + seed) * 0.01;
-        rightArmNode.current.rotation.z = 0;
+        rightArmNode.rotation.x = Math.sin(t * 3.8) * 0.05;
       }
     }
   });
 
-  return <primitive object={clonedScene} />;
+  return <primitive object={wrapper} />;
 };
 
 interface AdvisorCharacterProps {
@@ -101,6 +132,7 @@ interface AdvisorCharacterProps {
   advisor?: Advisor;
   isSelected: boolean;
   isSpeaking: boolean;
+  modelKey?: string;
   onClick: () => void;
 }
 
@@ -109,6 +141,7 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
   advisor,
   isSelected,
   isSpeaking,
+  modelKey,
   onClick,
 }) => {
   const [hovered, setHovered] = useState(false);
@@ -117,7 +150,8 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
   const rootGroupRef = useRef<THREE.Group>(null);
   const selectionRingRef = useRef<THREE.Mesh>(null);
 
-  const modelPath = ADVISOR_MODEL_PATHS[seat.id] || ADVISOR_MODEL_PATHS['adv-chancellor'];
+  const activeModelKey = modelKey || seat.id;
+  const activeModelConfig = COUNCIL_MODELS[activeModelKey] || COUNCIL_MODELS['adv-chancellor'];
   const seed = useMemo(() => seat.id.length * 1.7, [seat.id]);
 
   useEffect(() => {
@@ -205,7 +239,7 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
 
       {/* 2. Realistic 3D Advisor Character Model Loaded via GLTF */}
       <AdvisorCharacterModel
-        modelPath={modelPath}
+        modelKey={activeModelKey}
         isSpeaking={isSpeaking}
         prefersReducedMotion={prefersReducedMotion}
         seed={seed}
@@ -259,6 +293,11 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
               <span className="text-[9px] uppercase font-mono tracking-wider text-[#C5A66A] font-bold">
                 {seat.title}
               </span>
+              {activeModelConfig.category === 'real_downloaded' && (
+                <span className="px-1.5 py-0.2 rounded bg-[#C5A66A]/20 text-[#C5A66A] border border-[#C5A66A]/40 text-[8px] font-mono font-bold flex items-center gap-0.5">
+                  <span>⚡ 3D Real</span>
+                </span>
+              )}
               {isSpeaking && (
                 <span className="px-1.5 py-0.2 rounded-full bg-[#8FA879]/30 text-[#8FA879] text-[8px] font-mono uppercase font-bold animate-pulse">
                   Speaking
@@ -276,7 +315,7 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
             </span>
 
             <span className="text-[9px] font-mono text-[#A5AD9D]">
-              {advisor?.domain || 'Imperial Ministry'}
+              {advisor?.domain || 'Imperial Ministry'} · {activeModelConfig.shortName}
             </span>
           </div>
         </Html>
@@ -285,7 +324,7 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
   );
 };
 
-// Preload all 6 realistic advisor models to eliminate runtime pop-in
-Object.values(ADVISOR_MODEL_PATHS).forEach((path) => {
-  useGLTF.preload(path);
+// Preload all models to eliminate runtime pop-in
+Object.values(COUNCIL_MODELS).forEach((cfg) => {
+  useGLTF.preload(cfg.modelPath);
 });
