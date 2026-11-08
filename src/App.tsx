@@ -10,28 +10,30 @@ import FloatingRewardBanner from './components/game/FloatingRewardBanner';
 import ProtestResolutionModal from './components/game/ProtestResolutionModal';
 import DemoShowcaseModal from './components/game/DemoShowcaseModal';
 
-// Pages
+// Pages - Direct imports for critical initial path
 import WorldDashboard from './pages/WorldDashboard';
 import WorldExplorerPage from './pages/WorldExplorerPage';
-import PopulationPage from './pages/PopulationPage';
-import InfrastructurePage from './pages/InfrastructurePage';
-import ChroniclesPage from './pages/ChroniclesPage';
-import MissionsPage from './pages/MissionsPage';
-import EconomyPage from './pages/EconomyPage';
-import ResourcesPage from './pages/ResourcesPage';
-import TechnologyPage from './pages/TechnologyPage';
-import PolicyLaboratoryPage from './pages/PolicyLaboratoryPage';
-import FutureSimulatorPage from './pages/FutureSimulatorPage';
-import ResearchObservatoryPage from './pages/ResearchObservatoryPage';
-import ResearchWalletPage from './pages/ResearchWalletPage';
-import AchievementsPage from './pages/AchievementsPage';
-import GenesisPortalPage from './pages/GenesisPortalPage';
-import WorldCreationStudioPage from './pages/WorldCreationStudioPage';
-import SettingsPage from './pages/SettingsPage';
-import AdminConsolePage from './pages/AdminConsolePage';
 import CivoraLanding from './pages/CivoraLanding';
 import CivoraAuthPage from './pages/CivoraAuthPage';
-import CouncilPage from './features/council/pages/CouncilPage';
+
+// Lazy-loaded secondary pages to minimize initial bundle size and eliminate loading latency
+const CouncilPage = React.lazy(() => import('./features/council/pages/CouncilPage'));
+const PopulationPage = React.lazy(() => import('./pages/PopulationPage'));
+const InfrastructurePage = React.lazy(() => import('./pages/InfrastructurePage'));
+const ChroniclesPage = React.lazy(() => import('./pages/ChroniclesPage'));
+const MissionsPage = React.lazy(() => import('./pages/MissionsPage'));
+const EconomyPage = React.lazy(() => import('./pages/EconomyPage'));
+const ResourcesPage = React.lazy(() => import('./pages/ResourcesPage'));
+const TechnologyPage = React.lazy(() => import('./pages/TechnologyPage'));
+const PolicyLaboratoryPage = React.lazy(() => import('./pages/PolicyLaboratoryPage'));
+const FutureSimulatorPage = React.lazy(() => import('./pages/FutureSimulatorPage'));
+const ResearchObservatoryPage = React.lazy(() => import('./pages/ResearchObservatoryPage'));
+const ResearchWalletPage = React.lazy(() => import('./pages/ResearchWalletPage'));
+const AchievementsPage = React.lazy(() => import('./pages/AchievementsPage'));
+const GenesisPortalPage = React.lazy(() => import('./pages/GenesisPortalPage'));
+const WorldCreationStudioPage = React.lazy(() => import('./pages/WorldCreationStudioPage'));
+const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
+const AdminConsolePage = React.lazy(() => import('./pages/AdminConsolePage'));
 import { soundFx } from './services/soundFx';
 
 // ============================================================
@@ -230,7 +232,18 @@ function GameApp() {
           {/* GAME OVERLAYS: Opens as cinematic strategy screens over the 3D world */}
           {activePage !== 'World Explorer' && (
             <div className="absolute inset-0 z-20 flex flex-col overflow-y-auto custom-scrollbar bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-              {renderOverlay()}
+              <React.Suspense
+                fallback={
+                  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-[#C5A66A] space-y-3">
+                    <div className="w-7 h-7 rounded-full border-2 border-[#C5A66A] border-t-transparent animate-spin" />
+                    <span className="font-serif text-[11px] uppercase tracking-widest text-[#EAE3D2]">
+                      Loading Imperial Module...
+                    </span>
+                  </div>
+                }
+              >
+                {renderOverlay()}
+              </React.Suspense>
             </div>
           )}
 

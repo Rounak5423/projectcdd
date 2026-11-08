@@ -20,3 +20,4 @@ gltf.accessors?.forEach(acc => {
   totalGeom += (acc.count || 0) * 12;
 });
 console.log('Approx geometry uncompressed size:', (totalGeom / 1024 / 1024).toFixed(2), 'MB');
+

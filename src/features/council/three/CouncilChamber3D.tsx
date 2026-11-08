@@ -169,7 +169,8 @@ export const CouncilChamber3D: React.FC<CouncilChamber3DProps> = ({
         <Canvas
           shadows
           camera={{ position: [0, 5.2, 8.8], fov: 42 }}
-          dpr={[1, 2]}
+          dpr={[1, 1.5]}
+          performance={{ min: 0.6 }}
           gl={{
             antialias: true,
             alpha: false,

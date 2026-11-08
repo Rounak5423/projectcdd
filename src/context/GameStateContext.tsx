@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import {
   CivilizationProfile,
   ResourceState,
@@ -538,6 +538,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     return calculateCitySimulation(placedBuildings, buildingCatalog, resources, districts, taxRate);
   }, [placedBuildings, resources, districts, taxRate]);
 
+  // Throttled tick accumulator to eliminate HTTP flooding latency
+  const accumulatedTicksRef = useRef(0);
+  const lastBackendSyncRef = useRef(Date.now());
+
   // Simulation Tick Logic
   const advanceTick = useCallback(() => {
     // 1. Advance Calendar
@@ -754,9 +758,25 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setChirperFeed((prev) => [newChirp, ...prev.slice(0, 24)]);
     }
 
-    // 8. Fire background tick to FastAPI backend
-    civilizationApi.advanceSimulationTicks(civilization.id, 1).catch(() => {});
+    // 8. Throttled background sync to FastAPI backend (flushes at most once every 4 seconds)
+    accumulatedTicksRef.current += 1;
+    const now = Date.now();
+    if (now - lastBackendSyncRef.current >= 4000) {
+      const ticksToSync = accumulatedTicksRef.current;
+      accumulatedTicksRef.current = 0;
+      lastBackendSyncRef.current = now;
+      civilizationApi.advanceSimulationTicks(civilization.id, ticksToSync).catch(() => {});
+    }
   }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts, civilization]);
+
+  // Flush accumulated ticks when paused
+  useEffect(() => {
+    if (!isPlaying && accumulatedTicksRef.current > 0) {
+      const ticks = accumulatedTicksRef.current;
+      accumulatedTicksRef.current = 0;
+      civilizationApi.advanceSimulationTicks(civilization.id, ticks).catch(() => {});
+    }
+  }, [isPlaying, civilization.id]);
 
   // Advance by a full year
   const advanceYear = useCallback(() => {
@@ -771,15 +791,21 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     }));
   }, [advanceTick]);
 
-  // Timer loop for simulation
+  // Keep a stable ref to advanceTick to prevent timer recreation on every frame
+  const advanceTickRef = useRef(advanceTick);
+  useEffect(() => {
+    advanceTickRef.current = advanceTick;
+  });
+
+  // Timer loop for simulation - only restarts when isPlaying or mult changes, zero timer thrashing
   useEffect(() => {
     if (!isPlaying) return;
     const intervalMs = Math.max(150, 1500 / mult);
     const timer = setInterval(() => {
-      advanceTick();
+      advanceTickRef.current();
     }, intervalMs);
     return () => clearInterval(timer);
-  }, [isPlaying, mult, advanceTick]);
+  }, [isPlaying, mult]);
 
   const togglePlay = () => setIsPlaying((p) => !p);
 
