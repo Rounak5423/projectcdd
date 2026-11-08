@@ -1,10 +1,100 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
+import { Html, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { Advisor } from '../types/advisor';
 import { AdvisorSeatConfig } from './Council3DTypes';
 import { soundFx } from '../../../services/soundFx';
+
+export const ADVISOR_MODEL_PATHS: Record<string, string> = {
+  'adv-chancellor': '/models/council/adv_chancellor.glb',
+  'adv-treasurer': '/models/council/adv_treasurer.glb',
+  'adv-scholar': '/models/council/adv_scholar.glb',
+  'adv-architect': '/models/council/adv_architect.glb',
+  'adv-physician': '/models/council/adv_physician.glb',
+  'adv-keeper': '/models/council/adv_keeper.glb',
+};
+
+interface AdvisorCharacterModelProps {
+  modelPath: string;
+  isSpeaking: boolean;
+  prefersReducedMotion: boolean;
+  seed: number;
+}
+
+const AdvisorCharacterModel: React.FC<AdvisorCharacterModelProps> = ({
+  modelPath,
+  isSpeaking,
+  prefersReducedMotion,
+  seed,
+}) => {
+  const { scene } = useGLTF(modelPath);
+
+  // Deep clone so each advisor instance has independent transforms and material states
+  const clonedScene = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    return clone;
+  }, [scene]);
+
+  // Target animation joints in the realistic GLTF hierarchy
+  const torsoNode = useRef<THREE.Object3D | null>(null);
+  const headNode = useRef<THREE.Object3D | null>(null);
+  const rightArmNode = useRef<THREE.Object3D | null>(null);
+
+  useEffect(() => {
+    torsoNode.current = clonedScene.getObjectByName('TorsoAssembly') || null;
+    headNode.current = clonedScene.getObjectByName('HeadAssembly') || null;
+    rightArmNode.current = clonedScene.getObjectByName('RightArmAssembly') || null;
+  }, [clonedScene]);
+
+  // Subtle breathing and expressive speaking animation
+  useFrame((state) => {
+    if (prefersReducedMotion) return;
+
+    const t = state.clock.getElapsedTime();
+
+    // 1. Natural idle breathing on torso
+    if (torsoNode.current) {
+      const breath = Math.sin(t * 1.8 + seed) * 0.005;
+      torsoNode.current.position.y = 0.52 + breath;
+      torsoNode.current.scale.set(
+        1 + breath * 0.5,
+        1 + breath,
+        1 + breath * 0.5
+      );
+    }
+
+    // 2. Head micro-movements or speaking nodding
+    if (headNode.current) {
+      if (isSpeaking) {
+        headNode.current.rotation.x = Math.sin(t * 4.5) * 0.05;
+        headNode.current.rotation.y = Math.sin(t * 2.2) * 0.08;
+      } else {
+        headNode.current.rotation.y = Math.sin(t * 0.6 + seed) * 0.04;
+        headNode.current.rotation.x = Math.cos(t * 0.9 + seed) * 0.015;
+      }
+    }
+
+    // 3. Expressive gesture on right arm
+    if (rightArmNode.current) {
+      if (isSpeaking) {
+        rightArmNode.current.rotation.x = Math.sin(t * 3.8) * 0.08;
+        rightArmNode.current.rotation.z = Math.sin(t * 2.0) * 0.04;
+      } else {
+        rightArmNode.current.rotation.x = Math.sin(t * 0.5 + seed) * 0.01;
+        rightArmNode.current.rotation.z = 0;
+      }
+    }
+  });
+
+  return <primitive object={clonedScene} />;
+};
 
 interface AdvisorCharacterProps {
   seat: AdvisorSeatConfig;
@@ -24,12 +114,11 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
   const [hovered, setHovered] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
-  // Animation refs
   const rootGroupRef = useRef<THREE.Group>(null);
-  const torsoRef = useRef<THREE.Group>(null);
-  const headRef = useRef<THREE.Group>(null);
-  const rightArmRef = useRef<THREE.Group>(null);
   const selectionRingRef = useRef<THREE.Mesh>(null);
+
+  const modelPath = ADVISOR_MODEL_PATHS[seat.id] || ADVISOR_MODEL_PATHS['adv-chancellor'];
+  const seed = useMemo(() => seat.id.length * 1.7, [seat.id]);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -51,97 +140,10 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
     };
   }, [hovered]);
 
-  // Materials tailored for this advisor
-  const materials = useMemo(() => {
-    return {
-      primaryRobe: new THREE.MeshStandardMaterial({
-        color: seat.primaryColor,
-        roughness: 0.8,
-        metalness: 0.15,
-      }),
-      secondaryRobe: new THREE.MeshStandardMaterial({
-        color: seat.secondaryColor,
-        roughness: 0.75,
-        metalness: 0.1,
-      }),
-      goldAccent: new THREE.MeshStandardMaterial({
-        color: seat.accentColor,
-        roughness: 0.35,
-        metalness: 0.75,
-      }),
-      skin: new THREE.MeshStandardMaterial({
-        color: seat.skinTone,
-        roughness: 0.6,
-        metalness: 0.05,
-      }),
-      hair: new THREE.MeshStandardMaterial({
-        color: seat.hairColor,
-        roughness: 0.85,
-        metalness: 0.05,
-      }),
-      leatherBelt: new THREE.MeshStandardMaterial({
-        color: '#26180F',
-        roughness: 0.7,
-        metalness: 0.2,
-      }),
-      selectionGlow: new THREE.MeshBasicMaterial({
-        color: '#C5A66A',
-        transparent: true,
-        opacity: 0.65,
-      }),
-      speakingGlow: new THREE.MeshBasicMaterial({
-        color: '#8FA879',
-        transparent: true,
-        opacity: 0.8,
-      }),
-      warningAmber: new THREE.MeshBasicMaterial({
-        color: '#E09F3E',
-      }),
-      criticalRed: new THREE.MeshBasicMaterial({
-        color: '#C84C4C',
-      }),
-    };
-  }, [seat]);
-
-  // Subtle breathing and expressive animation
+  // Rotational animation on the selection ring
   useFrame((state) => {
     if (prefersReducedMotion) return;
-
     const t = state.clock.getElapsedTime();
-    const seed = seat.id.length * 1.7; // unique phase per advisor
-
-    // 1. Natural idle breathing
-    if (torsoRef.current) {
-      const breath = Math.sin(t * 1.8 + seed) * 0.005;
-      torsoRef.current.position.y = 0.52 + breath;
-      torsoRef.current.scale.set(
-        1 + breath * 0.5,
-        1 + breath,
-        1 + breath * 0.5
-      );
-    }
-
-    // 2. Head micro-movements or speaking nodding
-    if (headRef.current) {
-      if (isSpeaking) {
-        headRef.current.rotation.x = Math.sin(t * 4.5) * 0.05;
-        headRef.current.rotation.y = Math.sin(t * 2.2) * 0.08;
-      } else {
-        headRef.current.rotation.y = Math.sin(t * 0.6 + seed) * 0.04;
-        headRef.current.rotation.x = Math.cos(t * 0.9 + seed) * 0.015;
-      }
-    }
-
-    // 3. Speaking gesture on right arm
-    if (rightArmRef.current) {
-      if (isSpeaking) {
-        rightArmRef.current.rotation.x = -0.3 + Math.sin(t * 3.8) * 0.08;
-      } else {
-        rightArmRef.current.rotation.x = -0.28 + Math.sin(t * 0.5 + seed) * 0.01;
-      }
-    }
-
-    // 4. Selection ring rotation
     if (selectionRingRef.current && isSelected) {
       selectionRingRef.current.rotation.z = t * 0.8;
     }
@@ -174,13 +176,14 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
       {isSelected && (
         <group position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           {/* Outer runic selection ring */}
-          <mesh ref={selectionRingRef} material={materials.selectionGlow}>
+          <mesh ref={selectionRingRef}>
             <ringGeometry args={[0.72, 0.78, 32]} />
+            <meshBasicMaterial color="#C5A66A" transparent opacity={0.75} />
           </mesh>
           {/* Inner radial fill */}
           <mesh>
             <circleGeometry args={[0.7, 32]} />
-            <meshBasicMaterial color="#C5A66A" transparent opacity={0.12} />
+            <meshBasicMaterial color="#C5A66A" transparent opacity={0.14} />
           </mesh>
         </group>
       )}
@@ -196,126 +199,45 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
       {isSpeaking && (
         <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.82, 0.86, 32]} />
-          <primitive object={materials.speakingGlow} attach="material" />
+          <meshBasicMaterial color="#8FA879" transparent opacity={0.85} />
         </mesh>
       )}
 
-      {/* 2. Procedural Seated Advisor Character Model */}
-      {/* Lower Body & Draped Robes over chair */}
-      <group position={[0, 0, 0]}>
-        {/* Robes falling down to feet */}
-        <mesh position={[0, 0.28, 0.1]} castShadow material={materials.primaryRobe}>
-          <boxGeometry args={[0.44, 0.44, 0.46]} />
+      {/* 2. Realistic 3D Advisor Character Model Loaded via GLTF */}
+      <AdvisorCharacterModel
+        modelPath={modelPath}
+        isSpeaking={isSpeaking}
+        prefersReducedMotion={prefersReducedMotion}
+        seed={seed}
+      />
+
+      {/* 3. Floating Status Gem for Critical/Warning States */}
+      {hasCritical && (
+        <mesh position={[0, 1.48, 0]} castShadow>
+          <octahedronGeometry args={[0.045, 0]} />
+          <meshStandardMaterial
+            color="#C84C4C"
+            emissive="#C84C4C"
+            emissiveIntensity={0.85}
+            roughness={0.2}
+            metalness={0.8}
+          />
         </mesh>
-        {/* Lower robe skirt */}
-        <mesh position={[0, 0.12, 0.2]} castShadow material={materials.secondaryRobe}>
-          <boxGeometry args={[0.42, 0.24, 0.32]} />
+      )}
+      {!hasCritical && hasWarning && (
+        <mesh position={[0, 1.48, 0]} castShadow>
+          <octahedronGeometry args={[0.04, 0]} />
+          <meshStandardMaterial
+            color="#E09F3E"
+            emissive="#E09F3E"
+            emissiveIntensity={0.75}
+            roughness={0.2}
+            metalness={0.8}
+          />
         </mesh>
-        {/* Leather boots resting on stone */}
-        <mesh position={[-0.14, 0.04, 0.32]} material={materials.leatherBelt}>
-          <boxGeometry args={[0.1, 0.08, 0.18]} />
-        </mesh>
-        <mesh position={[0.14, 0.04, 0.32]} material={materials.leatherBelt}>
-          <boxGeometry args={[0.1, 0.08, 0.18]} />
-        </mesh>
-      </group>
+      )}
 
-      {/* Upper Body (Animated Torso & Breathing) */}
-      <group ref={torsoRef} position={[0, 0.52, 0]}>
-        {/* Robed Torso */}
-        <mesh position={[0, 0.34, -0.05]} castShadow material={materials.primaryRobe}>
-          <boxGeometry args={[0.46, 0.46, 0.28]} />
-        </mesh>
-
-        {/* Advisor Signature Gold/Accent Embroidered Sash / Stole */}
-        <mesh position={[0, 0.34, 0.1]} material={materials.goldAccent}>
-          <boxGeometry args={[0.16, 0.44, 0.02]} />
-        </mesh>
-
-        {/* Broad Robe Collar / Shoulder Mantle */}
-        <mesh position={[0, 0.52, -0.04]} castShadow material={materials.secondaryRobe}>
-          <boxGeometry args={[0.54, 0.12, 0.34]} />
-        </mesh>
-
-        {/* Neck */}
-        <mesh position={[0, 0.62, -0.04]} material={materials.skin}>
-          <cylinderGeometry args={[0.07, 0.08, 0.12, 12]} />
-        </mesh>
-
-        {/* Head & Facial Styling */}
-        <group ref={headRef} position={[0, 0.74, -0.04]}>
-          {/* Head Base */}
-          <mesh castShadow material={materials.skin}>
-            <sphereGeometry args={[0.13, 16, 16]} />
-          </mesh>
-
-          {/* Advisor Hair / Headdress */}
-          <mesh position={[0, 0.05, -0.03]} material={materials.hair}>
-            <sphereGeometry args={[0.135, 16, 16]} />
-          </mesh>
-
-          {/* Forehead Brow / Crown Fillet in Gold */}
-          <mesh position={[0, 0.05, 0.05]} material={materials.goldAccent}>
-            <torusGeometry args={[0.125, 0.012, 8, 20]} />
-          </mesh>
-
-          {/* Left and Right Eyes (subtle depth) */}
-          <mesh position={[-0.045, 0.01, 0.11]}>
-            <sphereGeometry args={[0.015, 8, 8]} />
-            <meshBasicMaterial color="#1C1814" />
-          </mesh>
-          <mesh position={[0.045, 0.01, 0.11]}>
-            <sphereGeometry args={[0.015, 8, 8]} />
-            <meshBasicMaterial color="#1C1814" />
-          </mesh>
-
-          {/* Warning / Critical Indicator Gem on Head / Fillet */}
-          {hasCritical && (
-            <mesh position={[0, 0.11, 0.13]} material={materials.criticalRed}>
-              <sphereGeometry args={[0.025, 8, 8]} />
-            </mesh>
-          )}
-          {!hasCritical && hasWarning && (
-            <mesh position={[0, 0.11, 0.13]} material={materials.warningAmber}>
-              <sphereGeometry args={[0.022, 8, 8]} />
-            </mesh>
-          )}
-        </group>
-
-        {/* Left Arm (Resting on Left Armrest) */}
-        <group position={[-0.26, 0.45, -0.04]}>
-          {/* Upper Arm */}
-          <mesh position={[0, -0.16, 0.04]} rotation={[0.2, 0, 0.1]} material={materials.primaryRobe}>
-            <cylinderGeometry args={[0.07, 0.065, 0.32, 8]} />
-          </mesh>
-          {/* Forearm angled forward */}
-          <mesh position={[-0.02, -0.28, 0.18]} rotation={[-0.4, 0, 0]} material={materials.secondaryRobe}>
-            <cylinderGeometry args={[0.06, 0.055, 0.3, 8]} />
-          </mesh>
-          {/* Left Hand */}
-          <mesh position={[-0.02, -0.32, 0.34]} material={materials.skin}>
-            <boxGeometry args={[0.08, 0.04, 0.1]} />
-          </mesh>
-        </group>
-
-        {/* Right Arm (Resting or Gesturing) */}
-        <group ref={rightArmRef} position={[0.26, 0.45, -0.04]}>
-          {/* Upper Arm */}
-          <mesh position={[0, -0.16, 0.04]} rotation={[0.2, 0, -0.1]} material={materials.primaryRobe}>
-            <cylinderGeometry args={[0.07, 0.065, 0.32, 8]} />
-          </mesh>
-          {/* Forearm */}
-          <mesh position={[0.02, -0.28, 0.18]} rotation={[-0.4, 0, 0]} material={materials.secondaryRobe}>
-            <cylinderGeometry args={[0.06, 0.055, 0.3, 8]} />
-          </mesh>
-          {/* Right Hand */}
-          <mesh position={[0.02, -0.32, 0.34]} material={materials.skin}>
-            <boxGeometry args={[0.08, 0.04, 0.1]} />
-          </mesh>
-        </group>
-      </group>
-
-      {/* 3. Floating 2D Nameplate Overlay on Hover / Select / Speaking */}
+      {/* 4. Floating 2D Nameplate Overlay on Hover / Select / Speaking */}
       {(hovered || isSelected || isSpeaking) && (
         <Html
           position={[0, 1.85, 0]}
@@ -362,3 +284,8 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
     </group>
   );
 };
+
+// Preload all 6 realistic advisor models to eliminate runtime pop-in
+Object.values(ADVISOR_MODEL_PATHS).forEach((path) => {
+  useGLTF.preload(path);
+});
