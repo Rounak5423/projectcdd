@@ -7,7 +7,7 @@ set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BACKEND_DIR="$DIR/genesis-engine/backend"
-FRONTEND_DIR="$DIR/genesis-engine/frontend"
+FRONTEND_DIR="$DIR"
 
 echo "=================================================================="
 echo "  GENESIS ENGINE: The Artificial Civilisation Engine"

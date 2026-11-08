@@ -18,8 +18,10 @@ from engine.simulation import step_world, seed_aurora_prime_if_not_exists, advan
 from auth.security import decode_access_token
 from db.database import get_db_connection
 from api.v1.router import api_v1_router
+from app.features.council.router import router as council_router
 
-FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+FRONTEND_DIR = ROOT_DIR
 
 
 class ConnectionManager:
@@ -103,6 +105,9 @@ app.add_middleware(
 
 # Mount /api/v1 router
 app.include_router(api_v1_router)
+
+# Mount /api/council direct alias
+app.include_router(council_router, prefix="/api")
 
 # Mount frontend built assets if available
 FRONTEND_DIST = os.path.join(FRONTEND_DIR, "dist")

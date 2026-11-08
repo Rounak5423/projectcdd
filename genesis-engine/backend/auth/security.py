@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, Tuple
 import jwt
 from fastapi import Depends, HTTPException, Header, status
-from db.database import get_db_connection
 
 JWT_SECRET_KEY = os.environ.get("GENESIS_JWT_SECRET", "genesis_super_secret_jwt_key_2026_dev")
 ALGORITHM = "HS256"
@@ -52,6 +51,7 @@ def get_current_user_optional(authorization: Optional[str] = Header(None)) -> Op
         return None
 
     user_id = payload["sub"]
+    from db.database import get_db_connection
     conn = get_db_connection()
     user = conn.execute("SELECT id, username, email, role, is_active FROM users WHERE id = ?", (user_id,)).fetchone()
     conn.close()

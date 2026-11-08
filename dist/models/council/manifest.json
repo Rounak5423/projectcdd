@@ -1,0 +1,87 @@
+{
+  "$schema": "https://civora.engine/schemas/council-assets-v1.json",
+  "version": "1.0.0",
+  "description": "Asset manifest and GLB fallback specifications for CIVORA 3D Royal Council Chamber",
+  "assets": {
+    "chamber": {
+      "path": "/models/council/chamber_environment.glb",
+      "required": false,
+      "description": "High-poly architectural GLTF environment for the Royal Chamber. If missing, high-fidelity procedural architecture is rendered."
+    },
+    "advisors": {
+      "adv-chancellor": {
+        "id": "adv-chancellor",
+        "name": "Chancellor Malor Drake",
+        "title": "Imperial Chancellor",
+        "path": "/models/council/adv_chancellor.glb",
+        "required": false,
+        "signatureColor": "#1B3322",
+        "accentColor": "#C5A66A",
+        "idleAnimation": "sitting_idle",
+        "speakingAnimation": "sitting_speaking",
+        "fallback": "procedural"
+      },
+      "adv-treasurer": {
+        "id": "adv-treasurer",
+        "name": "Treasurer Varian Voss",
+        "title": "High Treasurer",
+        "path": "/models/council/adv_treasurer.glb",
+        "required": false,
+        "signatureColor": "#3D2E1E",
+        "accentColor": "#D6A75E",
+        "idleAnimation": "sitting_idle",
+        "speakingAnimation": "sitting_speaking",
+        "fallback": "procedural"
+      },
+      "adv-scholar": {
+        "id": "adv-scholar",
+        "name": "Grand Scholar Elyse Moran",
+        "title": "Grand Scholar",
+        "path": "/models/council/adv_scholar.glb",
+        "required": false,
+        "signatureColor": "#1E2A3A",
+        "accentColor": "#8FA8BD",
+        "idleAnimation": "sitting_idle",
+        "speakingAnimation": "sitting_speaking",
+        "fallback": "procedural"
+      },
+      "adv-architect": {
+        "id": "adv-architect",
+        "name": "Royal Architect Corin Sol",
+        "title": "Royal Architect",
+        "path": "/models/council/adv_architect.glb",
+        "required": false,
+        "signatureColor": "#3A291A",
+        "accentColor": "#B87E4B",
+        "idleAnimation": "sitting_idle",
+        "speakingAnimation": "sitting_speaking",
+        "fallback": "procedural"
+      },
+      "adv-physician": {
+        "id": "adv-physician",
+        "name": "High Physician Thalia Rowe",
+        "title": "High Physician",
+        "path": "/models/council/adv_physician.glb",
+        "required": false,
+        "signatureColor": "#243329",
+        "accentColor": "#EAE3D2",
+        "idleAnimation": "sitting_idle",
+        "speakingAnimation": "sitting_speaking",
+        "fallback": "procedural"
+      },
+      "adv-keeper": {
+        "id": "adv-keeper",
+        "name": "Keeper of Nature Sarah Thorne",
+        "title": "Keeper of Nature",
+        "path": "/models/council/adv_keeper.glb",
+        "required": false,
+        "signatureColor": "#1D321F",
+        "accentColor": "#8FA879",
+        "idleAnimation": "sitting_idle",
+        "speakingAnimation": "sitting_speaking",
+        "fallback": "procedural"
+      }
+    }
+  }
+}
+

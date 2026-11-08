@@ -279,6 +279,20 @@ def init_db():
     except Exception as e:
         print(f"Migration error: {e}")
     seed_default_users()
+    seed_council_advisors()
+
+
+def seed_council_advisors():
+    """
+    Initializes council tables and seeds the 6 permanent advisor identities idempotently.
+    """
+    try:
+        from app.features.council.repository import init_council_tables, CouncilRepository
+        init_council_tables()
+        repo = CouncilRepository()
+        repo.seed_advisors_idempotent()
+    except Exception as e:
+        pass
 
 
 def seed_default_users():

@@ -1,0 +1,258 @@
+@import "tailwindcss";
+
+:root {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #EAE3D2;
+  background: #171D18;
+
+  /* Official CIVORA Brand Palette */
+  --civ-bg-primary: #171D18;
+  --civ-bg-secondary: #202820;
+  --civ-bg-elevated: #283228;
+  --civ-bg-forest: #17231B;
+  --civ-bg-darkest: #0E130F;
+
+  --civ-gold-antique: #C5A66A;
+  --civ-gold-muted: #9F8859;
+  --civ-gold-bright: #E4C88A;
+
+  --civ-ivory: #EAE3D2;
+  --civ-parchment: #D8CBAA;
+  --civ-text-secondary: #A5AD9D;
+  --civ-text-muted: #7A8473;
+
+  --civ-warning: #D6A75E;
+  --civ-danger: #C87569;
+  --civ-success: #8FA879;
+
+  --civ-border-subtle: #2B372C;
+  --civ-border-gold: rgba(197, 166, 106, 0.35);
+  --civ-border-strong: #3D4F3F;
+}
+
+/* Typography Utility Classes */
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.font-garamond {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+.font-inter {
+  font-family: 'Inter', sans-serif;
+}
+
+/* ================= HISTORICAL STRATEGY GAME PANELS ================= */
+
+/* Stone Surface Panel */
+.panel-civora {
+  background: #202820;
+  border: 1px solid #2B372C;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+.panel-civora-elevated {
+  background: #283228;
+  border: 1px solid #3D4F3F;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+/* Parchment Historical Manuscript Card */
+.parchment-card {
+  background: #1C231E;
+  background-image: radial-gradient(circle at 50% 50%, rgba(216, 203, 170, 0.03) 0%, transparent 80%);
+  border: 1px solid #364438;
+  border-left: 3px solid #C5A66A;
+  border-radius: 4px;
+}
+
+/* Antique Gold Divider Line */
+.gold-separator {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #C5A66A 50%, transparent 100%);
+  opacity: 0.45;
+}
+
+/* Tactile Strategy Buttons */
+.btn-civ-gold {
+  background: linear-gradient(180deg, #C5A66A 0%, #9F8859 100%);
+  color: #121713;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border: 1px solid #E4C88A;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 0.15s ease-out;
+}
+
+.btn-civ-gold:hover {
+  background: linear-gradient(180deg, #D4B67A 0%, #AF9765 100%);
+  border-color: #F0D598;
+  box-shadow: 0 4px 12px rgba(197, 166, 106, 0.25);
+}
+
+.btn-civ-stone {
+  background: #202820;
+  color: #EAE3D2;
+  border: 1px solid #2B372C;
+  border-radius: 4px;
+  transition: all 0.15s ease-out;
+}
+
+.btn-civ-stone:hover {
+  background: #283228;
+  border-color: #C5A66A;
+  color: #FFFFFF;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--brass-gold);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: #475a42;
+  color: #ffffff;
+}
+
+/* ================= REALISTIC STRATEGY GAME HUD ================= */
+
+/* Slate & Stone Game Panels */
+.panel {
+  background: #171d20;
+  border: 1px solid #2b353b;
+  border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+.game-hud-panel {
+  background: rgba(22, 27, 30, 0.92);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(143, 119, 66, 0.35);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
+}
+
+.game-brass-panel {
+  background: linear-gradient(180deg, #222521 0%, #161815 100%);
+  border: 1px solid rgba(194, 155, 56, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+}
+
+/* Tactile Strategy Game Buttons */
+.btn-game-gold {
+  background: linear-gradient(180deg, #c9a444 0%, #a68128 100%);
+  color: #17150f;
+  font-weight: 700;
+  border: 1px solid #dfbb59;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.15s ease-out;
+}
+
+.btn-game-gold:hover {
+  background: linear-gradient(180deg, #d8b24f 0%, #b58f31 100%);
+  border-color: #eed075;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.btn-game-gold:active {
+  background: linear-gradient(180deg, #a68128 0%, #917020 100%);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.btn-game-stone {
+  background: linear-gradient(180deg, #293238 0%, #1e252a 100%);
+  color: #ede8dc;
+  font-weight: 600;
+  border: 1px solid #3d4a52;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  transition: all 0.15s ease-out;
+}
+
+.btn-game-stone:hover {
+  background: linear-gradient(180deg, #323d44 0%, #262e34 100%);
+  border-color: #556670;
+  color: #ffffff;
+}
+
+.btn-game-green {
+  background: linear-gradient(180deg, #385434 0%, #293f26 100%);
+  color: #ede8dc;
+  font-weight: 600;
+  border: 1px solid #4d7148;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: all 0.15s ease-out;
+}
+
+.btn-game-green:hover {
+  background: linear-gradient(180deg, #43653f 0%, #304a2d 100%);
+  border-color: #5e8958;
+}
+
+/* Strategic City Banner */
+.civ-city-banner {
+  background: linear-gradient(180deg, #1f262b 0%, #151a1d 100%);
+  border: 1.5px solid #8f7742;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
+  border-radius: 6px;
+}
+
+.civ-pop-shield {
+  background: #252e34;
+  border: 1.5px solid #c29b38;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* Smooth custom scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #111518;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2f3a41;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #46555f;
+}
+
+/* Clean Category Eyebrows */
+.eyebrow {
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #aba393;
+}
