@@ -34,3 +34,4 @@ REALISM_GUARDRAILS = {
     "annual_accident_rate_per_100k": (5.0, 350.0),
     "maternal_fertility_age_bounds": (14.0, 50.0)
 }
+

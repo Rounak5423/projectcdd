@@ -261,3 +261,4 @@ def evaluate_incident_risk(
         "risk_tier": "HIGH" if p_severe > 0.35 else ("MEDIUM" if p_severe > 0.15 else "LOW"),
         "ml_enabled": ML_ENABLED
     }
+

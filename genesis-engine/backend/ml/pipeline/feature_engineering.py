@@ -148,3 +148,4 @@ if __name__ == "__main__":
     acc_data = build_accident_features()
     print(f"Accident features: {acc_data['feature_names']}, Train: {len(acc_data['train']['X'])}, Val: {len(acc_data['val']['X'])}, Test: {len(acc_data['test']['X'])}")
     print("✓ Feature engineering and temporal split verification successful.")
+

@@ -395,3 +395,4 @@ if __name__ == "__main__":
         train_casualty_count_model()
     elif args.task == "surrogate":
         train_surrogate_model()
+

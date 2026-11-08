@@ -270,3 +270,4 @@ if __name__ == "__main__":
     generate_visualizations()
     items = inspect_all_files()
     write_profile_report(items)
+
