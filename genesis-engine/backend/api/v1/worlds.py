@@ -161,6 +161,18 @@ async def get_world(world_id: str):
     if not row:
         raise HTTPException(status_code=404, detail=f"World '{world_id}' not found")
 
+    forecast_data = None
+    try:
+        from ml.config import ML_ENABLED
+        if ML_ENABLED:
+            from ml.inference.registry import predict_civilisation_forecast
+            forecast_data = predict_civilisation_forecast(
+                {"population": row["population"], "treasury": row["gdp"], "year": row["year"]},
+                horizon_years=5
+            )
+    except Exception:
+        pass
+
     return WorldDetail(
         id=row["id"],
         name=row["name"],
@@ -180,7 +192,8 @@ async def get_world(world_id: str):
         level=row["level"],
         grc_balance=row["grc_balance"],
         created_at=row["created_at"],
-        updated_at=row["updated_at"]
+        updated_at=row["updated_at"],
+        forecast=forecast_data
     )
 
 

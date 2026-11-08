@@ -50,6 +50,7 @@ class WorldSummary(BaseModel):
     technology_level: str
     created_at: str
     updated_at: str
+    forecast: Optional[Dict[str, Any]] = None
 
 
 class WorldDetail(BaseModel):
@@ -72,6 +73,7 @@ class WorldDetail(BaseModel):
     grc_balance: float
     created_at: str
     updated_at: str
+    forecast: Optional[Dict[str, Any]] = None
 
 
 # ---------------------------------------------------------------------------

@@ -505,3 +505,27 @@ Access the application at `http://127.0.0.1:8000`.
 1. **Massive-Scale Agent Crowds (100k+ on GPU):** While the LOD sampling architecture runs smoothly for current citizen pools, scaling to $100,000+$ simultaneous on-screen visible 3D pedestrians will benefit from a dedicated WebGPU compute shader pipeline rather than CPU-side LOD buffers.
 2. **Web Worker Pathfinding Offloading:** Road graph A* calculations currently run on the FastAPI backend and in memory. For giant maps ($500 \times 500$), offloading contraction hierarchy graph updates to background Web Workers or asynchronous Python worker pools will further optimize tick latency.
 3. **Dynamic Hydrodynamic River Meshes:** Current water rendering utilizes custom wave shaders and flow maps. Future iterations can integrate 2D shallow water equations (Saint-Venant equations) to model dam breaks and terrain erosion during flash storms.
+
+---
+
+## 15. Machine Learning & Empirical Simulation Calibration
+
+The GENESIS Engine integrates an empirical machine-learning and statistical calibration subsystem (`genesis-engine/backend/ml/`):
+
+1. **Empirical Calibration (`ml/calibration/params_v1.json`):**
+   - **Gompertz Adult Mortality:** Calibrated to UN WPP 2024 Life Tables ($R^2 = 0.9959$, $a = 1.295 \times 10^{-4}, b = 0.08016 \text{ yr}^{-1}$).
+   - **Hadwiger Age-Specific Fertility:** Calibrated to UN WPP 2024 ASFR ($R^2 = 0.9750$, Peak Maternal Age = $27.3\text{ yr}$).
+   - **Incident & Accident Engine:** Calibrated to UK STATS19 collision records (Fatal = 1.41%, Serious = 12.71%, Slight = 85.88%, Night Hazard Multiplier = $1.42\times$).
+   - **Validation Backtest:** 10-year forward simulation from Year 2010 achieves a **2.76% MAPE** against real World Bank historical data.
+2. **Model Registry & Champions (`ml/models/saved/`):**
+   - **Macroeconomic Forecasting:** Ridge AR Baseline ($s\text{MAPE} = 7.39\%$).
+   - **Inequality Dynamics:** LightGBM Quantile Regressor ($R^2 = 0.250$, Test $\text{MAE} = 0.011$, 72.7% interval coverage).
+   - **Incident Severity Risk:** Logistic Regression Baseline ($\text{ROC-AUC} = 0.602$).
+   - **Casualty Count:** LightGBM Poisson Regressor ($\text{MAE} = 0.330$).
+   - **Fast Counterfactual Surrogate:** Multi-Layer Perceptron ($R^2 = 0.862$, Inference Latency = **0.034 ms**).
+3. **Additive Endpoints & Integration:**
+   - `GET /api/v1/ml/models`
+   - `POST /api/v1/worlds/{id}/forecast`
+   - `GET /api/v1/worlds/{id}/risk`
+   - `POST /api/v1/ml/calibrate` (RBAC Admin Protected)
+   - Realism guardrails clamp simulated parameters to valid ranges, with safe fallbacks ensuring the engine runs seamlessly even when ML libraries are absent.

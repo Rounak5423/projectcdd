@@ -11,6 +11,7 @@ from api.v1.progression import router as prog_router
 from api.v1.scenarios import router as scenarios_router
 from api.v1.cs2_routes import router as cs2_router
 from app.features.council.router import router as council_router
+from api.v1.ml_routes import router as ml_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -26,3 +27,4 @@ api_v1_router.include_router(prog_router)
 api_v1_router.include_router(scenarios_router)
 api_v1_router.include_router(cs2_router)
 api_v1_router.include_router(council_router)
+api_v1_router.include_router(ml_router)
