@@ -22,12 +22,23 @@ from engine.technology_engine import (
 router = APIRouter(tags=["Technology & Research"])
 
 
+def _resolve_world_id(id: str) -> str:
+    aliases = {
+        "civ-aurora-01": "aurora-prime",
+        "civ-default": "aurora-prime",
+        "prime": "aurora-prime",
+        "default": "aurora-prime",
+    }
+    return aliases.get(id, id)
+
+
 @router.get("/worlds/{id}/technology", response_model=List[TechnologyNode])
 async def get_technology_tree(id: str):
     """
     Returns the full civilisation technology tree including Civ VI eras, Eureka boost statuses,
     prerequisites, turns remaining, and unlocked capabilities.
     """
+    id = _resolve_world_id(id)
     conn = get_db_connection()
     # Auto-seed Civ paradigms if world has none
     seed_civilization_technologies(conn, id)
@@ -52,6 +63,7 @@ async def get_technology_overview(id: str):
     Returns high-level civilisation research overview: active paradigm, science throughput (+36.0/ST),
     turns remaining, era progression, and full catalog.
     """
+    id = _resolve_world_id(id)
     conn = get_db_connection()
     seed_civilization_technologies(conn, id)
     science_per_turn = get_world_science_rate(conn, id)
@@ -102,6 +114,7 @@ async def start_research(id: str, req: TechResearchRequest):
     Sets the active research project for the civilisation.
     Validates prerequisite unlocking dependencies before commencing research.
     """
+    id = _resolve_world_id(id)
     conn = get_db_connection()
     seed_civilization_technologies(conn, id)
 
@@ -157,6 +170,7 @@ async def queue_research_alias(id: str, tech_id: str):
     API compatibility route for frontend civilizationApi.queueResearch(civId, techId).
     Sets the specified technology as active research.
     """
+    id = _resolve_world_id(id)
     conn = get_db_connection()
     seed_civilization_technologies(conn, id)
 
@@ -190,6 +204,7 @@ async def trigger_technology_eureka(id: str, tech_id: str):
     """
     Triggers an instant 50% Eureka scientific breakthrough discount for the target technology.
     """
+    id = _resolve_world_id(id)
     conn = get_db_connection()
     seed_civilization_technologies(conn, id)
 
@@ -218,6 +233,7 @@ async def complete_technology_instantly(id: str, tech_id: str):
     Instantly masters and unlocks the target technology.
     Applies civilization bonuses and records research breakthrough.
     """
+    id = _resolve_world_id(id)
     conn = get_db_connection()
     seed_civilization_technologies(conn, id)
 
@@ -263,6 +279,7 @@ async def simulate_research_tick(id: str, science_boost: Optional[float] = None)
     Simulates a scientific research cycle/turn for this world.
     Advances progress towards the currently researching technology.
     """
+    id = _resolve_world_id(id)
     conn = get_db_connection()
     seed_civilization_technologies(conn, id)
     science_per_turn = science_boost if science_boost is not None else get_world_science_rate(conn, id)

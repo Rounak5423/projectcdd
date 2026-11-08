@@ -17,6 +17,16 @@ def get_council_repo() -> CouncilRepository:
     return _repo_instance
 
 
+def _resolve_world_id(id: str) -> str:
+    aliases = {
+        "civ-aurora-01": "aurora-prime",
+        "civ-default": "aurora-prime",
+        "prime": "aurora-prime",
+        "default": "aurora-prime",
+    }
+    return aliases.get(id, id)
+
+
 def verify_world_access(
     world_id: str,
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
@@ -25,8 +35,9 @@ def verify_world_access(
     Verifies that the requested world exists and the user is authorized to access it.
     Admins can access any world; regular users can only access their owned worlds.
     """
+    target_id = _resolve_world_id(world_id)
     conn = get_db_connection()
-    row = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
+    row = conn.execute("SELECT * FROM worlds WHERE id = ?", (target_id,)).fetchone()
     conn.close()
 
     if not row:

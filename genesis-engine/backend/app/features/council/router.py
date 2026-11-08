@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from auth.security import get_current_user_optional, get_current_user
-from app.features.council.dependencies import verify_world_access
+from app.features.council.dependencies import verify_world_access, _resolve_world_id
 from app.features.council.service import CouncilService
 from app.features.council.schemas import (
     CouncilEnvelope,
@@ -601,6 +601,7 @@ async def get_council_overview(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
 ):
     """Returns comprehensive council overview: assessment, live advisor states, pending recs, and active session."""
+    world_id = _resolve_world_id(world_id)
     verify_world_access(world_id, current_user)
     overview = council_service.get_council_overview(world_id)
     return CouncilEnvelope(
