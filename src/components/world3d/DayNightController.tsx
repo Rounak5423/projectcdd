@@ -396,7 +396,13 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
 }
 
 // ================= 3D SCENE LIGHTING & ENVIRONMENT COMPONENT =================
-export const WorldLighting = React.memo(function WorldLighting() {
+interface WorldLightingProps {
+  shadowMapSize?: number;
+}
+
+export const WorldLighting = React.memo(function WorldLighting({
+  shadowMapSize = 2048,
+}: WorldLightingProps = {}) {
   const {
     isNight,
     sunIntensity,
@@ -435,8 +441,8 @@ export const WorldLighting = React.memo(function WorldLighting() {
         intensity={isNight ? 0.85 : sunIntensity}
         color={directionalColor}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={shadowMapSize}
+        shadow-mapSize-height={shadowMapSize}
         shadow-camera-near={15}
         shadow-camera-far={200}
         shadow-camera-left={-65}

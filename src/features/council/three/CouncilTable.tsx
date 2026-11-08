@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { COUNCIL_SEATS } from './CouncilSeats';
 import { COUNCIL_MODELS } from './CouncilModelRegistry';
@@ -82,6 +82,13 @@ export const CouncilTable: React.FC<CouncilTableProps> = ({ modelMapping }) => {
       }),
     };
   }, []);
+
+  // Clean up WebGL material resources on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(materials).forEach((mat) => mat.dispose());
+    };
+  }, [materials]);
 
   return (
     <group name="CouncilTableAndChairs">

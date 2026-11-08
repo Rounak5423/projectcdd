@@ -18,6 +18,7 @@ import WorldHUD from './WorldHUD';
 import { PerformanceSampler } from './PerformanceTelemetry';
 import { ThreeSceneSampler } from '../diagnostics/ThreeSceneSampler';
 import WorldLabelManager, { triggerRoadSelection } from './WorldLabelManager';
+import { useRenderingQuality } from '../../hooks/useRenderingQuality';
 
 export function CameraHUD() {
   return <CameraManager />;
@@ -28,6 +29,7 @@ export interface CivilizationWorld3DProps {
 }
 
 export default function CivilizationWorld3D({ isPaused = false }: CivilizationWorld3DProps) {
+  const qualitySettings = useRenderingQuality();
   const {
     placedBuildings,
     selectedBuildingId,
@@ -54,7 +56,7 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
         <Canvas
           frameloop={isPaused ? 'never' : 'always'}
           camera={{ position: [30, 26, 38], fov: 40, near: 0.5, far: 350 }}
-          dpr={[1, 1.25]}
+          dpr={qualitySettings.dpr}
           performance={{ min: 0.5 }}
           shadows
           gl={{
@@ -71,7 +73,7 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
           }}
         >
           {/* Dynamic Sun, Moon, Ambient & Fog Environment */}
-          <WorldLighting />
+          <WorldLighting shadowMapSize={qualitySettings.shadowMapSize} />
 
           {/* Procedural Vertex-Colored Landscape */}
           <Terrain activeLayer={activeLayer} />

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 
 export const CouncilArchitecture: React.FC = () => {
@@ -73,6 +73,29 @@ export const CouncilArchitecture: React.FC = () => {
       }),
     };
   }, []);
+
+  // Shared geometries for repeated architectural elements (pillars & chandeliers)
+  const sharedGeoms = useMemo(() => {
+    return {
+      pillarPlinth: new THREE.BoxGeometry(0.85, 0.6, 0.85),
+      pillarShaft: new THREE.CylinderGeometry(0.34, 0.38, 5.4, 16),
+      pillarCapital: new THREE.BoxGeometry(0.8, 0.4, 0.8),
+      sconceBracket: new THREE.BoxGeometry(0.2, 0.05, 0.12),
+      sconceWax: new THREE.CylinderGeometry(0.04, 0.04, 0.2, 8),
+      sconceFlame: new THREE.SphereGeometry(0.035, 8, 8),
+      chandelierCup: new THREE.CylinderGeometry(0.05, 0.03, 0.04, 8),
+      chandelierWax: new THREE.CylinderGeometry(0.03, 0.03, 0.16, 8),
+      chandelierFlame: new THREE.SphereGeometry(0.03, 8, 8),
+    };
+  }, []);
+
+  // Clean up WebGL resources when unmounting
+  useEffect(() => {
+    return () => {
+      Object.values(materials).forEach((mat) => mat.dispose());
+      Object.values(sharedGeoms).forEach((geom) => geom.dispose());
+    };
+  }, [materials, sharedGeoms]);
 
   const pillarPositions: [number, number, number][] = [
     [-4.4, 0, -3.8],
@@ -240,28 +263,33 @@ export const CouncilArchitecture: React.FC = () => {
       {pillarPositions.map((pos, idx) => (
         <group key={`pillar-${idx}`} position={pos}>
           {/* Base Plinth */}
-          <mesh position={[0, 0.3, 0]} castShadow receiveShadow material={materials.pillarStone}>
-            <boxGeometry args={[0.85, 0.6, 0.85]} />
-          </mesh>
+          <mesh
+            position={[0, 0.3, 0]}
+            castShadow
+            receiveShadow
+            material={materials.pillarStone}
+            geometry={sharedGeoms.pillarPlinth}
+          />
           {/* Fluted Column Shaft */}
-          <mesh position={[0, 3.3, 0]} castShadow receiveShadow material={materials.pillarStone}>
-            <cylinderGeometry args={[0.34, 0.38, 5.4, 16]} />
-          </mesh>
+          <mesh
+            position={[0, 3.3, 0]}
+            castShadow
+            receiveShadow
+            material={materials.pillarStone}
+            geometry={sharedGeoms.pillarShaft}
+          />
           {/* Carved Capital */}
-          <mesh position={[0, 6.1, 0]} castShadow material={materials.pillarStone}>
-            <boxGeometry args={[0.8, 0.4, 0.8]} />
-          </mesh>
+          <mesh
+            position={[0, 6.1, 0]}
+            castShadow
+            material={materials.pillarStone}
+            geometry={sharedGeoms.pillarCapital}
+          />
           {/* Wall Candle Sconce on Pillars */}
           <group position={[pos[0] < 0 ? 0.38 : -0.38, 2.5, 0]}>
-            <mesh material={materials.wroughtIron}>
-              <boxGeometry args={[0.2, 0.05, 0.12]} />
-            </mesh>
-            <mesh position={[0, 0.12, 0]} material={materials.candleWax}>
-              <cylinderGeometry args={[0.04, 0.04, 0.2, 8]} />
-            </mesh>
-            <mesh position={[0, 0.25, 0]} material={materials.candleFlame}>
-              <sphereGeometry args={[0.035, 8, 8]} />
-            </mesh>
+            <mesh material={materials.wroughtIron} geometry={sharedGeoms.sconceBracket} />
+            <mesh position={[0, 0.12, 0]} material={materials.candleWax} geometry={sharedGeoms.sconceWax} />
+            <mesh position={[0, 0.25, 0]} material={materials.candleFlame} geometry={sharedGeoms.sconceFlame} />
           </group>
         </group>
       ))}
@@ -337,17 +365,11 @@ export const CouncilArchitecture: React.FC = () => {
             return (
               <group key={`cand-${sIdx}`} position={[cx, 0.05, cz]}>
                 {/* Candle holder cup */}
-                <mesh material={materials.wroughtIron}>
-                  <cylinderGeometry args={[0.05, 0.03, 0.04, 8]} />
-                </mesh>
+                <mesh material={materials.wroughtIron} geometry={sharedGeoms.chandelierCup} />
                 {/* Candle stick */}
-                <mesh position={[0, 0.1, 0]} material={materials.candleWax}>
-                  <cylinderGeometry args={[0.03, 0.03, 0.16, 8]} />
-                </mesh>
+                <mesh position={[0, 0.1, 0]} material={materials.candleWax} geometry={sharedGeoms.chandelierWax} />
                 {/* Flame point */}
-                <mesh position={[0, 0.22, 0]} material={materials.candleFlame}>
-                  <sphereGeometry args={[0.03, 8, 8]} />
-                </mesh>
+                <mesh position={[0, 0.22, 0]} material={materials.candleFlame} geometry={sharedGeoms.chandelierFlame} />
               </group>
             );
           })}

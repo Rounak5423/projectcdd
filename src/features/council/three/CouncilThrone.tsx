@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 
 export const CouncilThrone: React.FC = () => {
@@ -39,6 +39,13 @@ export const CouncilThrone: React.FC = () => {
       }),
     };
   }, []);
+
+  // Clean up WebGL material resources on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(materials).forEach((mat) => mat.dispose());
+    };
+  }, [materials]);
 
   return (
     <group name="SovereignDaisAndThrone" position={[0, 0, -4.8]}>

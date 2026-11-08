@@ -13,6 +13,8 @@
  * Designed with strict zero-GC overhead and never updates React state every animation frame.
  */
 
+import { qualityManager } from '../rendering/qualityManager';
+
 export interface ThreeSceneMetrics {
   sceneId: string;
   fps: number;
@@ -219,6 +221,7 @@ class CentralPerformanceMonitor {
           this.averageFps = Math.min(144, Math.round(fpsValues.reduce((a, b) => a + b, 0) / fpsValues.length));
           this.minFps = Math.min(144, Math.round(Math.min(...fpsValues)));
           this.maxFps = Math.min(144, Math.round(Math.max(...fpsValues)));
+          qualityManager.reportFramerate(this.averageFps);
         }
       }
 

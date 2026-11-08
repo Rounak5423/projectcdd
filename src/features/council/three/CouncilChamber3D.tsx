@@ -9,6 +9,7 @@ import { AdvisorGroup } from './AdvisorGroup';
 import { AdvisorCameraController } from './AdvisorCameraController';
 import { CouncilChamberPlaceholder } from '../components/CouncilChamberPlaceholder';
 import { ThreeSceneSampler } from '../../../components/diagnostics/ThreeSceneSampler';
+import { useRenderingQuality } from '../../../hooks/useRenderingQuality';
 import {
   COUNCIL_MODELS,
   THEME_PRESETS,
@@ -64,6 +65,7 @@ export const CouncilChamber3D: React.FC<CouncilChamber3DProps> = ({
   speakingAdvisorId: initialSpeakingId = null,
   className = '',
 }) => {
+  const qualitySettings = useRenderingQuality();
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('overview');
   const [cinematicDrift, setCinematicDrift] = useState(false);
   const [simulatedSpeakingId, setSimulatedSpeakingId] = useState<string | null>(initialSpeakingId);
@@ -170,7 +172,7 @@ export const CouncilChamber3D: React.FC<CouncilChamber3DProps> = ({
         <Canvas
           shadows
           camera={{ position: [0, 5.2, 8.8], fov: 42 }}
-          dpr={[1, 1.5]}
+          dpr={qualitySettings.dpr}
           performance={{ min: 0.6 }}
           gl={{
             antialias: true,
@@ -183,7 +185,7 @@ export const CouncilChamber3D: React.FC<CouncilChamber3DProps> = ({
           <fog attach="fog" args={['#101411', 10, 22]} />
 
           <Suspense fallback={null}>
-            <CouncilLighting />
+            <CouncilLighting shadowMapSize={qualitySettings.shadowMapSize} />
             <CouncilArchitecture />
             <CouncilTable modelMapping={modelMapping} />
             <CouncilThrone />

@@ -25,7 +25,16 @@ const AdvisorCharacterModel: React.FC<AdvisorCharacterModelProps> = ({
   const { scene } = useGLTF(config.modelPath);
 
   // Deep clone so each advisor instance has independent transforms and material states
-  const { wrapper, torsoNode, headNode, rightArmNode } = useMemo(() => {
+  const {
+    wrapper,
+    torsoNode,
+    headNode,
+    rightArmNode,
+    initialTorsoY,
+    initialHeadRotX,
+    initialHeadRotY,
+    initialRightArmRotX,
+  } = useMemo(() => {
     const clone = scene.clone(true);
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
@@ -85,41 +94,53 @@ const AdvisorCharacterModel: React.FC<AdvisorCharacterModelProps> = ({
       clone.getObjectByName('U9M5FGRXTON58PON5RWIMVVJA_Modelpart1_armr_Material003_0') ||
       null;
 
+    // Cache initial transforms to prevent floating point numerical drift over time
+    const initialTorsoY = torso ? torso.position.y : 0;
+    const initialHeadRotX = head ? head.rotation.x : 0;
+    const initialHeadRotY = head ? head.rotation.y : 0;
+    const initialRightArmRotX = rightArm ? rightArm.rotation.x : 0;
+
     return {
       wrapper: container,
       torsoNode: torso,
       headNode: head,
       rightArmNode: rightArm,
+      initialTorsoY,
+      initialHeadRotX,
+      initialHeadRotY,
+      initialRightArmRotX,
     };
   }, [scene, config]);
 
-  // Subtle breathing and expressive speaking animation
+  // Subtle breathing and expressive speaking animation (deterministic, zero drift)
   useFrame((state) => {
     if (prefersReducedMotion) return;
 
     const t = state.clock.getElapsedTime();
 
-    // 1. Natural idle breathing on torso
+    // 1. Natural idle breathing on torso - absolute offset from initial position
     if (torsoNode) {
       const breath = Math.sin(t * 1.8 + seed) * 0.003;
-      torsoNode.position.y += breath * 0.15;
+      torsoNode.position.y = initialTorsoY + breath;
     }
 
     // 2. Head micro-movements or speaking nodding
     if (headNode) {
       if (isSpeaking) {
-        headNode.rotation.x = Math.sin(t * 4.5) * 0.04;
-        headNode.rotation.y = Math.sin(t * 2.2) * 0.06;
+        headNode.rotation.x = initialHeadRotX + Math.sin(t * 4.5) * 0.04;
+        headNode.rotation.y = initialHeadRotY + Math.sin(t * 2.2) * 0.06;
       } else {
-        headNode.rotation.y = Math.sin(t * 0.6 + seed) * 0.02;
-        headNode.rotation.x = Math.cos(t * 0.9 + seed) * 0.01;
+        headNode.rotation.y = initialHeadRotY + Math.sin(t * 0.6 + seed) * 0.02;
+        headNode.rotation.x = initialHeadRotX + Math.cos(t * 0.9 + seed) * 0.01;
       }
     }
 
     // 3. Expressive gesture on right arm
     if (rightArmNode) {
       if (isSpeaking) {
-        rightArmNode.rotation.x = Math.sin(t * 3.8) * 0.05;
+        rightArmNode.rotation.x = initialRightArmRotX + Math.sin(t * 3.8) * 0.05;
+      } else {
+        rightArmNode.rotation.x = initialRightArmRotX;
       }
     }
   });
