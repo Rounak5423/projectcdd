@@ -404,7 +404,26 @@ class CouncilService:
         from app.features.council.intelligence.orchestrator import CouncilOrchestrator
         orch = CouncilOrchestrator(self.repo)
         report = await orch.run_council_deliberation_async(world_id=world_id, persist_recommendations=persist_recommendations)
-        return report.to_dict()
+        rep_dict = report.to_dict()
+        try:
+            from realtime import event_bus, EventPriority, EventCategory
+            import asyncio
+            asyncio.create_task(event_bus.publish(
+                event_type="council.deliberation.completed",
+                world_id=world_id,
+                payload={
+                    "report_id": rep_dict.get("report_id"),
+                    "world_id": world_id,
+                    "consensus_reached": rep_dict.get("consensus_reached", True),
+                    "recommendations_count": len(rep_dict.get("recommendations", [])),
+                    "summary": rep_dict.get("summary", "")
+                },
+                category=EventCategory.COUNCIL,
+                priority=EventPriority.CRITICAL
+            ))
+        except Exception:
+            pass
+        return rep_dict
 
     def run_council_deliberation(self, world_id: str, persist_recommendations: bool = True) -> Dict[str, Any]:
         from app.features.council.intelligence.orchestrator import CouncilOrchestrator

@@ -80,7 +80,18 @@ async def resume_simulation(id: str):
 async def advance_simulation(id: str, req: SimulationAdvanceRequest):
     try:
         # Thread-safe, lock-guaranteed advance avoiding concurrent race conditions (Task 2 & 5)
-        await simulation_scheduler.advance_world(id, ticks=req.ticks)
+        res = await simulation_scheduler.advance_world(id, ticks=req.ticks)
+        try:
+            from realtime import rt_ws_manager, delta_engine, EventPriority
+            ev_type, delta_payload, base_v, new_v = delta_engine.compute_state_delta(id, res)
+            await rt_ws_manager.broadcast(id, {
+                "type": "tick_update",
+                "event_type": ev_type,
+                "delta": delta_payload,
+                **res
+            }, priority=EventPriority.NORMAL)
+        except Exception:
+            pass
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

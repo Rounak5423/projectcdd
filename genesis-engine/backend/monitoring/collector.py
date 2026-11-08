@@ -77,7 +77,7 @@ class PerformanceMetricsCollector:
         self._ai_concurrent_operations: int = 0
         self._ai_tokens_used: int = 0
 
-        # WebSocket Metrics
+        # WebSocket Metrics (Phase 6 Real-Time Event Engine)
         self._ws_active_connections: int = 0
         self._ws_total_connected: int = 0
         self._ws_total_disconnected: int = 0
@@ -87,6 +87,13 @@ class PerformanceMetricsCollector:
         self._ws_bytes_received_approx: int = 0
         self._ws_message_durations: Deque[float] = deque(maxlen=300)
         self._ws_errors_count: int = 0
+        self._ws_queue_depth: int = 0
+        self._ws_dropped_messages: int = 0
+        self._ws_duplicate_events_detected: int = 0
+        self._ws_stale_events_rejected: int = 0
+        self._ws_snapshot_recoveries: int = 0
+        self._ws_deltas_emitted: int = 0
+        self._ws_snapshots_emitted: int = 0
 
     @property
     def is_enabled(self) -> bool:
@@ -352,6 +359,48 @@ class PerformanceMetricsCollector:
         with self._lock:
             self._ws_errors_count += 1
 
+    def record_ws_dropped(self, count: int = 1) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ws_dropped_messages += count
+
+    def record_ws_duplicate_detected(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ws_duplicate_events_detected += 1
+
+    def record_ws_stale_rejected(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ws_stale_events_rejected += 1
+
+    def record_ws_snapshot_recovery(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ws_snapshot_recoveries += 1
+
+    def record_ws_delta_emitted(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ws_deltas_emitted += 1
+
+    def record_ws_snapshot_emitted(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ws_snapshots_emitted += 1
+
+    def set_ws_queue_depth(self, depth: int) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ws_queue_depth = max(0, depth)
+
     # -------------------------------------------------------------------------
     # Snapshot / Export for Dashboard
     # -------------------------------------------------------------------------
@@ -517,6 +566,13 @@ class PerformanceMetricsCollector:
                     "bytes_received_approx": self._ws_bytes_received_approx,
                     "avg_processing_duration_ms": ws_avg_proc_ms,
                     "errors_count": self._ws_errors_count,
+                    "queue_depth": self._ws_queue_depth,
+                    "dropped_messages": self._ws_dropped_messages,
+                    "duplicate_events_detected": self._ws_duplicate_events_detected,
+                    "stale_events_rejected": self._ws_stale_events_rejected,
+                    "snapshot_recoveries": self._ws_snapshot_recoveries,
+                    "deltas_emitted": self._ws_deltas_emitted,
+                    "snapshots_emitted": self._ws_snapshots_emitted,
                     "limitations_note": "Server-side processing duration is measured. True client network round-trip latency requires client echo ping/pong.",
                 },
             }
@@ -551,6 +607,13 @@ class PerformanceMetricsCollector:
             self._ws_bytes_received_approx = 0
             self._ws_message_durations.clear()
             self._ws_errors_count = 0
+            self._ws_queue_depth = 0
+            self._ws_dropped_messages = 0
+            self._ws_duplicate_events_detected = 0
+            self._ws_stale_events_rejected = 0
+            self._ws_snapshot_recoveries = 0
+            self._ws_deltas_emitted = 0
+            self._ws_snapshots_emitted = 0
 
 
 # Global singleton instance

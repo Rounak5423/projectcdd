@@ -59,6 +59,7 @@ import {
 } from '../data/cs2Data';
 import { soundFx } from '../services/soundFx';
 import { civilizationApi } from '../services/civilizationApi';
+import { civoraEventClient } from '../services/realtime/CivoraEventClient';
 import {
   calculateCitySimulation,
   CitySimulationReport,
@@ -763,23 +764,58 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setChirperFeed((prev) => [newChirp, ...prev.slice(0, 24)]);
     }
 
-    // 8. Throttled background sync to FastAPI backend (flushes at most once every 4 seconds)
+    // 8. Background sync to FastAPI backend (WebSocket first with REST fallback)
     accumulatedTicksRef.current += 1;
     const now = Date.now();
     if (now - lastBackendSyncRef.current >= 4000) {
       const ticksToSync = accumulatedTicksRef.current;
       accumulatedTicksRef.current = 0;
       lastBackendSyncRef.current = now;
-      civilizationApi.advanceSimulationTicks(civilization.id, ticksToSync).catch(() => {});
+      const sent = civoraEventClient.send(
+        'tick',
+        { ticks: ticksToSync },
+        `tick_${civilization.id}_${now}`
+      );
+      if (!sent) {
+        civilizationApi.advanceSimulationTicks(civilization.id, ticksToSync).catch(() => {});
+      }
     }
   }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts, civilization]);
+
+  // Real-Time Event Engine (Phase 6): Maintain centralized WebSocket connection
+  useEffect(() => {
+    if (civilization.id) {
+      civoraEventClient.connect(civilization.id);
+
+      const unsub = civoraEventClient.subscribe('council.deliberation.completed', (envelope) => {
+        const payload = envelope.payload || {};
+        triggerToast({
+          type: 'info',
+          title: 'Council Deliberation Concluded',
+          subtitle: `${payload.recommendations_count || 'New'} policy directives synthesized.`,
+        });
+      });
+
+      return () => {
+        unsub();
+        civoraEventClient.disconnect();
+      };
+    }
+  }, [civilization.id, triggerToast]);
 
   // Flush accumulated ticks when paused
   useEffect(() => {
     if (!isPlaying && accumulatedTicksRef.current > 0) {
       const ticks = accumulatedTicksRef.current;
       accumulatedTicksRef.current = 0;
-      civilizationApi.advanceSimulationTicks(civilization.id, ticks).catch(() => {});
+      const sent = civoraEventClient.send(
+        'tick',
+        { ticks },
+        `tick_${civilization.id}_${Date.now()}`
+      );
+      if (!sent) {
+        civilizationApi.advanceSimulationTicks(civilization.id, ticks).catch(() => {});
+      }
     }
   }, [isPlaying, civilization.id]);
 
