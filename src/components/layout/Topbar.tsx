@@ -26,7 +26,7 @@ import CS2ChirperWidget from '../cs2/CS2ChirperWidget';
 import ResourceDetailModal, { SelectedResourceKey } from './ResourceDetailModal';
 import NotificationCenter from './NotificationCenter';
 
-export default function Topbar({
+function TopbarComponent({
   isRightPanelOpen,
   onToggleRightPanel,
   user,
@@ -368,3 +368,5 @@ export default function Topbar({
     </>
   );
 }
+
+export default React.memo(TopbarComponent);

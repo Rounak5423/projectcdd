@@ -53,3 +53,4 @@ async def diagnostics_health():
         "subsystem": "CIVORA Performance Monitoring",
         "enabled": perf_collector.is_enabled,
     }
+

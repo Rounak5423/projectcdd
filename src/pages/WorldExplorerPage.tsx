@@ -56,7 +56,7 @@ export interface WorldExplorerPageProps {
   isPaused?: boolean;
 }
 
-export default function WorldExplorerPage({
+function WorldExplorerPageComponent({
   onOpenTech,
   onOpenEconomy,
   isPaused = false,
@@ -414,3 +414,5 @@ export default function WorldExplorerPage({
     </div>
   );
 }
+
+export default React.memo(WorldExplorerPageComponent);

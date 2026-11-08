@@ -13,7 +13,7 @@ import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
 import CS2RciDemandMeter from '../cs2/CS2RciDemandMeter';
 
-export default function BottomControls() {
+function BottomControlsComponent() {
   const {
     civilization,
     isPlaying,
@@ -230,3 +230,5 @@ export default function BottomControls() {
     </footer>
   );
 }
+
+export default React.memo(BottomControlsComponent);

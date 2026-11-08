@@ -3,6 +3,7 @@
 // with a clean demo-mode adapter fallback.
 
 import { apiClient, ApiResponse } from '../../../services/civilizationApi';
+import { apiCache } from '../../../services/apiCache';
 import { Advisor, AdvisorBriefingData } from '../types/advisor';
 import {
   CouncilRecommendation,
@@ -49,43 +50,49 @@ export class CouncilService {
 
   // 1. GET /api/council/advisors
   public async getAdvisors(): Promise<CouncilServiceResult<Advisor[]>> {
-    try {
-      const response = await apiClient.get<ApiResponse<Advisor[]>>('/council/advisors');
-      if (response.data && response.data.success && response.data.data) {
-        return { data: response.data.data, isDemo: false };
+    return apiCache.deduplicate('council_advisors', async () => {
+      try {
+        const response = await apiClient.get<ApiResponse<Advisor[]>>('/council/advisors');
+        if (response.data && response.data.success && response.data.data) {
+          return { data: response.data.data, isDemo: false };
+        }
+      } catch (err) {
+        // Backend not yet deployed; fallback cleanly to demo adapter
       }
-    } catch (err) {
-      // Backend not yet deployed; fallback cleanly to demo adapter
-    }
-    return { data: [...demoAdvisors], isDemo: true };
+      return { data: [...demoAdvisors], isDemo: true };
+    }, 8000);
   }
 
   // 2. GET /api/council/advisors/{advisor_id}
   public async getAdvisorById(advisorId: string): Promise<CouncilServiceResult<Advisor | null>> {
-    try {
-      const response = await apiClient.get<ApiResponse<Advisor>>(`/council/advisors/${advisorId}`);
-      if (response.data && response.data.success && response.data.data) {
-        return { data: response.data.data, isDemo: false };
+    return apiCache.deduplicate(`council_advisor_${advisorId}`, async () => {
+      try {
+        const response = await apiClient.get<ApiResponse<Advisor>>(`/council/advisors/${advisorId}`);
+        if (response.data && response.data.success && response.data.data) {
+          return { data: response.data.data, isDemo: false };
+        }
+      } catch (err) {
+        // Fallback
       }
-    } catch (err) {
-      // Fallback
-    }
-    const found = demoAdvisors.find((a) => a.id === advisorId) || null;
-    return { data: found, isDemo: true };
+      const found = demoAdvisors.find((a) => a.id === advisorId) || null;
+      return { data: found, isDemo: true };
+    }, 8000);
   }
 
   // 3. GET /api/council/advisors/{advisor_id}/briefing
   public async getAdvisorBriefing(advisorId: string): Promise<CouncilServiceResult<AdvisorBriefingData | null>> {
-    try {
-      const response = await apiClient.get<ApiResponse<AdvisorBriefingData>>(`/council/advisors/${advisorId}/briefing`);
-      if (response.data && response.data.success && response.data.data) {
-        return { data: response.data.data, isDemo: false };
+    return apiCache.deduplicate(`council_briefing_${advisorId}`, async () => {
+      try {
+        const response = await apiClient.get<ApiResponse<AdvisorBriefingData>>(`/council/advisors/${advisorId}/briefing`);
+        if (response.data && response.data.success && response.data.data) {
+          return { data: response.data.data, isDemo: false };
+        }
+      } catch (err) {
+        // Fallback
       }
-    } catch (err) {
-      // Fallback
-    }
-    const advisor = demoAdvisors.find((a) => a.id === advisorId);
-    return { data: advisor ? advisor.currentBriefing : null, isDemo: true };
+      const advisor = demoAdvisors.find((a) => a.id === advisorId);
+      return { data: advisor ? advisor.currentBriefing : null, isDemo: true };
+    }, 5000);
   }
 
   // 4. GET /api/council/recommendations
@@ -94,46 +101,52 @@ export class CouncilService {
     status?: string;
     priority?: string;
   }): Promise<CouncilServiceResult<CouncilRecommendation[]>> {
-    try {
-      const response = await apiClient.get<ApiResponse<CouncilRecommendation[]>>('/council/recommendations', {
-        params,
-      });
-      if (response.data && response.data.success && response.data.data) {
-        return { data: response.data.data, isDemo: false };
+    const cacheKey = `council_recs_${params?.advisorId || 'all'}_${params?.status || 'all'}_${params?.priority || 'all'}`;
+    return apiCache.deduplicate(cacheKey, async () => {
+      try {
+        const response = await apiClient.get<ApiResponse<CouncilRecommendation[]>>('/council/recommendations', {
+          params,
+        });
+        if (response.data && response.data.success && response.data.data) {
+          return { data: response.data.data, isDemo: false };
+        }
+      } catch (err) {
+        // Fallback
       }
-    } catch (err) {
-      // Fallback
-    }
 
-    let filtered = [...demoRecommendations];
-    if (params?.advisorId) {
-      filtered = filtered.filter((r) => r.advisorId === params.advisorId);
-    }
-    if (params?.status && params.status !== 'all') {
-      filtered = filtered.filter((r) => r.status === params.status);
-    }
-    if (params?.priority && params.priority !== 'all') {
-      filtered = filtered.filter((r) => r.priority === params.priority);
-    }
+      let filtered = [...demoRecommendations];
+      if (params?.advisorId) {
+        filtered = filtered.filter((r) => r.advisorId === params.advisorId);
+      }
+      if (params?.status && params.status !== 'all') {
+        filtered = filtered.filter((r) => r.status === params.status);
+      }
+      if (params?.priority && params.priority !== 'all') {
+        filtered = filtered.filter((r) => r.priority === params.priority);
+      }
 
-    return { data: filtered, isDemo: true };
+      return { data: filtered, isDemo: true };
+    }, 4000);
   }
 
   // 5. GET /api/council/sessions
   public async getSessions(): Promise<CouncilServiceResult<CouncilSession[]>> {
-    try {
-      const response = await apiClient.get<ApiResponse<CouncilSession[]>>('/council/sessions');
-      if (response.data && response.data.success && response.data.data) {
-        return { data: response.data.data, isDemo: false };
+    return apiCache.deduplicate('council_sessions', async () => {
+      try {
+        const response = await apiClient.get<ApiResponse<CouncilSession[]>>('/council/sessions');
+        if (response.data && response.data.success && response.data.data) {
+          return { data: response.data.data, isDemo: false };
+        }
+      } catch (err) {
+        // Fallback
       }
-    } catch (err) {
-      // Fallback
-    }
-    return { data: [...demoSessions], isDemo: true };
+      return { data: [...demoSessions], isDemo: true };
+    }, 4000);
   }
 
   // 6. POST /api/council/sessions
   public async createSession(payload: CreateSessionPayload): Promise<CouncilServiceResult<CouncilSession>> {
+    apiCache.invalidate('council_');
     try {
       const response = await apiClient.post<ApiResponse<CouncilSession>>('/council/sessions', payload);
       if (response.data && response.data.success && response.data.data) {
@@ -224,6 +237,7 @@ export class CouncilService {
     recommendationId: string,
     payload: RecommendationReviewPayload
   ): Promise<CouncilServiceResult<CouncilRecommendation | null>> {
+    apiCache.invalidate('council_');
     try {
       const response = await apiClient.post<ApiResponse<CouncilRecommendation>>(
         `/council/recommendations/${recommendationId}/review`,
@@ -317,34 +331,37 @@ export class CouncilService {
 
   // 11. GET /api/council/overview/{world_id}
   public async getCouncilOverview(worldId: string = 'aurora-prime'): Promise<CouncilServiceResult<CouncilOverview | null>> {
-    try {
-      const response = await apiClient.get<ApiResponse<CouncilOverview>>(`/council/overview/${worldId}`);
-      if (response.data && response.data.success && response.data.data) {
-        return { data: response.data.data, isDemo: false };
+    return apiCache.deduplicate(`council_overview_${worldId}`, async () => {
+      try {
+        const response = await apiClient.get<ApiResponse<CouncilOverview>>(`/council/overview/${worldId}`);
+        if (response.data && response.data.success && response.data.data) {
+          return { data: response.data.data, isDemo: false };
+        }
+      } catch (err) {
+        // Fallback
       }
-    } catch (err) {
-      // Fallback
-    }
-    const demoOverview: CouncilOverview = {
-      worldId,
-      overallCivilisationAssessment: 'The Council is in active quorum. Six ministerial departments are reporting live telemetry.',
-      advisorStatuses: {},
-      pendingRecommendationsCount: demoRecommendations.filter((r) => r.status === 'Proposed' || r.status === 'Under Review').length,
-      acceptedAwaitingExecutionCount: demoRecommendations.filter((r) => r.status === 'Accepted').length,
-      implementedCount: demoRecommendations.filter((r) => r.status === 'Implemented').length,
-      disagreementsCount: 2,
-      simulationTick: 147,
-      dataCompletenessScore: 92.5,
-      criticalFindings: [],
-      importantWarnings: [],
-    };
-    return { data: demoOverview, isDemo: true };
+      const demoOverview: CouncilOverview = {
+        worldId,
+        overallCivilisationAssessment: 'The Council is in active quorum. Six ministerial departments are reporting live telemetry.',
+        advisorStatuses: {},
+        pendingRecommendationsCount: demoRecommendations.filter((r) => r.status === 'Proposed' || r.status === 'Under Review').length,
+        acceptedAwaitingExecutionCount: demoRecommendations.filter((r) => r.status === 'Accepted').length,
+        implementedCount: demoRecommendations.filter((r) => r.status === 'Implemented').length,
+        disagreementsCount: 2,
+        simulationTick: 147,
+        dataCompletenessScore: 92.5,
+        criticalFindings: [],
+        importantWarnings: [],
+      };
+      return { data: demoOverview, isDemo: true };
+    }, 4000);
   }
 
   // 12. POST /api/council/recommendations/{recommendation_id}/execute
   public async executeRecommendation(
     payload: RecommendationExecutePayload
   ): Promise<CouncilServiceResult<CouncilExecutionRecord | null>> {
+    apiCache.invalidate('council_');
     try {
       const response = await apiClient.post<ApiResponse<CouncilExecutionRecord>>(
         `/council/recommendations/${payload.recommendationId}/execute`,

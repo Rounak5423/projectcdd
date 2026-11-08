@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { performanceMonitor } from './monitoring/performanceMonitor';
+import { apiCache } from './apiCache';
 import {
   CivilizationProfile,
   ResourceState,
@@ -125,35 +126,39 @@ export interface AdminUser {
 export const civilizationApi = {
   // Civilization & World telemetry
   async getCivilization(civId: string): Promise<ApiResponse<CivilizationProfile>> {
-    try {
-      const response = await apiClient.get<CivilizationProfile>(`/worlds/${civId}`);
-      return { success: true, data: response.data };
-    } catch {
+    return apiCache.deduplicate(`civ_${civId}`, async () => {
       try {
-        const altResponse = await apiClient.get<CivilizationProfile>(`/civilizations/${civId}`);
-        return { success: true, data: altResponse.data };
+        const response = await apiClient.get<CivilizationProfile>(`/worlds/${civId}`);
+        return { success: true, data: response.data };
       } catch {
-        return {
-          success: true,
-          message: 'FastAPI service not reachable; running in authoritative local simulation engine mode.',
-          isFallback: true,
-        };
+        try {
+          const altResponse = await apiClient.get<CivilizationProfile>(`/civilizations/${civId}`);
+          return { success: true, data: altResponse.data };
+        } catch {
+          return {
+            success: true,
+            message: 'FastAPI service not reachable; running in authoritative local simulation engine mode.',
+            isFallback: true,
+          };
+        }
       }
-    }
+    }, 5000);
   },
 
   async listWorlds(): Promise<ApiResponse<any[]>> {
-    try {
-      const response = await apiClient.get('/worlds');
-      return { success: true, data: response.data };
-    } catch {
-      return { success: false, data: [] };
-    }
+    return apiCache.deduplicate('worlds_list', async () => {
+      try {
+        const response = await apiClient.get('/worlds');
+        return { success: true, data: response.data };
+      } catch {
+        return { success: false, data: [] };
+      }
+    }, 6000);
   },
 
   async advanceSimulationTicks(civId: string, ticks: number): Promise<ApiResponse<{ ticksProcessed: number }>> {
     try {
-      const response = await apiClient.post(`/worlds/${civId}/simulate`, { ticks });
+      const response = await apiClient.post(`/worlds/${civId}/simulation/advance`, { ticks });
       return { success: true, data: response.data };
     } catch {
       return {

@@ -80,7 +80,7 @@ const baseNavigation: NavSection[] = [
   },
 ];
 
-export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
+function SidebarComponent({ activePage, onNavigate }: SidebarProps) {
   const { civilization } = useGameState();
   const { isAdmin } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -260,3 +260,5 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
     </aside>
   );
 }
+
+export default React.memo(SidebarComponent);

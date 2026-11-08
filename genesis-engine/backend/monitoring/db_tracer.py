@@ -84,3 +84,4 @@ class TracedConnection(sqlite3.Connection):
         finally:
             dt = (time.perf_counter() - t0) * 1000.0
             perf_collector.record_db_query(dt, sql_script[:120])
+

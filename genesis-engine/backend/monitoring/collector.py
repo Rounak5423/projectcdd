@@ -498,3 +498,4 @@ class PerformanceMetricsCollector:
 
 # Global singleton instance
 perf_collector = PerformanceMetricsCollector()
+

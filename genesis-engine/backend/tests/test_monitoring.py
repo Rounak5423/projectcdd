@@ -90,3 +90,4 @@ def test_simulation_tick_and_council_ai_instrumentation():
     assert "adv_chancellor" in snap["council_ai"]["advisors"]
     assert snap["council_ai"]["advisors"]["adv_chancellor"]["count"] > 0
     assert snap["council_ai"]["deliberation"]["count"] > 0
+

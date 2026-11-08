@@ -63,3 +63,4 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
                     response.headers["X-Response-Time-Ms"] = f"{elapsed_ms:.2f}"
             except Exception:
                 pass
+

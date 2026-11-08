@@ -188,3 +188,4 @@ Monitoring can be disabled at runtime without restarting the application:
 - **Dev Servers**:
   - Frontend: `http://localhost:5173/`
   - Backend: `http://localhost:8000/`
+

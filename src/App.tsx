@@ -11,12 +11,12 @@ import ProtestResolutionModal from './components/game/ProtestResolutionModal';
 import DemoShowcaseModal from './components/game/DemoShowcaseModal';
 
 // Pages - Direct imports for critical initial path
-import WorldDashboard from './pages/WorldDashboard';
 import WorldExplorerPage from './pages/WorldExplorerPage';
 import CivoraLanding from './pages/CivoraLanding';
 import CivoraAuthPage from './pages/CivoraAuthPage';
 
 // Lazy-loaded secondary pages to minimize initial bundle size and eliminate loading latency
+const WorldDashboard = React.lazy(() => import('./pages/WorldDashboard'));
 const CouncilPage = React.lazy(() => import('./features/council/pages/CouncilPage'));
 const PopulationPage = React.lazy(() => import('./pages/PopulationPage'));
 const InfrastructurePage = React.lazy(() => import('./pages/InfrastructurePage'));
@@ -46,7 +46,7 @@ function GameApp() {
   const [activePage, setActivePage] = useState<string>('World Explorer');
   const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(false);
   const [isPerformanceDashboardOpen, setIsPerformanceDashboardOpen] = useState<boolean>(false);
-  const { togglePlay, setSpeed, selectedBuilding, setConstructionMode } = useGameState();
+  const { togglePlay, setSpeed, selectedBuildingId, setConstructionMode } = useGameState();
   const { isAuthenticated, isLoading, logout, user } = useAuth();
 
   // App-level navigation stage: landing → auth → app
@@ -54,10 +54,10 @@ function GameApp() {
 
   // Auto-open tactical inspector when a building is selected in 3D world
   useEffect(() => {
-    if (selectedBuilding) {
+    if (selectedBuildingId) {
       setIsRightPanelOpen(true);
     }
-  }, [selectedBuilding]);
+  }, [selectedBuildingId]);
 
   // If the user is already authenticated on mount, skip landing & auth
   useEffect(() => {

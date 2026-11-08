@@ -63,3 +63,4 @@ export function ThreeSceneSampler({ sceneId }: ThreeSceneSamplerProps) {
 
   return null;
 }
+

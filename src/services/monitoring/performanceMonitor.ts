@@ -475,3 +475,4 @@ class CentralPerformanceMonitor {
 }
 
 export const performanceMonitor = new CentralPerformanceMonitor();
+

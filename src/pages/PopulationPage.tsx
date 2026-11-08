@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Users,
   Heart,
@@ -119,15 +119,27 @@ export const PopulationPage: React.FC<PopulationPageProps> = ({ onClose }) => {
   const [search, setSearch] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [inspectedCitizen, setInspectedCitizen] = useState<Citizen | null>(citizens[0] || null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
 
-  const filteredCitizens = citizens.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.occupation.toLowerCase().includes(search.toLowerCase()) ||
-      c.district.toLowerCase().includes(search.toLowerCase());
-    const matchesDistrict = selectedDistrict === 'all' || c.district === selectedDistrict;
-    return matchesSearch && matchesDistrict;
-  });
+  const filteredCitizens = useMemo(() => {
+    const s = search.toLowerCase();
+    return citizens.filter((c) => {
+      const matchesSearch =
+        !s ||
+        c.name.toLowerCase().includes(s) ||
+        c.occupation.toLowerCase().includes(s) ||
+        c.district.toLowerCase().includes(s);
+      const matchesDistrict = selectedDistrict === 'all' || c.district === selectedDistrict;
+      return matchesSearch && matchesDistrict;
+    });
+  }, [citizens, search, selectedDistrict]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCitizens.length / pageSize));
+  const paginatedCitizens = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredCitizens.slice(start, start + pageSize);
+  }, [filteredCitizens, currentPage, pageSize]);
 
   const handlePromoteTier = (tierId: string) => {
     soundFx.playReward();
@@ -409,7 +421,7 @@ export const PopulationPage: React.FC<PopulationPageProps> = ({ onClose }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#C5A66A]/10 text-[#EAE3D2]">
-                    {filteredCitizens.map((c) => {
+                    {paginatedCitizens.map((c) => {
                       const isSelected = inspectedCitizen?.id === c.id;
                       return (
                         <tr
@@ -457,7 +469,28 @@ export const PopulationPage: React.FC<PopulationPageProps> = ({ onClose }) => {
 
             <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/15 text-[10px] font-mono text-[#A5AD9D] mt-4 flex items-center justify-between">
               <span>Workforce Engagement: 86.4%</span>
-              <span>Total Surveyed Records: {citizens.length}</span>
+              <div className="flex items-center gap-2">
+                <span>Total Records: {filteredCitizens.length}</span>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1 ml-3">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-2 py-0.5 rounded bg-[#202820] text-[#EAE3D2] disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <span>{currentPage}/{totalPages}</span>
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-2 py-0.5 rounded bg-[#202820] text-[#EAE3D2] disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -483,4 +516,4 @@ export const PopulationPage: React.FC<PopulationPageProps> = ({ onClose }) => {
   );
 };
 
-export default PopulationPage;
+export default React.memo(PopulationPage);
