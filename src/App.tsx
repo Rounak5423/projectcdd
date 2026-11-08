@@ -111,6 +111,30 @@ function GameApp() {
       if (e.code === 'Escape') {
         e.preventDefault();
         soundFx.playClick();
+        if (isShortcutsOpen) {
+          setIsShortcutsOpen(false);
+          return;
+        }
+        if (isTutorialOpen) {
+          setIsTutorialOpen(false);
+          return;
+        }
+        if (isBudgetOpen) {
+          setIsBudgetOpen(false);
+          return;
+        }
+        if (isStatisticsOpen) {
+          setIsStatisticsOpen(false);
+          return;
+        }
+        if (isMilestonesModalOpen) {
+          setIsMilestonesModalOpen(false);
+          return;
+        }
+        if (isChirperOpen) {
+          setIsChirperOpen(false);
+          return;
+        }
         if (activePage !== 'World Explorer') {
           setActivePage('World Explorer');
         } else {

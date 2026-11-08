@@ -31,6 +31,18 @@ interface CS2BudgetModalProps {
 export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps) {
   const { resources, rates, taxRate, setTaxRate, civilization, triggerToast } = useGameState();
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        soundFx.playClick();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   const [activeTab, setActiveTab] = useState<'overview' | 'taxes' | 'services' | 'loans' | 'supplychain'>('overview');
   const [resTax, setResTax] = useState(taxRate || 14);
   const [comTax, setComTax] = useState(12);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Compass,
@@ -19,6 +19,18 @@ interface TutorialModalProps {
 
 export default function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        soundFx.playClick();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -146,6 +158,7 @@ export default function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
               soundFx.playClick();
               onClose();
             }}
+            aria-label="Close tutorial"
             className="p-1.5 rounded-lg text-[#8f9d94] hover:text-white hover:bg-[#1a2920] transition"
           >
             <X className="w-5 h-5" />

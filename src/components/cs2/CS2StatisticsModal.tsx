@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   TrendingUp,
@@ -25,6 +25,18 @@ export default function CS2StatisticsModal({ isOpen, onClose }: CS2StatisticsMod
 
   const [activeCategory, setActiveCategory] = useState<'population' | 'economy' | 'happiness' | 'utilities' | 'cognitive'>('population');
   const [timeRange, setTimeRange] = useState<'30' | '90' | '365'>('30');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        soundFx.playClick();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
