@@ -70,6 +70,12 @@ class PerformanceMetricsCollector:
         self._ai_timeouts_count: int = 0
         self._ai_retries_count: int = 0
         self._ai_pending_operations: int = 0
+        self._ai_cache_hits: int = 0
+        self._ai_cache_misses: int = 0
+        self._ai_dedup_hits: int = 0
+        self._ai_circuit_breaker_trips: int = 0
+        self._ai_concurrent_operations: int = 0
+        self._ai_tokens_used: int = 0
 
         # WebSocket Metrics
         self._ws_active_connections: int = 0
@@ -265,6 +271,48 @@ class PerformanceMetricsCollector:
         with self._lock:
             self._ai_retries_count += 1
 
+    def record_ai_cache_hit(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ai_cache_hits += 1
+
+    def record_ai_cache_miss(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ai_cache_misses += 1
+
+    def record_ai_dedup_hit(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ai_dedup_hits += 1
+
+    def record_ai_circuit_breaker_trip(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ai_circuit_breaker_trips += 1
+
+    def inc_ai_concurrent(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ai_concurrent_operations += 1
+
+    def dec_ai_concurrent(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ai_concurrent_operations = max(0, self._ai_concurrent_operations - 1)
+
+    def record_ai_tokens(self, tokens: int) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ai_tokens_used += max(0, tokens)
+
     # -------------------------------------------------------------------------
     # WebSocket Recording
     # -------------------------------------------------------------------------
@@ -443,6 +491,15 @@ class PerformanceMetricsCollector:
                     "timeouts_count": self._ai_timeouts_count,
                     "retries_count": self._ai_retries_count,
                     "pending_operations": self._ai_pending_operations,
+                    "concurrent_operations": self._ai_concurrent_operations,
+                    "cache_hits": self._ai_cache_hits,
+                    "cache_misses": self._ai_cache_misses,
+                    "cache_hit_rate_pct": round(
+                        (self._ai_cache_hits / max(self._ai_cache_hits + self._ai_cache_misses, 1)) * 100, 1
+                    ),
+                    "dedup_hits": self._ai_dedup_hits,
+                    "circuit_breaker_trips": self._ai_circuit_breaker_trips,
+                    "tokens_used": self._ai_tokens_used,
                     "deliberation": {
                         "avg_ms": delib_avg_ms,
                         "p95_ms": delib_p95_ms,

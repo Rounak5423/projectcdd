@@ -99,6 +99,11 @@ async def lifespan(app: FastAPI):
     for task in autotick_tasks.values():
         task.cancel()
     await simulation_scheduler.shutdown()
+    try:
+        from app.features.council.intelligence.request_manager import ai_request_manager
+        await ai_request_manager.shutdown()
+    except Exception:
+        pass
 
 
 app = FastAPI(
