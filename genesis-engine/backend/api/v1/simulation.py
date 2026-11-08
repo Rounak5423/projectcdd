@@ -1,41 +1,23 @@
 import asyncio
 from typing import Dict, Optional, Any
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from db.database import get_db_connection
 from engine.models_v1 import (
     SimulationStartRequest, SimulationAdvanceRequest, SimulationStatusResponse
 )
 from engine.simulation_v1 import advance_world_simulation
+from engine.scheduler import simulation_scheduler, SPEED_INTERVALS
 
 router = APIRouter(tags=["Simulation Controls"])
 
-# Active background ticker tasks
-active_simulation_tasks: Dict[str, asyncio.Task] = {}
-SPEED_INTERVALS = {
-    "1x": 1.0,
-    "2x": 0.5,
-    "5x": 0.2,
-    "10x": 0.1
-}
+
+async def _execute_tick_async(world_id: str, ticks: int) -> Dict[str, Any]:
+    """Runs synchronous CPU/DB simulation tick inside default thread pool executor (Task 5)."""
+    return await asyncio.to_thread(advance_world_simulation, world_id, ticks)
 
 
-async def _run_continuous_simulation(world_id: str, speed: str):
-    interval = SPEED_INTERVALS.get(speed, 1.0)
-    try:
-        while True:
-            await asyncio.sleep(interval)
-            conn = get_db_connection()
-            w = conn.execute("SELECT simulation_status, simulation_speed FROM worlds WHERE id = ?", (world_id,)).fetchone()
-            conn.close()
-
-            if not w or w["simulation_status"] != "running":
-                break
-
-            current_speed = w["simulation_speed"]
-            interval = SPEED_INTERVALS.get(current_speed, 1.0)
-            advance_world_simulation(world_id, ticks=1)
-    except asyncio.CancelledError:
-        pass
+# Register tick executor with scheduler
+simulation_scheduler.set_default_tick_handler(_execute_tick_async)
 
 
 @router.post("/worlds/{id}/simulation/start", response_model=SimulationStatusResponse)
@@ -48,15 +30,10 @@ async def start_simulation(id: str, req: SimulationStartRequest):
 
     with conn:
         conn.execute("UPDATE worlds SET simulation_status = 'running', simulation_speed = ? WHERE id = ?", (req.speed, id))
-
     conn.close()
 
-    # Start or update background loop
-    if id in active_simulation_tasks:
-        active_simulation_tasks[id].cancel()
-
-    task = asyncio.create_task(_run_continuous_simulation(id, req.speed))
-    active_simulation_tasks[id] = task
+    # Controlled start through centralized fixed-timestep scheduler (Task 2)
+    simulation_scheduler.start_world(id, speed=req.speed)
 
     return await get_simulation_status(id)
 
@@ -73,9 +50,8 @@ async def pause_simulation(id: str):
         conn.execute("UPDATE worlds SET simulation_status = 'paused' WHERE id = ?", (id,))
     conn.close()
 
-    if id in active_simulation_tasks:
-        active_simulation_tasks[id].cancel()
-        del active_simulation_tasks[id]
+    # Pause through scheduler
+    simulation_scheduler.pause_world(id)
 
     return await get_simulation_status(id)
 
@@ -93,11 +69,8 @@ async def resume_simulation(id: str):
         conn.execute("UPDATE worlds SET simulation_status = 'running' WHERE id = ?", (id,))
     conn.close()
 
-    if id in active_simulation_tasks:
-        active_simulation_tasks[id].cancel()
-
-    task = asyncio.create_task(_run_continuous_simulation(id, speed))
-    active_simulation_tasks[id] = task
+    # Resume through scheduler
+    simulation_scheduler.start_world(id, speed=speed)
 
     return await get_simulation_status(id)
 
@@ -106,7 +79,8 @@ async def resume_simulation(id: str):
 @router.post("/civilizations/{id}/simulate", response_model=SimulationStatusResponse, include_in_schema=False)
 async def advance_simulation(id: str, req: SimulationAdvanceRequest):
     try:
-        advance_world_simulation(id, ticks=req.ticks)
+        # Thread-safe, lock-guaranteed advance avoiding concurrent race conditions (Task 2 & 5)
+        await simulation_scheduler.advance_world(id, ticks=req.ticks)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -128,6 +102,11 @@ async def get_simulation_status(id: str):
     year = world["year"]
     day = world["day"]
     formatted = f"Year {year}, Day {day}"
+
+    # Sync runner status if active
+    runner = simulation_scheduler.get_runner(id)
+    if runner and runner.status in ("running", "paused"):
+        status_str = runner.status
 
     return SimulationStatusResponse(
         world_id=id,

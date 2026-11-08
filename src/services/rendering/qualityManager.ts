@@ -176,3 +176,4 @@ class RenderingQualityManager {
 }
 
 export const qualityManager = new RenderingQualityManager();
+

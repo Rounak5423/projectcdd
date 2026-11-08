@@ -312,9 +312,13 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     new_materials = max(0.0, econ["materials"] + materials_prod - materials_cons)
     new_research = econ["research_points"] + research_prod
 
-    # Research tech progress
-    active_tech = conn.execute("SELECT * FROM technologies WHERE world_id = ? AND is_researching = 1", (world_id,)).fetchall()
+    # Single atomic transaction for all tick modifications (Task 7 & 8)
     with conn:
+        # 1. Research tech progress
+        active_tech = conn.execute(
+            "SELECT * FROM technologies WHERE world_id = ? AND is_researching = 1", (world_id,)
+        ).fetchall()
+
         for t in active_tech:
             add_prog = research_prod * 0.5
             total_prog = t["research_progress"] + add_prog
@@ -329,18 +333,19 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
                 INSERT INTO events (id, world_id, year, day, title, category, description, created_at)
                 VALUES (?, ?, ?, ?, ?, 'breakthrough', ?, ?)
                 """, (evt_id, world_id, new_year, new_day, f"Research Breakthrough: {t['name']}",
-                      f"Civilisation successfully unlocked {t['name']}.", datetime.utcnow().isoformat()))
+                      f"Civilisation successfully unlocked {t['name']}.", datetime.now(timezone.utc).isoformat()))
+                events_created += 1
             else:
                 conn.execute("""
                 UPDATE technologies SET research_progress = ?
                 WHERE world_id = ? AND id = ?
                 """, (total_prog, world_id, t["id"]))
 
-    # Check and update missions
-    missions = conn.execute("SELECT * FROM missions WHERE world_id = ?", (world_id,)).fetchall()
-    earned_xp = 50 * ticks
-    earned_grc = 10.0 * ticks
-    with conn:
+        # 2. Check and update missions (Dirty-state tracking)
+        missions = conn.execute("SELECT * FROM missions WHERE world_id = ?", (world_id,)).fetchall()
+        earned_xp = 50 * ticks
+        earned_grc = 10.0 * ticks
+
         for m in missions:
             if not m["is_completed"]:
                 cur_val = m["current_value"]
@@ -350,9 +355,11 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
                     cur_val = econ["happiness"]
 
                 is_done = 1 if cur_val >= m["target_value"] else 0
-                conn.execute("""
-                UPDATE missions SET current_value = ?, is_completed = ? WHERE world_id = ? AND id = ?
-                """, (cur_val, is_done, world_id, m["id"]))
+                # Only execute UPDATE if values actually changed
+                if cur_val != m["current_value"] or is_done != m["is_completed"]:
+                    conn.execute("""
+                    UPDATE missions SET current_value = ?, is_completed = ? WHERE world_id = ? AND id = ?
+                    """, (cur_val, is_done, world_id, m["id"]))
 
                 if is_done and not m["is_completed"]:
                     evt_id = f"evt_{uuid.uuid4().hex[:8]}"
@@ -360,16 +367,16 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
                     INSERT INTO events (id, world_id, year, day, title, category, description, created_at)
                     VALUES (?, ?, ?, ?, ?, 'milestone', ?, ?)
                     """, (evt_id, world_id, new_year, new_day, f"Objective Completed: {m['title']}",
-                          f"Citizens achieved target for {m['title']}.", datetime.utcnow().isoformat()))
+                          f"Citizens achieved target for {m['title']}.", datetime.now(timezone.utc).isoformat()))
+                    events_created += 1
 
-    # Update Progression (15,000 XP per level threshold)
-    new_xp = (prog["xp"] if prog else 0) + earned_xp
-    new_level = max(1, min(10, (new_xp // 15000) + 1))
-    new_grc = (prog["grc_balance"] if prog else 1000.0) + earned_grc
-    thriving = min(0.99, 0.70 + (econ["happiness"] * 0.15) + (econ["employment_rate"] * 0.10))
+        # 3. Update Progression (15,000 XP per level threshold)
+        new_xp = (prog["xp"] if prog else 0) + earned_xp
+        new_level = max(1, min(10, (new_xp // 15000) + 1))
+        new_grc = (prog["grc_balance"] if prog else 1000.0) + earned_grc
+        thriving = min(0.99, 0.70 + (econ["happiness"] * 0.15) + (econ["employment_rate"] * 0.10))
 
-    now = datetime.now(timezone.utc).isoformat()
-    with conn:
+        now = datetime.now(timezone.utc).isoformat()
         conn.execute("""
         UPDATE worlds SET tick = ?, year = ?, day = ?, updated_at = ? WHERE id = ?
         """, (new_tick, new_year, new_day, now, world_id))
@@ -387,7 +394,7 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
         WHERE world_id = ?
         """, (new_xp, new_level, f"Level {new_level} Civilisation", thriving, new_grc, world_id))
 
-        # Record metrics history
+        # Record metrics history in same atomic transaction
         conn.execute("""
         INSERT INTO metrics_history (
             world_id, tick, year, day, population, gdp, happiness, employment, environment,
@@ -402,6 +409,8 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
             econ["gini_coefficient"], econ["civic_stability"], 0.84,
             0.18, 0.79, new_food, new_energy, new_materials
         ))
+
+    conn.close()
 
     conn.close()
 

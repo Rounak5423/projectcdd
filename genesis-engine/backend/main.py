@@ -16,6 +16,7 @@ from engine.models import (
 from engine.state import world_manager
 from engine.simulation import step_world
 from engine.simulation_v1 import seed_aurora_prime_if_not_exists, advance_world_simulation
+from engine.scheduler import simulation_scheduler
 from db.database import get_db_connection
 from api.v1.router import api_v1_router
 from app.features.council.router import router as council_router
@@ -94,9 +95,10 @@ async def lifespan(app: FastAPI):
             world_id="prime"
         )
     yield
-    # Cleanup background autotick tasks
+    # Cleanup background autotick tasks and centralized simulation scheduler
     for task in autotick_tasks.values():
         task.cancel()
+    await simulation_scheduler.shutdown()
 
 
 app = FastAPI(
@@ -401,25 +403,45 @@ async def compare_worlds(world_id: str, target_id: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-# Background continuous auto-tick runner
+# Background continuous auto-tick runner with monotonic timing and non-blocking execution (Task 2 & 5)
 async def _run_autotick(world_id: str, interval: float):
+    accumulator = 0.0
+    prev_time = time.monotonic()
     try:
         while True:
-            await asyncio.sleep(interval)
-            world = world_manager.get(world_id)
-            if not world:
-                break
-            step_world(world, ticks=1)
-            await ws_manager.broadcast(world_id, {
-                "type": "tick_update",
-                "world_id": world_id,
-                "tick": world.tick,
-                "year": world.year,
-                "economy": world.economy.model_dump(),
-                "resources": world.resources.model_dump(),
-                "population": world.population_count,
-                "sample_citizens": [c.model_dump() for i, c in enumerate(world.citizens) if i < 40]
-            })
+            now = time.monotonic()
+            elapsed = now - prev_time
+            prev_time = now
+            accumulator += elapsed
+
+            ticks_to_run = int(accumulator // interval)
+            if ticks_to_run > 0:
+                if ticks_to_run > 3:
+                    ticks_to_run = 3
+                    accumulator = 0.0
+                else:
+                    accumulator -= ticks_to_run * interval
+
+                world = world_manager.get(world_id)
+                if not world:
+                    break
+
+                # Offload simulation compute from event loop
+                await asyncio.to_thread(step_world, world, ticks_to_run)
+
+                await ws_manager.broadcast(world_id, {
+                    "type": "tick_update",
+                    "world_id": world_id,
+                    "tick": world.tick,
+                    "year": world.year,
+                    "economy": world.economy.model_dump(),
+                    "resources": world.resources.model_dump(),
+                    "population": world.population_count,
+                    "sample_citizens": [c.model_dump() for i, c in enumerate(world.citizens) if i < 40]
+                })
+
+            next_sleep = max(0.01, min(interval, interval - accumulator))
+            await asyncio.sleep(next_sleep)
     except asyncio.CancelledError:
         pass
 

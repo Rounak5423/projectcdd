@@ -39,3 +39,4 @@ def analyze_glb_images(glb_path):
 
 for model in ['real_carl_manfred.glb', 'real_fullbody_male.glb', 'real_freefire_pace.glb', 'real_undead_wizard.glb']:
     analyze_glb_images(os.path.join('public/models/council', model))
+

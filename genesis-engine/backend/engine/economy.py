@@ -40,6 +40,7 @@ def process_economy_tick(
 ) -> Tuple[Resources, EconomyStats]:
     """
     Simulates one tick of resource consumption, production, and wealth updates.
+    Optimized single-pass calculation of aggregate economic and cognitive telemetry.
     """
     alive_citizens = [c for c in citizens if c.is_alive]
     n = len(alive_citizens)
@@ -70,11 +71,19 @@ def process_economy_tick(
     resources.energy = max(0.0, resources.energy - energy_needed)
 
     scarcity_ratio = (food_deficit + water_deficit + energy_deficit) / (food_needed + water_needed + energy_needed + 1e-6)
+    cost_of_living = 3.0 + (scarcity_ratio * 4.0)
 
-    # 2. Production & Wealth Earnings
+    # 2. Production & Wealth Earnings Pass
     tax_pool = 0.0
+    food_prod = 0.0
+    water_prod = 0.0
+    energy_prod = 0.0
+    materials_prod = 0.0
 
-    for c in alive_citizens:
+    # Intermediate arrays to avoid multiple property lookups in subsequent pass
+    earned_deltas: List[float] = [0.0] * n
+
+    for idx, c in enumerate(alive_citizens):
         # Needs update based on scarcity
         if food_deficit > 0:
             c.needs.hunger = min(1.0, c.needs.hunger + 0.15)
@@ -91,17 +100,17 @@ def process_economy_tick(
 
         if occ == "Farmer":
             produced = 4.0 * efficiency
-            resources.food += produced
+            food_prod += produced
             earned_wealth = 8.0 * efficiency
         elif occ == "Engineer":
-            resources.water += 3.5 * efficiency
-            resources.energy += 3.0 * efficiency
+            water_prod += 3.5 * efficiency
+            energy_prod += 3.0 * efficiency
             earned_wealth = 12.0 * efficiency
         elif occ == "Builder":
-            resources.materials += 3.0 * efficiency
+            materials_prod += 3.0 * efficiency
             earned_wealth = 10.0 * efficiency
         elif occ == "Scholar":
-            resources.energy += 0.5 * efficiency
+            energy_prod += 0.5 * efficiency
             earned_wealth = 14.0 * efficiency
         elif occ == "Merchant":
             earned_wealth = 18.0 * efficiency
@@ -112,29 +121,45 @@ def process_economy_tick(
             tax_pool += tax
             earned_wealth -= tax
 
-        cost_of_living = 3.0 + (scarcity_ratio * 4.0)
-        c.demographics.wealth = max(0.0, c.demographics.wealth + earned_wealth - cost_of_living)
+        earned_deltas[idx] = earned_wealth - cost_of_living
 
-    # 3. UBI & Tax Pool Redistribution
-    if ubi_amount > 0.0 or tax_pool > 0.0:
-        redistribution_per_citizen = ubi_amount + (tax_pool / n)
-        for c in alive_citizens:
-            c.demographics.wealth += redistribution_per_citizen
+    # Add aggregated production to resources once
+    resources.food += food_prod
+    resources.water += water_prod
+    resources.energy += energy_prod
+    resources.materials += materials_prod
+
+    # 3. UBI & Wealth Application + Single-Pass Telemetry Accumulation
+    redistribution = ubi_amount + (tax_pool / n if n > 0 and (ubi_amount > 0.0 or tax_pool > 0.0) else 0.0)
+
+    wealth_list: List[float] = [0.0] * n
+    total_wealth = 0.0
+    sum_ai_dep = 0.0
+    sum_reasoning = 0.0
+    sum_prob_solving = 0.0
+    sum_macro_innov = 0.0
+
+    for idx, c in enumerate(alive_citizens):
+        new_wealth = max(0.0, c.demographics.wealth + earned_deltas[idx] + redistribution)
+        c.demographics.wealth = new_wealth
+        wealth_list[idx] = new_wealth
+        total_wealth += new_wealth
+
+        cog = c.cognitive
+        sum_ai_dep += cog.ai_dependency
+        sum_reasoning += cog.independent_reasoning
+        sum_prob_solving += cog.problem_solving
+        sum_macro_innov += (0.6 * cog.independent_reasoning) + (0.4 * (1.0 - cog.ai_dependency))
 
     # 4. Economic Telemetry Calculations
-    wealth_list = [c.demographics.wealth for c in alive_citizens]
     gini = calculate_gini_coefficient(wealth_list)
     civic_stability = calculate_civic_stability(gini)
-    total_wealth = sum(wealth_list)
     average_wealth = round(total_wealth / n, 2)
 
-    # Cognitive Averages
-    avg_ai_dependency = round(sum(c.cognitive.ai_dependency for c in alive_citizens) / n, 4)
-    avg_reasoning = round(sum(c.cognitive.independent_reasoning for c in alive_citizens) / n, 4)
-    avg_problem_solving = round(sum(c.cognitive.problem_solving for c in alive_citizens) / n, 4)
-
-    from .cognitive import calculate_macro_innovation_index
-    macro_innovation = calculate_macro_innovation_index(alive_citizens)
+    avg_ai_dependency = round(sum_ai_dep / n, 4)
+    avg_reasoning = round(sum_reasoning / n, 4)
+    avg_problem_solving = round(sum_prob_solving / n, 4)
+    macro_innovation = round(sum_macro_innov / n, 4)
 
     stats = EconomyStats(
         gini=gini,

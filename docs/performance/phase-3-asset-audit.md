@@ -97,3 +97,4 @@ This asset audit inspects all 3D assets, meshes, materials, textures, geometry c
 - **Council Chamber Triangles (Default Quorum)**: ~120,000 triangles
 - **Council Chamber Triangles (With Magus)**: ~2,480,000 triangles (severe GPU bottleneck)
 - **Asset Transfer Volume**: ~29.1 MB for initial 6-advisor conclave load.
+

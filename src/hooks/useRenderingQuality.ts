@@ -12,3 +12,4 @@ export function useRenderingQuality(): QualitySettings {
 
   return settings;
 }
+

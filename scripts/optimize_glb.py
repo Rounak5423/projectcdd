@@ -143,3 +143,4 @@ if __name__ == '__main__':
         dst = os.path.join(dst_dir, m)
         if os.path.exists(src):
             optimize_glb_file(src, dst)
+
