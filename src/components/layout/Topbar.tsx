@@ -16,6 +16,7 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
+  Activity,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
@@ -31,12 +32,14 @@ export default function Topbar({
   user,
   onLogout,
   onNavigate,
+  onOpenDiagnostics,
 }: {
   isRightPanelOpen: boolean;
   onToggleRightPanel: () => void;
   user?: AuthUser | null;
   onLogout?: () => void;
   onNavigate?: (page: string) => void;
+  onOpenDiagnostics?: () => void;
 }) {
   const {
     resources,
@@ -317,6 +320,20 @@ export default function Topbar({
                 </button>
               )}
             </div>
+          )}
+
+          {/* Developer Performance Telemetry Dashboard Toggle */}
+          {onOpenDiagnostics && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onOpenDiagnostics();
+              }}
+              className="p-1.5 rounded bg-[#202820] hover:bg-[#283228] border border-[#2B372C] hover:border-[#C5A66A]/40 text-[#A5AD9D] hover:text-[#C5A66A] transition-colors"
+              title="Open Performance Telemetry & Diagnostics (F2 / Ctrl+Shift+P)"
+            >
+              <Activity size={15} />
+            </button>
           )}
 
           {/* Tactical 3D Inspector Panel Toggle */}

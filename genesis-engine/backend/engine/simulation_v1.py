@@ -1,9 +1,11 @@
 import json
 import uuid
 import random
+import time
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional, Tuple
 from db.database import get_db_connection
+from monitoring.collector import perf_collector
 
 
 def format_currency(val: float) -> str:
@@ -255,6 +257,8 @@ def seed_aurora_prime_if_not_exists():
 
 
 def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
+    t0 = time.perf_counter()
+    events_created = 0
     conn = get_db_connection()
     world = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
     if not world:
@@ -401,7 +405,7 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
 
     conn.close()
 
-    return {
+    result = {
         "world_id": world_id,
         "tick": new_tick,
         "year": new_year,
@@ -423,3 +427,13 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
             "thriving_score": round(thriving, 2)
         }
     }
+
+    dt = (time.perf_counter() - t0) * 1000.0
+    perf_collector.record_simulation_tick(
+        tick_duration_ms=dt,
+        processed_agents=new_population,
+        state_updates=ticks,
+        events_generated=events_created,
+        db_writes=4
+    )
+    return result

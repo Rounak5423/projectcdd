@@ -8,6 +8,7 @@ import { CouncilThrone } from './CouncilThrone';
 import { AdvisorGroup } from './AdvisorGroup';
 import { AdvisorCameraController } from './AdvisorCameraController';
 import { CouncilChamberPlaceholder } from '../components/CouncilChamberPlaceholder';
+import { ThreeSceneSampler } from '../../../components/diagnostics/ThreeSceneSampler';
 import {
   COUNCIL_MODELS,
   THEME_PRESETS,
@@ -202,6 +203,8 @@ export const CouncilChamber3D: React.FC<CouncilChamber3DProps> = ({
               onAdvisorSelect={handleAdvisorSelect}
             />
           </Suspense>
+
+          <ThreeSceneSampler sceneId="council" />
         </Canvas>
 
         {/* 2. Top HUD Controls Overlay */}

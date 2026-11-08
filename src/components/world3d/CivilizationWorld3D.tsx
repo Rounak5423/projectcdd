@@ -16,6 +16,7 @@ import PlacementSystem from './PlacementSystem';
 import CameraManager from './CameraManager';
 import WorldHUD from './WorldHUD';
 import { PerformanceSampler } from './PerformanceTelemetry';
+import { ThreeSceneSampler } from '../diagnostics/ThreeSceneSampler';
 import WorldLabelManager, { triggerRoadSelection } from './WorldLabelManager';
 
 export function CameraHUD() {
@@ -121,6 +122,7 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
 
           {/* High-Performance 3D Engine Telemetry Sampler */}
           <PerformanceSampler />
+          <ThreeSceneSampler sceneId="world" />
         </Canvas>
 
         {/* In-World Tactical Time, Camera & District Teleport HUD */}

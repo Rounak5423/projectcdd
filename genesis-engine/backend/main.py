@@ -19,6 +19,12 @@ from engine.simulation_v1 import seed_aurora_prime_if_not_exists, advance_world_
 from db.database import get_db_connection
 from api.v1.router import api_v1_router
 from app.features.council.router import router as council_router
+from monitoring import (
+    perf_collector,
+    PerformanceMonitoringMiddleware,
+    diagnostics_router,
+)
+import time
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 FRONTEND_DIR = ROOT_DIR
@@ -35,22 +41,27 @@ class ConnectionManager:
         if world_id not in self.active_connections:
             self.active_connections[world_id] = set()
         self.active_connections[world_id].add(websocket)
+        perf_collector.record_ws_connect()
 
     def disconnect(self, world_id: str, websocket: WebSocket):
         if world_id in self.active_connections:
             self.active_connections[world_id].discard(websocket)
             if not self.active_connections[world_id]:
                 del self.active_connections[world_id]
+        perf_collector.record_ws_disconnect()
 
     async def broadcast(self, world_id: str, message: Dict[str, Any]):
         if world_id in self.active_connections:
             dead_connections = set()
             payload = json.dumps(message)
+            payload_len = len(payload.encode('utf-8'))
             for connection in list(self.active_connections[world_id]):
                 try:
                     await connection.send_text(payload)
+                    perf_collector.record_ws_message_sent(payload_len)
                 except Exception:
                     dead_connections.add(connection)
+                    perf_collector.record_ws_error()
             for dead in dead_connections:
                 self.disconnect(world_id, dead)
 
@@ -104,11 +115,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Centralized Performance Monitoring Middleware
+app.add_middleware(PerformanceMonitoringMiddleware)
+
 # Mount /api/v1 router
 app.include_router(api_v1_router)
 
 # Mount /api/council direct alias
 app.include_router(council_router, prefix="/api")
+
+# Mount Performance Diagnostics Router
+app.include_router(diagnostics_router, prefix="/api/v1")
+app.include_router(diagnostics_router, prefix="/api")
 
 # Mount frontend built assets if available
 FRONTEND_DIST = os.path.join(FRONTEND_DIR, "dist")
@@ -472,7 +490,9 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str):
 
         # Listen for client commands over WebSocket
         while True:
+            t_ws = time.perf_counter()
             data_text = await websocket.receive_text()
+            data_bytes = len(data_text.encode('utf-8'))
             try:
                 cmd = json.loads(data_text)
                 action = cmd.get("type")
@@ -500,11 +520,16 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str):
                                 **delta
                             })
                         except Exception:
-                            pass
+                            perf_collector.record_ws_error()
                 elif action == "ping":
-                    await websocket.send_text(json.dumps({"type": "pong"}))
+                    pong_msg = json.dumps({"type": "pong"})
+                    await websocket.send_text(pong_msg)
+                    perf_collector.record_ws_message_sent(len(pong_msg.encode('utf-8')))
             except json.JSONDecodeError:
-                pass
+                perf_collector.record_ws_error()
+            finally:
+                proc_ms = (time.perf_counter() - t_ws) * 1000.0
+                perf_collector.record_ws_message_received(data_bytes, proc_ms)
     except WebSocketDisconnect:
         ws_manager.disconnect(world_id, websocket)
 

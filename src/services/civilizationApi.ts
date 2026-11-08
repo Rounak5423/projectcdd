@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { performanceMonitor } from './monitoring/performanceMonitor';
 import {
   CivilizationProfile,
   ResourceState,
@@ -27,14 +28,45 @@ export const apiClient = axios.create({
   },
 });
 
-// Auto-inject JWT token from localStorage if present
+// Auto-inject JWT token from localStorage if present and timestamp request
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('civora_token') || localStorage.getItem('genesis_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  (config as any)._perfStartTime = performance.now();
   return config;
 });
+
+// Non-intrusively record API response latency to Central Performance Monitor
+apiClient.interceptors.response.use(
+  (response) => {
+    const startTime = (response.config as any)?._perfStartTime;
+    if (startTime) {
+      const duration = performance.now() - startTime;
+      performanceMonitor.recordApiCall(
+        response.config.method?.toUpperCase() || 'GET',
+        response.config.url || '',
+        duration,
+        response.status
+      );
+    }
+    return response;
+  },
+  (error) => {
+    const startTime = error.config?._perfStartTime;
+    if (startTime) {
+      const duration = performance.now() - startTime;
+      performanceMonitor.recordApiCall(
+        error.config?.method?.toUpperCase() || 'GET',
+        error.config?.url || '',
+        duration,
+        error.response?.status || 0
+      );
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface ApiResponse<T> {
   success: boolean;

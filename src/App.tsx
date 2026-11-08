@@ -34,6 +34,7 @@ const GenesisPortalPage = React.lazy(() => import('./pages/GenesisPortalPage'));
 const WorldCreationStudioPage = React.lazy(() => import('./pages/WorldCreationStudioPage'));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 const AdminConsolePage = React.lazy(() => import('./pages/AdminConsolePage'));
+import PerformanceDashboardModal from './components/diagnostics/PerformanceDashboardModal';
 import { soundFx } from './services/soundFx';
 
 // ============================================================
@@ -44,6 +45,7 @@ type AppStage = 'landing' | 'auth' | 'app';
 function GameApp() {
   const [activePage, setActivePage] = useState<string>('World Explorer');
   const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(false);
+  const [isPerformanceDashboardOpen, setIsPerformanceDashboardOpen] = useState<boolean>(false);
   const { togglePlay, setSpeed, selectedBuilding, setConstructionMode } = useGameState();
   const { isAuthenticated, isLoading, logout, user } = useAuth();
 
@@ -100,6 +102,10 @@ function GameApp() {
         setSpeed('5x');
       } else if (e.key === '4') {
         setSpeed('10x');
+      } else if (e.key === 'F2' || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'P' || e.key === 'p'))) {
+        e.preventDefault();
+        soundFx.playClick();
+        setIsPerformanceDashboardOpen((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -217,6 +223,7 @@ function GameApp() {
             setStage('auth');
           }}
           onNavigate={handleNavigate}
+          onOpenDiagnostics={() => setIsPerformanceDashboardOpen(true)}
         />
 
         {/* 3D World Stage + Tactile Game Overlays */}
@@ -266,6 +273,10 @@ function GameApp() {
       <GameModals />
       <ProtestResolutionModal />
       <DemoShowcaseModal onNavigate={handleNavigate} />
+      <PerformanceDashboardModal
+        isOpen={isPerformanceDashboardOpen}
+        onClose={() => setIsPerformanceDashboardOpen(false)}
+      />
     </div>
   );
 }

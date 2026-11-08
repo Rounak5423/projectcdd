@@ -1,5 +1,6 @@
 import random
 import uuid
+import time
 from typing import List, Dict, Any, Optional
 from .models import (
     WorldState, Citizen, Demographics, NeedsVector, CognitiveProfile,
@@ -9,6 +10,7 @@ from .models import (
 from .cognitive import update_citizen_cognition
 from .economy import process_economy_tick
 from .policies import get_default_policies, extract_policy_modifiers
+from monitoring.collector import perf_collector
 
 OCCUPATIONS: List[OccupationType] = ["Farmer", "Engineer", "Scholar", "Builder", "Merchant"]
 
@@ -196,122 +198,117 @@ def create_initial_world(
 
     return world
 
-    initial_snapshot = HistorySnapshot(
-        tick=0,
-        year=2026.0,
-        population=len(world.citizens),
-        gini=stats.gini,
-        civic_stability=stats.civic_stability,
-        macro_innovation=stats.macro_innovation_index,
-        avg_ai_dependency=stats.avg_ai_dependency,
-        avg_reasoning=stats.avg_reasoning,
-        food=round(world.resources.food, 1),
-        energy=round(world.resources.energy, 1),
-        materials=round(world.resources.materials, 1),
-        average_wealth=stats.average_wealth
-    )
-    world.history.append(initial_snapshot)
-
-    return world
-
 
 def step_world(world: WorldState, ticks: int = 1) -> WorldState:
     """
     Advances the world simulation by N ticks (1 tick = 0.1 years).
     """
-    for _ in range(ticks):
-        world.tick += 1
-        world.year = round(world.year + 0.1, 1)
+    t0 = time.perf_counter()
+    try:
+        for _ in range(ticks):
+            world.tick += 1
+            world.year = round(world.year + 0.1, 1)
 
-        # Policy modifiers
-        ai_coverage, scaffolding, ubi_amt, edu_boost, auto_tax = extract_policy_modifiers(world.policies)
+            # Policy modifiers
+            ai_coverage, scaffolding, ubi_amt, edu_boost, auto_tax = extract_policy_modifiers(world.policies)
 
-        # Update each citizen
-        alive_citizens: List[Citizen] = []
-        for c in world.citizens:
-            if not c.is_alive:
-                continue
+            # Update each citizen
+            alive_citizens: List[Citizen] = []
+            for c in world.citizens:
+                if not c.is_alive:
+                    continue
 
-            c.demographics.age = round(c.demographics.age + 0.1, 1)
+                c.demographics.age = round(c.demographics.age + 0.1, 1)
 
-            # Cognitive update under AI Paradox
-            update_citizen_cognition(
-                citizen=c,
-                ai_access_coverage=ai_coverage,
-                scaffolding_friction=scaffolding,
-                education_boost=edu_boost
-            )
+                # Cognitive update under AI Paradox
+                update_citizen_cognition(
+                    citizen=c,
+                    ai_access_coverage=ai_coverage,
+                    scaffolding_friction=scaffolding,
+                    education_boost=edu_boost
+                )
 
-            # Spatial jitter (agents move within city grid)
-            dx = random.uniform(-0.5, 0.5)
-            dy = random.uniform(-0.5, 0.5)
-            c.demographics.x = max(0.0, min(float(world.grid_size), c.demographics.x + dx))
-            c.demographics.y = max(0.0, min(float(world.grid_size), c.demographics.y + dy))
+                # Spatial jitter (agents move within city grid)
+                dx = random.uniform(-0.5, 0.5)
+                dy = random.uniform(-0.5, 0.5)
+                c.demographics.x = max(0.0, min(float(world.grid_size), c.demographics.x + dx))
+                c.demographics.y = max(0.0, min(float(world.grid_size), c.demographics.y + dy))
 
-            # Natural mortality check
-            if c.demographics.age > 85.0 and random.random() < 0.05:
-                c.is_alive = False
-            else:
-                alive_citizens.append(c)
+                # Natural mortality check
+                if c.demographics.age > 85.0 and random.random() < 0.05:
+                    c.is_alive = False
+                else:
+                    alive_citizens.append(c)
 
-        # Demographic replacement: keep population stable
-        if len(alive_citizens) < len(world.citizens) * 0.95:
-            new_idx = len(world.citizens)
-            c_id = f"cit_{world.id}_{new_idx:04d}"
-            occ = OCCUPATIONS[new_idx % len(OCCUPATIONS)]
-            new_c = Citizen(
-                id=c_id,
-                demographics=Demographics(
+            # Demographic replacement: keep population stable
+            if len(alive_citizens) < len(world.citizens) * 0.95:
+                new_idx = len(world.citizens)
+                c_id = f"cit_{world.id}_{new_idx:04d}"
+                occ = OCCUPATIONS[new_idx % len(OCCUPATIONS)]
+                new_c = Citizen(
                     id=c_id,
-                    age=18.0,
-                    occupation=occ,
-                    wealth=50.0,
-                    x=round(random.uniform(0.0, float(world.grid_size)), 2),
-                    y=round(random.uniform(0.0, float(world.grid_size)), 2)
-                ),
-                needs=NeedsVector(hunger=0.1, energy=0.9, wellbeing=0.85),
-                cognitive=CognitiveProfile(
-                    independent_reasoning=round(random.uniform(0.65, 0.78), 3),
-                    problem_solving=0.6,
-                    critical_evaluation=0.7,
-                    creativity=0.65,
-                    knowledge_retention=0.75,
-                    ai_dependency=0.1
-                ),
-                is_alive=True
+                    demographics=Demographics(
+                        id=c_id,
+                        age=18.0,
+                        occupation=occ,
+                        wealth=50.0,
+                        x=round(random.uniform(0.0, float(world.grid_size)), 2),
+                        y=round(random.uniform(0.0, float(world.grid_size)), 2)
+                    ),
+                    needs=NeedsVector(hunger=0.1, energy=0.9, wellbeing=0.85),
+                    cognitive=CognitiveProfile(
+                        independent_reasoning=round(random.uniform(0.65, 0.78), 3),
+                        problem_solving=0.6,
+                        critical_evaluation=0.7,
+                        creativity=0.65,
+                        knowledge_retention=0.75,
+                        ai_dependency=0.1
+                    ),
+                    is_alive=True
+                )
+                world.citizens.append(new_c)
+                alive_citizens.append(new_c)
+
+            world.population_count = len(alive_citizens)
+
+            # Process macro economy
+            updated_resources, economy_stats = process_economy_tick(
+                world.citizens,
+                world.resources,
+                ubi_amount=ubi_amt,
+                automation_tax_rate=auto_tax
             )
-            world.citizens.append(new_c)
-            alive_citizens.append(new_c)
+            world.resources = updated_resources
+            world.economy = economy_stats
 
-        world.population_count = len(alive_citizens)
+            # Record history snapshot
+            snapshot = HistorySnapshot(
+                tick=world.tick,
+                year=world.year,
+                population=world.population_count,
+                gini=economy_stats.gini,
+                civic_stability=economy_stats.civic_stability,
+                macro_innovation=economy_stats.macro_innovation_index,
+                avg_ai_dependency=economy_stats.avg_ai_dependency,
+                avg_reasoning=economy_stats.avg_reasoning,
+                food=round(world.resources.food, 1),
+                energy=round(world.resources.energy, 1),
+                materials=round(world.resources.materials, 1),
+                average_wealth=economy_stats.average_wealth
+            )
+            world.history.append(snapshot)
+            if len(world.history) > 600:
+                world.history.pop(0)
 
-        # Process macro economy
-        updated_resources, economy_stats = process_economy_tick(
-            world.citizens,
-            world.resources,
-            ubi_amount=ubi_amt,
-            automation_tax_rate=auto_tax
+        dt = (time.perf_counter() - t0) * 1000.0
+        perf_collector.record_simulation_tick(
+            tick_duration_ms=dt,
+            processed_agents=world.population_count,
+            state_updates=ticks,
+            events_generated=0,
+            db_writes=0
         )
-        world.resources = updated_resources
-        world.economy = economy_stats
-
-        # Record history snapshot
-        snapshot = HistorySnapshot(
-            tick=world.tick,
-            year=world.year,
-            population=world.population_count,
-            gini=economy_stats.gini,
-            civic_stability=economy_stats.civic_stability,
-            macro_innovation=economy_stats.macro_innovation_index,
-            avg_ai_dependency=economy_stats.avg_ai_dependency,
-            avg_reasoning=economy_stats.avg_reasoning,
-            food=round(world.resources.food, 1),
-            energy=round(world.resources.energy, 1),
-            materials=round(world.resources.materials, 1),
-            average_wealth=economy_stats.average_wealth
-        )
-        world.history.append(snapshot)
-        if len(world.history) > 600:
-            world.history.pop(0)
-
-    return world
+        return world
+    except Exception as e:
+        perf_collector.record_simulation_error()
+        raise e

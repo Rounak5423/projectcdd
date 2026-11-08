@@ -9,6 +9,8 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 import uuid
 import logging
+import time
+from monitoring.collector import perf_collector
 
 from app.features.council.intelligence.context import build_civilisation_context, CivilisationContext
 from app.features.council.intelligence.base import BaseAdvisor, AdvisorAnalysisResult
@@ -107,8 +109,20 @@ class CouncilOrchestrator:
         if not target_adv:
             raise ValueError(f"Advisor identity '{advisor_id}' not found in Imperial Roster.")
 
-        context = build_civilisation_context(world_id)
-        return target_adv.analyse(context)
+        perf_collector.inc_ai_pending()
+        t0 = time.perf_counter()
+        try:
+            context = build_civilisation_context(world_id)
+            res = target_adv.analyse(context)
+            dt = (time.perf_counter() - t0) * 1000.0
+            perf_collector.record_ai_advisor_run(advisor_id, dt, success=True)
+            return res
+        except Exception as e:
+            dt = (time.perf_counter() - t0) * 1000.0
+            perf_collector.record_ai_advisor_run(advisor_id, dt, success=False)
+            raise e
+        finally:
+            perf_collector.dec_ai_pending()
 
     def run_council_deliberation(
         self,
@@ -124,6 +138,8 @@ class CouncilOrchestrator:
         5. Persists new recommendations into Council database without duplicates.
         6. Returns unified structured report.
         """
+        perf_collector.inc_ai_pending()
+        t0 = time.perf_counter()
         now = datetime.now(timezone.utc).isoformat()
         report_id = f"rpt_{uuid.uuid4().hex[:12]}"
 
@@ -135,12 +151,19 @@ class CouncilOrchestrator:
 
         # 2. Execute each advisor independently
         for advisor in self.advisors:
+            t_adv = time.perf_counter()
             try:
                 res = advisor.analyse(context)
                 advisor_reports[advisor.advisor_id] = res
+                perf_collector.record_ai_advisor_run(
+                    advisor.advisor_id, (time.perf_counter() - t_adv) * 1000.0, success=True
+                )
             except Exception as e:
                 logger.error(f"Advisor '{advisor.advisor_id}' analysis failure: {e}", exc_info=True)
                 failed_advisors.append(advisor.advisor_id)
+                perf_collector.record_ai_advisor_run(
+                    advisor.advisor_id, (time.perf_counter() - t_adv) * 1000.0, success=False
+                )
 
         # 3. Detect cross-domain trade-offs and disagreements
         tradeoffs = detect_cross_domain_tradeoffs(context, advisor_reports)
@@ -220,6 +243,14 @@ class CouncilOrchestrator:
             data_completeness=avg_completeness,
             failed_advisors=failed_advisors,
         )
+
+        dt = (time.perf_counter() - t0) * 1000.0
+        perf_collector.record_council_deliberation(
+            duration_ms=dt,
+            success=True,
+            failed_advisors=len(failed_advisors)
+        )
+        perf_collector.dec_ai_pending()
 
         self._latest_reports[world_id] = report
         return report
