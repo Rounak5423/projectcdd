@@ -231,6 +231,31 @@ def migration_v6_honest_economy_and_bonds(conn: sqlite3.Connection):
             conn.execute(f"ALTER TABLE economy_resources ADD COLUMN {col_name} {col_type}")
 
 
+def migration_v7_sewage_and_network_facilities(conn: sqlite3.Connection):
+    """Adds sewage facilities table, road congestion tracking, and tracks sewage treatment metrics."""
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS sewage_facilities (
+        id TEXT PRIMARY KEY,
+        world_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        capacity_t REAL DEFAULT 100.0,
+        current_load_t REAL DEFAULT 0.0,
+        efficiency REAL DEFAULT 1.0,
+        status TEXT DEFAULT 'active',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_sewage_world ON sewage_facilities(world_id);
+    """)
+    cols = [c[1] for c in conn.execute("PRAGMA table_info(economy_resources)").fetchall()]
+    if "sewage_treatment_ratio" not in cols:
+        conn.execute("ALTER TABLE economy_resources ADD COLUMN sewage_treatment_ratio REAL DEFAULT 1.0")
+
+    seg_cols = [c[1] for c in conn.execute("PRAGMA table_info(road_segments)").fetchall()]
+    if "congestion" not in seg_cols:
+        conn.execute("ALTER TABLE road_segments ADD COLUMN congestion REAL DEFAULT 0.0")
+
+
 MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (1, "baseline_init", migration_v1_baseline),
     (2, "save_slots_and_autosaves", migration_v2_save_slots),
@@ -238,6 +263,7 @@ MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (4, "civilization_tech_tree", migration_v4_civilization_tech_tree),
     (5, "citizens_single_truth", migration_v5_citizens_single_truth),
     (6, "honest_economy_and_bonds", migration_v6_honest_economy_and_bonds),
+    (7, "sewage_and_network_facilities", migration_v7_sewage_and_network_facilities),
 ]
 
 

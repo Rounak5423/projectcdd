@@ -21,6 +21,8 @@ import random
 import sqlite3
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Tuple
+import logging
+logger = logging.getLogger(__name__)
 
 from db.database import get_db_connection
 from .models import (
@@ -361,6 +363,15 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     # GDP growth
     gdp_multiplier = (1.0 + (econ["gdp_growth_rate"] * (days_per_tick / float(days_per_year)))) ** ticks
     new_gdp = round(econ["gdp"] * gdp_multiplier, 2)
+
+    # 0. Advance Unified World State (Road Graph Utilities BFS, Real Traffic, RCI Zone Growth, Abandonment/Level-Up)
+    try:
+        from engine.world.simulation import get_unified_simulation
+        sim = get_unified_simulation(world_id)
+        sim.load_world_from_db()
+        sim.advance_tick(ticks=ticks, skip_causal_step=True)
+    except Exception as e:
+        logger.warning(f"UnifiedWorldSimulation step error: {e}")
 
     # Resource consumption & Demographics
     from engine.demographics import sync_demographics_state, spawn_citizens_for_world

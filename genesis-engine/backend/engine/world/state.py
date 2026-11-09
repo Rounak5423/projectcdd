@@ -76,7 +76,7 @@ class RoadSegmentEntity(BaseModel):
 class ZoneTileEntity(BaseModel):
     id: str
     world_id: str
-    district_id: str = "dist-citadel"
+    district_id: Optional[str] = "dist-citadel"
     x: float
     z: float
     zone_type: str # 'residential_low', 'residential_high', 'commercial_low', 'commercial_high', 'industrial', 'office', 'none'
@@ -141,6 +141,9 @@ class UtilityNetworkState(BaseModel):
     water_deficit_t: float = 0.0
     water_reliability_pct: float = 100.0
     unwatered_building_ids: List[str] = Field(default_factory=list)
+
+    total_sewage_capacity_t: float = 0.0
+    sewage_treatment_ratio: float = 1.0
 
 
 class TrafficMetricsState(BaseModel):

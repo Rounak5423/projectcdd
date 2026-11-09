@@ -311,6 +311,19 @@ During initial load and navigation, 15 browser console warnings are emitted:
   Test 4 Passed: Undo round-trips leave materials and occupants exactly identical.
   ```
 
+#### [MAJ-06] Zoned Parcels, Real Road Traffic, and Utility Graph Network Solving Disconnected from Simulation Loop
+- **Severity**: Major
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 3)**
+- **Root Cause File**: `genesis-engine/backend/engine/world/simulation.py:370-465`, `genesis-engine/backend/engine/world/utility_network.py:24-125`
+- **Fix Implementation**: Replaced spatial radius utility checks with graph BFS along authoritative road network for power and water transmission. Added sewage treatment ratio calculation and `sewage_facilities` database table. Replaced legacy pseudo `seg_active_*` vehicle IDs with actual `road_segments` traversal, calculating dynamic Bureau of Public Roads (BPR) congestion and speed penalties. Implemented honest RCI demand-driven parcel development that spawns real buildings and real citizens into SQLite, alongside building level-up progression (1 to 5), blackout abandonment (> 5 ticks without power/water), and operational recovery upon utility restoration.
+- **Behavior Test Proof (`scripts/test_growth_behavior.py`)**:
+  ```
+  Test 4 Passed: RCI zones sprout buildings organically with population and job growth!
+  Test 5 Passed: Traffic routes on real road segments with authoritative BPR congestion!
+  Test 6 Passed: Buildings abandon after sustained blackout and evict occupants.
+  Test 7 Passed: Abandoned buildings recover to active operational status once serviced!
+  ```
+
 ---
 
 ### MINOR

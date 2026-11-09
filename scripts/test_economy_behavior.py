@@ -48,21 +48,28 @@ def main():
     conn.close()
     print(f"Materials rate without industry: {mat_rate_no_ind['materials_rate']} t/cycle, Materials: {mat_rate_no_ind['materials']}")
 
-    # Build an Industrial Materials Foundry
+    # Build an Industrial Materials Foundry and Power Plant
     cmd_res = client.post(f"/api/v1/worlds/{world_id}/commands", json={
-        "commands": [{
-            "command_id": "cmd_build_ind_1",
-            "action": "place_building",
-            "payload": {
-                "type": "Industrial",
-                "name": "Advanced Materials Foundry",
-                "x": 20.0,
-                "z": 20.0
+        "commands": [
+            {
+                "command_id": "cmd_build_power",
+                "action": "place_building",
+                "payload": {"type": "Energy", "name": "Geothermal Plant", "x": 16.0, "z": 16.0}
+            },
+            {
+                "command_id": "cmd_build_ind_1",
+                "action": "place_building",
+                "payload": {
+                    "type": "Industrial",
+                    "name": "Advanced Materials Foundry",
+                    "x": 20.0,
+                    "z": 20.0
+                }
             }
-        }]
+        ]
     })
     assert cmd_res.status_code == 200
-    ind_bld_id = cmd_res.json()["results"][0]["entity_id"]
+    ind_bld_id = cmd_res.json()["results"][1]["entity_id"]
 
     # Advance 10 ticks with industry
     adv2 = client.post(f"/api/v1/worlds/{world_id}/simulation/advance", json={"ticks": 10})

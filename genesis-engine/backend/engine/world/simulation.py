@@ -101,6 +101,10 @@ class UnifiedWorldSimulation:
                     """, (self.world_id,))
 
             # 2. Road Nodes
+            self.road_network.nodes.clear()
+            self.road_network.segments.clear()
+            self.road_network.adjacency.clear()
+
             nodes = conn.execute("SELECT * FROM road_nodes WHERE world_id = ?", (self.world_id,)).fetchall()
             for r in nodes:
                 node = RoadNodeEntity(
@@ -137,6 +141,8 @@ class UnifiedWorldSimulation:
                 self.road_network.add_segment(seg)
 
             # 4. Buildings
+            old_buildings = dict(self.buildings)
+            self.buildings.clear()
             b_rows = conn.execute("SELECT * FROM buildings WHERE world_id = ?", (self.world_id,)).fetchall()
             for r in b_rows:
                 b_type = r["type"]
@@ -145,6 +151,10 @@ class UnifiedWorldSimulation:
 
                 res_cap = cfg.get("residents_capacity", 0)
                 jobs_cap = cfg.get("jobs_capacity", 0)
+                prev_b = old_buildings.get(r["id"])
+                unp = prev_b.unpowered_ticks if prev_b else 0
+                unw = prev_b.unwatered_ticks if prev_b else 0
+                eff = prev_b.efficiency if prev_b else 1.0
 
                 b = BuildingEntity(
                     id=r["id"],
@@ -168,7 +178,9 @@ class UnifiedWorldSimulation:
                     current_workers=int(r["current_workers"]) if "current_workers" in r.keys() and r["current_workers"] is not None else 0,
                     power_demand_mw=cfg.get("power_demand_mw", 1.0),
                     water_demand_t=cfg.get("water_demand_t", 1.0),
-                    efficiency=1.0,
+                    efficiency=eff,
+                    unpowered_ticks=unp,
+                    unwatered_ticks=unw,
                 )
                 self.buildings[b.id] = b
 
@@ -177,24 +189,22 @@ class UnifiedWorldSimulation:
                 self._seed_default_buildings(conn)
 
             # 5. Zone Lots
-            try:
-                z_rows = conn.execute("SELECT * FROM zone_lots WHERE world_id = ?", (self.world_id,)).fetchall()
-                for r in z_rows:
-                    z = ZoneTileEntity(
-                        id=r["id"],
-                        world_id=self.world_id,
-                        district_id=r["district_id"] if "district_id" in r.keys() else "dist-citadel",
-                        x=r["x"],
-                        z=r["y"],
-                        zone_type=r["zone_type"],
-                        level=r["level"] if "level" in r.keys() else 1,
-                        building_id=r["building_id"] if "building_id" in r.keys() else None,
-                        land_value=float(r["land_value"] if "land_value" in r.keys() else 50.0),
-                        desirability=float(r["desirability"] if "desirability" in r.keys() else 0.75),
-                    )
-                    self.zone_tiles[z.id] = z
-            except Exception:
-                pass
+            self.zone_tiles.clear()
+            z_rows = conn.execute("SELECT * FROM zone_lots WHERE world_id = ?", (self.world_id,)).fetchall()
+            for r in z_rows:
+                z = ZoneTileEntity(
+                    id=r["id"],
+                    world_id=self.world_id,
+                    district_id=r["district_id"] or "dist-citadel",
+                    x=r["x"],
+                    z=r["y"],
+                    zone_type=r["zone_type"],
+                    level=r["level"] if "level" in r.keys() else 1,
+                    building_id=r["building_id"] if "building_id" in r.keys() else None,
+                    land_value=float(r["land_value"] if "land_value" in r.keys() else 50.0),
+                    desirability=float(r["desirability"] if "desirability" in r.keys() else 0.75),
+                )
+                self.zone_tiles[z.id] = z
 
             # 6. Load Authoritative Citizens from DB
             self.citizens.clear()
@@ -367,15 +377,16 @@ class UnifiedWorldSimulation:
     # AUTHORITATIVE SIMULATION TICK ADVANCEMENT
     # ==========================================================================
 
-    def advance_tick(self, ticks: int = 1) -> Tuple[WorldStateDelta, DerivedCityMetrics]:
+    def advance_tick(self, ticks: int = 1, skip_causal_step: bool = False) -> Tuple[WorldStateDelta, DerivedCityMetrics]:
         """
         Advances the simulation by N ticks in the fixed causal order:
-        1. Utilities Flow & Network Solving (Power, Water)
-        2. RCI Demand & Building Lifecycle (Spawn, Upgrade, Abandonment)
-        3. Citizen Schedules, Traffic Congestion & Trip Progression
-        4. Derived Metrics Aggregation (Population, Jobs, Taxes, Capacity)
-        5. Causal Vital Signs Execution (Deaths by Cause, Births, Hospitals, Protests)
-        6. State Version Bump & Delta Generation
+        1. Utilities Flow & Network Solving (Power, Water, Sewage Graph BFS)
+        2. Citizen Schedules, Traffic Congestion & Trip Progression on Real Segments
+        3. Building Lifecycle (Abandonment & Level Up)
+        4. Honest RCI Demand Evaluation & Zone Spawning
+        5. Derived Metrics Aggregation (Population, Jobs, Taxes, Capacity)
+        6. Causal Vital Signs Execution (Deaths by Cause, Births, Hospitals, Protests)
+        7. State Version Bump & Delta Generation
         """
         self.tick += ticks
         self.day += ticks
@@ -383,20 +394,45 @@ class UnifiedWorldSimulation:
             self.year += self.day // 365
             self.day = self.day % 365
 
-        # 1. Utilities flow & network solving
-        util_state, updated_buildings = self.utility_engine.solve_networks(list(self.buildings.values()))
+        # 1. Utilities flow & network solving via Road Graph BFS
+        util_state, updated_buildings = self.utility_engine.solve_networks(list(self.buildings.values()), self.road_network, ticks=ticks)
         for b in updated_buildings:
             self.buildings[b.id] = b
 
-        # 2. Citizen Schedule & Traffic Routing
-        sim_hour = (self.tick * 2) % 24 # 2 hours simulated per tick
-        traffic_counts: Dict[str, int] = {}
+        # 2. Citizen Schedule & Traffic Routing on Real Road Segments
+        # Ensure vehicles exist for commuter trips if roads exist
+        if len(self.vehicles) == 0 and len(self.road_network.nodes) >= 2:
+            res_blds = [b for b in self.buildings.values() if b.status != "abandoned" and b.capacity_residents > 0]
+            work_blds = [b for b in self.buildings.values() if b.status != "abandoned" and b.capacity_jobs > 0]
+            if res_blds and work_blds:
+                for idx in range(min(30, len(res_blds) * 4)):
+                    h = res_blds[idx % len(res_blds)]
+                    w = work_blds[idx % len(work_blds)]
+                    path, _ = self.road_network.route_trip(h.x, h.z, w.x, w.z)
+                    if len(path) >= 2:
+                        vid = f"veh_{self.world_id}_{idx:03d}"
+                        self.vehicles[vid] = VehicleEntity(
+                            id=vid,
+                            world_id=self.world_id,
+                            citizen_id=f"cit_{idx:03d}",
+                            category=random.choice(["sedan", "suv", "bus"]),
+                            origin_x=h.x,
+                            origin_z=h.z,
+                            dest_x=w.x,
+                            dest_z=w.z,
+                            current_x=h.x,
+                            current_z=h.z,
+                            route_node_ids=path,
+                            current_speed_kmh=50.0,
+                            progress_pct=round((idx * 0.17) % 1.0, 2),
+                            status="moving"
+                        )
 
+        traffic_counts: Dict[str, int] = {}
         for v in self.vehicles.values():
             # Advance vehicle progress along route
             v.progress_pct = (v.progress_pct + 0.12 * ticks) % 1.0
             if v.route_node_ids and len(v.route_node_ids) >= 2:
-                # Interpolate spatial coordinates along route nodes
                 seg_idx = int(v.progress_pct * (len(v.route_node_ids) - 1))
                 n1_id = v.route_node_ids[seg_idx]
                 n2_id = v.route_node_ids[min(len(v.route_node_ids) - 1, seg_idx + 1)]
@@ -408,13 +444,61 @@ class UnifiedWorldSimulation:
                     v.current_z = round(n1.z + (n2.z - n1.z) * sub_t, 2)
                     v.heading_deg = round(math.degrees(math.atan2(n2.z - n1.z, n2.x - n1.x)), 1)
 
-            # Record traffic load
-            if v.route_node_ids:
-                pseudo_seg = f"seg_active_{v.id}"
-                traffic_counts[pseudo_seg] = traffic_counts.get(pseudo_seg, 0) + 1
+                # Look up real segment id from road network adjacency
+                for edge in self.road_network.adjacency.get(n1_id, []):
+                    if edge["target"] == n2_id:
+                        actual_seg = edge["segment_id"]
+                        traffic_counts[actual_seg] = traffic_counts.get(actual_seg, 0) + 1
+                        break
 
         self.road_network.update_congestion_from_traffic(traffic_counts)
         road_metrics = self.road_network.get_summary_metrics()
+
+        conn = get_db_connection()
+        econ_row = conn.execute("SELECT * FROM economy_resources WHERE world_id = ?", (self.world_id,)).fetchone()
+        current_tax_rate = float(econ_row["tax_rate"] if econ_row and "tax_rate" in econ_row.keys() and econ_row["tax_rate"] is not None else DEFAULT_TAX_RATE)
+
+        # Sync road segment congestion to DB
+        with conn:
+            for seg in self.road_network.segments.values():
+                conn.execute("""
+                UPDATE road_segments SET current_traffic = ?, congestion = ? WHERE id = ? AND world_id = ?
+                """, (seg.current_traffic, seg.congestion_ratio, seg.id, self.world_id))
+
+        # 3. Building Lifecycle: Abandonment, Recovery, and Level-Up
+        for b in list(self.buildings.values()):
+            is_exempt = b.type in ("Civic", "Energy", "Water", "Government") or "Pioneer" in b.name or "Auto Habitation" in b.name
+            if (b.unpowered_ticks >= 5 or b.unwatered_ticks >= 5 or current_tax_rate > 0.20) and not is_exempt:
+                b.status = "abandoned"
+                b.efficiency = 0.05
+                b.current_occupants = 0
+                b.current_workers = 0
+                with conn:
+                    conn.execute("UPDATE buildings SET status = 'abandoned', current_occupants = 0, current_workers = 0 WHERE id = ?", (b.id,))
+                    conn.execute("UPDATE citizens SET home_building_id = NULL WHERE home_building_id = ?", (b.id,))
+                    conn.execute("UPDATE citizens SET work_building_id = NULL, employed = 0 WHERE work_building_id = ?", (b.id,))
+            elif b.status == "abandoned" and b.power_connected and b.water_connected and current_tax_rate <= 0.20:
+                b.unpowered_ticks = 0
+                b.unwatered_ticks = 0
+                b.status = "active"
+                b.efficiency = 1.0
+                with conn:
+                    conn.execute("UPDATE buildings SET status = 'active' WHERE id = ?", (b.id,))
+
+            # Level Up (1 to 5)
+            if b.status == "active" and b.level < 5 and b.power_connected and b.water_connected and b.efficiency >= 0.8:
+                is_full_res = b.capacity_residents > 0 and b.current_occupants >= int(b.capacity_residents * 0.80)
+                is_full_work = b.capacity_jobs > 0 and b.current_workers >= int(b.capacity_jobs * 0.80)
+                if (is_full_res or is_full_work) and random.random() < 0.25:
+                    b.level += 1
+                    b.height = round(b.height * 1.25, 1)
+                    if b.capacity_residents > 0:
+                        b.capacity_residents = int(b.capacity_residents * 1.30)
+                    if b.capacity_jobs > 0:
+                        b.capacity_jobs = int(b.capacity_jobs * 1.30)
+                    with conn:
+                        conn.execute("UPDATE buildings SET level = ?, height = ?, capacity = ? WHERE id = ?",
+                                     (b.level, b.height, max(b.capacity_residents, b.capacity_jobs), b.id))
 
         traffic_state = TrafficMetricsState(
             active_vehicles_count=len(self.vehicles),
@@ -425,117 +509,210 @@ class UnifiedWorldSimulation:
             average_commute_minutes=round(22.0 * (1.0 + road_metrics["average_congestion_ratio"]), 1),
         )
 
-        # 3. RCI Demand & Building Lifecycle
-        spawned_buildings: List[BuildingEntity] = []
-        if self.zone_tiles:
-            # Check for vacant lots adjacent to road network
-            for z_tile in list(self.zone_tiles.values()):
-                if not z_tile.building_id and z_tile.zone_type != "none":
-                    if random.random() < 0.15: # Probabilistic demand spawn
-                        new_b_type = (
-                            "ResidentialHigh" if "high" in z_tile.zone_type and "residential" in z_tile.zone_type else
-                            "Residential" if "residential" in z_tile.zone_type else
-                            "CommercialHigh" if "high" in z_tile.zone_type and "commercial" in z_tile.zone_type else
-                            "Commercial" if "commercial" in z_tile.zone_type else
-                            "Industrial" if "industrial" in z_tile.zone_type else "Residential"
-                        )
-                        cfg = BUILDING_CONFIGS.get(new_b_type, BUILDING_CONFIGS["Residential"])
-                        new_bid = f"bld_spawn_{uuid.uuid4().hex[:6]}"
-                        new_b = BuildingEntity(
-                            id=new_bid,
-                            world_id=self.world_id,
-                            catalog_id=new_b_type.lower(),
-                            name=f"Zoned {new_b_type}",
-                            type=new_b_type,
-                            category=new_b_type.lower(),
-                            x=z_tile.x,
-                            y=0.6,
-                            z=z_tile.z,
-                            width=cfg["default_width"],
-                            length=cfg["default_length"],
-                            height=cfg["default_height"],
-                            capacity_residents=cfg.get("residents_capacity", 0),
-                            capacity_jobs=cfg.get("jobs_capacity", 0),
-                            current_occupants=int(cfg.get("residents_capacity", 0) * 0.8),
-                            current_workers=int(cfg.get("jobs_capacity", 0) * 0.8),
-                        )
-                        self.buildings[new_bid] = new_b
-                        z_tile.building_id = new_bid
-                        spawned_buildings.append(new_b)
-
-        # 4. Derivation of City Metrics Directly from Entities
+        # 4. Honest RCI Demand & Zone Spawning
         active_buildings = [b for b in self.buildings.values() if b.status != "abandoned"]
         res_capacity = sum(b.capacity_residents for b in active_buildings)
         total_occupants = sum(b.current_occupants for b in active_buildings)
-
-        # Base population directly anchored to residential building occupants and citizens
         derived_population = total_occupants if total_occupants > 0 else len(self.citizens)
 
         jobs_capacity = sum(b.capacity_jobs for b in active_buildings)
         working_age_citizens = int(derived_population * 0.65)
         employed_citizens = min(jobs_capacity, working_age_citizens)
-        unemployment_rate = round(max(0.01, 1.0 - (employed_citizens / max(1, working_age_citizens))), 3)
+        unemployed_citizens = max(0, working_age_citizens - employed_citizens)
+        unemployment_rate = round(unemployed_citizens / max(1, working_age_citizens), 3)
 
-        # Tax calculations
-        conn = get_db_connection()
-        econ_row = conn.execute("SELECT * FROM economy_resources WHERE world_id = ?", (self.world_id,)).fetchone()
-        current_tax_rate = econ_row["tax_rate"] if econ_row and "tax_rate" in econ_row.keys() else DEFAULT_TAX_RATE
+        # Honest RCI Demands
+        res_occupancy = derived_population / max(1, res_capacity)
+        res_demand = max(0.20, min(1.0, (res_occupancy - 0.30) * 1.5))
+
+        ind_workers = sum(b.capacity_jobs for b in active_buildings if "Industrial" in b.type)
+        desired_ind_jobs = int(derived_population * 0.25)
+        ind_demand = max(0.25, min(1.0, float(desired_ind_jobs - ind_workers) / max(1, desired_ind_jobs))) if desired_ind_jobs > 0 else 0.50
+
+        com_jobs = sum(b.capacity_jobs for b in active_buildings if "Commercial" in b.type)
+        desired_com_jobs = int(derived_population * 0.20)
+        com_demand = max(0.25, min(1.0, float(desired_com_jobs - com_jobs) / max(1, desired_com_jobs))) if desired_com_jobs > 0 else 0.50
+
+        spawned_buildings: List[BuildingEntity] = []
+        if self.zone_tiles:
+            for z_tile in list(self.zone_tiles.values()):
+                if not z_tile.building_id and z_tile.zone_type != "none":
+                    is_res = "residential" in z_tile.zone_type
+                    is_com = "commercial" in z_tile.zone_type
+                    is_ind = "industrial" in z_tile.zone_type
+
+                    demand_met = (is_res and res_demand > 0.05) or (is_com and com_demand > 0.05) or (is_ind and ind_demand > 0.05)
+                    if not demand_met:
+                        continue
+
+                    # Road reachability
+                    nearest_nid = self.road_network.find_nearest_node(z_tile.x, z_tile.z)
+                    if not nearest_nid:
+                        continue
+                    n_node = self.road_network.nodes[nearest_nid]
+                    dist_to_road = math.hypot(n_node.x - z_tile.x, n_node.z - z_tile.z)
+                    if dist_to_road > 35.0:
+                        continue
+
+                    # Utilities grid check
+                    if util_state.power_deficit_mw > 0 and util_state.grid_reliability_pct < 60.0:
+                        continue
+                    if util_state.water_deficit_t > 0 and util_state.water_reliability_pct < 60.0:
+                        continue
+
+                    new_b_type = (
+                        "ResidentialHigh" if "high" in z_tile.zone_type and is_res else
+                        "Residential" if is_res else
+                        "CommercialHigh" if "high" in z_tile.zone_type and is_com else
+                        "Commercial" if is_com else
+                        "Industrial" if is_ind else "Residential"
+                    )
+                    cfg = BUILDING_CONFIGS.get(new_b_type, BUILDING_CONFIGS["Residential"])
+                    new_bid = f"bld_spawn_{uuid.uuid4().hex[:6]}"
+                    res_cap = cfg.get("residents_capacity", 0)
+                    jobs_cap = cfg.get("jobs_capacity", 0)
+                    cost_mat = cfg["cost_materials"]
+                    cost_cred = cfg["cost_credits"]
+
+                    new_b = BuildingEntity(
+                        id=new_bid,
+                        world_id=self.world_id,
+                        catalog_id=new_b_type.lower(),
+                        name=f"Zoned {new_b_type}",
+                        type=new_b_type,
+                        category=new_b_type.lower(),
+                        x=z_tile.x,
+                        y=0.6,
+                        z=z_tile.z,
+                        width=cfg["default_width"],
+                        length=cfg["default_length"],
+                        height=cfg["default_height"],
+                        capacity_residents=res_cap,
+                        capacity_jobs=jobs_cap,
+                        current_occupants=0,
+                        current_workers=0,
+                        power_demand_mw=cfg.get("power_demand_mw", 0.5),
+                        water_demand_t=cfg.get("water_demand_t", 0.5),
+                    )
+
+                    with conn:
+                        cost_dict = {"materials": cost_mat, "credits": cost_cred}
+                        conn.execute("""
+                        INSERT INTO buildings (
+                            id, world_id, name, type, level, x, y, z, width, length, height,
+                            orientation, status, capacity, current_occupants, current_workers,
+                            construction_cost, upgrade_cost, effects
+                        ) VALUES (?, ?, ?, ?, 1, ?, 0.6, ?, ?, ?, ?, 0.0, 'active', ?, 0, 0, ?, '{}', '{}')
+                        """, (
+                            new_bid, self.world_id, new_b.name, new_b_type,
+                            z_tile.x, z_tile.z, cfg["default_width"], cfg["default_length"], cfg["default_height"],
+                            res_cap or jobs_cap, json.dumps(cost_dict)
+                        ))
+                        conn.execute("UPDATE zone_lots SET building_id = ? WHERE id = ? AND world_id = ?",
+                                     (new_bid, z_tile.id, self.world_id))
+
+                        if is_res and res_cap > 0:
+                            from engine.demographics import spawn_citizens_for_world
+                            spawn_citizens_for_world(
+                                conn=conn,
+                                world_id=self.world_id,
+                                count=max(5, int(res_cap * 0.75)),
+                                residential_building_ids=[new_bid],
+                                center_x=z_tile.x,
+                                center_y=z_tile.z
+                            )
+                        elif jobs_cap > 0:
+                            unemployed = conn.execute("""
+                            SELECT id FROM citizens
+                            WHERE world_id = ? AND is_alive = 1 AND 18.0 <= age AND age < 65.0
+                              AND (work_building_id IS NULL OR employed = 0)
+                            LIMIT ?
+                            """, (self.world_id, jobs_cap)).fetchall()
+                            for u in unemployed:
+                                conn.execute("UPDATE citizens SET work_building_id = ?, employed = 1 WHERE id = ?", (new_bid, u["id"]))
+                            conn.execute("UPDATE buildings SET current_workers = ? WHERE id = ?", (len(unemployed), new_bid))
+                            new_b.current_workers = len(unemployed)
+
+                    self.buildings[new_bid] = new_b
+                    z_tile.building_id = new_bid
+                    spawned_buildings.append(new_b)
+
+        # 5. Derivation of City Metrics Directly from Entities
+        active_buildings = [b for b in self.buildings.values() if b.status != "abandoned"]
+        res_capacity = sum(b.capacity_residents for b in active_buildings)
+        total_occupants = sum(b.current_occupants for b in active_buildings)
+        derived_population = total_occupants if total_occupants > 0 else len(self.citizens)
+
+        jobs_capacity = sum(b.capacity_jobs for b in active_buildings)
+        working_age_citizens = int(derived_population * 0.65)
+        employed_citizens = min(jobs_capacity, working_age_citizens)
+        unemployment_rate = round(max(0.0, 1.0 - (employed_citizens / max(1, working_age_citizens))), 3)
+
         daily_tax_rev = round(derived_population * 15.0 * current_tax_rate, 2)
         base_gdp = round(employed_citizens * 45000.0, 2)
 
-        # 5. Causal Vital Signs Pipeline
+        # 6. Causal Vital Signs Execution (if not handled by parent caller)
         hosp_cap = sum(b.capacity_jobs * 3 for b in active_buildings if b.type == "Healthcare") or 1500
+        if not skip_causal_step:
+            causal_result = global_causal_engine.step(
+                world_id=self.world_id,
+                current_tick=self.tick,
+                year=self.year,
+                day=self.day,
+                population=derived_population,
+                food_stock=econ_row["food"] if econ_row else 10000.0,
+                food_production=100.0,
+                water_stock=util_state.total_water_supply_t,
+                water_production=util_state.total_water_supply_t,
+                energy_stock=util_state.total_power_supply_mw,
+                energy_production=util_state.total_power_supply_mw,
+                pollution_level=0.15 + (road_metrics["average_congestion_ratio"] * 0.20),
+                civic_stability=0.77,
+                happiness=0.75 - (road_metrics["average_congestion_ratio"] * 0.15) - (0.15 if util_state.power_deficit_mw > 0 else 0.0),
+                hospital_capacity=hosp_cap,
+                residential_capacity=res_capacity,
+                unemployment_rate=unemployment_rate,
+                ticks_passed=ticks
+            )
 
-        causal_result = global_causal_engine.step(
-            world_id=self.world_id,
-            current_tick=self.tick,
-            year=self.year,
-            day=self.day,
-            population=derived_population,
-            food_stock=econ_row["food"] if econ_row else 10000.0,
-            food_production=100.0,
-            water_stock=util_state.total_water_supply_t,
-            water_production=util_state.total_water_supply_t,
-            energy_stock=util_state.total_power_supply_mw,
-            energy_production=util_state.total_power_supply_mw,
-            pollution_level=0.15 + (road_metrics["average_congestion_ratio"] * 0.20),
-            civic_stability=0.77,
-            happiness=0.75 - (road_metrics["average_congestion_ratio"] * 0.15) - (0.15 if util_state.power_deficit_mw > 0 else 0.0),
-            hospital_capacity=hosp_cap,
-            residential_capacity=res_capacity,
-            unemployment_rate=unemployment_rate,
-            ticks_passed=ticks
-        )
+            with conn:
+                conn.execute("""
+                UPDATE economy_resources SET
+                    population = ?,
+                    employment_rate = ?,
+                    gdp = ?,
+                    happiness = ?,
+                    civic_stability = ?,
+                    energy = MAX(0.0, energy + ? - ?),
+                    water = MAX(0.0, water + ? - ?)
+                WHERE world_id = ?
+                """, (
+                    causal_result["new_population"],
+                    round(1.0 - unemployment_rate, 3),
+                    base_gdp,
+                    causal_result["happiness"],
+                    causal_result["civic_stability"],
+                    util_state.total_power_supply_mw,
+                    util_state.total_power_demand_mw,
+                    util_state.total_water_supply_t,
+                    util_state.total_water_demand_t,
+                    self.world_id
+                ))
+                conn.execute("UPDATE worlds SET tick = ?, year = ?, day = ? WHERE id = ?", (self.tick, self.year, self.day, self.world_id))
+            happ = causal_result["happiness"]
+            stab = causal_result["civic_stability"]
+            protest = causal_result["protest_intensity"]
+            pop_res = causal_result["new_population"]
+        else:
+            happ = float(econ_row["happiness"] if econ_row and "happiness" in econ_row.keys() else 0.85)
+            stab = float(econ_row["civic_stability"] if econ_row and "civic_stability" in econ_row.keys() else 0.90)
+            protest = 0.0
+            pop_res = derived_population
 
-        # Persist derived values into economy_resources and worlds
-        with conn:
-            conn.execute("""
-            UPDATE economy_resources SET
-                population = ?,
-                employment_rate = ?,
-                gdp = ?,
-                happiness = ?,
-                civic_stability = ?,
-                energy = MAX(0.0, energy + ? - ?),
-                water = MAX(0.0, water + ? - ?)
-            WHERE world_id = ?
-            """, (
-                causal_result["new_population"],
-                round(1.0 - unemployment_rate, 3),
-                base_gdp,
-                causal_result["happiness"],
-                causal_result["civic_stability"],
-                util_state.total_power_supply_mw,
-                util_state.total_power_demand_mw,
-                util_state.total_water_supply_t,
-                util_state.total_water_demand_t,
-                self.world_id
-            ))
-            conn.execute("UPDATE worlds SET tick = ?, year = ?, day = ? WHERE id = ?", (self.tick, self.year, self.day, self.world_id))
         conn.close()
 
         derived_metrics = DerivedCityMetrics(
-            population=causal_result["new_population"],
+            population=pop_res,
             households_count=int(derived_population / 2.6),
             residential_capacity=res_capacity,
             occupancy_rate=round(derived_population / max(1, res_capacity), 3),
@@ -551,12 +728,12 @@ class UnifiedWorldSimulation:
             water_supply_t=util_state.total_water_supply_t,
             water_demand_t=util_state.total_water_demand_t,
             air_pollution_index=round(0.15 + (road_metrics["average_congestion_ratio"] * 0.25), 2),
-            average_happiness=causal_result["happiness"],
-            civic_stability=causal_result["civic_stability"],
-            protest_intensity=causal_result["protest_intensity"]
+            average_happiness=happ,
+            civic_stability=stab,
+            protest_intensity=protest
         )
 
-        # 6. Increment Version and Build Delta
+        # 7. Increment Version and Build Delta
         old_version = self.version
         self.version += 1
 
@@ -568,8 +745,8 @@ class UnifiedWorldSimulation:
             year=self.year,
             day=self.day,
             created_buildings=spawned_buildings,
-            updated_buildings=updated_buildings[:50], # Transmit modified statuses
-            active_vehicles=list(self.vehicles.values())[:30], # Sample for 3D renderer
+            updated_buildings=updated_buildings[:50],
+            active_vehicles=list(self.vehicles.values())[:30],
             metrics=derived_metrics,
             utilities=util_state,
             traffic=traffic_state
@@ -594,8 +771,12 @@ class UnifiedWorldSimulation:
             congested_segment_ids=road_summary["congested_segments"],
         )
 
+        conn = get_db_connection()
+        cit_row = conn.execute("SELECT COUNT(*) as c FROM citizens WHERE world_id = ? AND is_alive = 1", (self.world_id,)).fetchone()
+        conn.close()
+
         res_cap = sum(b.capacity_residents for b in self.buildings.values() if b.status != "abandoned")
-        derived_pop = sum(b.current_occupants for b in self.buildings.values() if b.status != "abandoned") or 100
+        derived_pop = cit_row["c"] if cit_row and cit_row["c"] > 0 else sum(b.current_occupants for b in self.buildings.values() if b.status != "abandoned")
         jobs_cap = sum(b.capacity_jobs for b in self.buildings.values() if b.status != "abandoned")
 
         metrics = DerivedCityMetrics(
