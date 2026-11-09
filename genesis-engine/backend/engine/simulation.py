@@ -452,6 +452,34 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
         unemployment_rate = 0.0
         employment_rate = 1.0
 
+    # Query unlocked technology multipliers from technologies table
+    tech_rows = conn.execute(
+        "SELECT id, effects FROM technologies WHERE world_id = ? AND is_unlocked = 1",
+        (world_id,)
+    ).fetchall()
+
+    tech_mining_mult = 1.0
+    tech_industry_mult = 1.0
+    tech_science_mult = 1.0
+    tech_tax_mult = 1.0
+    tech_power_mult = 1.0
+
+    for tr in tech_rows:
+        try:
+            eff = json.loads(tr["effects"]) if isinstance(tr["effects"], str) else (tr["effects"] or {})
+            if "mining_yield" in eff:
+                tech_mining_mult += float(eff["mining_yield"])
+            if "heavy_industry_boost" in eff:
+                tech_industry_mult += float(eff["heavy_industry_boost"])
+            if "science_boost" in eff:
+                tech_science_mult += float(eff["science_boost"])
+            if "tax_revenue_boost" in eff:
+                tech_tax_mult += float(eff["tax_revenue_boost"])
+            if "power_efficiency" in eff or "efficiency_boost" in eff:
+                tech_power_mult += float(eff.get("power_efficiency", 0.0) or eff.get("efficiency_boost", 0.0))
+        except Exception:
+            pass
+
     # Dynamic honest materials production: derived strictly from employed workers in industrial buildings
     ind_workers_row = conn.execute("""
     SELECT SUM(current_workers) as workers, SUM(capacity) as cap
@@ -462,9 +490,9 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     ind_workers = ind_workers_row["workers"] if ind_workers_row and ind_workers_row["workers"] is not None else 0
     if world_id == "aurora-prime" and ind_workers == 0:
         # Aurora prime legacy fallback
-        materials_rate = float(econ["materials_rate"] if econ["materials_rate"] is not None else 50.0)
+        materials_rate = float(econ["materials_rate"] if econ["materials_rate"] is not None else 50.0) * tech_mining_mult * tech_industry_mult
     else:
-        materials_rate = round(float(ind_workers) * 0.5, 2)
+        materials_rate = round(float(ind_workers) * 0.5 * tech_mining_mult * tech_industry_mult, 2)
     with conn:
         conn.execute("UPDATE economy_resources SET materials_rate = ? WHERE world_id = ?", (materials_rate, world_id))
 
@@ -473,16 +501,16 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     com_tax = econ["commercial_tax"] if "commercial_tax" in econ.keys() and econ["commercial_tax"] is not None else 0.12
     ind_tax = econ["industrial_tax"] if "industrial_tax" in econ.keys() and econ["industrial_tax"] is not None else 0.15
 
-    daily_tax_rev = (current_pop * 20.0 * (res_tax / 0.14) + current_pop * 12.0 * (com_tax / 0.12) + ind_workers * 10.0 * (ind_tax / 0.15)) * (ticks / 30.0)
+    daily_tax_rev = (current_pop * 20.0 * (res_tax / 0.14) + current_pop * 12.0 * (com_tax / 0.12) + ind_workers * 10.0 * (ind_tax / 0.15)) * (ticks / 30.0) * tech_tax_mult
     debt = float(econ["municipal_debt"] if "municipal_debt" in econ.keys() and econ["municipal_debt"] is not None else 0.0)
     interest_charge = round(debt * (0.02 / 30.0) * ticks, 2) if debt > 0 else 0.0
 
     time_factor = (ticks * days_per_tick) / 30.0
     food_prod = econ["food_rate"] * time_factor * 10.0
     water_prod = econ["water_rate"] * time_factor * 10.0
-    energy_prod = econ["energy_rate"] * time_factor * 10.0
+    energy_prod = econ["energy_rate"] * time_factor * 10.0 * tech_power_mult
     materials_prod = materials_rate * time_factor * 10.0
-    research_prod = econ["research_rate"] * time_factor * 5.0
+    research_prod = econ["research_rate"] * time_factor * 5.0 * tech_science_mult
 
     food_cons = (current_pop / 10000.0) * time_factor * 8.0
     water_cons = (current_pop / 10000.0) * time_factor * 10.0

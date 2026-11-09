@@ -15,6 +15,7 @@ from api.v1.ml_routes import router as ml_router
 from api.v1.causal_routes import router as causal_router
 from api.v1.world_routes import router as world_router
 from api.v1.budget_routes import router as budget_router
+from api.v1.disaster_routes import router as disaster_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -34,3 +35,4 @@ api_v1_router.include_router(ml_router)
 api_v1_router.include_router(causal_router)
 api_v1_router.include_router(world_router)
 api_v1_router.include_router(budget_router)
+api_v1_router.include_router(disaster_router)

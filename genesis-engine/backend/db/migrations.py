@@ -256,6 +256,42 @@ def migration_v7_sewage_and_network_facilities(conn: sqlite3.Connection):
         conn.execute("ALTER TABLE road_segments ADD COLUMN congestion REAL DEFAULT 0.0")
 
 
+def migration_v8_disasters_and_weather(conn: sqlite3.Connection):
+    """Adds authoritative backend tables for disasters, weather states, and emergency response."""
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS disasters (
+        id TEXT PRIMARY KEY,
+        world_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        intensity TEXT NOT NULL DEFAULT 'moderate',
+        stage TEXT NOT NULL DEFAULT 'active',
+        epicenter_x REAL NOT NULL DEFAULT 0.0,
+        epicenter_z REAL NOT NULL DEFAULT 0.0,
+        radius REAL NOT NULL DEFAULT 40.0,
+        duration_days INTEGER NOT NULL DEFAULT 14,
+        elapsed_days INTEGER NOT NULL DEFAULT 0,
+        containment_percent REAL NOT NULL DEFAULT 0.0,
+        casualties_count INTEGER NOT NULL DEFAULT 0,
+        economic_damage_credits REAL NOT NULL DEFAULT 0.0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_disasters_world ON disasters(world_id);
+
+    CREATE TABLE IF NOT EXISTS weather_state (
+        world_id TEXT PRIMARY KEY,
+        temperature_c REAL NOT NULL DEFAULT 22.0,
+        weather_condition TEXT NOT NULL DEFAULT 'clear',
+        wind_speed_kph REAL NOT NULL DEFAULT 12.0,
+        precipitation_pct REAL NOT NULL DEFAULT 0.0,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
+    );
+    """)
+
+
 MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (1, "baseline_init", migration_v1_baseline),
     (2, "save_slots_and_autosaves", migration_v2_save_slots),
@@ -264,6 +300,7 @@ MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (5, "citizens_single_truth", migration_v5_citizens_single_truth),
     (6, "honest_economy_and_bonds", migration_v6_honest_economy_and_bonds),
     (7, "sewage_and_network_facilities", migration_v7_sewage_and_network_facilities),
+    (8, "disasters_and_weather", migration_v8_disasters_and_weather),
 ]
 
 

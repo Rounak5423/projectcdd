@@ -952,7 +952,7 @@ class CouncilService:
 
         sim_year = (world["year"] if world else 2026) or 2026
         sim_day = (world["day"] if world else 1) or 1
-        sim_tick = sim_year * 365 + sim_day
+        sim_tick = int(world["tick"] if world and "tick" in world.keys() and world["tick"] is not None else 1)
         stability = float(econ["civic_stability"] if econ else 0.80)
 
         active_session = self.repo.get_active_session_for_world(world_id)
@@ -1191,7 +1191,7 @@ class CouncilService:
         # Baseline snapshot
         sim_year = world["year"] or 2026
         sim_day = world["day"] or 1
-        sim_tick = sim_year * 365 + sim_day
+        sim_tick = int(world["tick"] if world and "tick" in world.keys() and world["tick"] is not None else 1)
 
         baseline_metrics = {
             "population": econ["population"] if econ else 100,
@@ -1352,7 +1352,7 @@ class CouncilService:
 
         current_year = world["year"] or 2026
         current_day = world["day"] or 1
-        current_tick = current_year * 365 + current_day
+        current_tick = int(world["tick"] if world and "tick" in world.keys() and world["tick"] is not None else 1)
         exec_tick = exec_record.get("sim_tick_at_execution", current_tick)
         ticks_elapsed = max(0, current_tick - exec_tick)
 

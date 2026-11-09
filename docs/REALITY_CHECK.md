@@ -266,12 +266,15 @@ During initial load and navigation, 15 browser console warnings are emitted:
 
 #### [MAJ-01] Technology Unlocks Have Zero Effect on Simulation Engine
 - **Severity**: Major
-- **Root Cause File**: `genesis-engine/backend/engine/technology_engine.py:120-210`, `backend/engine/world/simulation.py:400-510`
-- **Exact Reproduction Steps**:
-  1. Unlock `tech-bronze` via `POST /api/v1/worlds/{id}/technologies/tech-bronze/unlock`.
-  2. Advance simulation 30 ticks.
-  3. Observe mining yield, materials generation, and macro metrics.
-- **Forensic Detail**: The technology system writes to `technologies` in SQLite, but the world simulation step function never queries the `technologies` table or incorporates any of its effect coefficients.
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 5)**
+- **Root Cause File**: `genesis-engine/backend/engine/technology_engine.py:120-210`, `genesis-engine/backend/engine/simulation.py:455-500`
+- **Fix Implementation**: Queried unlocked technologies from SQLite `technologies` table during each simulation step and applied real effect multipliers (`tech_mining_mult`, `tech_industry_mult`, `tech_science_mult`, `tech_tax_mult`, and `tech_power_mult`) to materials production, tax revenue, power generation, and science research point accrual.
+- **Behavior Test Proof (`scripts/test_sprint5_behavior.py`)**:
+  ```
+  Step 2: Base materials rate with 100 workers: 50.0 t/day
+  Step 3: Unlocked tech-bronze (+15% mining yield): materials rate jumped from 50.0 to 57.5 (+15%)!
+  Step 4: Unlocked tech-mathematics (+40% science generation) in database.
+  ```
 
 #### [MAJ-02] Silent API Error Masking Returning False Success
 - **Severity**: Major
@@ -343,11 +346,13 @@ During initial load and navigation, 15 browser console warnings are emitted:
 
 #### [MIN-03] Council Service Epoch Multiplier Corrupts Simulation Tick Telemetry
 - **Severity**: Minor
-- **Root Cause File**: `genesis-engine/backend/app/features/council/service.py:872`
-- **Exact Reproduction Steps**:
-  1. Query `GET /api/v1/council/overview/{world_id}`.
-  2. Inspect `simulationTick` field (returns `739887` instead of actual tick `365`).
-- **Forensic Detail**: Computes tick as `sim_year * 365 + sim_day` instead of reading the world's elapsed simulation tick.
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 5)**
+- **Root Cause File**: `genesis-engine/backend/app/features/council/service.py:955, 1194, 1355`
+- **Fix Implementation**: Replaced `sim_year * 365 + sim_day` with `int(world["tick"])` across all council overview, execution baseline, and post-implementation evaluation queries.
+- **Behavior Test Proof (`scripts/test_sprint5_behavior.py`)**:
+  ```
+  Step 5: Verified Council tick alignment: simulationTick = 36 matches world.tick exactly!
+  ```
 
 ---
 
