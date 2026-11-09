@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import { getTerrainHeight, isNearRiver } from './Terrain';
 import { useIsNight } from './DayNightController';
 import { useGameState } from '../../context/GameStateContext';
 import { RoadSegmentData } from '../../types/road';
@@ -12,7 +11,7 @@ import {
   createContinuousSidewalkMesh,
   createContinuousMarkingsMesh,
   createCulDeSacGeometry,
-  createRoundaboutGeometry,
+  createFourWayCivicRoundaboutGeometry,
   createEngineeredJunctionGeometry,
 } from './roadGeometry';
 
@@ -123,28 +122,28 @@ const TrafficIntersectionSignals = React.memo(function TrafficIntersectionSignal
   return (
     <>
       <TrafficSignalPost
-        position={[2.8, 0.85, 22.0]}
+        position={[2.8, 0.85, 21.5]}
         rotationY={Math.PI}
         isGreen={signalState.isNorthSouthGreen}
         isYellow={signalState.isNorthSouthYellow}
         isRed={!signalState.isNorthSouthGreen && !signalState.isNorthSouthYellow}
       />
       <TrafficSignalPost
-        position={[-2.8, 0.85, 27.2]}
+        position={[-2.8, 0.85, 26.5]}
         rotationY={0}
         isGreen={signalState.isNorthSouthGreen}
         isYellow={signalState.isNorthSouthYellow}
         isRed={!signalState.isNorthSouthGreen && !signalState.isNorthSouthYellow}
       />
       <TrafficSignalPost
-        position={[-3.2, 0.85, 27.2]}
+        position={[-5.8, 0.85, 26.5]}
         rotationY={-Math.PI / 2}
         isGreen={signalState.isEastWestGreen}
         isYellow={signalState.isEastWestYellow}
         isRed={!signalState.isEastWestGreen && !signalState.isEastWestYellow}
       />
       <TrafficSignalPost
-        position={[3.2, 0.85, 22.0]}
+        position={[5.8, 0.85, 21.5]}
         rotationY={Math.PI / 2}
         isGreen={signalState.isEastWestGreen}
         isYellow={signalState.isEastWestYellow}
@@ -167,8 +166,8 @@ interface BridgeProps {
 }
 
 function ArchitecturalBridge({
-  id,
-  name,
+  id: _id,
+  name: _name,
   position,
   length,
   width,
@@ -311,6 +310,45 @@ function ZebraPedestrianCrossing({
   );
 }
 
+// Highway Boundary Portal Gateways
+function HighwayBoundaryPortal({
+  position,
+  rotationY = 0,
+  width = 5.4,
+}: {
+  position: [number, number, number];
+  rotationY?: number;
+  width?: number;
+}) {
+  const isNight = useIsNight();
+  const halfW = width * 0.5 + 0.6;
+
+  return (
+    <group position={position} rotation={[0, rotationY, 0]} raycast={() => null}>
+      {[-halfW, halfW].map((offset, idx) => (
+        <group key={idx} position={[offset, 0, 0]}>
+          <mesh position={[0, 1.6, 0]} receiveShadow castShadow>
+            <cylinderGeometry args={[0.2, 0.3, 3.2, 8]} />
+            <meshStandardMaterial color="#3e4842" metalness={0.7} roughness={0.3} />
+          </mesh>
+          <mesh position={[0, 3.3, 0]}>
+            <sphereGeometry args={[0.22, 10, 10]} />
+            <meshStandardMaterial
+              color="#5eead4"
+              emissive="#14b8a6"
+              emissiveIntensity={isNight ? 2.5 : 1.0}
+            />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 3.1, 0]}>
+        <boxGeometry args={[width + 1.2, 0.18, 0.25]} />
+        <meshStandardMaterial color="#2d3530" metalness={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
 // ================= MASTER RECONSTRUCTED ROAD NETWORK =================
 function RoadNetwork() {
   const { rates } = useGameState();
@@ -320,7 +358,7 @@ function RoadNetwork() {
   const roadSegments: RoadSegmentData[] = useMemo(() => [
     {
       id: 'road-ns-north',
-      name: 'Elysium Grand Boulevard (North Riverfront Axis)',
+      name: 'North Grand Boulevard (Riverfront Corridor)',
       category: 'grand_arterial',
       speedLimitKmh: 70,
       lanes: 4,
@@ -329,78 +367,8 @@ function RoadNetwork() {
       status: 'Optimal',
       throughputVehiclesPerDay: Math.round(28400 * (1 + rates.gdpGrowthRate / 10)),
       connectedDistricts: ['Northern Terraces', 'Elysium Citadel'],
-      connectedBuildings: ['Planetary Senate Citadel', 'Elysium Central Biosphere Park'],
+      connectedBuildings: ['Central River Abutment', 'Elysium Central Biosphere Park'],
       description: 'Primary 4-lane landscaped arterial connecting the northern territory to the Central River Bridge.',
-    },
-    {
-      id: 'road-civic-crescent',
-      name: 'Elysium Civic Promenade & Forum Crescent',
-      category: 'grand_arterial',
-      speedLimitKmh: 45,
-      lanes: 2,
-      width: 4.8,
-      lengthMeters: 380,
-      status: 'Optimal',
-      throughputVehiclesPerDay: 19500,
-      connectedDistricts: ['Elysium Citadel'],
-      connectedBuildings: ['Planetary Senate Citadel', 'Civilization Stage Monument'],
-      description: 'Elegant dual-crescent promenade encircling the High Council forum with wide pedestrian sidewalks and plazas.',
-    },
-    {
-      id: 'road-ns-south',
-      name: 'Oasis Terraces Grand Boulevard (South Corridor)',
-      category: 'grand_arterial',
-      speedLimitKmh: 70,
-      lanes: 4,
-      width: 5.4,
-      lengthMeters: 460,
-      status: 'Optimal',
-      throughputVehiclesPerDay: Math.round(31200 * (1 + rates.gdpGrowthRate / 10)),
-      connectedDistricts: ['Elysium Citadel', 'Oasis Terraces'],
-      connectedBuildings: ['High Council Citadel', 'Oasis Habitation Arcology', 'Cellular Care Clinic'],
-      description: 'High-capacity 4-lane spine connecting the civic center south to the territorial gateway.',
-    },
-    {
-      id: 'road-west-science',
-      name: 'Aethel Ridge Science Highway',
-      category: 'district_avenue',
-      speedLimitKmh: 60,
-      lanes: 2,
-      width: 4.2,
-      lengthMeters: 520,
-      status: 'Normal Flow',
-      throughputVehiclesPerDay: 18400,
-      connectedDistricts: ['Aethel Ridge Science Park', 'Elysium Citadel'],
-      connectedBuildings: ['Quantum Telemetry Observatory', 'Helios Solar Concentration Array'],
-      description: 'Curved scenic highway following the river bluff west with direct observatory cul-de-sac turnaround.',
-    },
-    {
-      id: 'road-east-industrial',
-      name: 'Vulcan Forge Industrial Expressway',
-      category: 'district_avenue',
-      speedLimitKmh: 55,
-      lanes: 2,
-      width: 4.2,
-      lengthMeters: 540,
-      status: 'Normal Flow',
-      throughputVehiclesPerDay: 23600,
-      connectedDistricts: ['Vulcan Forge Basin'],
-      connectedBuildings: ['Vulcan Smelter Hub A', 'Industrial Foundry Complex'],
-      description: 'Heavy transport logistics corridor serving foundries and smelters with industrial cul-de-sac.',
-    },
-    {
-      id: 'road-south-parkway',
-      name: 'South Aquifer Transverse Parkway',
-      category: 'district_avenue',
-      speedLimitKmh: 50,
-      lanes: 2,
-      width: 4.2,
-      lengthMeters: 480,
-      status: 'Optimal',
-      throughputVehiclesPerDay: 17200,
-      connectedDistricts: ['Verdant Vale Agrisector', 'Oasis Terraces', 'Vulcan Forge Basin'],
-      connectedBuildings: ['Polytechnic Academy', 'Oasis Cellular Care Clinic'],
-      description: 'Unified cross-town avenue connecting agricultural, residential, and industrial districts.',
     },
     {
       id: 'road-bridge-central',
@@ -416,6 +384,104 @@ function RoadNetwork() {
       connectedBuildings: ['Planetary Senate Citadel'],
       description: 'Iconic suspension arch bridge over the central river gorge.',
     },
+    {
+      id: 'road-citadel-boulevard',
+      name: 'Senate Citadel Boulevard (Civic Axis)',
+      category: 'grand_arterial',
+      speedLimitKmh: 50,
+      lanes: 4,
+      width: 5.4,
+      lengthMeters: 380,
+      status: 'Optimal',
+      throughputVehiclesPerDay: 26400,
+      connectedDistricts: ['Elysium Citadel'],
+      connectedBuildings: ['Planetary Senate Citadel', 'Civilization Evolution Monument'],
+      description: 'Monumental 4-lane civic ceremonial avenue connecting Central Arch Bridge directly into the Grand Civic Roundabout.',
+    },
+    {
+      id: 'road-civic-roundabout',
+      name: 'Grand Civic Central Roundabout',
+      category: 'grand_arterial',
+      speedLimitKmh: 40,
+      lanes: 2,
+      width: 6.0,
+      lengthMeters: 280,
+      status: 'Optimal',
+      throughputVehiclesPerDay: 36200,
+      connectedDistricts: ['Elysium Citadel', 'Oasis Terraces'],
+      connectedBuildings: ['Planetary Senate Citadel', 'Oasis Habitation Arcology'],
+      description: 'Central circular civic junction featuring 4 orthogonal approaches, circulating dashed markings, and landscaped island.',
+    },
+    {
+      id: 'road-ns-south',
+      name: 'Oasis Terraces Grand Boulevard (South Corridor)',
+      category: 'grand_arterial',
+      speedLimitKmh: 70,
+      lanes: 4,
+      width: 5.4,
+      lengthMeters: 460,
+      status: 'Optimal',
+      throughputVehiclesPerDay: Math.round(31200 * (1 + rates.gdpGrowthRate / 10)),
+      connectedDistricts: ['Elysium Citadel', 'Oasis Terraces'],
+      connectedBuildings: ['Oasis Habitation Arcology', 'Cellular Care Clinic'],
+      description: 'High-capacity 4-lane spine connecting the Grand Civic Roundabout south to the territorial gateway portal.',
+    },
+    {
+      id: 'road-west-science',
+      name: 'Aethel Ridge Science Highway',
+      category: 'district_avenue',
+      speedLimitKmh: 60,
+      lanes: 2,
+      width: 4.2,
+      lengthMeters: 520,
+      status: 'Normal Flow',
+      throughputVehiclesPerDay: 18400,
+      connectedDistricts: ['Aethel Ridge Science Park', 'Elysium Citadel'],
+      connectedBuildings: ['Quantum Telemetry Observatory', 'Helios Solar Concentration Array'],
+      description: 'Scenic highway spanning West Suspension Bridge to West Crossroads with engineered observatory cul-de-sac.',
+    },
+    {
+      id: 'road-east-industrial',
+      name: 'Vulcan Forge Industrial Expressway',
+      category: 'district_avenue',
+      speedLimitKmh: 55,
+      lanes: 2,
+      width: 4.2,
+      lengthMeters: 540,
+      status: 'Normal Flow',
+      throughputVehiclesPerDay: 23600,
+      connectedDistricts: ['Vulcan Forge Basin'],
+      connectedBuildings: ['Vulcan Smelter Hub A', 'Industrial Foundry Complex'],
+      description: 'Heavy transport logistics corridor serving foundries and smelters across East Truss Bridge with freight cul-de-sac.',
+    },
+    {
+      id: 'road-parkway-west',
+      name: 'West Civic Parkway',
+      category: 'district_avenue',
+      speedLimitKmh: 50,
+      lanes: 2,
+      width: 4.4,
+      lengthMeters: 380,
+      status: 'Optimal',
+      throughputVehiclesPerDay: 16800,
+      connectedDistricts: ['Elysium Citadel', 'Aethel Ridge Science Park'],
+      connectedBuildings: ['Polytechnic Academy'],
+      description: 'Transverse connector linking the Grand Civic Roundabout west to West Crossroads.',
+    },
+    {
+      id: 'road-parkway-east',
+      name: 'East Civic Parkway',
+      category: 'district_avenue',
+      speedLimitKmh: 50,
+      lanes: 2,
+      width: 4.4,
+      lengthMeters: 380,
+      status: 'Optimal',
+      throughputVehiclesPerDay: 17400,
+      connectedDistricts: ['Elysium Citadel', 'Vulcan Forge Basin'],
+      connectedBuildings: ['Oasis Cellular Care Clinic'],
+      description: 'Transverse connector linking the Grand Civic Roundabout east to East Crossroads and Oasis Residential Spur.',
+    },
   ], [rates.gdpGrowthRate]);
 
   const handleSelectRoad = (road: RoadSegmentData) => {
@@ -425,200 +491,133 @@ function RoadNetwork() {
 
   // ================= MATHEMATICALLY EXACT PROCEDURAL ROAD RECONSTRUCTION =================
   const roadGeometries = useMemo(() => {
-    // 1. PRIMARY GRAND BOULEVARD (North Corridor: [0, -44] to Central Bridge [0, -10.5])
-    const nodesNsNorth = sampleSplinePath([[0, -44.0], [0, -32.0], [0.6, -22.0], [0, -10.5]], 1.0);
+    // 1. PRIMARY NORTH GRAND BOULEVARD (North Map Portal [0, -44] to Central Bridge [0, -10.5])
+    const nodesNsNorth = sampleSplinePath([[0, -44.0], [0, -32.0], [0, -22.0], [0, -10.5]], 1.0);
     const meshNsNorth = createContinuousRoadMesh(nodesNsNorth, 5.4);
     const swNsNorth = createContinuousSidewalkMesh(nodesNsNorth, 5.4, 0.85);
     const marksNsNorth = createContinuousMarkingsMesh(nodesNsNorth, 5.4, 'double-yellow');
     const dashesNsNorth = createContinuousMarkingsMesh(nodesNsNorth, 5.4, 'dual-dash');
 
-    // 2. CIVIC RIVERFRONT ESPLANADE ROUNDABOUT (At [0, 6.0], South of Central Bridge)
-    const roundaboutCivic = createRoundaboutGeometry([0, 6.0], 5.8, 2.4, 0.08);
+    // 2. SENATE CITADEL BOULEVARD (Central Bridge South Abutment [0, 4.5] to Roundabout North Throat [0, 18.0])
+    const nodesCitadel = sampleSplinePath([[0, 4.5], [0, 11.0], [0, 18.0]], 1.0);
+    const meshCitadel = createContinuousRoadMesh(nodesCitadel, 5.4);
+    const swCitadel = createContinuousSidewalkMesh(nodesCitadel, 5.4, 0.85);
+    const marksCitadel = createContinuousMarkingsMesh(nodesCitadel, 5.4, 'double-yellow');
+    const dashesCitadel = createContinuousMarkingsMesh(nodesCitadel, 5.4, 'dual-dash');
 
-    // Bridge south abutment ramp: [0, 4.5] to Roundabout north throat [0, 6.0 - 5.8 = 0.2]
-    const nodesBridgeSouthThroat = sampleSplinePath([[0, 4.5], [0, 5.8]], 0.8, 0.75, 0.08);
-    const meshBridgeSouthThroat = createContinuousRoadMesh(nodesBridgeSouthThroat, 5.4);
-    const swBridgeSouthThroat = createContinuousSidewalkMesh(nodesBridgeSouthThroat, 5.4, 0.85);
-    const marksBridgeSouthThroat = createContinuousMarkingsMesh(nodesBridgeSouthThroat, 5.4, 'double-yellow');
+    // 3. EXACTLY ONE CENTRAL CIVIC ROUNDABOUT AT [0, 24.0]
+    // Radius: inner 2.5m, outer 6.0m. 4 orthogonal approaches: North 18.0, South 30.0, West -6.0, East 6.0.
+    const roundaboutCivic = createFourWayCivicRoundaboutGeometry([0, 24.0], 2.5, 6.0, 5.4, 4.4, 0.08);
 
-    // 3. ELYSIUM CIVIC PROMENADE CRESCENTS (Encompassing the Forum around Citadel [0, 13])
-    // West Crescent: Spline arcing from Roundabout [0, 6.0] -> West flank -> South Gateway [0, 20.0]
-    const nodesForumWest = sampleSplinePath([
-      [-1.8, 6.8],
-      [-5.2, 8.5],
-      [-7.8, 12.0],
-      [-7.8, 15.5],
-      [-5.2, 18.5],
-      [-1.8, 20.0],
-    ], 0.9);
-    const meshForumWest = createContinuousRoadMesh(nodesForumWest, 4.6);
-    const swForumWest = createContinuousSidewalkMesh(nodesForumWest, 4.6, 0.9);
-    const marksForumWest = createContinuousMarkingsMesh(nodesForumWest, 4.6, 'single-white');
-
-    // East Crescent: Spline arcing from Roundabout [0, 6.0] -> East flank -> South Gateway [0, 20.0]
-    const nodesForumEast = sampleSplinePath([
-      [1.8, 6.8],
-      [5.2, 8.5],
-      [7.8, 12.0],
-      [7.8, 15.5],
-      [5.2, 18.5],
-      [1.8, 20.0],
-    ], 0.9);
-    const meshForumEast = createContinuousRoadMesh(nodesForumEast, 4.6);
-    const swForumEast = createContinuousSidewalkMesh(nodesForumEast, 4.6, 0.9);
-    const marksForumEast = createContinuousMarkingsMesh(nodesForumEast, 4.6, 'single-white');
-
-    // 4. CENTRAL HUB ROUNDABOUT (At [0, 24.5], junction of South Boulevard and Cross Parkway)
-    const roundaboutCentralHub = createRoundaboutGeometry([0, 24.5], 6.2, 2.8, 0.08);
-
-    // Forum South Link: [0, 20.0] to Central Hub Roundabout North throat [0, 24.5 - 6.2 = 18.3]
-    const nodesForumToHub = sampleSplinePath([[0, 20.0], [0, 21.8], [0, 23.5]], 0.8);
-    const meshForumToHub = createContinuousRoadMesh(nodesForumToHub, 5.4);
-    const swForumToHub = createContinuousSidewalkMesh(nodesForumToHub, 5.4, 0.85);
-    const marksForumToHub = createContinuousMarkingsMesh(nodesForumToHub, 5.4, 'double-yellow');
-
-    // 5. PRIMARY GRAND BOULEVARD (South Corridor: [0, 24.5] to South Boundary [0, 44.0])
-    const nodesNsSouth = sampleSplinePath([[0, 25.5], [0, 31.0], [0.5, 37.0], [0, 44.0]], 1.0);
+    // 4. PRIMARY SOUTH OASIS GRAND BOULEVARD (Roundabout South Throat [0, 30.0] to South Portal [0, 44.0])
+    const nodesNsSouth = sampleSplinePath([[0, 30.0], [0, 37.0], [0, 44.0]], 1.0);
     const meshNsSouth = createContinuousRoadMesh(nodesNsSouth, 5.4);
     const swNsSouth = createContinuousSidewalkMesh(nodesNsSouth, 5.4, 0.85);
     const marksNsSouth = createContinuousMarkingsMesh(nodesNsSouth, 5.4, 'double-yellow');
     const dashesNsSouth = createContinuousMarkingsMesh(nodesNsSouth, 5.4, 'dual-dash');
 
-    // 6. WEST RIVERFRONT SCIENCE HIGHWAY (Across West Bridge [-25, -8.7] to West Junction [-19.5, 24.5])
-    // North Approach: [-25, -44.0] to West Bridge North abutment [-25, -23.7]
+    // 5. TRANSVERSE CIVIC PARKWAY ALONG Z = 24.0
+    // West Arm: Roundabout West Throat [-6.0, 24.0] to West Crossroads [-25.0, 24.0]
+    const nodesParkwayWest = sampleSplinePath([[-6.0, 24.0], [-15.0, 24.0], [-25.0, 24.0]], 1.0);
+    const meshParkwayWest = createContinuousRoadMesh(nodesParkwayWest, 4.4);
+    const swParkwayWest = createContinuousSidewalkMesh(nodesParkwayWest, 4.4, 0.85);
+    const marksParkwayWest = createContinuousMarkingsMesh(nodesParkwayWest, 4.4, 'single-white');
+
+    // East Arm: Roundabout East Throat [6.0, 24.0] to East Crossroads [25.0, 24.0]
+    const nodesParkwayEast = sampleSplinePath([[6.0, 24.0], [15.0, 24.0], [25.0, 24.0]], 1.0);
+    const meshParkwayEast = createContinuousRoadMesh(nodesParkwayEast, 4.4);
+    const swParkwayEast = createContinuousSidewalkMesh(nodesParkwayEast, 4.4, 0.85);
+    const marksParkwayEast = createContinuousMarkingsMesh(nodesParkwayEast, 4.4, 'single-white');
+
+    // 6. WEST REGIONAL CORRIDOR (X = -25.0)
+    // North Approach: [-25.0, -44.0] to West Bridge North Abutment [-25.0, -23.7]
     const nodesWestNorth = sampleSplinePath([[-25.0, -44.0], [-25.0, -34.0], [-25.0, -23.7]], 1.0);
     const meshWestNorth = createContinuousRoadMesh(nodesWestNorth, 4.2);
     const swWestNorth = createContinuousSidewalkMesh(nodesWestNorth, 4.2, 0.85);
     const marksWestNorth = createContinuousMarkingsMesh(nodesWestNorth, 4.2, 'single-white');
 
-    // South from West Bridge: curves along river bluff to West Crossroads [-19.5, 24.5]
-    const nodesWestSouth = sampleSplinePath([
-      [-25.0, -8.7],
-      [-24.6, -2.0],
-      [-23.2, 5.0],
-      [-21.8, 13.0],
-      [-20.4, 19.5],
-      [-19.5, 24.5],
-    ], 1.0);
+    // South from West Bridge: [-25.0, -8.7] to West Crossroads [-25.0, 24.0]
+    const nodesWestSouth = sampleSplinePath([[-25.0, -8.7], [-25.0, 0.0], [-25.0, 12.0], [-25.0, 24.0]], 1.0);
     const meshWestSouth = createContinuousRoadMesh(nodesWestSouth, 4.2);
     const swWestSouth = createContinuousSidewalkMesh(nodesWestSouth, 4.2, 0.85);
     const marksWestSouth = createContinuousMarkingsMesh(nodesWestSouth, 4.2, 'single-white');
 
-    // 7. EAST RIVERFRONT INDUSTRIAL HIGHWAY (Across East Bridge to East Crossroads [19.5, 24.5])
-    // North Approach: [25, -44.0] to East Bridge North abutment [25, 0.25]
-    const nodesEastNorth = sampleSplinePath([[25.0, -44.0], [25.0, -32.0], [25.0, -18.0], [25.0, 0.25]], 1.0);
+    // 7. EAST REGIONAL CORRIDOR (X = 25.0)
+    // North Approach: [25.0, -44.0] to East Bridge North Abutment [25.0, 0.25]
+    const nodesEastNorth = sampleSplinePath([[25.0, -44.0], [25.0, -30.0], [25.0, -15.0], [25.0, 0.25]], 1.0);
     const meshEastNorth = createContinuousRoadMesh(nodesEastNorth, 4.2);
     const swEastNorth = createContinuousSidewalkMesh(nodesEastNorth, 4.2, 0.85);
     const marksEastNorth = createContinuousMarkingsMesh(nodesEastNorth, 4.2, 'single-white');
 
-    // South from East Bridge: [25, 15.75] curves to East Crossroads [19.5, 24.5]
-    const nodesEastSouth = sampleSplinePath([
-      [25.0, 15.75],
-      [24.2, 19.0],
-      [22.0, 22.2],
-      [19.5, 24.5],
-    ], 1.0);
+    // South from East Bridge: [25.0, 15.75] to East Crossroads [25.0, 24.0]
+    const nodesEastSouth = sampleSplinePath([[25.0, 15.75], [25.0, 20.0], [25.0, 24.0]], 1.0);
     const meshEastSouth = createContinuousRoadMesh(nodesEastSouth, 4.2);
     const swEastSouth = createContinuousSidewalkMesh(nodesEastSouth, 4.2, 0.85);
     const marksEastSouth = createContinuousMarkingsMesh(nodesEastSouth, 4.2, 'single-white');
 
-    // 8. TRANSVERSE SOUTH PARKWAY (East-West along Z = 24.5 connecting West, Center, East)
-    // West Arm: [-19.5, 24.5] to Roundabout West throat [-4.5, 24.5]
-    const nodesParkwayWest = sampleSplinePath([[-19.5, 24.5], [-12.0, 24.5], [-4.5, 24.5]], 1.0);
-    const meshParkwayWest = createContinuousRoadMesh(nodesParkwayWest, 4.2);
-    const swParkwayWest = createContinuousSidewalkMesh(nodesParkwayWest, 4.2, 0.85);
-    const marksParkwayWest = createContinuousMarkingsMesh(nodesParkwayWest, 4.2, 'single-white');
-
-    // East Arm: Roundabout East throat [4.5, 24.5] to [19.5, 24.5]
-    const nodesParkwayEast = sampleSplinePath([[4.5, 24.5], [12.0, 24.5], [19.5, 24.5]], 1.0);
-    const meshParkwayEast = createContinuousRoadMesh(nodesParkwayEast, 4.2);
-    const swParkwayEast = createContinuousSidewalkMesh(nodesParkwayEast, 4.2, 0.85);
-    const marksParkwayEast = createContinuousMarkingsMesh(nodesParkwayEast, 4.2, 'single-white');
-
-    // 9. NORTH DISTRICT CONNECTORS (Transverse along Z = -22.0)
+    // 8. NORTH TRANSVERSE CONNECTOR (Along Z = -22.0)
     // West Arm: [-25.0, -22.0] to [0, -22.0]
-    const nodesNorthConnWest = sampleSplinePath([[-25.0, -22.0], [-13.0, -22.0], [-3.2, -22.0]], 1.0);
+    const nodesNorthConnWest = sampleSplinePath([[-25.0, -22.0], [-12.5, -22.0], [0, -22.0]], 1.0);
     const meshNorthConnWest = createContinuousRoadMesh(nodesNorthConnWest, 3.8);
     const swNorthConnWest = createContinuousSidewalkMesh(nodesNorthConnWest, 3.8, 0.8);
 
     // East Arm: [0, -22.0] to [25.0, -22.0]
-    const nodesNorthConnEast = sampleSplinePath([[3.2, -22.0], [14.0, -22.0], [25.0, -22.0]], 1.0);
+    const nodesNorthConnEast = sampleSplinePath([[0, -22.0], [12.5, -22.0], [25.0, -22.0]], 1.0);
     const meshNorthConnEast = createContinuousRoadMesh(nodesNorthConnEast, 3.8);
     const swNorthConnEast = createContinuousSidewalkMesh(nodesNorthConnEast, 3.8, 0.8);
 
-    // 10. LOCAL ACCESS ROADS WITH ENGINEERED CUL-DE-SACS
-    // A. Science Observatory Spur & Cul-de-Sac (Branches from [-24.6, -2.0] to [-36.0, -2.0])
-    const nodesSciSpur = sampleSplinePath([[-24.6, -2.0], [-29.5, -2.0], [-33.5, -2.0]], 0.8);
+    // 9. THE 4 INTENTIONAL, VERTEX-MATCHED CUL-DE-SACS
+    // A. Science Observatory Spur & Cul-de-Sac (Branches from [-25.0, -2.0] to [-34.0, -2.0])
+    const nodesSciSpur = sampleSplinePath([[-25.0, -2.0], [-29.5, -2.0], [-34.0, -2.0]], 0.8);
     const meshSciSpur = createContinuousRoadMesh(nodesSciSpur, 3.8);
     const swSciSpur = createContinuousSidewalkMesh(nodesSciSpur, 3.8, 0.8);
-    const culDeSacScience = createCulDeSacGeometry([-36.0, -2.0], 4.2, 3.8, [-1, 0], true);
+    const culDeSacScience = createCulDeSacGeometry([-34.0, -2.0], 4.2, 3.8, [-1, 0], true);
 
-    // B. Agrisector Farming Loop & Cul-de-Sac (Branches from [-19.5, 24.5] to [-26.0, 40.5])
-    const nodesAgriSpur = sampleSplinePath([
-      [-19.5, 24.5],
-      [-23.5, 27.5],
-      [-26.0, 33.0],
-      [-26.0, 38.0],
-    ], 1.0);
-    const meshAgriSpur = createContinuousRoadMesh(nodesAgriSpur, 3.8);
-    const swAgriSpur = createContinuousSidewalkMesh(nodesAgriSpur, 3.8, 0.8);
-    const culDeSacAgri = createCulDeSacGeometry([-26.0, 40.5], 4.5, 3.8, [0, 1], true);
+    // B. Agrisector Farming Loop & Cul-de-Sac (Branches from [-25.0, 24.0] to [-25.0, 38.0])
+    const nodesAgriSpur = sampleSplinePath([[-25.0, 24.0], [-25.0, 31.0], [-25.0, 38.0]], 0.8);
+    const meshAgriSpur = createContinuousRoadMesh(nodesAgriSpur, 4.0);
+    const swAgriSpur = createContinuousSidewalkMesh(nodesAgriSpur, 4.0, 0.8);
+    const culDeSacAgri = createCulDeSacGeometry([-25.0, 38.0], 4.5, 4.0, [0, 1], true);
 
-    // C. Vulcan Heavy Freight Spur & Cul-de-Sac (Branches from [19.5, 24.5] to [37.5, 24.5])
-    const nodesFreightSpur = sampleSplinePath([[19.5, 24.5], [26.0, 24.5], [33.0, 24.5]], 1.0);
-    const meshFreightSpur = createContinuousRoadMesh(nodesFreightSpur, 4.0);
-    const swFreightSpur = createContinuousSidewalkMesh(nodesFreightSpur, 4.0, 0.8);
-    const culDeSacFreight = createCulDeSacGeometry([36.5, 24.5], 4.8, 4.0, [1, 0], true);
+    // C. Vulcan Heavy Freight Spur & Cul-de-Sac (Branches from [25.0, 24.0] to [36.0, 24.0])
+    const nodesFreightSpur = sampleSplinePath([[25.0, 24.0], [30.5, 24.0], [36.0, 24.0]], 0.8);
+    const meshFreightSpur = createContinuousRoadMesh(nodesFreightSpur, 4.2);
+    const swFreightSpur = createContinuousSidewalkMesh(nodesFreightSpur, 4.2, 0.8);
+    const culDeSacFreight = createCulDeSacGeometry([36.0, 24.0], 4.8, 4.2, [1, 0], true);
 
-    // D. Oasis Terraces Residential Crescent & Cul-de-Sac (Branches from [12.0, 24.5] to [14.0, 41.5])
-    const nodesResSpur = sampleSplinePath([[12.0, 24.5], [14.5, 29.0], [16.0, 35.0], [14.5, 39.0]], 1.0);
+    // D. Oasis Terraces Residential Crescent & Cul-de-Sac (Branches from [14.0, 24.0] to [14.0, 38.0])
+    const nodesResSpur = sampleSplinePath([[14.0, 24.0], [14.0, 31.0], [14.0, 38.0]], 0.8);
     const meshResSpur = createContinuousRoadMesh(nodesResSpur, 3.8);
     const swResSpur = createContinuousSidewalkMesh(nodesResSpur, 3.8, 0.8);
-    const culDeSacRes = createCulDeSacGeometry([14.0, 41.5], 4.4, 3.8, [0, 1], true);
+    const culDeSacRes = createCulDeSacGeometry([14.0, 38.0], 4.4, 3.8, [0, 1], true);
 
-    // 11. REGIONAL HIGHWAY WINGS (Outer West & East Map Boundaries)
-    const nodesOuterWest = sampleSplinePath([[-44.0, 0], [-34.0, 0], [-25.0, -2.0]], 1.0);
-    const meshOuterWest = createContinuousRoadMesh(nodesOuterWest, 4.8);
-    const swOuterWest = createContinuousSidewalkMesh(nodesOuterWest, 4.8, 0.85);
-
-    const nodesOuterEast = sampleSplinePath([[25.0, 0.25], [34.0, 0], [44.0, 0]], 1.0);
-    const meshOuterEast = createContinuousRoadMesh(nodesOuterEast, 4.8);
-    const swOuterEast = createContinuousSidewalkMesh(nodesOuterEast, 4.8, 0.85);
-
-    // 12. SEAMLESS ENGINEERED JUNCTIONS
-    const juncWestCross = createEngineeredJunctionGeometry([-19.5, 24.5], 4.5);
-    const juncEastCross = createEngineeredJunctionGeometry([19.5, 24.5], 4.5);
-    const juncNorthCenter = createEngineeredJunctionGeometry([0, -22.0], 4.8);
-    const juncNorthWest = createEngineeredJunctionGeometry([-25.0, -22.0], 4.2);
-    const juncNorthEast = createEngineeredJunctionGeometry([25.0, -22.0], 4.2);
-    const juncForumSouth = createEngineeredJunctionGeometry([0, 20.0], 4.4);
+    // 10. SEAMLESS ENGINEERED JUNCTIONS
+    const juncNorthCenter = createEngineeredJunctionGeometry([0, -22.0], 5.6);
+    const juncNorthWest = createEngineeredJunctionGeometry([-25.0, -22.0], 4.4);
+    const juncNorthEast = createEngineeredJunctionGeometry([25.0, -22.0], 4.4);
+    const juncWestCross = createEngineeredJunctionGeometry([-25.0, 24.0], 4.8);
+    const juncEastCross = createEngineeredJunctionGeometry([25.0, 24.0], 4.8);
+    const juncResBranch = createEngineeredJunctionGeometry([14.0, 24.0], 4.2);
+    const juncSciBranch = createEngineeredJunctionGeometry([-25.0, -2.0], 4.2);
 
     return {
-      // Primary Grand Boulevard
+      // Primary North-South Axis
       meshNsNorth, swNsNorth, marksNsNorth, dashesNsNorth,
-      meshBridgeSouthThroat, swBridgeSouthThroat, marksBridgeSouthThroat,
-      meshForumToHub, swForumToHub, marksForumToHub,
+      meshCitadel, swCitadel, marksCitadel, dashesCitadel,
+      roundaboutCivic,
       meshNsSouth, swNsSouth, marksNsSouth, dashesNsSouth,
 
-      // Civic Forum Crescents
-      meshForumWest, swForumWest, marksForumWest,
-      meshForumEast, swForumEast, marksForumEast,
-
-      // Roundabouts
-      roundaboutCivic,
-      roundaboutCentralHub,
-
-      // West & East Highways
-      meshWestNorth, swWestNorth, marksWestNorth,
-      meshWestSouth, swWestSouth, marksWestSouth,
-      meshEastNorth, swEastNorth, marksEastNorth,
-      meshEastSouth, swEastSouth, marksEastSouth,
-
-      // Transverse Parkways
+      // Transverse Civic Parkways
       meshParkwayWest, swParkwayWest, marksParkwayWest,
       meshParkwayEast, swParkwayEast, marksParkwayEast,
       meshNorthConnWest, swNorthConnWest,
       meshNorthConnEast, swNorthConnEast,
+
+      // Regional Highways
+      meshWestNorth, swWestNorth, marksWestNorth,
+      meshWestSouth, swWestSouth, marksWestSouth,
+      meshEastNorth, swEastNorth, marksEastNorth,
+      meshEastSouth, swEastSouth, marksEastSouth,
 
       // Spurs & Cul-de-Sacs
       meshSciSpur, swSciSpur, culDeSacScience,
@@ -626,13 +625,9 @@ function RoadNetwork() {
       meshFreightSpur, swFreightSpur, culDeSacFreight,
       meshResSpur, swResSpur, culDeSacRes,
 
-      // Regional Wings
-      meshOuterWest, swOuterWest,
-      meshOuterEast, swOuterEast,
-
-      // Junctions
-      juncWestCross, juncEastCross, juncNorthCenter,
-      juncNorthWest, juncNorthEast, juncForumSouth,
+      // Junction Plazas
+      juncNorthCenter, juncNorthWest, juncNorthEast,
+      juncWestCross, juncEastCross, juncResBranch, juncSciBranch,
     };
   }, []);
 
@@ -660,7 +655,7 @@ function RoadNetwork() {
 
   return (
     <group>
-      {/* ================= 1. PRIMARY GRAND BOULEVARD ================= */}
+      {/* ================= 1. PRIMARY GRAND BOULEVARD (NORTH & CITADEL) ================= */}
       <group
         onClick={(e) => {
           e.stopPropagation();
@@ -672,59 +667,83 @@ function RoadNetwork() {
         <mesh geometry={roadGeometries.swNsNorth} material={sidewalkMat} receiveShadow />
         <mesh geometry={roadGeometries.marksNsNorth} material={yellowMarkingMat} raycast={() => null} />
         <mesh geometry={roadGeometries.dashesNsNorth} material={whiteMarkingMat} raycast={() => null} />
+      </group>
 
-        {/* Bridge South Abutment Ramp */}
-        <mesh geometry={roadGeometries.meshBridgeSouthThroat} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.swBridgeSouthThroat} material={sidewalkMat} receiveShadow />
-        <mesh geometry={roadGeometries.marksBridgeSouthThroat} material={yellowMarkingMat} raycast={() => null} />
+      <group
+        onClick={(e) => {
+          e.stopPropagation();
+          handleSelectRoad(roadSegments[2]);
+        }}
+      >
+        {/* Senate Citadel Boulevard (Monumental Approach to Roundabout) */}
+        <mesh geometry={roadGeometries.meshCitadel} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.swCitadel} material={sidewalkMat} receiveShadow />
+        <mesh geometry={roadGeometries.marksCitadel} material={yellowMarkingMat} raycast={() => null} />
+        <mesh geometry={roadGeometries.dashesCitadel} material={whiteMarkingMat} raycast={() => null} />
+      </group>
 
-        {/* Forum to Hub Gateway */}
-        <mesh geometry={roadGeometries.meshForumToHub} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.swForumToHub} material={sidewalkMat} receiveShadow />
-        <mesh geometry={roadGeometries.marksForumToHub} material={yellowMarkingMat} raycast={() => null} />
+      {/* ================= 2. GRAND CIVIC ROUNDABOUT (CENTRAL HUB AT [0, 24.0]) ================= */}
+      <group
+        onClick={(e) => {
+          e.stopPropagation();
+          handleSelectRoad(roadSegments[3]);
+        }}
+      >
+        <mesh geometry={roadGeometries.roundaboutCivic.asphalt} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.roundaboutCivic.centerIsland} material={centerIslandGrassMat} receiveShadow />
+        <mesh geometry={roadGeometries.roundaboutCivic.sidewalks} material={sidewalkMat} receiveShadow />
+        <mesh geometry={roadGeometries.roundaboutCivic.circulatingMarkings} material={whiteMarkingMat} raycast={() => null} />
+      </group>
 
-        {/* South Oasis Grand Corridor */}
+      {/* ================= 3. SOUTH OASIS GRAND BOULEVARD ================= */}
+      <group
+        onClick={(e) => {
+          e.stopPropagation();
+          handleSelectRoad(roadSegments[4]);
+        }}
+      >
         <mesh geometry={roadGeometries.meshNsSouth} material={asphaltMat} receiveShadow />
         <mesh geometry={roadGeometries.swNsSouth} material={sidewalkMat} receiveShadow />
         <mesh geometry={roadGeometries.marksNsSouth} material={yellowMarkingMat} raycast={() => null} />
         <mesh geometry={roadGeometries.dashesNsSouth} material={whiteMarkingMat} raycast={() => null} />
       </group>
 
-      {/* ================= 2. ELYSIUM CIVIC ESPLANADE ROUNDABOUT ================= */}
-      <group raycast={() => null}>
-        <mesh geometry={roadGeometries.roundaboutCivic.asphalt} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.roundaboutCivic.centerIsland} material={centerIslandGrassMat} receiveShadow />
-        <mesh geometry={roadGeometries.roundaboutCivic.sidewalk} material={sidewalkMat} receiveShadow />
-      </group>
-
-      {/* ================= 3. ELYSIUM CIVIC PROMENADE CRESCENTS (FORUM) ================= */}
+      {/* ================= 4. TRANSVERSE CIVIC PARKWAY (Z = 24.0) ================= */}
       <group
         onClick={(e) => {
           e.stopPropagation();
-          handleSelectRoad(roadSegments[1]);
+          handleSelectRoad(roadSegments[7]);
         }}
       >
-        <mesh geometry={roadGeometries.meshForumWest} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.swForumWest} material={sidewalkMat} receiveShadow />
-        <mesh geometry={roadGeometries.marksForumWest} material={whiteMarkingMat} raycast={() => null} />
-
-        <mesh geometry={roadGeometries.meshForumEast} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.swForumEast} material={sidewalkMat} receiveShadow />
-        <mesh geometry={roadGeometries.marksForumEast} material={whiteMarkingMat} raycast={() => null} />
+        <mesh geometry={roadGeometries.meshParkwayWest} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.swParkwayWest} material={sidewalkMat} receiveShadow />
+        <mesh geometry={roadGeometries.marksParkwayWest} material={whiteMarkingMat} raycast={() => null} />
       </group>
 
-      {/* ================= 4. CENTRAL HUB ROUNDABOUT ================= */}
-      <group raycast={() => null}>
-        <mesh geometry={roadGeometries.roundaboutCentralHub.asphalt} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.roundaboutCentralHub.centerIsland} material={centerIslandGrassMat} receiveShadow />
-        <mesh geometry={roadGeometries.roundaboutCentralHub.sidewalk} material={sidewalkMat} receiveShadow />
-      </group>
-
-      {/* ================= 5. WEST RIVERFRONT SCIENCE HIGHWAY ================= */}
       <group
         onClick={(e) => {
           e.stopPropagation();
-          handleSelectRoad(roadSegments[3]);
+          handleSelectRoad(roadSegments[8]);
+        }}
+      >
+        <mesh geometry={roadGeometries.meshParkwayEast} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.swParkwayEast} material={sidewalkMat} receiveShadow />
+        <mesh geometry={roadGeometries.marksParkwayEast} material={whiteMarkingMat} raycast={() => null} />
+      </group>
+
+      {/* ================= 5. NORTH TRANSVERSE CONNECTORS (Z = -22.0) ================= */}
+      <group raycast={() => null}>
+        <mesh geometry={roadGeometries.meshNorthConnWest} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.swNorthConnWest} material={sidewalkMat} receiveShadow />
+        <mesh geometry={roadGeometries.meshNorthConnEast} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.swNorthConnEast} material={sidewalkMat} receiveShadow />
+      </group>
+
+      {/* ================= 6. WEST REGIONAL SCIENCE HIGHWAY (X = -25.0) ================= */}
+      <group
+        onClick={(e) => {
+          e.stopPropagation();
+          handleSelectRoad(roadSegments[5]);
         }}
       >
         <mesh geometry={roadGeometries.meshWestNorth} material={asphaltMat} receiveShadow />
@@ -736,11 +755,11 @@ function RoadNetwork() {
         <mesh geometry={roadGeometries.marksWestSouth} material={whiteMarkingMat} raycast={() => null} />
       </group>
 
-      {/* ================= 6. EAST RIVERFRONT INDUSTRIAL HIGHWAY ================= */}
+      {/* ================= 7. EAST REGIONAL INDUSTRIAL HIGHWAY (X = 25.0) ================= */}
       <group
         onClick={(e) => {
           e.stopPropagation();
-          handleSelectRoad(roadSegments[4]);
+          handleSelectRoad(roadSegments[6]);
         }}
       >
         <mesh geometry={roadGeometries.meshEastNorth} material={asphaltMat} receiveShadow />
@@ -752,32 +771,7 @@ function RoadNetwork() {
         <mesh geometry={roadGeometries.marksEastSouth} material={whiteMarkingMat} raycast={() => null} />
       </group>
 
-      {/* ================= 7. TRANSVERSE SOUTH PARKWAY ================= */}
-      <group
-        onClick={(e) => {
-          e.stopPropagation();
-          handleSelectRoad(roadSegments[5]);
-        }}
-      >
-        <mesh geometry={roadGeometries.meshParkwayWest} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.swParkwayWest} material={sidewalkMat} receiveShadow />
-        <mesh geometry={roadGeometries.marksParkwayWest} material={whiteMarkingMat} raycast={() => null} />
-
-        <mesh geometry={roadGeometries.meshParkwayEast} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.swParkwayEast} material={sidewalkMat} receiveShadow />
-        <mesh geometry={roadGeometries.marksParkwayEast} material={whiteMarkingMat} raycast={() => null} />
-      </group>
-
-      {/* ================= 8. NORTH DISTRICT CONNECTORS ================= */}
-      <group raycast={() => null}>
-        <mesh geometry={roadGeometries.meshNorthConnWest} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.swNorthConnWest} material={sidewalkMat} receiveShadow />
-
-        <mesh geometry={roadGeometries.meshNorthConnEast} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.swNorthConnEast} material={sidewalkMat} receiveShadow />
-      </group>
-
-      {/* ================= 9. LOCAL ACCESS ROADS & ENGINEERED CUL-DE-SACS ================= */}
+      {/* ================= 8. LOCAL ACCESS ROADS & ENGINEERED CUL-DE-SACS ================= */}
       {/* A. Science Observatory Spur & Turnaround */}
       <group raycast={() => null}>
         <mesh geometry={roadGeometries.meshSciSpur} material={asphaltMat} receiveShadow />
@@ -822,44 +816,38 @@ function RoadNetwork() {
         )}
       </group>
 
-      {/* ================= 10. REGIONAL HIGHWAY WINGS ================= */}
+      {/* ================= 9. SEAMLESS JUNCTION PLAZAS ================= */}
       <group raycast={() => null}>
-        <mesh geometry={roadGeometries.meshOuterWest} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.swOuterWest} material={sidewalkMat} receiveShadow />
-
-        <mesh geometry={roadGeometries.meshOuterEast} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.swOuterEast} material={sidewalkMat} receiveShadow />
-      </group>
-
-      {/* ================= 11. SEAMLESS JUNCTION PLAZAS ================= */}
-      <group raycast={() => null}>
-        <mesh geometry={roadGeometries.juncWestCross} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.juncEastCross} material={asphaltMat} receiveShadow />
         <mesh geometry={roadGeometries.juncNorthCenter} material={asphaltMat} receiveShadow />
         <mesh geometry={roadGeometries.juncNorthWest} material={asphaltMat} receiveShadow />
         <mesh geometry={roadGeometries.juncNorthEast} material={asphaltMat} receiveShadow />
-        <mesh geometry={roadGeometries.juncForumSouth} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.juncWestCross} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.juncEastCross} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.juncResBranch} material={asphaltMat} receiveShadow />
+        <mesh geometry={roadGeometries.juncSciBranch} material={asphaltMat} receiveShadow />
       </group>
 
-      {/* ================= 12. ZEBRA PEDESTRIAN CROSSINGS AT STRATEGIC NODES ================= */}
+      {/* ================= 10. ZEBRA PEDESTRIAN CROSSINGS AT STRATEGIC NODES ================= */}
       {/* Central Arch Bridge Abutments */}
       <ZebraPedestrianCrossing position={[0, 0.76, -10.2]} width={5.4} length={2.2} />
       <ZebraPedestrianCrossing position={[0, 0.76, 4.3]} width={5.4} length={2.2} />
 
-      {/* Civic Esplanade Roundabout Entrances */}
-      <ZebraPedestrianCrossing position={[-3.8, 0.86, 7.5]} width={4.4} length={2.0} rotationY={0.6} />
-      <ZebraPedestrianCrossing position={[3.8, 0.86, 7.5]} width={4.4} length={2.0} rotationY={-0.6} />
+      {/* Grand Civic Roundabout Approach Throats */}
+      <ZebraPedestrianCrossing position={[0, 0.86, 18.2]} width={5.4} length={2.2} />
+      <ZebraPedestrianCrossing position={[0, 0.86, 29.8]} width={5.4} length={2.2} />
+      <ZebraPedestrianCrossing position={[-5.8, 0.86, 24.0]} width={4.4} length={2.2} rotationY={Math.PI / 2} />
+      <ZebraPedestrianCrossing position={[5.8, 0.86, 24.0]} width={4.4} length={2.2} rotationY={Math.PI / 2} />
 
-      {/* South Gateway & Central Hub Roundabout */}
-      <ZebraPedestrianCrossing position={[0, 0.86, 20.2]} width={4.8} length={2.2} />
-      <ZebraPedestrianCrossing position={[0, 0.86, 29.5]} width={5.4} length={2.2} />
-      <ZebraPedestrianCrossing position={[-4.0, 0.86, 24.5]} width={4.2} length={2.2} rotationY={Math.PI / 2} />
-      <ZebraPedestrianCrossing position={[4.0, 0.86, 24.5]} width={4.2} length={2.2} rotationY={Math.PI / 2} />
+      {/* ================= 11. HIGHWAY BOUNDARY PORTALS ================= */}
+      <HighwayBoundaryPortal position={[0, 0.85, -43.8]} width={5.4} />
+      <HighwayBoundaryPortal position={[0, 0.85, 43.8]} width={5.4} rotationY={Math.PI} />
+      <HighwayBoundaryPortal position={[-25.0, 0.85, -43.8]} width={4.2} />
+      <HighwayBoundaryPortal position={[25.0, 0.85, -43.8]} width={4.2} />
 
-      {/* ================= 13. ANIMATED TRAFFIC SIGNALS ================= */}
+      {/* ================= 12. ANIMATED TRAFFIC SIGNALS ================= */}
       <TrafficIntersectionSignals />
 
-      {/* ================= 14. ARCHITECTURAL RIVER BRIDGES ================= */}
+      {/* ================= 13. EXACTLY 3 ARCHITECTURAL RIVER BRIDGES ================= */}
       {/* Central Citadel Grand Arch Bridge */}
       <ArchitecturalBridge
         id="road-bridge-central"
@@ -868,30 +856,30 @@ function RoadNetwork() {
         length={15.0}
         width={5.6}
         isSelected={selectedRoadId === 'road-bridge-central'}
-        onSelect={() => handleSelectRoad(roadSegments[6])}
+        onSelect={() => handleSelectRoad(roadSegments[1])}
       />
 
       {/* West Aethel Ridge Suspension Bridge */}
       <ArchitecturalBridge
         id="road-bridge-west"
         name="West Aethel Ridge Suspension Bridge"
-        position={[-25, 0.32, -16.2]}
+        position={[-25.0, 0.32, -16.2]}
         length={15.0}
         width={4.5}
         isSelected={selectedRoadId === 'road-bridge-west'}
-        onSelect={() => handleSelectRoad(roadSegments[3])}
+        onSelect={() => handleSelectRoad(roadSegments[5])}
       />
 
       {/* East Vulcan Industrial Truss Bridge */}
       <ArchitecturalBridge
         id="road-bridge-east"
         name="East Vulcan Industrial Truss Bridge"
-        position={[25, 0.32, 8.0]}
+        position={[25.0, 0.32, 8.0]}
         length={15.5}
         width={4.5}
         rotationY={0.14}
         isSelected={selectedRoadId === 'road-bridge-east'}
-        onSelect={() => handleSelectRoad(roadSegments[4])}
+        onSelect={() => handleSelectRoad(roadSegments[6])}
       />
     </group>
   );

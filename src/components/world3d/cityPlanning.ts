@@ -35,63 +35,27 @@ export const CITY_ROAD_CORRIDORS: RoadSegmentDefinition[] = [
     isBridge: true,
   },
   {
-    id: 'road-bridge-south-throat',
-    name: 'Civic Esplanade Bridge Approach',
+    id: 'road-citadel-boulevard',
+    name: 'Senate Citadel Boulevard (Civic Axis)',
     p1: [0, 4.5],
-    p2: [0, 6.0],
+    p2: [0, 18.0],
     width: 5.4,
     speedLimit: 50,
     zone: 'citadel',
   },
   {
-    id: 'road-forum-west-crescent',
-    name: 'Elysium Forum West Crescent',
-    p1: [-2.0, 6.8],
-    p2: [-7.8, 13.0],
-    width: 4.6,
-    speedLimit: 45,
-    zone: 'citadel',
-  },
-  {
-    id: 'road-forum-west-south',
-    name: 'Elysium Forum West South Sweep',
-    p1: [-7.8, 13.0],
-    p2: [-2.0, 20.0],
-    width: 4.6,
-    speedLimit: 45,
-    zone: 'citadel',
-  },
-  {
-    id: 'road-forum-east-crescent',
-    name: 'Elysium Forum East Crescent',
-    p1: [2.0, 6.8],
-    p2: [7.8, 13.0],
-    width: 4.6,
-    speedLimit: 45,
-    zone: 'citadel',
-  },
-  {
-    id: 'road-forum-east-south',
-    name: 'Elysium Forum East South Sweep',
-    p1: [7.8, 13.0],
-    p2: [2.0, 20.0],
-    width: 4.6,
-    speedLimit: 45,
-    zone: 'citadel',
-  },
-  {
-    id: 'road-forum-to-hub',
-    name: 'Civic Center South Boulevard',
-    p1: [0, 20.0],
-    p2: [0, 24.5],
-    width: 5.4,
-    speedLimit: 55,
+    id: 'road-civic-roundabout',
+    name: 'Grand Civic Central Roundabout',
+    p1: [0, 18.0],
+    p2: [0, 30.0],
+    width: 6.0,
+    speedLimit: 40,
     zone: 'commercial',
   },
   {
     id: 'road-ns-south',
     name: 'Oasis Terraces Grand Boulevard',
-    p1: [0, 24.5],
+    p1: [0, 30.0],
     p2: [0, 44],
     width: 5.4,
     speedLimit: 70,
@@ -119,10 +83,10 @@ export const CITY_ROAD_CORRIDORS: RoadSegmentDefinition[] = [
     isBridge: true,
   },
   {
-    id: 'road-west-south-bluff',
+    id: 'road-west-south',
     name: 'Aethel Ridge Scenic River Bluff Avenue',
     p1: [-25, -8.7],
-    p2: [-19.5, 24.5],
+    p2: [-25, 24.0],
     width: 4.2,
     speedLimit: 55,
     zone: 'education',
@@ -149,36 +113,36 @@ export const CITY_ROAD_CORRIDORS: RoadSegmentDefinition[] = [
     isBridge: true,
   },
   {
-    id: 'road-east-south-arc',
-    name: 'Vulcan Logistics Link (South Arc)',
+    id: 'road-east-south',
+    name: 'Vulcan Logistics Link (South Corridor)',
     p1: [25, 15.75],
-    p2: [19.5, 24.5],
+    p2: [25, 24.0],
     width: 4.2,
     speedLimit: 50,
     zone: 'industrial',
   },
 
-  // 4. Transverse South Parkway (Z = 24.5)
+  // 4. Transverse Civic Parkway (Z = 24.0)
   {
     id: 'road-parkway-west',
-    name: 'South Aquifer Transverse Parkway (West)',
-    p1: [-19.5, 24.5],
-    p2: [0, 24.5],
-    width: 4.2,
+    name: 'West Civic Parkway',
+    p1: [-6.0, 24.0],
+    p2: [-25.0, 24.0],
+    width: 4.4,
     speedLimit: 50,
     zone: 'infrastructure',
   },
   {
     id: 'road-parkway-east',
-    name: 'South Aquifer Transverse Parkway (East)',
-    p1: [0, 24.5],
-    p2: [19.5, 24.5],
-    width: 4.2,
+    name: 'East Civic Parkway',
+    p1: [6.0, 24.0],
+    p2: [25.0, 24.0],
+    width: 4.4,
     speedLimit: 50,
     zone: 'healthcare',
   },
 
-  // 5. North Connectors (Z = -22.0)
+  // 5. North Transverse Connectors (Z = -22.0)
   {
     id: 'road-conn-north-west',
     name: 'Aethel Academic Link (West)',
@@ -198,79 +162,59 @@ export const CITY_ROAD_CORRIDORS: RoadSegmentDefinition[] = [
     zone: 'industrial',
   },
 
-  // 6. Local Access Roads & Cul-de-Sacs
+  // 6. Local Access Roads & Engineered Cul-de-Sacs
   {
     id: 'road-spur-science',
     name: 'Quantum Telemetry Observatory Spur',
-    p1: [-24.6, -2.0],
-    p2: [-36.0, -2.0],
+    p1: [-25.0, -2.0],
+    p2: [-34.0, -2.0],
     width: 3.8,
     speedLimit: 40,
     zone: 'education',
   },
   {
     id: 'road-spur-agri',
-    name: 'Verdant Vale Agrisector Farm Loop',
-    p1: [-19.5, 24.5],
-    p2: [-26.0, 40.5],
-    width: 3.8,
+    name: 'Verdant Vale Agrisector Farm Spur',
+    p1: [-25.0, 24.0],
+    p2: [-25.0, 38.0],
+    width: 4.0,
     speedLimit: 40,
     zone: 'agriculture',
   },
   {
     id: 'road-spur-freight',
     name: 'Vulcan Heavy Foundry Freight Spur',
-    p1: [19.5, 24.5],
-    p2: [36.5, 24.5],
-    width: 4.0,
+    p1: [25.0, 24.0],
+    p2: [36.0, 24.0],
+    width: 4.2,
     speedLimit: 40,
     zone: 'industrial',
   },
   {
     id: 'road-spur-residential',
-    name: 'Oasis Terraces Residential Crescent',
-    p1: [12.0, 24.5],
-    p2: [14.0, 41.5],
+    name: 'Oasis Terraces Residential Spur',
+    p1: [14.0, 24.0],
+    p2: [14.0, 38.0],
     width: 3.8,
     speedLimit: 35,
     zone: 'residential',
-  },
-
-  // 7. Regional Highway Outer Connections
-  {
-    id: 'road-ew-west-regional',
-    name: 'West Planetary Highway Wing',
-    p1: [-44, 0],
-    p2: [-24.6, -2.0],
-    width: 4.8,
-    speedLimit: 65,
-    zone: 'education',
-  },
-  {
-    id: 'road-ew-east-regional',
-    name: 'East Planetary Highway Wing',
-    p1: [25, 0.25],
-    p2: [44, 0],
-    width: 4.8,
-    speedLimit: 65,
-    zone: 'industrial',
   },
 ];
 
 // Major Junction Plazas & Roundabouts (Clearance zones where buildings must not be placed)
 export const JUNCTION_CLEARANCE_PLAZAS: [number, number, number][] = [
-  [0, 6.0, 6.2],    // Elysium Civic Esplanade Roundabout
-  [0, 24.5, 6.6],   // Central Hub Roundabout
-  [0, 20.0, 4.6],   // Forum South Gateway
-  [-19.5, 24.5, 4.8], // West Crossroads
-  [19.5, 24.5, 4.8],  // East Crossroads
-  [0, -22.0, 5.0],  // North Grand Boulevard Connector
-  [-25.0, -22.0, 4.4], // Northwest Science T-Junction
-  [25.0, -22.0, 4.4],  // Northeast Industrial T-Junction
-  [-36.0, -2.0, 4.8],  // Science Observatory Cul-de-Sac
-  [-26.0, 40.5, 5.0],  // Agrisector Farm Cul-de-Sac
-  [36.5, 24.5, 5.4],   // Vulcan Freight Cul-de-Sac
-  [14.0, 41.5, 4.8],   // Oasis Terraces Residential Cul-de-Sac
+  [0, 24.0, 7.0],       // Grand Civic Roundabout Central Hub
+  [0, -22.0, 5.2],      // North Grand Boulevard Connector
+  [-25.0, -22.0, 4.6],  // Northwest Science T-Junction
+  [25.0, -22.0, 4.6],   // Northeast Industrial T-Junction
+  [-25.0, 24.0, 5.0],   // West Crossroads
+  [25.0, 24.0, 5.0],    // East Crossroads
+  [14.0, 24.0, 4.4],    // Oasis Residential Branch Junction
+  [-25.0, -2.0, 4.4],   // Science Observatory Branch Junction
+  [-34.0, -2.0, 4.8],   // Science Observatory Cul-de-Sac
+  [-25.0, 38.0, 5.0],   // Agrisector Farm Cul-de-Sac
+  [36.0, 24.0, 5.2],    // Vulcan Freight Cul-de-Sac
+  [14.0, 38.0, 4.8],    // Oasis Terraces Residential Cul-de-Sac
 ];
 
 // Point to Line Segment Distance and Projection

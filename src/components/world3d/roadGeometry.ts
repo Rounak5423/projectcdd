@@ -14,7 +14,7 @@ export interface RoadVertexDef {
 
 /**
  * 1. High-Precision Spline Evaluator
- * Evaluates smooth Catmull-Rom or cubic Bezier curves through control points with analytical tangents
+ * Evaluates smooth Catmull-Rom curves through control points with analytical tangents and slope-aware elevation
  */
 export function sampleSplinePath(
   controlPoints: [number, number][],
@@ -24,7 +24,38 @@ export function sampleSplinePath(
 ): RoadVertexDef[] {
   if (controlPoints.length < 2) return [];
 
-  // Convert 2D points to THREE.Vector2
+  // When only 2 points are given, generate a direct linear corridor with intermediate samples
+  if (controlPoints.length === 2) {
+    const [p1, p2] = controlPoints;
+    const dist = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+    const steps = Math.max(2, Math.ceil(dist / sampleInterval));
+    const dx = (p2[0] - p1[0]) / dist;
+    const dz = (p2[1] - p1[1]) / dist;
+    const nx = -dz;
+    const nz = dx;
+
+    const sampledNodes: RoadVertexDef[] = [];
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const x = p1[0] + (p2[0] - p1[0]) * t;
+      const z = p1[1] + (p2[1] - p1[1]) * t;
+      const groundY = fixedY !== undefined ? fixedY : getTerrainHeight(x, z);
+      const y = groundY + yOffset;
+      sampledNodes.push({
+        x,
+        y,
+        z,
+        nx,
+        nz,
+        tx: dx,
+        tz: dz,
+        dist: dist * t,
+      });
+    }
+    return sampledNodes;
+  }
+
+  // Multi-point smooth Catmull-Rom curve
   const v2Points = controlPoints.map(([x, z]) => new THREE.Vector2(x, z));
   const curve = new THREE.SplineCurve(v2Points);
 
@@ -40,7 +71,6 @@ export function sampleSplinePath(
     const pt = curve.getPoint(t);
     const tangent = curve.getTangent(t).normalize();
 
-    // Normal pointing perpendicular to tangent (to the right of direction)
     const nx = -tangent.y;
     const nz = tangent.x;
 
@@ -163,44 +193,38 @@ export function createContinuousSidewalkMesh(
     const yTop = node.y + heightOffset;
     const ySkirt = node.y - skirtDepth;
 
-    // Left sidewalk inner (curb) and outer
+    // Left sidewalk
     const lInnerX = node.x - node.nx * halfRoad;
     const lInnerZ = node.z - node.nz * halfRoad;
     const lOuterX = node.x - node.nx * (halfRoad + sidewalkWidth);
     const lOuterZ = node.z - node.nz * (halfRoad + sidewalkWidth);
 
-    // Right sidewalk inner (curb) and outer
+    // Right sidewalk
     const rInnerX = node.x + node.nx * halfRoad;
     const rInnerZ = node.z + node.nz * halfRoad;
     const rOuterX = node.x + node.nx * (halfRoad + sidewalkWidth);
     const rOuterZ = node.z + node.nz * (halfRoad + sidewalkWidth);
 
-    // V0: Left outer skirt bottom
     positions.push(lOuterX, ySkirt, lOuterZ);
     normals.push(-node.nx, 0, -node.nz);
     uvs.push(0, node.dist * 0.3);
 
-    // V1: Left walkway outer top
     positions.push(lOuterX, yTop, lOuterZ);
     normals.push(0, 1, 0);
     uvs.push(0.05, node.dist * 0.3);
 
-    // V2: Left walkway inner top (drop curb edge)
     positions.push(lInnerX, yTop, lInnerZ);
     normals.push(0, 1, 0);
     uvs.push(0.95, node.dist * 0.3);
 
-    // V3: Right walkway inner top (drop curb edge)
     positions.push(rInnerX, yTop, rInnerZ);
     normals.push(0, 1, 0);
     uvs.push(0.05, node.dist * 0.3);
 
-    // V4: Right walkway outer top
     positions.push(rOuterX, yTop, rOuterZ);
     normals.push(0, 1, 0);
     uvs.push(0.95, node.dist * 0.3);
 
-    // V5: Right outer skirt bottom
     positions.push(rOuterX, ySkirt, rOuterZ);
     normals.push(node.nx, 0, node.nz);
     uvs.push(1.0, node.dist * 0.3);
@@ -209,19 +233,15 @@ export function createContinuousSidewalkMesh(
       const row = i * 6;
       const prevRow = (i - 1) * 6;
 
-      // Left skirt
       indices.push(prevRow + 0, prevRow + 1, row + 1);
       indices.push(prevRow + 0, row + 1, row + 0);
 
-      // Left walkway surface
       indices.push(prevRow + 1, prevRow + 2, row + 2);
       indices.push(prevRow + 1, row + 2, row + 1);
 
-      // Right walkway surface
       indices.push(prevRow + 3, prevRow + 4, row + 4);
       indices.push(prevRow + 3, row + 4, row + 3);
 
-      // Right skirt
       indices.push(prevRow + 4, prevRow + 5, row + 5);
       indices.push(prevRow + 4, row + 5, row + 4);
     }
@@ -236,8 +256,8 @@ export function createContinuousSidewalkMesh(
 }
 
 /**
- * 4. Continuous Precision Road Lane Markings
- * Floats exactly +0.012m above asphalt surface with zero z-fighting
+ * 4. Continuous Road Markings
+ * Floats +0.012m above asphalt surface with zero z-fighting
  */
 export function createContinuousMarkingsMesh(
   nodes: RoadVertexDef[],
@@ -249,8 +269,7 @@ export function createContinuousMarkingsMesh(
   const positions: number[] = [];
   const normals: number[] = [];
   const indices: number[] = [];
-
-  const yElev = 0.012; // 1.2cm above asphalt
+  const yElev = 0.012;
 
   if (type === 'double-yellow') {
     const stripeW = 0.08;
@@ -312,7 +331,6 @@ export function createContinuousMarkingsMesh(
 
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
-        // 3m stripe on, 3m stripe off cycle
         const cycle = Math.floor(node.dist / 3.0) % 2;
         if (cycle === 0) {
           const cx = node.x + node.nx * offset;
@@ -346,15 +364,15 @@ export function createContinuousMarkingsMesh(
 }
 
 /**
- * 5. Engineered Cul-de-Sac Geometry
- * Creates an intentional, seamless circular turnaround bulb with reverse fillet arcs,
- * continuous asphalt deck, and wrapping perimeter sidewalk & drop-curb.
+ * 5. Seamless Integrated Cul-de-Sac Generator
+ * Generates an intentional circular turnaround bulb matching incoming road tangent and width
+ * with continuous wrapping curb, sidewalk, and center turning island. ZERO GAP.
  */
 export function createCulDeSacGeometry(
   center: [number, number],
   bulbRadius: number,
   approachWidth: number,
-  approachTangent: [number, number], // unit vector pointing toward the cul-de-sac
+  approachTangent: [number, number],
   hasCenterIsland: boolean = true,
   yOffset: number = 0.08
 ): { asphalt: THREE.BufferGeometry; sidewalk: THREE.BufferGeometry; centerIsland?: THREE.BufferGeometry } {
@@ -364,11 +382,6 @@ export function createCulDeSacGeometry(
   const yTop = groundY + yOffset;
   const ySkirt = yTop - 0.35;
   const ySW = yTop + 0.07;
-
-  // Normal to approach direction
-  const nx = -tz;
-  const nz = tx;
-  const halfRoad = approachWidth * 0.5;
   const sidewalkW = 0.85;
 
   const positionsA: number[] = [];
@@ -379,25 +392,20 @@ export function createCulDeSacGeometry(
   const normalsSW: number[] = [];
   const indicesSW: number[] = [];
 
-  // Central hub vertex for triangle fan
+  // Center hub vertex for asphalt fan
   positionsA.push(cx, yTop, cz);
   normalsA.push(0, 1, 0);
 
-  // Generate 24 perimeter vertices around the circular bulb
   const segments = 24;
-  const approachAngle = Math.atan2(tz, tx);
 
-  // Road meets bulb: fillet angles span ~280 degrees
   for (let i = 0; i <= segments; i++) {
     const ang = (i / segments) * Math.PI * 2;
     const px = cx + Math.cos(ang) * bulbRadius;
     const pz = cz + Math.sin(ang) * bulbRadius;
 
-    // Asphalt perimeter vertex
     positionsA.push(px, yTop, pz);
     normalsA.push(0, 1, 0);
 
-    // Skirt vertex
     positionsA.push(px, ySkirt, pz);
     normalsA.push(Math.cos(ang), 0, Math.sin(ang));
 
@@ -407,38 +415,46 @@ export function createCulDeSacGeometry(
       const curSkirt = curTop + 1;
       const prevSkirt = prevTop + 1;
 
-      // Deck triangle
       indicesA.push(0, prevTop, curTop);
-
-      // Outer skirt quad
       indicesA.push(prevTop, prevSkirt, curSkirt);
       indicesA.push(prevTop, curSkirt, curTop);
     }
+  }
 
-    // Wrapping Sidewalk
-    const swInnerX = px;
-    const swInnerZ = pz;
-    const swOuterX = cx + Math.cos(ang) * (bulbRadius + sidewalkW);
-    const swOuterZ = cz + Math.sin(ang) * (bulbRadius + sidewalkW);
+  // 2. Open-Throat Wrapping Sidewalk
+  // Leaves the incoming roadway throat open, wrapping around the rest of the bulb
+  const enterAng = Math.atan2(-tz, -tx);
+  const throatHalfAng = Math.asin(Math.min(0.85, (approachWidth * 0.5) / bulbRadius)) + 0.05;
+  const startAng = enterAng + throatHalfAng;
+  const angSpan = Math.PI * 2 - 2 * throatHalfAng;
+  const swSegments = 24;
 
-    positionsSW.push(swInnerX, ySW, swInnerZ); // V0 inner top
+  for (let s = 0; s <= swSegments; s++) {
+    const ang = startAng + (s / swSegments) * angSpan;
+    const cos = Math.cos(ang);
+    const sin = Math.sin(ang);
+
+    const swInnerX = cx + cos * bulbRadius;
+    const swInnerZ = cz + sin * bulbRadius;
+    const swOuterX = cx + cos * (bulbRadius + sidewalkW);
+    const swOuterZ = cz + sin * (bulbRadius + sidewalkW);
+
+    positionsSW.push(swInnerX, ySW, swInnerZ);
     normalsSW.push(0, 1, 0);
 
-    positionsSW.push(swOuterX, ySW, swOuterZ); // V1 outer top
+    positionsSW.push(swOuterX, ySW, swOuterZ);
     normalsSW.push(0, 1, 0);
 
-    positionsSW.push(swOuterX, ySkirt, swOuterZ); // V2 outer skirt
-    normalsSW.push(Math.cos(ang), 0, Math.sin(ang));
+    positionsSW.push(swOuterX, ySkirt, swOuterZ);
+    normalsSW.push(cos, 0, sin);
 
-    if (i > 0) {
-      const base = i * 3;
-      const prev = (i - 1) * 3;
+    if (s > 0) {
+      const base = s * 3;
+      const prev = (s - 1) * 3;
 
-      // Sidewalk top quad
       indicesSW.push(prev + 0, prev + 1, base + 1);
       indicesSW.push(prev + 0, base + 1, base + 0);
 
-      // Sidewalk outer skirt
       indicesSW.push(prev + 1, prev + 2, base + 2);
       indicesSW.push(prev + 1, base + 2, base + 1);
     }
@@ -454,17 +470,16 @@ export function createCulDeSacGeometry(
   sidewalkGeo.setAttribute('normal', new THREE.Float32BufferAttribute(normalsSW, 3));
   sidewalkGeo.setIndex(indicesSW);
 
-  // Optional Center Island (Cobblestone / Landscaping Disc)
   let centerIslandGeo: THREE.BufferGeometry | undefined = undefined;
   if (hasCenterIsland) {
-    const islandR = Math.max(1.5, bulbRadius * 0.38);
-    const posI: number[] = [cx, yTop + 0.1, cz];
+    const islandR = Math.max(1.4, bulbRadius * 0.36);
+    const posI: number[] = [cx, ySW, cz];
     const normI: number[] = [0, 1, 0];
     const indI: number[] = [];
 
     for (let i = 0; i <= 16; i++) {
       const ang = (i / 16) * Math.PI * 2;
-      posI.push(cx + Math.cos(ang) * islandR, yTop + 0.1, cz + Math.sin(ang) * islandR);
+      posI.push(cx + Math.cos(ang) * islandR, ySW, cz + Math.sin(ang) * islandR);
       normI.push(0, 1, 0);
       if (i > 0) {
         indI.push(0, i, i + 1);
@@ -480,39 +495,49 @@ export function createCulDeSacGeometry(
 }
 
 /**
- * 6. Engineered Roundabout Geometry
- * Generates circulating multi-lane ring roadway with center garden island and throat flare fillets
+ * 6. Engineered 4-Way Civic Roundabout Geometry
+ * ONE clearly defined central island with raised stone curb, smooth circular pavement,
+ * exactly 4 orthogonal approaches (North, South, East, West), continuous corner sidewalk fillets,
+ * and zero overlapping road surfaces or cut-through segments.
  */
-export function createRoundaboutGeometry(
+export function createFourWayCivicRoundaboutGeometry(
   center: [number, number],
-  outerRadius: number = 7.5,
-  innerRadius: number = 3.6,
+  innerRadius: number = 4.2,
+  outerRadius: number = 9.2,
+  approachWidthNS: number = 5.4,
+  approachWidthEW: number = 4.4,
   yOffset: number = 0.08
-): { asphalt: THREE.BufferGeometry; centerIsland: THREE.BufferGeometry; sidewalk: THREE.BufferGeometry } {
+): {
+  asphalt: THREE.BufferGeometry;
+  centerIsland: THREE.BufferGeometry;
+  sidewalks: THREE.BufferGeometry;
+  circulatingMarkings: THREE.BufferGeometry;
+} {
   const [cx, cz] = center;
   const groundY = getTerrainHeight(cx, cz);
   const yTop = groundY + yOffset;
   const ySkirt = yTop - 0.35;
   const ySW = yTop + 0.08;
+  const segments = 36;
+  const swWidth = 0.85;
 
-  const segments = 32;
-
-  // Circulating Asphalt Ring
+  // 1. Circulating Asphalt Ring
   const posA: number[] = [];
   const normA: number[] = [];
   const uvsA: number[] = [];
   const indA: number[] = [];
 
-  // Center Island
+  // 2. Center Island
   const posI: number[] = [cx, ySW, cz];
   const normI: number[] = [0, 1, 0];
   const indI: number[] = [];
 
-  // Outer Perimeter Sidewalk
-  const posSW: number[] = [];
-  const normSW: number[] = [];
-  const indSW: number[] = [];
-  const swWidth = 0.85;
+  // 3. Circulating Dashed Lane Marking
+  const midR = (innerRadius + outerRadius) * 0.5;
+  const posM: number[] = [];
+  const normM: number[] = [];
+  const indM: number[] = [];
+  const markW = 0.08;
 
   for (let i = 0; i <= segments; i++) {
     const ang = (i / segments) * Math.PI * 2;
@@ -525,15 +550,15 @@ export function createRoundaboutGeometry(
     const outZ = cz + sin * outerRadius;
 
     // Asphalt ring vertices
-    posA.push(inX, yTop, inZ); // V0 inner
+    posA.push(inX, yTop, inZ);
     normA.push(0, 1, 0);
     uvsA.push(0, i * 0.5);
 
-    posA.push(outX, yTop, outZ); // V1 outer
+    posA.push(outX, yTop, outZ);
     normA.push(0, 1, 0);
     uvsA.push(1, i * 0.5);
 
-    posA.push(outX, ySkirt, outZ); // V2 outer skirt
+    posA.push(outX, ySkirt, outZ);
     normA.push(cos, 0, sin);
     uvsA.push(1, i * 0.5);
 
@@ -541,11 +566,9 @@ export function createRoundaboutGeometry(
       const cur = i * 3;
       const prev = (i - 1) * 3;
 
-      // Asphalt quad
       indA.push(prev + 0, prev + 1, cur + 1);
       indA.push(prev + 0, cur + 1, cur + 0);
 
-      // Outer skirt quad
       indA.push(prev + 1, prev + 2, cur + 2);
       indA.push(prev + 1, cur + 2, cur + 1);
     }
@@ -557,30 +580,77 @@ export function createRoundaboutGeometry(
       indI.push(0, i, i + 1);
     }
 
-    // Outer Sidewalk
-    const swOuterX = cx + cos * (outerRadius + swWidth);
-    const swOuterZ = cz + sin * (outerRadius + swWidth);
+    // Circulating dashed lane marking (6 segments on, 6 segments off)
+    if (i % 6 < 4) {
+      const mInX = cx + cos * (midR - markW * 0.5);
+      const mInZ = cz + sin * (midR - markW * 0.5);
+      const mOutX = cx + cos * (midR + markW * 0.5);
+      const mOutZ = cz + sin * (midR + markW * 0.5);
 
-    posSW.push(outX, ySW, outZ);
-    normSW.push(0, 1, 0);
+      const mIdx = posM.length / 3;
+      posM.push(mInX, yTop + 0.012, mInZ);
+      normM.push(0, 1, 0);
+      posM.push(mOutX, yTop + 0.012, mOutZ);
+      normM.push(0, 1, 0);
 
-    posSW.push(swOuterX, ySW, swOuterZ);
-    normSW.push(0, 1, 0);
-
-    posSW.push(swOuterX, ySkirt, swOuterZ);
-    normSW.push(cos, 0, sin);
-
-    if (i > 0) {
-      const curSW = i * 3;
-      const prevSW = (i - 1) * 3;
-
-      indSW.push(prevSW + 0, prevSW + 1, curSW + 1);
-      indSW.push(prevSW + 0, curSW + 1, curSW + 0);
-
-      indSW.push(prevSW + 1, prevSW + 2, curSW + 2);
-      indSW.push(prevSW + 1, curSW + 2, curSW + 1);
+      if (i > 0 && (i - 1) % 6 < 4) {
+        indM.push(mIdx - 2, mIdx - 1, mIdx + 1);
+        indM.push(mIdx - 2, mIdx + 1, mIdx + 0);
+      }
     }
   }
+
+  // 4. Four Quadrant Outer Sidewalk Fillets (North-East, South-East, South-West, North-West)
+  // Sidewalks are placed only in the 4 corner arcs between the orthogonal approaches!
+  const posSW: number[] = [];
+  const normSW: number[] = [];
+  const indSW: number[] = [];
+
+  const angEW = Math.asin(Math.min(0.85, (approachWidthEW * 0.5) / outerRadius)) + 0.05;
+  const angNS = Math.asin(Math.min(0.85, (approachWidthNS * 0.5) / outerRadius)) + 0.05;
+
+  const quadrants = [
+    { startAng: angEW, endAng: Math.PI * 0.5 - angNS },              // South-East corner
+    { startAng: Math.PI * 0.5 + angNS, endAng: Math.PI - angEW },       // South-West corner
+    { startAng: Math.PI + angEW, endAng: Math.PI * 1.5 - angNS },       // North-West corner
+    { startAng: Math.PI * 1.5 + angNS, endAng: Math.PI * 2 - angEW },   // North-East corner
+  ];
+
+  quadrants.forEach((q) => {
+    const subSegs = 8;
+    const baseSW = posSW.length / 3;
+
+    for (let s = 0; s <= subSegs; s++) {
+      const ang = q.startAng + (s / subSegs) * (q.endAng - q.startAng);
+      const cos = Math.cos(ang);
+      const sin = Math.sin(ang);
+
+      const inX = cx + cos * outerRadius;
+      const inZ = cz + sin * outerRadius;
+      const outX = cx + cos * (outerRadius + swWidth);
+      const outZ = cz + sin * (outerRadius + swWidth);
+
+      posSW.push(inX, ySW, inZ);
+      normSW.push(0, 1, 0);
+
+      posSW.push(outX, ySW, outZ);
+      normSW.push(0, 1, 0);
+
+      posSW.push(outX, ySkirt, outZ);
+      normSW.push(cos, 0, sin);
+
+      if (s > 0) {
+        const cur = baseSW + s * 3;
+        const prev = baseSW + (s - 1) * 3;
+
+        indSW.push(prev + 0, prev + 1, cur + 1);
+        indSW.push(prev + 0, cur + 1, cur + 0);
+
+        indSW.push(prev + 1, prev + 2, cur + 2);
+        indSW.push(prev + 1, cur + 2, cur + 1);
+      }
+    }
+  });
 
   const asphaltGeo = new THREE.BufferGeometry();
   asphaltGeo.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
@@ -598,17 +668,25 @@ export function createRoundaboutGeometry(
   sidewalkGeo.setAttribute('normal', new THREE.Float32BufferAttribute(normSW, 3));
   sidewalkGeo.setIndex(indSW);
 
-  return { asphalt: asphaltGeo, centerIsland: centerIslandGeo, sidewalk: sidewalkGeo };
+  const markingsGeo = new THREE.BufferGeometry();
+  markingsGeo.setAttribute('position', new THREE.Float32BufferAttribute(posM, 3));
+  markingsGeo.setAttribute('normal', new THREE.Float32BufferAttribute(normM, 3));
+  markingsGeo.setIndex(indM);
+
+  return {
+    asphalt: asphaltGeo,
+    centerIsland: centerIslandGeo,
+    sidewalks: sidewalkGeo,
+    circulatingMarkings: markingsGeo,
+  };
 }
 
 /**
- * 7. Engineered Multi-Branch Junction Geometry (T-junctions & 4-way Crossroads)
- * Seamless polygon with rounded tangent fillet arcs between intersecting branches.
- * Eliminates overlapping geometry, holes, and sharp rectangular protruding corners.
+ * 7. Unified Multi-Branch Junction Geometry (T-junctions & 4-way Crossroads)
  */
 export function createEngineeredJunctionGeometry(
   center: [number, number],
-  radius: number = 4.2,
+  radius: number = 4.4,
   yOffset: number = 0.08,
   fixedY?: number
 ): THREE.BufferGeometry {
@@ -631,12 +709,10 @@ export function createEngineeredJunctionGeometry(
     const px = cx + cos * radius;
     const pz = cz + sin * radius;
 
-    // Deck perimeter
     positions.push(px, yTop, pz);
     normals.push(0, 1, 0);
     uvs.push(0.5 + cos * 0.5, 0.5 + sin * 0.5);
 
-    // Skirt
     positions.push(px, ySkirt, pz);
     normals.push(cos, 0, sin);
     uvs.push(0.5 + cos * 0.5, 0.5 + sin * 0.5);
@@ -647,10 +723,7 @@ export function createEngineeredJunctionGeometry(
       const curSkirt = curTop + 1;
       const prevSkirt = prevTop + 1;
 
-      // Deck fan
       indices.push(0, prevTop, curTop);
-
-      // Skirt quad
       indices.push(prevTop, prevSkirt, curSkirt);
       indices.push(prevTop, curSkirt, curTop);
     }
@@ -665,7 +738,7 @@ export function createEngineeredJunctionGeometry(
 }
 
 /**
- * 8. Backward Compatibility Wrappers (reused across other systems)
+ * 8. Backward Compatibility Wrappers
  */
 export function createTerrainAdaptiveRoadGeometry(
   points: [number, number][],
@@ -708,4 +781,13 @@ export function createIntersectionJunctionGeometry(
 ): THREE.BufferGeometry {
   const avgRadius = (widthNS + widthEW) * 0.38;
   return createEngineeredJunctionGeometry(center, avgRadius, yOffset, fixedY);
+}
+export function createRoundaboutGeometry(
+  center: [number, number],
+  outerRadius: number = 7.5,
+  innerRadius: number = 3.6,
+  yOffset: number = 0.08
+): { asphalt: THREE.BufferGeometry; centerIsland: THREE.BufferGeometry; sidewalk: THREE.BufferGeometry } {
+  const rb = createFourWayCivicRoundaboutGeometry(center, innerRadius, outerRadius, 5.4, 4.4, yOffset);
+  return { asphalt: rb.asphalt, centerIsland: rb.centerIsland, sidewalk: rb.sidewalks };
 }
