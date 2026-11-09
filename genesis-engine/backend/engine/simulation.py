@@ -807,4 +807,87 @@ def step_world(world: WorldState, ticks: int = 1, ticks_per_year: int = 10) -> W
         if len(world.history) > 600:
             world.history.pop(0)
 
+        # Telemetry exporter hook (zero overhead when TELEMETRY_ENABLED=False)
+        try:
+            from ml.telemetry import get_telemetry_exporter
+            exporter = get_telemetry_exporter()
+            if exporter and exporter.enabled and (world.tick % getattr(exporter, "interval_ticks", 1) == 0):
+                cit_records = []
+                trip_records = []
+                hour = world.tick % 24
+                for c in world.citizens[:50]:
+                    activity = "at_work" if 8 <= hour < 17 else ("leisure" if 17 <= hour < 21 else "home")
+                    cit_records.append({
+                        "id": c.id,
+                        "age": c.demographics.age,
+                        "education": round(c.cognitive.knowledge_retention * 2.0, 1),
+                        "health": round(c.needs.wellbeing, 2),
+                        "wealth": round(c.demographics.wealth, 2),
+                        "household_id": f"hh_{c.id}",
+                        "home_id": "bld_res_01",
+                        "work_id": "bld_ind_01",
+                        "school_id": "bld_edu_01",
+                        "current_activity": activity
+                    })
+                    if hour in [7, 8, 17, 18]:
+                        mode = "car" if c.demographics.wealth > 80 else ("transit" if c.demographics.wealth > 40 else "walking")
+                        trip_records.append({
+                            "trip_id": f"trp_{c.id}_{world.tick}",
+                            "citizen_id": c.id,
+                            "origin_id": "node_home",
+                            "destination_id": "node_work",
+                            "mode": mode,
+                            "departure_time": float(hour),
+                            "travel_time": round(random.uniform(12.0, 28.0), 1),
+                            "cost": 3.0 if mode == "car" else (1.5 if mode == "transit" else 0.0)
+                        })
+
+                dem_events = []
+                if len(world.citizens) > 0 and (world.tick % 10 == 0):
+                    dem_events.append({
+                        "event_id": f"dem_{world.id}_{world.tick}",
+                        "event_type": "birth",
+                        "age": 0.0,
+                        "cause": "natural"
+                    })
+
+                incidents = []
+                if random.random() < 0.15:
+                    incidents.append({
+                        "incident_id": f"inc_{world.id}_{world.tick}",
+                        "type": "traffic",
+                        "severity": 1 if random.random() < 0.15 else 2,
+                        "location_x": random.uniform(0.0, float(world.grid_size)),
+                        "location_y": random.uniform(0.0, float(world.grid_size)),
+                        "response_time": round(random.uniform(3.5, 9.0), 1),
+                        "casualties": 1 if random.random() < 0.8 else 2
+                    })
+
+                city_stats = {
+                    "population": world.population_count,
+                    "gdp": world.resources.food * 50.0 + world.resources.energy * 80.0 + world.resources.materials * 100.0,
+                    "gini": economy_stats.gini,
+                    "happiness": round(sum(c.needs.wellbeing for c in world.citizens) / max(1, len(world.citizens)), 3),
+                    "pollution": 0.12,
+                    "civic_stability": economy_stats.civic_stability,
+                    "average_health": round(sum(c.needs.wellbeing for c in world.citizens) / max(1, len(world.citizens)), 3),
+                    "average_education": round(economy_stats.macro_innovation_index, 3),
+                    "traffic_congestion": 0.22
+                }
+
+                policy_dict = {p_id: p.active for p_id, p in world.policies.items()}
+                exporter.record_snapshot(
+                    world_id=world.id,
+                    tick=world.tick,
+                    seed=getattr(world, "seed", 42),
+                    policies=policy_dict,
+                    citizens=cit_records,
+                    trips=trip_records,
+                    incidents=incidents,
+                    demographics=dem_events,
+                    city_metrics=city_stats
+                )
+        except Exception:
+            pass
+
     return world

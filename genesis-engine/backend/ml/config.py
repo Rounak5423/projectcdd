@@ -10,6 +10,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 ML_DIR = BACKEND_DIR / "ml"
 RAW_DATA_DIR = ML_DIR / "data" / "raw"
 PROCESSED_DATA_DIR = ML_DIR / "data" / "processed"
+GENERATED_DATA_DIR = ML_DIR / "data" / "generated"
 MODELS_DIR = ML_DIR / "models" / "saved"
 CALIBRATION_DIR = ML_DIR / "calibration"
 RUNS_DIR = ML_DIR / "runs"
@@ -17,12 +18,16 @@ REPORTS_DIR = ML_DIR / "reports"
 
 # Ensure runtime directories exist
 PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+GENERATED_DATA_DIR.mkdir(parents=True, exist_ok=True)
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 CALIBRATION_DIR.mkdir(parents=True, exist_ok=True)
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Flags
 ML_ENABLED = os.environ.get("ML_ENABLED", "0").lower() in ("1", "true", "yes", "on")
+TELEMETRY_ENABLED = os.environ.get("TELEMETRY_ENABLED", "0").lower() in ("1", "true", "yes", "on")
+TELEMETRY_INTERVAL_TICKS = int(os.environ.get("TELEMETRY_INTERVAL_TICKS", "1"))
+AI_CONTROLLER_KILL_SWITCH = os.environ.get("AI_CONTROLLER_KILL_SWITCH", "0").lower() in ("1", "true", "yes", "on")
 RANDOM_SEED = 42
 
 # Guardrail bounds for calibrated simulation

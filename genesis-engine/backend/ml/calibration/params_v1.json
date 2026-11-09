@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-11-08T17:41:29.278222",
+  "generated_at": "2026-11-09T07:51:14.924126",
   "random_seed": 42,
   "gompertz_mortality": {
     "parameter_name": "gompertz_mortality",
@@ -43,6 +43,73 @@
     "gini_max": 0.438,
     "gini_annual_volatility": 0.0263,
     "data_source": "World Bank World Development Indicators (WDI) / API_SI"
+  },
+  "sim_to_real_validation": {
+    "sim_to_real_gaps": {
+      "crude_birth_rate_per_1000": {
+        "real_world_benchmark": 17.5,
+        "simulation_output": 20.0,
+        "absolute_gap": 2.5,
+        "percentage_gap": 14.29
+      },
+      "crude_death_rate_per_1000": {
+        "real_world_benchmark": 7.8,
+        "simulation_output": 8.5,
+        "absolute_gap": 0.7,
+        "percentage_gap": 8.97
+      },
+      "life_expectancy_years": {
+        "real_world_benchmark": 72.8,
+        "simulation_output": 76.5,
+        "absolute_gap": 3.7,
+        "percentage_gap": 5.08
+      },
+      "road_fatalities_per_100k": {
+        "real_world_benchmark": 16.7,
+        "simulation_output": 18.2,
+        "absolute_gap": 1.5,
+        "percentage_gap": 8.98
+      },
+      "car_mode_share_pct": {
+        "real_world_benchmark": 58.0,
+        "simulation_output": 62.0,
+        "absolute_gap": 4.0,
+        "percentage_gap": 6.9
+      },
+      "transit_mode_share_pct": {
+        "real_world_benchmark": 18.0,
+        "simulation_output": 16.0,
+        "absolute_gap": -2.0,
+        "percentage_gap": -11.11
+      },
+      "walking_mode_share_pct": {
+        "real_world_benchmark": 24.0,
+        "simulation_output": 22.0,
+        "absolute_gap": -2.0,
+        "percentage_gap": -8.33
+      },
+      "mean_commute_minutes": {
+        "real_world_benchmark": 26.4,
+        "simulation_output": 22.0,
+        "absolute_gap": -4.4,
+        "percentage_gap": -16.67
+      }
+    },
+    "calibration_factors": {
+      "crude_birth_rate_per_1000": 0.875,
+      "crude_death_rate_per_1000": 0.9176,
+      "life_expectancy_years": 0.9516,
+      "road_fatalities_per_100k": 0.9176,
+      "car_mode_share_pct": 0.9355,
+      "transit_mode_share_pct": 1.125,
+      "walking_mode_share_pct": 1.0909,
+      "mean_commute_minutes": 1.2
+    },
+    "data_sources": {
+      "demographics": "UN World Population Prospects (2024 Revision)",
+      "road_safety": "WHO Global Status Report on Road Safety + UK STATS19",
+      "mobility": "National Household Travel Survey (NHTS 2017)"
+    }
   },
   "realism_guardrails": {
     "annual_population_growth_rate": [

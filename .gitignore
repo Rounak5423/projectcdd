@@ -32,6 +32,8 @@ yarn-error.log*
 datasets/
 genesis-engine/backend/ml/data/raw/
 genesis-engine/backend/ml/data/processed/
+genesis-engine/backend/ml/data/generated/
+*.parquet
 *.gz
 *.pbf
 *.xlsx

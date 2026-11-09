@@ -102,6 +102,7 @@ class WorldState(BaseModel):
     id: str
     name: str
     parent_world_id: Optional[str] = None
+    seed: int = 42
     tick: int = 0
     year: float = 2026.0
     population_count: int = 0

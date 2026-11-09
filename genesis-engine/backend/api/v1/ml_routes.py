@@ -21,6 +21,7 @@ from ml.inference.registry import (
     load_calibration_params
 )
 from ml.calibration.calibrate import run_calibration_pipeline
+from ml.control.controller import generate_policy_recommendation, KillSwitchActiveError
 
 router = APIRouter(tags=["Machine Learning & Calibration"])
 
@@ -51,6 +52,18 @@ class RiskResponse(BaseModel):
     risk_tier: str
     ml_enabled: bool
     indicators: Dict[str, Any]
+
+
+class PolicyRecommendRequest(BaseModel):
+    world_id: str = Field(default="aurora-prime", description="Target world identifier")
+
+
+class PolicyRecommendResponse(BaseModel):
+    world_id: str
+    is_sandbox_execution: bool
+    recommended_action: Dict[str, Any]
+    predicted_effects: Dict[str, Any]
+    safety_audit: Dict[str, Any]
 
 
 @router.get("/ml/models")
@@ -168,4 +181,55 @@ async def trigger_calibration(
         "calibrated_by": current_admin.get("username", "admin"),
         "calibrated_parameters": calibrated
     }
+
+
+@router.post("/ml/recommend", response_model=PolicyRecommendResponse)
+async def recommend_policy(
+    req: Optional[PolicyRecommendRequest] = None,
+    current_admin: Dict[str, Any] = Depends(get_current_admin)
+):
+    """
+    Admin-only endpoint: runs sandboxed AI policy controller evaluation (never touching real world state).
+    Returns recommended policy modifications with predicted impacts and confidence intervals,
+    recording an immutable audit trail.
+    """
+    target_world_id = req.world_id if req and req.world_id else "aurora-prime"
+    w_id = _resolve_world_id(target_world_id)
+
+    conn = get_db_connection()
+    row = conn.execute("""
+    SELECT w.year, e.population, e.gdp, e.gini_coefficient, e.tax_rate,
+           e.happiness, e.civic_stability, e.pollution
+    FROM worlds w
+    JOIN economy_resources e ON w.id = e.world_id
+    WHERE w.id = ?
+    """, (w_id,)).fetchone()
+    conn.close()
+
+    if not row:
+        state = {
+            "population": 50000,
+            "gdp": 10000000.0,
+            "gini_coefficient": 0.38,
+            "civic_stability": 0.77,
+            "happiness": 0.75,
+            "pollution": 0.12,
+            "treasury": 500000.0
+        }
+    else:
+        state = {
+            "population": row["population"],
+            "gdp": row["gdp"],
+            "gini_coefficient": row["gini_coefficient"],
+            "civic_stability": row["civic_stability"] if "civic_stability" in row.keys() else 0.77,
+            "happiness": row["happiness"] if "happiness" in row.keys() else 0.75,
+            "pollution": row["pollution"] if "pollution" in row.keys() else 0.12,
+            "treasury": row["gdp"]
+        }
+
+    try:
+        recommendation = generate_policy_recommendation(target_world_id, state)
+        return PolicyRecommendResponse(**recommendation)
+    except KillSwitchActiveError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 

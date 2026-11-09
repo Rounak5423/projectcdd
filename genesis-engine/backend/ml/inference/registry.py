@@ -65,14 +65,36 @@ def load_model_bundle(model_name: str) -> Optional[Dict[str, Any]]:
 
 
 def get_registered_models() -> Dict[str, Any]:
+    macro_reg = {}
     reg_file = os.path.join(MODELS_DIR, "model_registry.json")
     if os.path.exists(reg_file):
         try:
             with open(reg_file, "r") as f:
-                return json.load(f)
+                macro_reg = json.load(f)
         except Exception:
             pass
-    return {"status": "uninitialized", "results": {}}
+
+    sim_reg = {}
+    sim_reg_file = os.path.join(MODELS_DIR, "sim_model_registry.json")
+    if os.path.exists(sim_reg_file):
+        try:
+            with open(sim_reg_file, "r") as f:
+                sim_reg = json.load(f)
+        except Exception:
+            pass
+
+    combined_results = {}
+    if isinstance(macro_reg.get("results"), dict):
+        combined_results.update(macro_reg["results"])
+    if isinstance(sim_reg.get("results"), dict):
+        combined_results.update(sim_reg["results"])
+
+    return {
+        "status": "initialized" if combined_results else "uninitialized",
+        "macro_models": macro_reg,
+        "simulation_models": sim_reg,
+        "results": combined_results
+    }
 
 
 # ==============================================================================
