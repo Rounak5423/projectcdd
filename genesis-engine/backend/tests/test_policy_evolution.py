@@ -48,14 +48,21 @@ def test_policy_deliberation_research_policy():
     scholars = next(c for c in reaction["cohort_breakdown"] if "Scholars" in c["cohort"])
     assert scholars["approval_pct"] > 60
 
-    # Council deliberation
+    # Council deliberation with 6 Royal Advisors
     council = result["council_deliberation"]
-    assert len(council["advisors"]) == 4
+    assert len(council["advisors"]) == 6
     advisor_names = [a["name"] for a in council["advisors"]]
-    assert "Dr. Aris Vance" in advisor_names
-    assert "Lyra Chen" in advisor_names
-    assert "Marcus Sterling" in advisor_names
-    assert "Aria Sol" in advisor_names
+    assert "Aurelius Vane" in advisor_names
+    assert "Lady Vivienne Moray" in advisor_names
+    assert "Arch-Librarian Cynthia Sol" in advisor_names
+    assert "Master Mason Titus Varr" in advisor_names
+    assert "Curate Elena Sylvan" in advisor_names
+    assert "Ranger General Kaelen Thorne" in advisor_names
+
+    # Check longitudinal assimilation trajectory
+    assert "longitudinal_trajectory" in reaction
+    assert len(reaction["longitudinal_trajectory"]["assimilation_curve"]) == 3
+    assert "breakthrough" in reaction["longitudinal_trajectory"]
 
     # Check citizen quotes exist
     assert len(reaction["citizen_quotes"]) >= 2
@@ -116,3 +123,4 @@ def test_api_policy_endpoints():
     learn_data = feedback_resp.json()
     assert learn_data["status"] == "learned"
     assert "updated_learning_status" in learn_data
+

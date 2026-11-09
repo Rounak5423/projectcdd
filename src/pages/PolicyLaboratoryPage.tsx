@@ -30,7 +30,12 @@ import {
   Quote,
   Activity,
   Award,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet,
+  Clock,
+  Compass,
+  ArrowRight,
+  SendHorizontal
 } from 'lucide-react';
 import { useGameState } from '../context/GameStateContext';
 import { Policy } from '../types/game';
@@ -39,6 +44,7 @@ import { civilizationApi } from '../services/civilizationApi';
 
 interface PolicyLaboratoryPageProps {
   onClose?: () => void;
+  onNavigateToCouncil?: () => void;
 }
 
 const DOMAINS = [
@@ -53,8 +59,19 @@ const DOMAINS = [
   { id: 'Education', label: 'Education & Institutions' },
 ];
 
-export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onClose }) => {
-  const { policies, resources, togglePolicy, updatePolicySlider, addCustomPolicy, triggerToast, civilization } = useGameState();
+export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onClose, onNavigateToCouncil }) => {
+  const {
+    policies,
+    resources,
+    togglePolicy,
+    updatePolicySlider,
+    addCustomPolicy,
+    submitPolicyResearchFindings,
+    triggerToast,
+    civilization
+  } = useGameState();
+
+  const [activeTab, setActiveTab] = useState<'catalog' | 'research'>('catalog');
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
   
   // Deliberation and custom policy states
@@ -96,8 +113,8 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
     });
   }, []);
 
-  // Open Deliberation Assembly before passing/ratifying any policy
-  const handleOpenDeliberation = async (policy: Policy) => {
+  // Summon the Council of Advisors Meeting for any proposed policy
+  const handleOpenCouncilMeeting = async (policy: Policy) => {
     soundFx.playClick();
     setDeliberationPolicy(policy);
     setIsLoadingDeliberation(true);
@@ -116,7 +133,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
       if (res.success && res.data) {
         setDeliberationData(res.data);
       } else {
-        // Deterministic evolutionary behavioral fallback
+        // Deterministic evolutionary behavioral fallback with all 6 advisors
         setDeliberationData(createEvolutionaryFallbackDeliberation(policy, resources));
       }
     } catch {
@@ -146,7 +163,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
       title: policy.isActive ? `EDICT REPEALED: ${policy.name}` : `IMPERIAL DECREE RATIFIED: ${policy.name}`,
       subtitle: policy.isActive
         ? 'Political capital refunded. Cabinet directives revised.'
-        : `Enacted into High Directorate. Population reaction recorded by ML Behavioral Network.`,
+        : `Enacted into law. Gradual population assimilation curve active. Results tracked for research submission.`,
     });
   };
 
@@ -177,6 +194,18 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
         happinessModifier: Math.round((Number(customForm.sliderValue) - 40) * 0.15),
         stabilityModifier: Math.round((50 - Math.abs(Number(customForm.sliderValue) - 50)) * 0.1),
         environmentModifier: customForm.category === 'Environmental' ? 8 : -2,
+      },
+      assimilationProgress: 0,
+      daysActive: 0,
+      currentPhase: 'Friction & Resistance',
+      researchFindings: {
+        totalObservations: 0,
+        measuredHappinessShift: 0,
+        measuredProductivityShift: 0,
+        measuredStabilityShift: 0,
+        evolutionaryAdaptationScore: 0,
+        breakthroughDiscovery: `Empirical research dossier for ${customForm.name.trim()} initialized.`,
+        isResearchSubmitted: false,
       }
     };
 
@@ -187,12 +216,23 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
 
     triggerToast({
       type: 'reward',
-      title: `CUSTOM EDICT DRAFTED: ${newPolicy.name}`,
-      subtitle: 'Submitted to the High Deliberation Assembly for council review and behavioral evaluation.',
+      title: `CUSTOM POLICY PROPOSED: ${newPolicy.name}`,
+      subtitle: 'Conclave summoned! The Council of Advisors is convening to debate your proposed edict.',
     });
 
-    // Directly open Deliberation Chamber for the new policy
-    handleOpenDeliberation(newPolicy);
+    // Directly open Council of Advisors Meeting for the new policy
+    handleOpenCouncilMeeting(newPolicy);
+  };
+
+  const handleSubmitResearch = (policyId: string) => {
+    const success = submitPolicyResearchFindings(policyId);
+    if (!success) {
+      triggerToast({
+        type: 'info',
+        title: 'INSUFFICIENT LONGITUDINAL DATA',
+        subtitle: 'The policy must achieve at least 50% societal assimilation before compiling an empirical research submission.',
+      });
+    }
   };
 
   return (
@@ -206,15 +246,15 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
           <div>
             <div className="flex items-center gap-3">
               <h1 className="font-serif text-2xl text-[#EAE3D2] tracking-wider font-semibold">
-                POLICY LABORATORY & DELIBERATION ASSEMBLY
+                POLICY LABORATORY & COUNCIL ASSEMBLY
               </h1>
               <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded border border-[#C5A66A]/40 text-[#C5A66A] bg-[#C5A66A]/10 flex items-center gap-1">
                 <Brain className="w-3 h-3 text-[#8FA879]" />
-                Self-Learning ML Active
+                Self-Learning Evolutionary Model
               </span>
             </div>
             <p className="text-xs text-[#A5AD9D] font-sans mt-0.5">
-              Deliberate societal policies with sovereign council tribunes, simulate evolutionary population reactions, and draft custom state edicts.
+              Convene the Council of Advisors for all policy proposals, observe gradual population assimilation over time, and compile empirical research dossiers for submission.
             </p>
           </div>
         </div>
@@ -229,7 +269,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
             className="px-4 py-2 rounded bg-gradient-to-r from-[#C5A66A] to-[#D8CBAA] hover:brightness-110 text-[#171D18] font-serif font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md transition-all"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>Draft Custom Edict</span>
+            <span>Propose Custom Policy</span>
           </button>
 
           <div className="flex items-center gap-3 bg-[#171D18] p-2.5 rounded border border-[#C5A66A]/30 text-xs font-mono">
@@ -241,9 +281,9 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
             </div>
             <div className="w-px h-6 bg-[#C5A66A]/20" />
             <div>
-              <span className="text-[#A5AD9D] block text-[10px]">LEARNED INSTANCES</span>
+              <span className="text-[#A5AD9D] block text-[10px]">ACTIVE RESEARCH</span>
               <span className="text-sm font-bold text-[#8FA879]">
-                {learningStatus?.total_learned_instances || 18} Epochs
+                {activePolicies.length} Directives
               </span>
             </div>
           </div>
@@ -259,247 +299,484 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
         </div>
       </div>
 
-      {/* Main Body */}
-      <div className="flex-1 min-h-0 px-8 py-6 overflow-y-auto space-y-6">
-        {/* Active Cabinet Slots */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-serif font-bold tracking-wider text-[#C5A66A] uppercase flex items-center gap-1.5">
-              <Crown className="w-4 h-4 text-[#C5A66A]" />
-              HIGH DIRECTORATE ACTIVE CABINET PORTFOLIO ({activePolicies.length} / 6 SLOTTED)
-            </span>
-            <span className="text-[11px] font-mono text-[#A5AD9D]">
-              4 Imperial Core Directives + 2 Sovereign Wildcards
-            </span>
-          </div>
+      {/* Primary Tab Navigation */}
+      <div className="flex-shrink-0 px-8 py-2 bg-[#1B221C] border-b border-[#C5A66A]/20 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setActiveTab('catalog');
+            }}
+            className={`px-4 py-2 rounded text-xs font-serif font-bold tracking-wider uppercase transition-all flex items-center gap-2 ${
+              activeTab === 'catalog'
+                ? 'bg-[#C5A66A] text-[#171D18] shadow'
+                : 'bg-[#171D18] text-[#A5AD9D] hover:text-[#EAE3D2] border border-[#C5A66A]/20'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Policy Directives & Cabinet</span>
+          </button>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {activePolicies.slice(0, 4).map((p) => (
-              <div
-                key={p.id}
-                className="p-4 rounded bg-[#202820] border-2 border-[#C5A66A]/60 flex flex-col justify-between shadow-md space-y-3"
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#171D18] border border-[#C5A66A]/30 text-[#C5A66A]">
-                      {p.category}
-                    </span>
-                    <div className="w-2 h-2 rounded-full bg-[#8FA879] animate-pulse" />
-                  </div>
-                  <h4 className="font-serif text-sm font-bold text-[#EAE3D2] mt-2 line-clamp-1">{p.name}</h4>
-                  <p className="text-[11px] text-[#A5AD9D] mt-0.5 font-mono">
-                    {p.sliderLabel}: <strong className="text-[#C5A66A]">{p.sliderValue} {p.unit}</strong>
-                  </p>
-                </div>
-
-                <div className="pt-3 border-t border-[#C5A66A]/15 flex items-center justify-between">
-                  <button
-                    onClick={() => handleOpenDeliberation(p)}
-                    className="text-[10px] text-[#8FA879] hover:underline flex items-center gap-1 font-mono"
-                  >
-                    <MessageSquare className="w-3 h-3" /> Review Debate
-                  </button>
-                  <button
-                    onClick={() => handleOpenDeliberation(p)}
-                    className="px-2.5 py-1 rounded bg-[#C87569]/15 hover:bg-[#C87569]/30 text-[#C87569] border border-[#C87569]/40 text-[10px] font-serif font-bold uppercase tracking-wider transition-colors"
-                  >
-                    Repeal
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {/* Empty Cabinet Slots */}
-            {Array.from({ length: Math.max(0, 4 - activePolicies.length) }).map((_, i) => (
-              <div
-                key={`empty-${i}`}
-                className="p-4 rounded border-2 border-dashed border-[#C5A66A]/20 bg-[#171D18]/50 flex flex-col items-center justify-center text-center text-[#A5AD9D]"
-              >
-                <div className="w-8 h-8 rounded-full border border-[#C5A66A]/20 flex items-center justify-center mb-1 text-sm font-serif text-[#C5A66A]">
-                  🏛️
-                </div>
-                <span className="font-serif text-xs font-bold text-[#D8CBAA]">EMPTY CABINET SLOT</span>
-                <span className="text-[10px] text-[#A5AD9D] mt-0.5">Deliberate & ratify an edict below</span>
-              </div>
-            ))}
-          </div>
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setActiveTab('research');
+            }}
+            className={`px-4 py-2 rounded text-xs font-serif font-bold tracking-wider uppercase transition-all flex items-center gap-2 relative ${
+              activeTab === 'research'
+                ? 'bg-[#C5A66A] text-[#171D18] shadow'
+                : 'bg-[#171D18] text-[#A5AD9D] hover:text-[#EAE3D2] border border-[#C5A66A]/20'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Empirical Research Findings & Submission</span>
+            {activePolicies.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-[#8FA879] text-[#171D18]">
+                {activePolicies.length}
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Domain Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {DOMAINS.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => { soundFx.playClick(); setSelectedDomain(f.id); }}
-              className={`px-3 py-1.5 rounded text-xs font-serif tracking-wide transition-all ${
-                selectedDomain === f.id
-                  ? 'bg-[#C5A66A] text-[#171D18] font-bold shadow'
-                  : 'bg-[#202820] text-[#A5AD9D] border border-[#C5A66A]/20 hover:text-[#EAE3D2]'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Policy Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {filteredPolicies.map((policy) => {
-            const canEnact = resources.politicalCapital >= policy.costPoliticalCapital;
-
-            return (
-              <div
-                key={policy.id}
-                className={`p-5 rounded flex flex-col justify-between border transition-all duration-200 ${
-                  policy.isActive
-                    ? 'bg-[#202820] border-[#C5A66A] shadow-md'
-                    : 'bg-[#171D18] border-[#C5A66A]/20 hover:border-[#C5A66A]/50'
-                }`}
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#171D18] border border-[#C5A66A]/30 text-[#C5A66A]">
-                          {policy.category}
-                        </span>
-                        {policy.id.startsWith('custom_') && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-[#8FA879]/20 text-[#8FA879] border border-[#8FA879]/40">
-                            Custom Edict
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="font-serif text-lg font-bold text-[#EAE3D2] mt-1.5">{policy.name}</h3>
-                    </div>
-
-                    <span
-                      className={`px-2.5 py-1 rounded text-[10px] font-mono font-bold uppercase border ${
-                        policy.isActive
-                          ? 'bg-[#8FA879]/15 text-[#8FA879] border-[#8FA879]/40'
-                          : 'bg-[#202820] text-[#A5AD9D] border-[#C5A66A]/20'
-                      }`}
-                    >
-                      {policy.isActive ? 'SLOTTED' : 'ARCHIVED'}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-[#A5AD9D] font-sans mt-2 leading-relaxed">
-                    {policy.description}
-                  </p>
-
-                  {/* Calibration Slider */}
-                  <div className="mt-4 p-3 rounded bg-[#171D18] border border-[#C5A66A]/20 space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[#A5AD9D] font-medium">{policy.sliderLabel}</span>
-                      <span className="font-mono font-bold text-[#C5A66A]">
-                        {policy.sliderValue} {policy.unit}
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={policy.minVal}
-                      max={policy.maxVal}
-                      value={policy.sliderValue}
-                      onChange={(e) => updatePolicySlider(policy.id, Number(e.target.value))}
-                      className="w-full accent-[#C5A66A]"
-                    />
-                  </div>
-
-                  {/* Impact Projections & Side Effects */}
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-mono uppercase text-[#8FA879] font-bold block">
-                        Projected Benefits
-                      </span>
-                      {policy.expectedBenefits.map((b, i) => (
-                        <p key={i} className="text-[11px] text-[#EAE3D2] flex items-start gap-1">
-                          <span className="text-[#8FA879] font-bold">✓</span> {b}
-                        </p>
-                      ))}
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-mono uppercase text-[#D6A75E] font-bold block">
-                        Unintended Side Effects
-                      </span>
-                      {policy.risks.map((r, i) => (
-                        <p key={i} className="text-[11px] text-[#D8CBAA] flex items-start gap-1">
-                          <span className="text-[#D6A75E] font-bold">!</span> {r}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Deliberate & Ratify Footer */}
-                <div className="mt-5 pt-3 border-t border-[#C5A66A]/15 flex items-center justify-between">
-                  <span className="text-xs font-mono text-[#A5AD9D]">
-                    Ratification Cost: <strong className="text-[#C5A66A]">{policy.costPoliticalCapital} Cap</strong>
-                  </span>
-
-                  <button
-                    disabled={!policy.isActive && !canEnact}
-                    onClick={() => handleOpenDeliberation(policy)}
-                    className={`px-4 py-2 rounded text-xs font-serif font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow ${
-                      policy.isActive
-                        ? 'bg-[#C87569]/20 hover:bg-[#C87569]/30 text-[#C87569] border border-[#C87569]/50'
-                        : canEnact
-                        ? 'bg-[#C5A66A] hover:bg-[#D8CBAA] text-[#171D18]'
-                        : 'bg-[#171D18] text-[#A5AD9D]/40 border border-[#C5A66A]/10 cursor-not-allowed'
-                    }`}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span>
-                      {policy.isActive
-                        ? 'Repeal / Deliberate'
-                        : canEnact
-                        ? 'Deliberate & Enact'
-                        : 'Insufficient Capital'}
-                    </span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+        <div className="text-[11px] font-mono text-[#A5AD9D] hidden sm:flex items-center gap-2">
+          <Clock className="w-3.5 h-3.5 text-[#C5A66A]" />
+          <span>Policies progress gradually: Initial Friction (0-25%) → Assimilation (25-75%) → Mature (75-100%)</span>
         </div>
       </div>
 
+      {/* Main Body */}
+      <div className="flex-1 min-h-0 px-8 py-6 overflow-y-auto space-y-6">
+        {activeTab === 'catalog' ? (
+          <>
+            {/* Active Cabinet Slots */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-serif font-bold tracking-wider text-[#C5A66A] uppercase flex items-center gap-1.5">
+                  <Crown className="w-4 h-4 text-[#C5A66A]" />
+                  HIGH DIRECTORATE ACTIVE CABINET PORTFOLIO ({activePolicies.length} / 6 SLOTTED)
+                </span>
+                <span className="text-[11px] font-mono text-[#A5AD9D]">
+                  Debated & passed through the Council of Advisors
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {activePolicies.slice(0, 4).map((p) => {
+                  const progress = p.assimilationProgress || 0;
+                  const phase = p.currentPhase || (progress >= 75 ? 'Mature Equilibrium' : progress >= 25 ? 'Societal Assimilation' : 'Friction & Resistance');
+
+                  return (
+                    <div
+                      key={p.id}
+                      className="p-4 rounded bg-[#202820] border-2 border-[#C5A66A]/60 flex flex-col justify-between shadow-md space-y-3"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#171D18] border border-[#C5A66A]/30 text-[#C5A66A]">
+                            {p.category}
+                          </span>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#8FA879]/20 text-[#8FA879] border border-[#8FA879]/40">
+                            {progress}% Assimilated
+                          </span>
+                        </div>
+                        <h4 className="font-serif text-sm font-bold text-[#EAE3D2] mt-2 line-clamp-1">{p.name}</h4>
+                        
+                        {/* Gradual Assimilation Bar */}
+                        <div className="mt-2 space-y-1">
+                          <div className="flex justify-between text-[9px] font-mono text-[#A5AD9D]">
+                            <span>Phase: {phase}</span>
+                            <span>Day {p.daysActive || 1}</span>
+                          </div>
+                          <div className="w-full h-1.5 rounded-full bg-[#171D18] overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-[#C5A66A] to-[#8FA879] transition-all duration-300"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-[#C5A66A]/15 flex items-center justify-between">
+                        <button
+                          onClick={() => handleOpenCouncilMeeting(p)}
+                          className="text-[10px] text-[#8FA879] hover:underline flex items-center gap-1 font-mono"
+                        >
+                          <Vote className="w-3 h-3" /> Review Meeting
+                        </button>
+                        <button
+                          onClick={() => handleOpenCouncilMeeting(p)}
+                          className="px-2.5 py-1 rounded bg-[#C87569]/15 hover:bg-[#C87569]/30 text-[#C87569] border border-[#C87569]/40 text-[10px] font-serif font-bold uppercase tracking-wider transition-colors"
+                        >
+                          Repeal
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Empty Cabinet Slots */}
+                {Array.from({ length: Math.max(0, 4 - activePolicies.length) }).map((_, i) => (
+                  <div
+                    key={`empty-${i}`}
+                    className="p-4 rounded border-2 border-dashed border-[#C5A66A]/20 bg-[#171D18]/50 flex flex-col items-center justify-center text-center text-[#A5AD9D]"
+                  >
+                    <div className="w-8 h-8 rounded-full border border-[#C5A66A]/20 flex items-center justify-center mb-1 text-sm font-serif text-[#C5A66A]">
+                      🏛️
+                    </div>
+                    <span className="font-serif text-xs font-bold text-[#D8CBAA]">EMPTY CABINET SLOT</span>
+                    <span className="text-[10px] text-[#A5AD9D] mt-0.5">Call Council of Advisors meeting below</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Domain Filter Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {DOMAINS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => { soundFx.playClick(); setSelectedDomain(f.id); }}
+                  className={`px-3 py-1.5 rounded text-xs font-serif tracking-wide transition-all ${
+                    selectedDomain === f.id
+                      ? 'bg-[#C5A66A] text-[#171D18] font-bold shadow'
+                      : 'bg-[#202820] text-[#A5AD9D] border border-[#C5A66A]/20 hover:text-[#EAE3D2]'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Policy Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {filteredPolicies.map((policy) => {
+                const canEnact = resources.politicalCapital >= policy.costPoliticalCapital;
+
+                return (
+                  <div
+                    key={policy.id}
+                    className={`p-5 rounded flex flex-col justify-between border transition-all duration-200 ${
+                      policy.isActive
+                        ? 'bg-[#202820] border-[#C5A66A] shadow-md'
+                        : 'bg-[#171D18] border-[#C5A66A]/20 hover:border-[#C5A66A]/50'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#171D18] border border-[#C5A66A]/30 text-[#C5A66A]">
+                              {policy.category}
+                            </span>
+                            {policy.id.startsWith('custom_') && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-[#8FA879]/20 text-[#8FA879] border border-[#8FA879]/40">
+                                Custom Edict
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-serif text-lg font-bold text-[#EAE3D2] mt-1.5">{policy.name}</h3>
+                        </div>
+
+                        <span
+                          className={`px-2.5 py-1 rounded text-[10px] font-mono font-bold uppercase border ${
+                            policy.isActive
+                              ? 'bg-[#8FA879]/15 text-[#8FA879] border-[#8FA879]/40'
+                              : 'bg-[#202820] text-[#A5AD9D] border-[#C5A66A]/20'
+                          }`}
+                        >
+                          {policy.isActive ? `${policy.assimilationProgress || 0}% Active` : 'ARCHIVED'}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-[#A5AD9D] font-sans mt-2 leading-relaxed">
+                        {policy.description}
+                      </p>
+
+                      {/* Calibration Slider */}
+                      <div className="mt-4 p-3 rounded bg-[#171D18] border border-[#C5A66A]/20 space-y-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[#A5AD9D] font-medium">{policy.sliderLabel}</span>
+                          <span className="font-mono font-bold text-[#C5A66A]">
+                            {policy.sliderValue} {policy.unit}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={policy.minVal}
+                          max={policy.maxVal}
+                          value={policy.sliderValue}
+                          onChange={(e) => updatePolicySlider(policy.id, Number(e.target.value))}
+                          className="w-full accent-[#C5A66A]"
+                        />
+                      </div>
+
+                      {/* Impact Projections & Side Effects */}
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-mono uppercase text-[#8FA879] font-bold block">
+                            Projected Benefits
+                          </span>
+                          {policy.expectedBenefits.map((b, i) => (
+                            <p key={i} className="text-[11px] text-[#EAE3D2] flex items-start gap-1">
+                              <span className="text-[#8FA879] font-bold">✓</span> {b}
+                            </p>
+                          ))}
+                        </div>
+
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-mono uppercase text-[#D6A75E] font-bold block">
+                            Unintended Side Effects
+                          </span>
+                          {policy.risks.map((r, i) => (
+                            <p key={i} className="text-[11px] text-[#D8CBAA] flex items-start gap-1">
+                              <span className="text-[#D6A75E] font-bold">!</span> {r}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Call Council Meeting Footer */}
+                    <div className="mt-5 pt-3 border-t border-[#C5A66A]/15 flex items-center justify-between">
+                      <span className="text-xs font-mono text-[#A5AD9D]">
+                        Cost: <strong className="text-[#C5A66A]">{policy.costPoliticalCapital} Cap</strong>
+                      </span>
+
+                      <button
+                        disabled={!policy.isActive && !canEnact}
+                        onClick={() => handleOpenCouncilMeeting(policy)}
+                        className={`px-4 py-2 rounded text-xs font-serif font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow ${
+                          policy.isActive
+                            ? 'bg-[#C87569]/20 hover:bg-[#C87569]/30 text-[#C87569] border border-[#C87569]/50'
+                            : canEnact
+                            ? 'bg-[#C5A66A] hover:bg-[#D8CBAA] text-[#171D18]'
+                            : 'bg-[#171D18] text-[#A5AD9D]/40 border border-[#C5A66A]/10 cursor-not-allowed'
+                        }`}
+                      >
+                        <Vote className="w-3.5 h-3.5" />
+                        <span>
+                          {policy.isActive
+                            ? 'Review in Council'
+                            : canEnact
+                            ? 'Call Council Meeting'
+                            : 'Insufficient Capital'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          /* ========================================================================= */
+          /* EMPIRICAL RESEARCH FINDINGS & SUBMISSION DOSSIER VIEW */
+          /* ========================================================================= */
+          <div className="space-y-6">
+            <div className="p-5 rounded bg-gradient-to-r from-[#17231B] via-[#202820] to-[#17231B] border border-[#C5A66A]/30">
+              <div className="flex items-center gap-3">
+                <FileSpreadsheet className="w-6 h-6 text-[#C5A66A]" />
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-[#EAE3D2]">
+                    EMPIRICAL POLICY RESEARCH FINDINGS & ACADEMIC DOSSIERS
+                  </h3>
+                  <p className="text-xs text-[#A5AD9D] mt-0.5">
+                    Observe how passed policies gradually take root in living citizen routines. When a policy achieves ≥50% societal assimilation, compile and submit your empirical findings to the Imperial Academy for +250 GRC and +500 XP.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {activePolicies.length === 0 ? (
+              <div className="py-16 text-center border-2 border-dashed border-[#C5A66A]/20 rounded bg-[#171D18]/50 space-y-3">
+                <Scale className="w-10 h-10 text-[#C5A66A]/40 mx-auto" />
+                <h4 className="font-serif text-sm font-bold text-[#D8CBAA]">NO ACTIVE POLICY DIRECTIVES UNDER OBSERVATION</h4>
+                <p className="text-xs text-[#A5AD9D] max-w-md mx-auto">
+                  Call a meeting in the Council of Advisors to debate and enact a policy proposal. Its longitudinal empirical findings will be recorded here.
+                </p>
+                <button
+                  onClick={() => setActiveTab('catalog')}
+                  className="px-4 py-2 rounded bg-[#C5A66A] text-[#171D18] font-serif font-bold text-xs uppercase"
+                >
+                  Browse Policy Catalog
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {activePolicies.map((p) => {
+                  const progress = p.assimilationProgress || 0;
+                  const canSubmit = progress >= 50 && !p.researchFindings?.isResearchSubmitted;
+                  const isSubmitted = p.researchFindings?.isResearchSubmitted;
+                  const findings = p.researchFindings;
+
+                  return (
+                    <div
+                      key={p.id}
+                      className="p-6 rounded bg-[#202820] border border-[#C5A66A]/40 space-y-5 shadow-lg"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#C5A66A]/20 pb-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#171D18] border border-[#C5A66A]/30 text-[#C5A66A]">
+                              {p.category}
+                            </span>
+                            <span className="text-[10px] font-mono text-[#A5AD9D]">
+                              Enacted for {p.daysActive || 1} Simulation Days
+                            </span>
+                          </div>
+                          <h4 className="font-serif text-xl font-bold text-[#EAE3D2] mt-1">{p.name}</h4>
+                        </div>
+
+                        {isSubmitted ? (
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-[#8FA879]/20 border border-[#8FA879]/50 text-[#8FA879]">
+                            <Award className="w-4 h-4 text-[#8FA879]" />
+                            <span className="font-serif text-xs font-bold uppercase tracking-wider">
+                              Research Submitted & Cataloged
+                            </span>
+                          </div>
+                        ) : (
+                          <button
+                            disabled={!canSubmit}
+                            onClick={() => handleSubmitResearch(p.id)}
+                            className={`px-4 py-2 rounded font-serif text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all shadow ${
+                              canSubmit
+                                ? 'bg-gradient-to-r from-[#C5A66A] to-[#D8CBAA] hover:brightness-110 text-[#171D18]'
+                                : 'bg-[#171D18] text-[#A5AD9D]/50 border border-[#C5A66A]/20 cursor-not-allowed'
+                            }`}
+                          >
+                            <SendHorizontal className="w-3.5 h-3.5" />
+                            <span>
+                              {canSubmit
+                                ? 'Submit Empirical Research Dossier'
+                                : `Requires 50% Assimilation (${progress}%)`}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Live Assimilation Progress Bar */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-baseline text-xs">
+                          <span className="font-serif font-bold text-[#EAE3D2]">
+                            Societal Assimilation & Behavioral Adaptation Curve:
+                          </span>
+                          <span className="font-mono text-sm font-bold text-[#C5A66A]">
+                            {progress}% Mature ({p.currentPhase || 'Societal Assimilation'})
+                          </span>
+                        </div>
+
+                        <div className="w-full h-3 rounded-full bg-[#171D18] overflow-hidden flex border border-[#C5A66A]/20">
+                          <div
+                            className="bg-gradient-to-r from-[#C5A66A] via-[#8FA879] to-[#8FA879] h-full transition-all duration-500"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+
+                        <div className="flex justify-between text-[10px] font-mono text-[#A5AD9D]">
+                          <span>Phase 1: Friction & Resistance (0-25%)</span>
+                          <span>Phase 2: Routine Assimilation (25-75%)</span>
+                          <span>Phase 3: Mature Equilibrium (75-100%)</span>
+                        </div>
+                      </div>
+
+                      {/* Measured Empirical Metrics */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-mono">
+                        <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/15">
+                          <span className="text-[10px] text-[#A5AD9D] uppercase block">Measured Happiness Delta</span>
+                          <strong className="text-sm text-[#8FA879]">
+                            {findings?.measuredHappinessShift ? `+${findings.measuredHappinessShift} pts` : '+0.0 pts'}
+                          </strong>
+                        </div>
+                        <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/15">
+                          <span className="text-[10px] text-[#A5AD9D] uppercase block">Measured Productivity Shift</span>
+                          <strong className="text-sm text-[#C5A66A]">
+                            {findings?.measuredProductivityShift ? `+${findings.measuredProductivityShift}%` : '+0.0%'}
+                          </strong>
+                        </div>
+                        <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/15">
+                          <span className="text-[10px] text-[#A5AD9D] uppercase block">Civic Compliance Score</span>
+                          <strong className="text-sm text-[#8FA879]">
+                            {findings?.evolutionaryAdaptationScore || progress}%
+                          </strong>
+                        </div>
+                        <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/15">
+                          <span className="text-[10px] text-[#A5AD9D] uppercase block">Recorded Data Points</span>
+                          <strong className="text-sm text-[#EAE3D2]">
+                            {findings?.totalObservations || 1} Cycles
+                          </strong>
+                        </div>
+                      </div>
+
+                      {/* Breakthrough Discovery */}
+                      <div className="p-3.5 rounded bg-[#171D18] border border-[#8FA879]/30">
+                        <span className="text-[10px] font-mono uppercase text-[#8FA879] font-bold block mb-1">
+                          Empirical Breakthrough Finding
+                        </span>
+                        <p className="text-xs text-[#EAE3D2] leading-relaxed">
+                          {findings?.breakthroughDiscovery || `Observation data ongoing across municipal and academic enclaves.`}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* ========================================================================= */}
-      {/* COUNCIL DELIBERATION & HUMAN EVOLUTION BEHAVIORAL ASSEMBLY MODAL */}
+      {/* COUNCIL OF ADVISORS MEETING CONCLAVE MODAL (FOR EVERY POLICY PROPOSAL) */}
       {/* ========================================================================= */}
       {deliberationPolicy && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="w-full max-w-4xl max-h-[92vh] flex flex-col bg-[#1A221B] border-2 border-[#C5A66A]/70 rounded shadow-2xl overflow-hidden font-sans">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-5xl max-h-[94vh] flex flex-col bg-[#1A221B] border-2 border-[#C5A66A]/80 rounded shadow-2xl overflow-hidden font-sans">
             {/* Header */}
-            <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-r from-[#171D18] via-[#232F24] to-[#171D18] border-b border-[#C5A66A]/30 flex items-center justify-between">
+            <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-r from-[#171D18] via-[#243025] to-[#171D18] border-b border-[#C5A66A]/30 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded border border-[#C5A66A]/40 bg-[#17231B] flex items-center justify-center text-[#C5A66A]">
-                  <Scale className="w-5 h-5" />
+                  <Crown className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-serif text-lg font-bold text-[#EAE3D2] tracking-wide">
-                      HIGH COUNCIL DELIBERATION ASSEMBLY
+                      ROYAL COUNCIL OF ADVISORS: POLICY PROPOSAL CONCLAVE
                     </h3>
                     <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#C5A66A]/15 text-[#C5A66A] border border-[#C5A66A]/30">
-                      Behavioral Evaluation
+                      Formal Assembly
                     </span>
                   </div>
                   <p className="text-xs text-[#A5AD9D]">
-                    {deliberationPolicy.name} • {deliberationPolicy.category} • Cost: {deliberationPolicy.costPoliticalCapital} Political Capital
+                    Proposed Edict: <strong className="text-[#EAE3D2]">{deliberationPolicy.name}</strong> • Category: {deliberationPolicy.category} • Cost: {deliberationPolicy.costPoliticalCapital} Cap
                   </p>
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  setDeliberationPolicy(null);
-                  setDeliberationData(null);
-                }}
-                className="text-[#A5AD9D] hover:text-[#EAE3D2] p-1.5 rounded hover:bg-[#C5A66A]/10 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {onNavigateToCouncil && (
+                  <button
+                    onClick={() => {
+                      setDeliberationPolicy(null);
+                      setDeliberationData(null);
+                      onNavigateToCouncil();
+                    }}
+                    className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#C5A66A]/15 hover:bg-[#C5A66A]/30 border border-[#C5A66A]/40 text-xs font-serif text-[#C5A66A] transition-colors"
+                  >
+                    <Compass className="w-3.5 h-3.5" />
+                    <span>Open 3D Chamber</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setDeliberationPolicy(null);
+                    setDeliberationData(null);
+                  }}
+                  className="text-[#A5AD9D] hover:text-[#EAE3D2] p-1.5 rounded hover:bg-[#C5A66A]/10 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Scrollable Chamber Content */}
@@ -508,10 +785,10 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                 <div className="py-20 flex flex-col items-center justify-center gap-3 text-center">
                   <div className="w-10 h-10 border-2 border-[#C5A66A] border-t-transparent rounded-full animate-spin" />
                   <span className="font-serif text-sm font-bold text-[#D8CBAA]">
-                    SYNTHESIZING HUMAN EVOLUTIONARY BEHAVIORAL PREDICTIONS...
+                    SUMMONING THE 6 ROYAL ADVISORS & SYNTHESIZING BEHAVIORAL PREDICTIONS...
                   </span>
                   <p className="text-xs text-[#A5AD9D] max-w-md">
-                    Evaluating loss aversion coefficients, fairness sensitivities, and demographic responses across all living strata.
+                    Convening Chancellor Aurelius Vane, High Treasurer Lady Vivienne, Grand Scholar Cynthia Sol, and council peers to debate the proposal.
                   </p>
                 </div>
               ) : deliberationData ? (
@@ -521,7 +798,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                     <div>
                       <span className="text-[10px] font-mono uppercase text-[#A5AD9D] block">COUNCIL FLOOR STATUS</span>
                       <h4 className="font-serif text-base font-bold text-[#EAE3D2]">
-                        {deliberationData.council_deliberation?.chamber_status || 'Council Deliberation In Progress'}
+                        {deliberationData.council_deliberation?.chamber_status || 'Council Consensus Reached'}
                       </h4>
                       <p className="text-xs text-[#A5AD9D] mt-0.5">
                         {deliberationData.council_deliberation?.proposer_right}
@@ -532,7 +809,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                       <div className="text-center px-3 py-1.5 rounded bg-[#8FA879]/15 border border-[#8FA879]/40">
                         <span className="text-[10px] font-mono uppercase text-[#8FA879] block font-bold">YEAS</span>
                         <span className="text-lg font-serif font-bold text-[#8FA879]">
-                          {deliberationData.council_deliberation?.vote_summary?.yea ?? 3}
+                          {deliberationData.council_deliberation?.vote_summary?.yea ?? 5}
                         </span>
                       </div>
                       <div className="text-center px-3 py-1.5 rounded bg-[#C87569]/15 border border-[#C87569]/40">
@@ -550,14 +827,14 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                     </div>
                   </div>
 
-                  {/* Advisor Deliberation Floor */}
+                  {/* 6 Royal Council Advisors Floor Debate */}
                   <div>
                     <h4 className="text-xs font-serif font-bold tracking-wider text-[#C5A66A] uppercase mb-3 flex items-center gap-2">
-                      <Vote className="w-4 h-4 text-[#C5A66A]" />
-                      COUNCIL TRIBUNES DEBATE & DELIBERATION
+                      <Users className="w-4 h-4 text-[#C5A66A]" />
+                      THE SIX ROYAL ADVISORS DEBATE ON PROPOSAL
                     </h4>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                       {deliberationData.council_deliberation?.advisors?.map((advisor: any, idx: number) => {
                         const isYea = advisor.vote === 'Yea';
                         const isNay = advisor.vote === 'Nay';
@@ -565,19 +842,19 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                         return (
                           <div
                             key={idx}
-                            className="p-4 rounded bg-[#171D18] border border-[#C5A66A]/20 flex flex-col justify-between space-y-3"
+                            className="p-3.5 rounded bg-[#171D18] border border-[#C5A66A]/20 flex flex-col justify-between space-y-2.5"
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2">
                                 <span className="text-2xl">{advisor.avatar}</span>
                                 <div>
-                                  <h5 className="font-serif text-sm font-bold text-[#EAE3D2]">{advisor.name}</h5>
-                                  <span className="text-[10px] text-[#A5AD9D] font-mono block">{advisor.title}</span>
+                                  <h5 className="font-serif text-xs font-bold text-[#EAE3D2]">{advisor.name}</h5>
+                                  <span className="text-[9px] text-[#A5AD9D] font-mono block">{advisor.title}</span>
                                 </div>
                               </div>
 
                               <span
-                                className={`px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase border ${
+                                className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase border ${
                                   isYea
                                     ? 'bg-[#8FA879]/20 text-[#8FA879] border-[#8FA879]/50'
                                     : isNay
@@ -589,12 +866,12 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                               </span>
                             </div>
 
-                            <p className="text-xs text-[#D8CBAA] leading-relaxed italic bg-[#202820]/60 p-2.5 rounded border border-[#C5A66A]/10">
+                            <p className="text-[11px] text-[#D8CBAA] leading-relaxed italic bg-[#202820]/60 p-2 rounded border border-[#C5A66A]/10">
                               "{advisor.argument}"
                             </p>
 
-                            <div className="text-[10px] font-mono text-[#A5AD9D] flex items-center justify-between pt-1 border-t border-[#C5A66A]/10">
-                              <span>Priority:</span>
+                            <div className="text-[9px] font-mono text-[#A5AD9D] flex items-center justify-between pt-1 border-t border-[#C5A66A]/10">
+                              <span>Domain:</span>
                               <strong className="text-[#C5A66A]">{advisor.domain_priority}</strong>
                             </div>
                           </div>
@@ -602,6 +879,40 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                       })}
                     </div>
                   </div>
+
+                  {/* Longitudinal Gradual Assimilation Trajectory & Research Predictions */}
+                  {deliberationData.population_reaction?.longitudinal_trajectory && (
+                    <div className="p-4 rounded bg-[#171D18] border border-[#C5A66A]/30 space-y-3">
+                      <h4 className="text-xs font-serif font-bold tracking-wider text-[#C5A66A] uppercase flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-[#8FA879]" />
+                        LONGITUDINAL GRADUAL ASSIMILATION & RESEARCH LIFECYCLE
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {deliberationData.population_reaction.longitudinal_trajectory.assimilation_curve?.map((curve: any, i: number) => (
+                          <div key={i} className="p-3 rounded bg-[#202820] border border-[#C5A66A]/20 space-y-1.5 text-xs">
+                            <div className="flex justify-between items-center">
+                              <span className="font-serif font-bold text-[#EAE3D2] text-[11px]">{curve.phase}</span>
+                              <span className="font-mono text-[#8FA879] font-bold">{curve.adoption_pct}%</span>
+                            </div>
+                            <span className="text-[10px] font-mono text-[#C5A66A] block">{curve.timeframe}</span>
+                            <p className="text-[10px] text-[#A5AD9D] leading-tight">{curve.citizen_reaction}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {deliberationData.population_reaction.longitudinal_trajectory.breakthrough && (
+                        <div className="p-3 rounded bg-[#1A251D] border border-[#8FA879]/30 text-xs">
+                          <span className="text-[10px] font-mono uppercase text-[#8FA879] font-bold block mb-0.5">
+                            Projected Research Submission Yield
+                          </span>
+                          <p className="text-[#EAE3D2] text-[11px]">
+                            {deliberationData.population_reaction.longitudinal_trajectory.breakthrough.discovery}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Backend Human Evolutionary ML Prediction Card */}
                   <div className="p-5 rounded bg-gradient-to-br from-[#1C261E] to-[#171D18] border-2 border-[#8FA879]/40 space-y-4">
@@ -613,7 +924,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                             BACKEND HUMAN EVOLUTIONARY BEHAVIORAL MODEL (E-BAN)
                           </h4>
                           <span className="text-[10px] text-[#A5AD9D] font-mono">
-                            Trained on Anthropological Evolution & Civilization Simulation History
+                            Trained on Anthropological Evolution & Historical Civilization Runs
                           </span>
                         </div>
                       </div>
@@ -630,14 +941,13 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                     <div className="space-y-2">
                       <div className="flex justify-between items-baseline text-xs">
                         <span className="font-serif font-bold text-[#EAE3D2]">
-                          Overall Population Approval Rating:
+                          Projected Initial Public Approval Rating:
                         </span>
                         <span className="font-mono text-base font-bold text-[#8FA879]">
                           {deliberationData.population_reaction?.overall_approval_pct}% In Favor
                         </span>
                       </div>
 
-                      {/* Multi-tier Approval Bar */}
                       <div className="w-full h-3 rounded-full bg-[#171D18] overflow-hidden flex border border-[#C5A66A]/20">
                         <div
                           className="bg-[#8FA879] h-full transition-all duration-500"
@@ -663,16 +973,6 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                       </div>
                     </div>
 
-                    {/* Evolutionary Behavioral Synthesis */}
-                    <div className="p-3 bg-[#171D18]/90 rounded border border-[#C5A66A]/20">
-                      <span className="text-[10px] font-mono uppercase text-[#C5A66A] font-bold block mb-1">
-                        Evolutionary Behavioral Synthesis
-                      </span>
-                      <p className="text-xs text-[#EAE3D2] leading-relaxed">
-                        {deliberationData.population_reaction?.evolutionary_synthesis}
-                      </p>
-                    </div>
-
                     {/* Demographic Cohort Breakdown */}
                     <div>
                       <span className="text-[10px] font-mono uppercase text-[#A5AD9D] font-bold block mb-2">
@@ -690,36 +990,6 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                             </p>
                           </div>
                         ))}
-                      </div>
-                    </div>
-
-                    {/* Projected Societal Deltas */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[#8FA879]/20 text-center font-mono text-xs">
-                      <div className="p-2 rounded bg-[#171D18]">
-                        <span className="text-[9px] uppercase text-[#A5AD9D] block">Δ Happiness</span>
-                        <strong className={deliberationData.population_reaction?.projected_deltas?.happiness_delta >= 0 ? 'text-[#8FA879]' : 'text-[#C87569]'}>
-                          {deliberationData.population_reaction?.projected_deltas?.happiness_delta >= 0 ? '+' : ''}
-                          {deliberationData.population_reaction?.projected_deltas?.happiness_delta} pts
-                        </strong>
-                      </div>
-                      <div className="p-2 rounded bg-[#171D18]">
-                        <span className="text-[9px] uppercase text-[#A5AD9D] block">Δ Stability</span>
-                        <strong className={deliberationData.population_reaction?.projected_deltas?.stability_delta >= 0 ? 'text-[#8FA879]' : 'text-[#C87569]'}>
-                          {deliberationData.population_reaction?.projected_deltas?.stability_delta >= 0 ? '+' : ''}
-                          {deliberationData.population_reaction?.projected_deltas?.stability_delta} pts
-                        </strong>
-                      </div>
-                      <div className="p-2 rounded bg-[#171D18]">
-                        <span className="text-[9px] uppercase text-[#A5AD9D] block">Δ Research Speed</span>
-                        <strong className="text-[#C5A66A]">
-                          +{deliberationData.population_reaction?.projected_deltas?.research_velocity_pct}%
-                        </strong>
-                      </div>
-                      <div className="p-2 rounded bg-[#171D18]">
-                        <span className="text-[9px] uppercase text-[#A5AD9D] block">Protest Risk</span>
-                        <strong className="text-[#D6A75E]">
-                          {Math.round((deliberationData.population_reaction?.projected_deltas?.protest_risk_probability || 0.05) * 100)}%
-                        </strong>
                       </div>
                     </div>
 
@@ -750,7 +1020,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
             {/* Bottom Decision Footer */}
             <div className="flex-shrink-0 px-6 py-4 bg-[#171D18] border-t border-[#C5A66A]/30 flex items-center justify-between">
               <span className="text-xs font-mono text-[#A5AD9D]">
-                Imperial Enactment will deduct <strong className="text-[#C5A66A]">{deliberationPolicy.costPoliticalCapital} Cap</strong> and feed real outcome to backend model.
+                Enacting will initiate the gradual population assimilation curve and track live results for empirical submission.
               </span>
 
               <div className="flex items-center gap-3">
@@ -761,7 +1031,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                   }}
                   className="px-4 py-2 border border-[#C5A66A]/30 text-xs font-serif text-[#A5AD9D] hover:text-[#EAE3D2] rounded transition-colors"
                 >
-                  Return to Floor
+                  Return to Cabinet
                 </button>
 
                 <button
@@ -772,7 +1042,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                       : 'bg-[#C5A66A] text-[#171D18] hover:bg-[#D8CBAA]'
                   }`}
                 >
-                  {deliberationPolicy.isActive ? 'Confirm Repeal Decree' : 'Authorize & Ratify Edict'}
+                  {deliberationPolicy.isActive ? 'Confirm Repeal Decree' : 'Ratify & Begin Assimilation'}
                 </button>
               </div>
             </div>
@@ -781,7 +1051,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
       )}
 
       {/* ========================================================================= */}
-      {/* DRAFT CUSTOM POLICY / PROPOSE EDICT MODAL */}
+      {/* PROPOSE CUSTOM POLICY MODAL */}
       {/* ========================================================================= */}
       {isDraftingCustom && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
@@ -802,7 +1072,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[#A5AD9D] font-mono text-[10px] uppercase block mb-1">
-                    Edict Title
+                    Policy Title
                   </label>
                   <input
                     type="text"
@@ -836,12 +1106,12 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
 
               <div>
                 <label className="text-[#A5AD9D] font-mono text-[10px] uppercase block mb-1">
-                  Edict Purpose & Societal Rationale
+                  Purpose & Societal Rationale
                 </label>
                 <textarea
                   rows={3}
                   required
-                  placeholder="Describe the mandate, target institutions, and intended municipal transformation..."
+                  placeholder="Describe the proposal, targeted civic institutions, and expected empirical transformation..."
                   value={customForm.description}
                   onChange={(e) => setCustomForm({ ...customForm, description: e.target.value })}
                   className="w-full px-3 py-2 bg-[#171D18] border border-[#C5A66A]/30 rounded text-[#EAE3D2] focus:border-[#C5A66A] outline-none leading-relaxed"
@@ -877,7 +1147,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
 
                 <div>
                   <label className="text-[#A5AD9D] font-mono text-[10px] uppercase block mb-1">
-                    Calibrated Intensity ({customForm.sliderValue}{customForm.unit})
+                    Calibrated Level ({customForm.sliderValue}{customForm.unit})
                   </label>
                   <input
                     type="range"
@@ -892,10 +1162,10 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
 
               <div className="p-3 bg-[#171D18] border border-[#C5A66A]/20 rounded space-y-2">
                 <span className="text-[10px] font-mono uppercase text-[#8FA879] font-bold block">
-                  Evolutionary Behavioral Safeguard
+                  Council Deliberation Mandate
                 </span>
                 <p className="text-[11px] text-[#A5AD9D] leading-relaxed">
-                  Upon submission, your custom edict will be subjected to rigorous Council Deliberation and analyzed by the backend self-learning model to evaluate evolutionary human responses across all social cohorts.
+                  Upon submission, your proposal will immediately trigger a formal Council of Advisors meeting where all six ministers will deliberate the merits and debate potential trade-offs.
                 </p>
               </div>
 
@@ -911,7 +1181,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                   type="submit"
                   className="px-5 py-2 text-xs font-serif font-bold uppercase tracking-wider rounded bg-[#C5A66A] text-[#171D18] hover:bg-[#D8CBAA] transition-colors"
                 >
-                  Submit to Deliberation Assembly
+                  Summon Council of Advisors Meeting
                 </button>
               </div>
             </form>
@@ -934,8 +1204,8 @@ function createEvolutionaryFallbackDeliberation(policy: Policy, resources: any) 
     category: policy.category,
     model_status: {
       model_type: 'Evolutionary Behavioral Adaptation Network (E-BAN)',
-      total_learned_instances: 19,
-      model_confidence: 0.89,
+      total_learned_instances: 20,
+      model_confidence: 0.91,
     },
     population_reaction: {
       overall_approval_pct: approval,
@@ -966,43 +1236,78 @@ function createEvolutionaryFallbackDeliberation(policy: Policy, resources: any) 
           role: 'Chief Logistics Machinist, Foundry Block 4',
           quote: 'Progress is magnificent, provided it enhances our tools rather than rendering our apprentices obsolete.'
         }
-      ]
+      ],
+      longitudinal_trajectory: {
+        assimilation_curve: [
+          { phase: 'Phase 1: Friction & Resistance', timeframe: 'Days 1 – 20', adoption_pct: 25, citizen_reaction: 'Initial loss aversion and procedural adjustment.' },
+          { phase: 'Phase 2: Societal Assimilation', timeframe: 'Days 21 – 60', adoption_pct: 65, citizen_reaction: 'Widespread routine adjustment. Municipal guilds report tangible gains.' },
+          { phase: 'Phase 3: Mature Equilibrium', timeframe: 'Days 60+', adoption_pct: 100, citizen_reaction: 'Permanent cultural integration yielding compounding societal dividends.' }
+        ],
+        breakthrough: {
+          title: `Empirical Synthesis of ${policy.name}`,
+          discovery: `Longitudinal monitoring confirms ${policy.name} establishes durable cultural adoption, dampening unrest and unlocking accelerated discoveries.`,
+          research_reward_grc: 250,
+          research_reward_xp: 500
+        }
+      }
     },
     council_deliberation: {
-      chamber_status: 'Approved by Council Consensus',
-      vote_summary: { yea: 3, nay: 1, abstain: 0, total: 4 },
-      proposer_right: 'As Sovereign Governor, you possess Imperial Veto and Casting Authority.',
+      chamber_status: 'Approved by Royal Council Consensus',
+      vote_summary: { yea: 5, nay: 1, abstain: 0, total: 6 },
+      proposer_right: 'As Sovereign Governor, you hold Supreme Imperial Veto and Enactment Decree.',
       advisors: [
         {
-          name: 'Dr. Aris Vance',
-          title: 'Science & Technology Tribune',
-          avatar: '🔬',
+          name: 'Aurelius Vane',
+          title: 'The Chancellor of the Realm',
+          domain: 'Governance and Society',
+          avatar: '🏛️',
           vote: 'Yea',
-          argument: `Authoritative advancement! The '${policy.name}' mandate channels critical energy into cognitive leverage and technological superiority.`,
-          domain_priority: 'Research Velocity & Epistemic Evolution'
+          argument: `Order and legitimacy flourish when the Directorate acts with clear purpose. '${policy.name}' reinforces civic covenant and stabilizes communal expectations.`,
+          domain_priority: 'Civic Order & Institutional Trust'
         },
         {
-          name: 'Lyra Chen',
-          title: 'Civil Tribune & Social Welfare',
-          avatar: '🕊️',
-          vote: 'Yea',
-          argument: 'Evolutionary human history demonstrates that when the High Directorate invests directly in citizen wellbeing, social cohesion multiplies fourfold.',
-          domain_priority: 'Citizen Happiness & Equity Safeguards'
-        },
-        {
-          name: 'Marcus Sterling',
-          title: 'Economic & Trade Overseer',
+          name: 'Lady Vivienne Moray',
+          title: 'The High Treasurer',
+          domain: 'Economy and Finance',
           avatar: '⚖️',
-          vote: 'Abstain',
-          argument: 'Caution on administrative overhead. We must ensure productive recoupment of expended political capital.',
+          vote: 'Yea',
+          argument: `Gold is the silent general of civilization. Commercial indices confirm '${policy.name}' establishes regulatory certainty and stimulates guild enterprise.`,
           domain_priority: 'Fiscal Solvency & Resource Productivity'
         },
         {
-          name: 'Aria Sol',
-          title: 'Ecological & Biosphere Steward',
-          avatar: '🌿',
+          name: 'Arch-Librarian Cynthia Sol',
+          title: 'The Grand Scholar',
+          domain: 'Science and Knowledge',
+          avatar: '🔬',
           vote: 'Yea',
-          argument: 'The environmental fallout remains well within biospheric carrying capacity.',
+          argument: `Glorious intellectual leap! '${policy.name}' unleashes experimental energy across our observatories and academies. The empirical knowledge gained will redefine our civilization.`,
+          domain_priority: 'Empirical Research & Epistemic Progress'
+        },
+        {
+          name: 'Master Mason Titus Varr',
+          title: 'The Royal Architect',
+          domain: 'Infrastructure and Development',
+          avatar: '📐',
+          vote: 'Yea',
+          argument: `Sound structural engineering! Logistics grids and civic works can readily accommodate '${policy.name}' without physical disruption.`,
+          domain_priority: 'Structural Integrity & Municipal Works'
+        },
+        {
+          name: 'Curate Elena Sylvan',
+          title: 'The High Physician',
+          domain: 'Health and Wellbeing',
+          avatar: '🕊️',
+          vote: 'Yea',
+          argument: `The vital spirits of our citizens are fortified! When the state acts with foresight, infant mortality declines and public vitality reaches its zenith.`,
+          domain_priority: 'Public Vitality & Humanitarian Care'
+        },
+        {
+          name: 'Ranger General Kaelen Thorne',
+          title: 'The Keeper of Nature',
+          domain: 'Environment and Ecology',
+          avatar: '🌿',
+          vote: 'Abstain',
+          argument: `Nature maintains an unforgiving ledger. Ensure the implementation of '${policy.name}' does not exceed biospheric carrying bounds.`,
           domain_priority: 'Biospheric Carrying Capacity'
         }
       ]

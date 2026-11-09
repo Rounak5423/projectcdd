@@ -303,6 +303,7 @@ interface GameStateContextType {
   togglePolicy: (policyId: string) => void;
   updatePolicySlider: (policyId: string, value: number) => void;
   addCustomPolicy: (policy: Policy) => void;
+  submitPolicyResearchFindings: (policyId: string) => boolean;
   runScenario: (scenarioId: string) => boolean;
   startExperiment: (experimentId: string) => boolean;
   claimAchievement: (achievementId: string) => void;
@@ -1007,6 +1008,56 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
           };
         }
         return exp;
+      })
+    );
+
+    // 4b. Progress Active Policy Gradual Assimilation & Longitudinal Research
+    setPolicies((prevPolicies) =>
+      prevPolicies.map((p) => {
+        if (!p.isActive) return p;
+
+        const prevProgress = p.assimilationProgress || 0;
+        const days = (p.daysActive || 0) + 1;
+        // Progresses ~0.8% per simulation day, taking ~80-100 days for full mature equilibrium
+        const nextProgress = Math.min(100, Math.round((prevProgress + 0.8) * 10) / 10);
+
+        let phase: 'Friction & Resistance' | 'Societal Assimilation' | 'Mature Equilibrium' = 'Friction & Resistance';
+        if (nextProgress >= 75) phase = 'Mature Equilibrium';
+        else if (nextProgress >= 25) phase = 'Societal Assimilation';
+
+        const effRatio = nextProgress / 100;
+        const happinessShift = Number((p.effectsSummary.happinessModifier * effRatio).toFixed(2));
+        const productivityShift = Number((p.effectsSummary.gdpModifier * effRatio).toFixed(2));
+        const stabilityShift = Number((p.effectsSummary.stabilityModifier * effRatio).toFixed(2));
+
+        const existingFindings = p.researchFindings || {
+          totalObservations: 0,
+          measuredHappinessShift: 0,
+          measuredProductivityShift: 0,
+          measuredStabilityShift: 0,
+          evolutionaryAdaptationScore: 0,
+          breakthroughDiscovery: `Empirical findings show ${p.name} restructuring daily civic routines with ${Math.round(nextProgress)}% compliance.`,
+          isResearchSubmitted: false,
+        };
+
+        return {
+          ...p,
+          daysActive: days,
+          assimilationProgress: nextProgress,
+          currentPhase: phase,
+          researchFindings: {
+            ...existingFindings,
+            totalObservations: existingFindings.totalObservations + 1,
+            measuredHappinessShift: happinessShift,
+            measuredProductivityShift: productivityShift,
+            measuredStabilityShift: stabilityShift,
+            evolutionaryAdaptationScore: Math.round(nextProgress),
+            breakthroughDiscovery:
+              nextProgress >= 50
+                ? `Longitudinal study confirms ${p.name} yields compounding dividends: measured +${happinessShift} happiness and +${productivityShift}% productivity shift.`
+                : existingFindings.breakthroughDiscovery,
+          },
+        };
       })
     );
 
@@ -2056,11 +2107,106 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
               })
               .catch(() => {});
           }
-          return { ...p, isActive: nextActive };
+          return {
+            ...p,
+            isActive: nextActive,
+            daysActive: nextActive ? (p.daysActive || 1) : p.daysActive,
+            assimilationProgress: nextActive ? (p.assimilationProgress || 5) : p.assimilationProgress,
+            enactedAtDay: nextActive ? civilization.currentDay : p.enactedAtDay,
+            enactedAtYear: nextActive ? civilization.currentYear : p.enactedAtYear,
+            currentPhase: nextActive ? (p.currentPhase || 'Friction & Resistance') : p.currentPhase,
+            researchFindings: p.researchFindings || {
+              totalObservations: 1,
+              measuredHappinessShift: 0,
+              measuredProductivityShift: 0,
+              measuredStabilityShift: 0,
+              evolutionaryAdaptationScore: 5,
+              breakthroughDiscovery: `Initial rollout of ${p.name} active. Tracking baseline living citizen compliance.`,
+              isResearchSubmitted: false,
+            },
+          };
         }
         return p;
       })
     );
+  };
+
+  const submitPolicyResearchFindings = (policyId: string): boolean => {
+    const policy = policies.find((p) => p.id === policyId);
+    if (!policy || !policy.isActive) return false;
+    const progress = policy.assimilationProgress || 0;
+    if (progress < 50) return false;
+    if (policy.researchFindings?.isResearchSubmitted) return false;
+
+    // Award +250 GRC and +500 XP
+    setResources((r) => ({
+      ...r,
+      grc: r.grc + 250,
+      happiness: Math.min(100, r.happiness + 2),
+    }));
+
+    setCivilization((c) => ({
+      ...c,
+      xp: c.xp + 500,
+    }));
+
+    // Mark as submitted
+    setPolicies((prev) =>
+      prev.map((p) =>
+        p.id === policyId
+          ? {
+              ...p,
+              researchFindings: {
+                ...(p.researchFindings || {
+                  totalObservations: 100,
+                  measuredHappinessShift: p.effectsSummary.happinessModifier,
+                  measuredProductivityShift: p.effectsSummary.gdpModifier,
+                  measuredStabilityShift: p.effectsSummary.stabilityModifier,
+                  evolutionaryAdaptationScore: Math.round(progress),
+                  breakthroughDiscovery: `Empirical research whitepaper finalized on ${p.name}.`,
+                  isResearchSubmitted: true,
+                }),
+                isResearchSubmitted: true,
+                submittedAtDay: civilization.currentDay,
+                submittedAtYear: civilization.currentYear,
+              },
+            }
+          : p
+      )
+    );
+
+    const event: GameEvent = {
+      id: `ev-res-${Date.now()}`,
+      year: civilization.currentYear,
+      day: civilization.currentDay,
+      title: `Empirical Research Submitted: ${policy.name}`,
+      description: `Longitudinal policy findings successfully compiled across ${policy.daysActive || 60} days! Sovereign Directorate awarded +250 GRC & +500 XP.`,
+      category: 'breakthrough',
+      severity: 'success',
+      isRead: false,
+    };
+    setEvents((prev) => [event, ...prev]);
+
+    soundFx.playReward();
+    triggerToast({
+      type: 'reward',
+      title: `EMPIRICAL RESEARCH SUBMITTED: ${policy.name}`,
+      subtitle: `+250 GRC and +500 Civilization XP awarded! Whitepaper cataloged in High Directorate archives.`,
+    });
+
+    // Provide final longitudinal empirical outcome to backend self-learning model
+    civilizationApi
+      .recordPolicyFeedback({
+        policy_id: policy.id,
+        policy_name: policy.name,
+        category: policy.category,
+        predicted_approval: 60 + policy.effectsSummary.happinessModifier * 2,
+        actual_approval: 60 + (policy.effectsSummary.happinessModifier * 2) + 4.5,
+        world_id: civilization.id,
+      })
+      .catch(() => {});
+
+    return true;
   };
 
   const addCustomPolicy = (policy: Policy) => {
@@ -2488,6 +2634,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       togglePolicy,
       updatePolicySlider,
       addCustomPolicy,
+      submitPolicyResearchFindings,
       runScenario,
       startExperiment,
       claimAchievement,

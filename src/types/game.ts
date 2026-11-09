@@ -272,6 +272,18 @@ export interface Technology {
   unlockedIcons?: string[];
 }
 
+export interface PolicyResearchFindings {
+  totalObservations: number;
+  measuredHappinessShift: number; // accumulated points
+  measuredProductivityShift: number; // accumulated %
+  measuredStabilityShift: number;
+  evolutionaryAdaptationScore: number; // 0 - 100%
+  breakthroughDiscovery: string;
+  isResearchSubmitted: boolean;
+  submittedAtDay?: number;
+  submittedAtYear?: number;
+}
+
 export interface Policy {
   id: string;
   name: string;
@@ -309,6 +321,13 @@ export interface Policy {
     stabilityModifier: number; // points
     environmentModifier: number; // points
   };
+  // Gradual Assimilation & Longitudinal Research
+  assimilationProgress?: number; // 0 - 100%
+  daysActive?: number;
+  enactedAtDay?: number;
+  enactedAtYear?: number;
+  currentPhase?: 'Friction & Resistance' | 'Societal Assimilation' | 'Mature Equilibrium';
+  researchFindings?: PolicyResearchFindings;
 }
 
 export interface ScenarioProjectionPoint {

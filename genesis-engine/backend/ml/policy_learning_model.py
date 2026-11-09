@@ -222,6 +222,11 @@ class PolicyEvolutionLearner:
             overall_approval, happiness_delta, stability_delta, is_research, is_welfare, is_green
         )
 
+        # 7. Longitudinal Gradual Assimilation Trajectory & Research Predictions
+        longitudinal_trajectory = self._generate_longitudinal_trajectory(
+            name, category, overall_approval, happiness_delta, stability_delta, research_delta, is_research
+        )
+
         return {
             "policy_id": policy.get("id", "custom_policy"),
             "policy_name": name,
@@ -267,7 +272,8 @@ class PolicyEvolutionLearner:
                 "evolutionary_synthesis": self._generate_evolutionary_synthesis(
                     overall_approval, is_research, is_welfare, is_green, inequity_friction
                 ),
-                "citizen_quotes": quotes
+                "citizen_quotes": quotes,
+                "longitudinal_trajectory": longitudinal_trajectory
             },
             "council_deliberation": deliberation_chamber
         }
@@ -350,102 +356,196 @@ class PolicyEvolutionLearner:
         slider_val: float, approval: float, d_happy: float, d_stab: float,
         is_research: bool, is_welfare: bool, is_green: bool
     ) -> Dict[str, Any]:
-        """Synthesizes high-stakes discussion among the 4 sovereign council tribunes."""
-        # 1. Science Tribune
-        if is_research:
-            science_vote = "Yea"
-            science_arg = f"Authoritative advancement! The '{name}' mandate channels critical energy into cognitive leverage and technological superiority. Our empirical simulation validates significant compounding breakthroughs."
-        elif is_green:
-            science_vote = "Yea"
-            science_arg = "Ecological equilibrium provides the steady empirical substrate required for uninterrupted technical experimentation. We endorse."
-        elif cost > 400:
-            science_vote = "Abstain"
-            science_arg = f"While we acknowledge civic necessity, allocating {cost:.0f} Political Capital without explicit research endowment slows down scientific pipeline throughput."
-        else:
-            science_vote = "Yea"
-            science_arg = "Acceptable systemic calibration. It preserves scientific stability without constricting lab access."
-
-        # 2. Civil Welfare Tribune
-        if is_welfare or d_happy > 1.0:
-            civil_vote = "Yea"
-            civil_arg = f"The populace rejoices. Evolutionary human history demonstrates that when the High Directorate invests directly in citizen wellbeing, social cohesion multiplies fourfold."
+        """Synthesizes high-stakes discussion among the 6 sovereign Royal Council Advisors."""
+        # 1. Chancellor Aurelius Vane (Governance & Society)
+        if approval >= 60 and d_stab >= 0:
+            chancellor_vote = "Yea"
+            chancellor_arg = f"Order and legitimacy flourish when the Directorate acts with clear purpose. '{name}' reinforces civic covenant and stabilizes communal expectations."
         elif approval < 45 or d_stab < -1.0:
-            civil_vote = "Nay"
-            civil_arg = f"Dissent is stirring across the lower districts. The public perceives '{name}' as top-down imposition that strains communal trust. We must address citizen anxiety before ratifying."
+            chancellor_vote = "Nay"
+            chancellor_arg = f"Caution, Governor. Our civic wardens report unrest in the outer quarters. Forcing '{name}' without preparatory assemblies will strain public obedience."
         else:
-            civil_vote = "Yea" if approval >= 55 else "Abstain"
-            civil_arg = "Our civic monitors report manageable skepticism. If accompanied by transparent public briefings, the social fabric will assimilate this edict smoothly."
+            chancellor_vote = "Abstain"
+            chancellor_arg = "The populace is divided. If enacted, ensure local magistrates provide transparent briefings to maintain civil tranquility."
 
-        # 3. Fiscal & Economic Overseer
+        # 2. High Treasurer Lady Vivienne Moray (Economy & Finance)
         if cost > 350 and not (is_welfare and approval > 70):
-            econ_vote = "Nay" if cost > 450 else "Abstain"
-            econ_arg = f"Caution, Directorate. A political capital commitment of {cost:.0f} alongside industrial friction demands strict budgetary discipline. We risk overheating administrative overhead."
+            treasurer_vote = "Nay" if cost > 450 else "Abstain"
+            treasurer_arg = f"A capital expenditure of {cost:.0f} Political Capital requires unyielding discipline. We must verify this outlay does not drain our sovereign mint."
         elif not is_research and not is_green:
-            econ_vote = "Yea"
-            econ_arg = f"Market logistics validate this trajectory. Commercial confidence hinges on clear regulatory rules; '{name}' establishes predictability."
+            treasurer_vote = "Yea"
+            treasurer_arg = f"Gold is the silent general of civilization. Commercial indices confirm '{name}' establishes regulatory certainty and stimulates guild enterprise."
         else:
-            econ_vote = "Yea"
-            econ_arg = f"Investment yields sustainable dividends over long cycles. Our treasury models confirm healthy capital recoupment."
+            treasurer_vote = "Yea"
+            treasurer_arg = "Prudent long-term asset allocation. Compounding fiscal velocity will easily offset the initial treasury commitment."
 
-        # 4. Ecological & Biosphere Steward
-        if is_green:
-            eco_vote = "Yea"
-            eco_arg = f"Essential ecological imperative! Natural systems do not operate on credit. Ratifying '{name}' directly restores regenerative bio-capacity."
-        elif is_research and "ai" in (name + description).lower():
-            eco_vote = "Abstain"
-            eco_arg = "Compute clusters and algorithmic facilities demand severe energy draws. Ensure clean power routing accompanies this directive."
+        # 3. Grand Scholar Arch-Librarian Cynthia Sol (Science & Knowledge)
+        if is_research:
+            scholar_vote = "Yea"
+            scholar_arg = f"Glorious intellectual leap! '{name}' unleashes experimental energy across our observatories and academies. The empirical knowledge gained will redefine our civilization."
+        elif is_green:
+            scholar_vote = "Yea"
+            scholar_arg = "Empirical natural science confirms that systemic ecological balance is essential for continuous laboratory breakthroughs."
+        elif cost > 400:
+            scholar_vote = "Abstain"
+            scholar_arg = f"While politically expedient, committing {cost:.0f} Capital without dedicated laboratory grants slows our research trajectory."
         else:
-            eco_vote = "Yea"
-            eco_arg = "The ecological impact falls within sustainable biospheric bounds. No severe environmental degradation projected."
+            scholar_vote = "Yea"
+            scholar_arg = "Acceptable societal baseline. It leaves our research enclaves unhindered to pursue higher discoveries."
+
+        # 4. Royal Architect Master Mason Titus Varr (Infrastructure & Development)
+        if any(k in (category + name + description).lower() for k in ["infrastructure", "labor", "automation", "building", "industry"]):
+            architect_vote = "Yea"
+            architect_arg = f"Sound structural engineering! '{name}' aligns logistics corridors and gives our craft guilds clear blueprints for expansion."
+        elif cost > 400:
+            architect_vote = "Abstain"
+            architect_arg = "Capital should be poured into stone, aqueducts, and roads. Ensure civic works are not starved of resources."
+        else:
+            architect_vote = "Yea"
+            architect_arg = "Logistics grids and civic works can readily accommodate this edict without physical disruption."
+
+        # 5. High Physician Curate Elena Sylvan (Health & Wellbeing)
+        if is_welfare or d_happy > 1.0 or any(k in (category + name + description).lower() for k in ["health", "care", "welfare", "food"]):
+            physician_vote = "Yea"
+            physician_arg = f"The vital spirits of our citizens are fortified! When the state relieves hardship, infant mortality declines and public vitality reaches its zenith."
+        elif d_happy < -1.5:
+            physician_vote = "Nay"
+            physician_arg = f"Stress and anxiety are spreading through the common wards. Prolonged psychological strain under '{name}' will depress vitality."
+        else:
+            physician_vote = "Yea" if approval >= 50 else "Abstain"
+            physician_arg = "Vitality monitors show stable baseline health. We endorse as long as medical rations remain untouched."
+
+        # 6. Keeper of Nature Ranger General Kaelen Thorne (Environment & Ecology)
+        if is_green:
+            keeper_vote = "Yea"
+            keeper_arg = f"The planetary biosphere breathes a sigh of relief! Protecting our forests, soils, and aquifers guarantees our descendants will inherit a living world."
+        elif "pollution" in description.lower() or "mineral" in description.lower() or cost > 450:
+            keeper_vote = "Nay" if "pollution" in description.lower() else "Abstain"
+            keeper_arg = "Nature maintains an unforgiving ledger. Ensure industrial emissions and resource extraction do not exceed regenerative bounds."
+        else:
+            keeper_vote = "Yea"
+            keeper_arg = "The ecological impact falls within safe biospheric carrying capacities. Planetary wardens approve."
 
         # Tally
-        votes = [science_vote, civil_vote, econ_vote, eco_vote]
+        votes = [chancellor_vote, treasurer_vote, scholar_vote, architect_vote, physician_vote, keeper_vote]
         yeas = votes.count("Yea")
         nays = votes.count("Nay")
         abstains = votes.count("Abstain")
 
-        chamber_status = "Approved by Council Consensus" if yeas >= 3 else ("Split Council Deliberation" if yeas >= 2 else "High Council Contention")
+        chamber_status = "Approved by Royal Council Consensus" if yeas >= 4 else ("Split Council Deliberation" if yeas >= 3 else "High Council Contention")
 
         advisors = [
             {
-                "name": "Dr. Aris Vance",
-                "title": "Science & Technology Tribune",
-                "avatar": "🔬",
-                "vote": science_vote,
-                "argument": science_arg,
-                "domain_priority": "Research Velocity & Epistemic Evolution"
+                "id": "adv-chancellor",
+                "name": "Aurelius Vane",
+                "title": "The Chancellor of the Realm",
+                "domain": "Governance and Society",
+                "avatar": "🏛️",
+                "vote": chancellor_vote,
+                "argument": chancellor_arg,
+                "domain_priority": "Civic Order & Institutional Trust"
             },
             {
-                "name": "Lyra Chen",
-                "title": "Civil Tribune & Social Welfare",
-                "avatar": "🕊️",
-                "vote": civil_vote,
-                "argument": civil_arg,
-                "domain_priority": "Citizen Happiness & Equity Safeguards"
-            },
-            {
-                "name": "Marcus Sterling",
-                "title": "Economic & Trade Overseer",
+                "id": "adv-treasurer",
+                "name": "Lady Vivienne Moray",
+                "title": "The High Treasurer",
+                "domain": "Economy and Finance",
                 "avatar": "⚖️",
-                "vote": econ_vote,
-                "argument": econ_arg,
+                "vote": treasurer_vote,
+                "argument": treasurer_arg,
                 "domain_priority": "Fiscal Solvency & Resource Productivity"
             },
             {
-                "name": "Aria Sol",
-                "title": "Ecological & Biosphere Steward",
+                "id": "adv-scholar",
+                "name": "Arch-Librarian Cynthia Sol",
+                "title": "The Grand Scholar",
+                "domain": "Science and Knowledge",
+                "avatar": "🔬",
+                "vote": scholar_vote,
+                "argument": scholar_arg,
+                "domain_priority": "Empirical Research & Epistemic Progress"
+            },
+            {
+                "id": "adv-architect",
+                "name": "Master Mason Titus Varr",
+                "title": "The Royal Architect",
+                "domain": "Infrastructure and Development",
+                "avatar": "📐",
+                "vote": architect_vote,
+                "argument": architect_arg,
+                "domain_priority": "Structural Integrity & Municipal Works"
+            },
+            {
+                "id": "adv-physician",
+                "name": "Curate Elena Sylvan",
+                "title": "The High Physician",
+                "domain": "Health and Wellbeing",
+                "avatar": "🕊️",
+                "vote": physician_vote,
+                "argument": physician_arg,
+                "domain_priority": "Public Vitality & Humanitarian Care"
+            },
+            {
+                "id": "adv-keeper",
+                "name": "Ranger General Kaelen Thorne",
+                "title": "The Keeper of Nature",
+                "domain": "Environment and Ecology",
                 "avatar": "🌿",
-                "vote": eco_vote,
-                "argument": eco_arg,
+                "vote": keeper_vote,
+                "argument": keeper_arg,
                 "domain_priority": "Biospheric Carrying Capacity"
             }
         ]
 
         return {
             "chamber_status": chamber_status,
-            "vote_summary": {"yea": yeas, "nay": nays, "abstain": abstains, "total": 4},
+            "vote_summary": {"yea": yeas, "nay": nays, "abstain": abstains, "total": 6},
             "advisors": advisors,
-            "proposer_right": "As Sovereign Governor, you possess Imperial Veto and Casting Authority."
+            "proposer_right": "As Sovereign Governor, you hold Supreme Imperial Veto and Enactment Decree."
+        }
+
+    def _generate_longitudinal_trajectory(
+        self, name: str, category: str, approval: float, d_happy: float, d_stab: float, d_research: float, is_research: bool
+    ) -> Dict[str, Any]:
+        """Synthesizes the gradual 3-phase evolutionary assimilation curve and empirical research discovery."""
+        breakthrough_title = f"Empirical Synthesis: Dynamic Equilibrium of {name}"
+        if is_research:
+            discovery_desc = f"Longitudinal observation reveals a compounding +{d_research:.1f}% research throughput dividend. Cognitive tools and academic autonomy synthesize accelerated breakthrough frequency."
+        elif d_happy > 0:
+            discovery_desc = f"Longitudinal monitoring validates profound civic dividend: citizen morale stabilizes at +{d_happy:.1f} pts, dampening generational unrest and raising communal productivity."
+        else:
+            discovery_desc = f"Empirical field trials demonstrate structural resilience: despite initial implementation friction, administrative systems achieved +{abs(d_stab):.1f} pts civic stability."
+
+        return {
+            "assimilation_curve": [
+                {
+                    "phase": "Phase 1: Implementation Friction",
+                    "timeframe": "Days 1 – 20",
+                    "adoption_pct": 25,
+                    "measured_delta": round(d_happy * 0.25 - 0.8, 1),
+                    "citizen_reaction": "Initial loss aversion and procedural skepticism as households adapt to revised municipal directives."
+                },
+                {
+                    "phase": "Phase 2: Societal Assimilation",
+                    "timeframe": "Days 21 – 60",
+                    "adoption_pct": 65,
+                    "measured_delta": round(d_happy * 0.65, 1),
+                    "citizen_reaction": "Widespread routine adjustment. Municipal guilds and research institutes report tangible efficiency gains."
+                },
+                {
+                    "phase": "Phase 3: Mature Equilibrium",
+                    "timeframe": "Days 60+",
+                    "adoption_pct": 100,
+                    "measured_delta": round(d_happy, 1),
+                    "citizen_reaction": "Permanent cultural and infrastructural integration. The policy yields compounding societal dividends."
+                }
+            ],
+            "breakthrough": {
+                "title": breakthrough_title,
+                "discovery": discovery_desc,
+                "research_reward_grc": 250,
+                "research_reward_xp": 500
+            }
         }
 
     def record_feedback_and_learn(self, instance_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -525,3 +625,4 @@ def get_policy_evolution_learner() -> PolicyEvolutionLearner:
     if _model_instance is None:
         _model_instance = PolicyEvolutionLearner()
     return _model_instance
+

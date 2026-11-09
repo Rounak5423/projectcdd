@@ -256,7 +256,12 @@ function GameApp() {
           </div>
         );
       case 'Policy Laboratory':
-        return <PolicyLaboratoryPage onClose={handleClose} />;
+        return (
+          <PolicyLaboratoryPage
+            onClose={handleClose}
+            onNavigateToCouncil={() => handleNavigate('Council of Advisors')}
+          />
+        );
       case 'Future Simulator':
         return <FutureSimulatorPage onClose={handleClose} />;
       case 'Research Observatory':

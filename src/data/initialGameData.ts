@@ -1410,6 +1410,18 @@ export const initialPolicies: Policy[] = [
       stabilityModifier: -2,
       environmentModifier: 0,
     },
+    assimilationProgress: 60,
+    daysActive: 36,
+    currentPhase: 'Societal Assimilation',
+    researchFindings: {
+      totalObservations: 142,
+      measuredHappinessShift: 2.4,
+      measuredProductivityShift: 5.1,
+      measuredStabilityShift: -1.2,
+      evolutionaryAdaptationScore: 78,
+      breakthroughDiscovery: 'Cognitive Synergy: Observed +18% acceleration in foundational academic and engineering inquiry.',
+      isResearchSubmitted: false,
+    },
   },
   {
     id: 'pol-ubi',
