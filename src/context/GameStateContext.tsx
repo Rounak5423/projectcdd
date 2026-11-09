@@ -71,18 +71,34 @@ import {
   DisasterSimulationState,
 } from '../types/disaster';
 import {
+  calculateDisasterRisks,
+  calculateEmergencyForces,
   createDisaster,
+  advanceDisasterSimulation,
   emergencyFullCivilizationRestoration,
 } from '../simulation/disasterSimulationEngine';
 import {
-  runCitizenSimulationTick,
-} from '../simulation/citizenSimulationEngine';
-import {
   CitizenSimulationReport,
+  DetailedCitizenAgent,
 } from '../types/citizen';
+import {
+  runCitizenSimulationTick,
+  createInitialDetailedAgents,
+  calculateCitizenNeeds,
+  updateCitizenRoutines,
+} from '../simulation/citizenSimulationEngine';
 
 export type MapLayer = 'all' | 'infrastructure' | 'population' | 'resources' | 'environment' | 'economy';
-export type ActiveDrawer = 'none' | 'notifications' | 'codex' | 'timeline' | 'construction' | 'buildingInspector' | 'economy';
+export type ActiveDrawer =
+  | 'none'
+  | 'notifications'
+  | 'codex'
+  | 'timeline'
+  | 'construction'
+  | 'buildingInspector'
+  | 'economy'
+  | 'disaster'
+  | 'citizens';
 
 export interface GameToast {
   id: string;
@@ -260,6 +276,22 @@ interface GameStateContextType {
   utilityStats: UtilityStats;
   inspectedCitizen: Citizen | null;
   setInspectedCitizen: (citizen: Citizen | null) => void;
+
+  // Undo & Redo History
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
+
+  // CS2 Modals & Overlays
+  isTutorialOpen: boolean;
+  setIsTutorialOpen: (open: boolean) => void;
+  isShortcutsOpen: boolean;
+  setIsShortcutsOpen: (open: boolean) => void;
+  isBudgetOpen: boolean;
+  setIsBudgetOpen: (open: boolean) => void;
+  isStatisticsOpen: boolean;
+  setIsStatisticsOpen: (open: boolean) => void;
 }
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -445,6 +477,26 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [isBulldozerActive, setIsBulldozerActive] = useState<boolean>(false);
   const [inspectedCitizen, setInspectedCitizen] = useState<Citizen | null>(null);
 
+  // Undo & Redo History Stacks
+  const [historyStack, setHistoryStack] = useState<Array<{
+    placedBuildings: PlacedBuilding[];
+    zonedTiles: ZonedTile[];
+    resources: ResourceState;
+  }>>([]);
+  const [redoStack, setRedoStack] = useState<Array<{
+    placedBuildings: PlacedBuilding[];
+    zonedTiles: ZonedTile[];
+    resources: ResourceState;
+  }>>([]);
+
+  // CS2 Modals & Overlays State
+  const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(() => {
+    return !localStorage.getItem('genesis_tutorial_seen');
+  });
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
+  const [isBudgetOpen, setIsBudgetOpen] = useState<boolean>(false);
+  const [isStatisticsOpen, setIsStatisticsOpen] = useState<boolean>(false);
+
   // Dynamic RCI Demand & Utility calculation state
   const [rciDemand, setRciDemand] = useState<RciDemand>(() =>
     calculateRciDemand(initialResources.population, initialPlacedBuildings, 18, 95)
@@ -463,12 +515,72 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const pushSnapshot = useCallback(() => {
+    setHistoryStack((prev) => [
+      ...prev.slice(-29),
+      {
+        placedBuildings,
+        zonedTiles,
+        resources,
+      },
+    ]);
+    setRedoStack([]);
+  }, [placedBuildings, zonedTiles, resources]);
+
+  const undo = useCallback(() => {
+    globalWorldStore.undoLastAction().catch(() => {});
+    if (historyStack.length === 0) return;
+    const previous = historyStack[historyStack.length - 1];
+    setHistoryStack((prev) => prev.slice(0, prev.length - 1));
+    setRedoStack((prev) => [
+      ...prev,
+      {
+        placedBuildings,
+        zonedTiles,
+        resources,
+      },
+    ]);
+    setPlacedBuildings(previous.placedBuildings);
+    setZonedTiles(previous.zonedTiles);
+    setResources(previous.resources);
+    soundFx.playClick();
+    triggerToast({
+      type: 'info',
+      title: '↩️ ACTION UNDONE',
+      subtitle: 'Restored previous building and zoning layout.',
+    });
+  }, [historyStack, placedBuildings, zonedTiles, resources, triggerToast]);
+
+  const redo = useCallback(() => {
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setRedoStack((prev) => prev.slice(0, prev.length - 1));
+    setHistoryStack((prev) => [
+      ...prev,
+      {
+        placedBuildings,
+        zonedTiles,
+        resources,
+      },
+    ]);
+    setPlacedBuildings(next.placedBuildings);
+    setZonedTiles(next.zonedTiles);
+    setResources(next.resources);
+    soundFx.playClick();
+    triggerToast({
+      type: 'info',
+      title: '↪️ ACTION REDONE',
+      subtitle: 'Re-applied building and zoning action.',
+    });
+  }, [redoStack, placedBuildings, zonedTiles, resources, triggerToast]);
+
   const paintZoneTile = useCallback((x: number, z: number, zoneType: ZoneType) => {
-    const tileId = `tile-${Math.round(x)}-${Math.round(z)}`;
+    pushSnapshot();
     globalWorldStore.sendCommand({
       action: 'paint_zone',
-      payload: { x, z, zone_type: zoneType },
+      payload: { tile_id: `tile-${Math.round(x)}-${Math.round(z)}`, x: Math.round(x), z: Math.round(z), zone_type: zoneType },
     }).catch(() => {});
+    const tileId = `tile-${Math.round(x)}-${Math.round(z)}`;
     setZonedTiles((prev) => {
       const existing = prev.find((t) => t.id === tileId);
       if (existing) {
@@ -491,7 +603,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       return prev;
     });
     soundFx.playHammerBuild();
-  }, []);
+  }, [pushSnapshot]);
 
   // Fun Historical Twin Citizen Protests & Unrest System
   const [activeProtest, setActiveProtest] = useState<ProtestEvent | null>(historicalTwinProtests[0]);
@@ -615,6 +727,23 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const selectedBuilding = placedBuildings.find((b) => b.id === selectedBuildingId) || null;
 
+  // Natural Disaster Simulation State
+  const [disasterState, setDisasterState] = useState<DisasterSimulationState>(() => ({
+    activeDisaster: null,
+    risks: calculateDisasterRisks('clear', 12, initialResources, { resources: { waterNet: 0 } } as any, initialPlacedBuildings),
+    emergencyForces: calculateEmergencyForces(initialPlacedBuildings, initialResources),
+    settings: {
+      autoDisastersEnabled: true,
+      disasterFrequency: 'moderate',
+    },
+    historicalDisasterCount: 0,
+  }));
+
+  // Detailed Citizen Agent Multi-Need Social Intelligence
+  const [detailedAgents, setDetailedAgents] = useState<DetailedCitizenAgent[]>(() =>
+    createInitialDetailedAgents(initialCitizens)
+  );
+
   // Centralized City Simulation Report (Calculates fiscal flows, resource accounting, district metrics, demands & alerts)
   const economyReport = useMemo(() => {
     return calculateCitySimulation(placedBuildings, buildingCatalog, resources, districts, taxRate);
@@ -625,121 +754,22 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     economyReportRef.current = economyReport;
   }, [economyReport]);
 
-  // Disaster & Emergency Response State
-  const [disasterState, setDisasterState] = useState<DisasterSimulationState>(() => ({
-    activeDisaster: null,
-    risks: {
-      floodRiskPercent: 18,
-      wildfireRiskPercent: 12,
-      droughtRiskPercent: 10,
-      stormRiskPercent: 20,
-      seismicRiskPercent: 14,
-      overallThreatLevel: 'Low',
-    },
-    emergencyForces: {
-      medicalUnitsActive: 0,
-      medicalUnitsTotal: 4,
-      fireCrewsActive: 0,
-      fireCrewsTotal: 5,
-      rescueTeamsActive: 0,
-      rescueTeamsTotal: 4,
-      repairEngineersActive: 0,
-      repairEngineersTotal: 6,
-      shelterCapacityTotal: 120000,
-      responseEfficiencyPercent: 88,
-    },
-    settings: {
-      autoDisastersEnabled: false,
-      disasterFrequency: 'rare',
-    },
-    historicalDisasterCount: 0,
-  }));
+  // Throttled tick accumulator to eliminate HTTP flooding latency
+  const accumulatedTicksRef = useRef(0);
+  const lastBackendSyncRef = useRef(Date.now());
 
-  // Centralized Intelligent Citizen & Social Behaviour Simulation Report
   const citizenReport = useMemo(() => {
+    const timeOfDay = (civilization.currentDay * 8) % 24;
     return runCitizenSimulationTick(
       resources,
       placedBuildings,
       districts,
       economyReport,
       disasterState,
-      [],
-      (civilization.currentDay * 3.5) % 24
+      detailedAgents,
+      timeOfDay
     );
-  }, [resources, placedBuildings, districts, economyReport, disasterState, civilization.currentDay]);
-
-  const triggerDisaster = useCallback((type: DisasterType, intensity: DisasterIntensity, districtId?: string) => {
-    const dId = districtId || 'dist-residential';
-    const newDisaster = createDisaster(type, intensity, dId);
-    setDisasterState((prev) => ({
-      ...prev,
-      activeDisaster: newDisaster,
-      emergencyForces: {
-        ...prev.emergencyForces,
-        medicalUnitsActive: Math.min(prev.emergencyForces.medicalUnitsTotal, 3),
-        fireCrewsActive: type === 'wildfire' ? prev.emergencyForces.fireCrewsTotal : 2,
-        rescueTeamsActive: 2,
-        repairEngineersActive: 3,
-      },
-    }));
-
-    setEvents((prev) => [
-      {
-        id: `ev-${Date.now()}-disaster`,
-        year: civilization.currentYear,
-        day: civilization.currentDay,
-        title: `CRISIS ALERT: ${newDisaster.name}`,
-        description: `Natural disaster detected in ${districts.find((d) => d.id === dId)?.name || 'city sector'}. Emergency response units dispatched.`,
-        category: 'crisis',
-        severity: 'critical',
-        isRead: false,
-      },
-      ...prev,
-    ]);
-  }, [civilization.currentYear, civilization.currentDay, districts]);
-
-  const dispatchEmergencyResponse = useCallback(() => {
-    setDisasterState((prev) => {
-      if (!prev.activeDisaster) return prev;
-      return {
-        ...prev,
-        activeDisaster: {
-          ...prev.activeDisaster,
-          containmentPercent: Math.min(100, prev.activeDisaster.containmentPercent + 35),
-          stage: prev.activeDisaster.containmentPercent + 35 >= 100 ? 'recovering' : 'containing',
-        },
-      };
-    });
-  }, []);
-
-  const restoreAllDisasters = useCallback(() => {
-    setPlacedBuildings((prev) => emergencyFullCivilizationRestoration(prev));
-    setDisasterState((prev) => ({
-      ...prev,
-      activeDisaster: null,
-      emergencyForces: {
-        ...prev.emergencyForces,
-        medicalUnitsActive: 0,
-        fireCrewsActive: 0,
-        rescueTeamsActive: 0,
-        repairEngineersActive: 0,
-      },
-    }));
-  }, []);
-
-  const toggleAutoDisasters = useCallback(() => {
-    setDisasterState((prev) => ({
-      ...prev,
-      settings: {
-        ...prev.settings,
-        autoDisastersEnabled: !prev.settings.autoDisastersEnabled,
-      },
-    }));
-  }, []);
-
-  // Throttled tick accumulator to eliminate HTTP flooding latency
-  const accumulatedTicksRef = useRef(0);
-  const lastBackendSyncRef = useRef(Date.now());
+  }, [resources, placedBuildings, districts, economyReport, disasterState, detailedAgents, civilization.currentDay]);
 
   // Simulation Tick Logic
   const advanceTick = useCallback(() => {
@@ -950,14 +980,50 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setRciDemand(calculateRciDemand(resources.population, placedBuildings, taxRate, resources.health));
     setUtilityStats(calculateUtilityStats(placedBuildings, resources.population));
 
-    // 7. Real-time Citizen Chirper Network
-    if (Math.random() < 0.25 && districts.length > 0) {
+    // 6. Real-time Citizen Chirper Network tied to real simulation events
+    if (Math.random() < 0.28 && districts.length > 0) {
       const dName = districts[Math.floor(Math.random() * districts.length)].name;
-      const newChirp = generateRandomChirp(dName);
+      const simStatus = {
+        powerDeficit: utilityStats.powerConsumptionMW > utilityStats.powerCapacityMW,
+        waterDeficit: utilityStats.waterConsumptionM3 > utilityStats.waterCapacityM3,
+        highTaxes: taxRate > 20,
+        highPollution: utilityStats.pollutionIndex > 40 || resources.environmentalIndex < 40,
+        highHappiness: resources.happiness > 85,
+        techBreakthrough: Math.random() < 0.15,
+        materialsShortage: resources.materials < 500,
+      };
+      const newChirp = generateRandomChirp(dName, simStatus);
       setChirperFeed((prev) => [newChirp, ...prev.slice(0, 24)]);
     }
 
-    // 8. Background sync to FastAPI backend (WebSocket first with REST fallback)
+    // 7. Disaster Simulation Progression
+    setDisasterState((prevDisaster) => {
+      if (!prevDisaster.activeDisaster) return prevDisaster;
+      const { updatedDisaster, updatedBuildings } = advanceDisasterSimulation(
+        prevDisaster.activeDisaster,
+        placedBuildings,
+        prevDisaster.emergencyForces,
+        0.5
+      );
+
+      if (updatedBuildings) {
+        setPlacedBuildings(updatedBuildings);
+      }
+
+      return {
+        ...prevDisaster,
+        activeDisaster: updatedDisaster,
+      };
+    });
+
+    // 8. Update detailed citizen routines
+    setDetailedAgents((prevAgents) => {
+      const hour = (civilization.currentDay * 8) % 24;
+      const needs = calculateCitizenNeeds(resources, placedBuildings, economyReport, disasterState);
+      return updateCitizenRoutines(prevAgents, hour, disasterState?.activeDisaster, needs);
+    });
+
+    // 9. Background sync to FastAPI backend (WebSocket first with REST fallback)
     accumulatedTicksRef.current += 1;
     const now = Date.now();
     if (now - lastBackendSyncRef.current >= 4000) {
@@ -973,7 +1039,18 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         civilizationApi.advanceSimulationTicks(civilization.id, ticksToSync).catch(() => {});
       }
     }
-  }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts, civilization]);
+  }, [
+    rates,
+    resources.population,
+    resources.health,
+    placedBuildings,
+    taxRate,
+    districts,
+    civilization,
+    utilityStats,
+    economyReport,
+    disasterState,
+  ]);
 
   // Real-Time Event Engine (Phase 6): Maintain centralized WebSocket connection
   useEffect(() => {
@@ -1207,6 +1284,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
+    // Save state snapshot for Undo/Redo
+    pushSnapshot();
+
     // Deduct materials
     setResources((prev) => ({
       ...prev,
@@ -1237,6 +1317,20 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     };
 
     setPlacedBuildings((prev) => [...prev, newBuilding]);
+    globalWorldStore.sendCommand({
+      action: 'place_building',
+      payload: {
+        id: newBuilding.id,
+        type: newBuilding.catalogId,
+        category: newBuilding.category,
+        x: newBuilding.x,
+        y: newBuilding.y,
+        z: newBuilding.z,
+        footprint_x: 2,
+        footprint_z: 2,
+        district_id: districtId,
+      },
+    }).catch(() => {});
     civilizationApi.constructFacility(civilization.id, {
       catalogId: newBuilding.catalogId,
       name: newBuilding.name,
@@ -1247,29 +1341,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       y: newBuilding.y,
       districtId: newBuilding.districtId,
     }).catch(() => {});
-
-    globalWorldStore.sendCommand({
-      action: 'place_building',
-      payload: {
-        catalog_id: newBuilding.catalogId,
-        name: newBuilding.name,
-        type: item.category.charAt(0).toUpperCase() + item.category.slice(1),
-        category: newBuilding.category,
-        x: newBuilding.x,
-        z: newBuilding.z,
-        y: newBuilding.y,
-        rotation: newBuilding.rotation,
-        district_id: newBuilding.districtId,
-      },
-    }).then((cmdRes) => {
-      if (cmdRes && cmdRes.status === 'rejected') {
-        triggerToast({
-          type: 'info',
-          title: 'Construction Suspended',
-          subtitle: cmdRes.reason || 'Placement denied by simulation authority',
-        });
-      }
-    });
 
     const event: GameEvent = {
       id: `ev-${Date.now()}`,
@@ -1592,6 +1663,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     const building = placedBuildings.find((b) => b.id === buildingId);
     if (!building) return;
 
+    // Save state snapshot for Undo/Redo
+    pushSnapshot();
+
     setPlacedBuildings((prev) => prev.filter((b) => b.id !== buildingId));
     civilizationApi.decommissionFacility(civilization.id, buildingId).catch(() => {});
     globalWorldStore.sendCommand({
@@ -1831,6 +1905,75 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setEvents((prev) => [event, ...prev]);
   };
 
+  const triggerDisaster = (type: DisasterType, intensity: DisasterIntensity, districtId?: string) => {
+    const dId = districtId || 'dist-residential';
+    const newDisaster = createDisaster(type, intensity, dId);
+    setDisasterState((prev) => ({
+      ...prev,
+      activeDisaster: newDisaster,
+      emergencyForces: {
+        ...prev.emergencyForces,
+        medicalUnitsActive: Math.min(prev.emergencyForces.medicalUnitsTotal, 3),
+        fireCrewsActive: type === 'wildfire' ? prev.emergencyForces.fireCrewsTotal : 2,
+        rescueTeamsActive: 2,
+        repairEngineersActive: 3,
+      },
+    }));
+
+    setEvents((prev) => [
+      {
+        id: `ev-${Date.now()}-disaster`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: `CRISIS ALERT: ${newDisaster.name}`,
+        description: `Natural disaster detected in ${districts.find((d) => d.id === dId)?.name || 'city sector'}. Emergency response units dispatched.`,
+        category: 'crisis',
+        severity: 'critical',
+        isRead: false,
+      },
+      ...prev,
+    ]);
+  };
+
+  const dispatchEmergencyResponse = () => {
+    setDisasterState((prev) => {
+      if (!prev.activeDisaster) return prev;
+      return {
+        ...prev,
+        activeDisaster: {
+          ...prev.activeDisaster,
+          containmentPercent: Math.min(100, prev.activeDisaster.containmentPercent + 35),
+          stage: prev.activeDisaster.containmentPercent + 35 >= 100 ? 'recovering' : 'containing',
+        },
+      };
+    });
+  };
+
+  const restoreAllDisasters = () => {
+    setPlacedBuildings((prev) => emergencyFullCivilizationRestoration(prev));
+    setDisasterState((prev) => ({
+      ...prev,
+      activeDisaster: null,
+      emergencyForces: {
+        ...prev.emergencyForces,
+        medicalUnitsActive: 0,
+        fireCrewsActive: 0,
+        rescueTeamsActive: 0,
+        repairEngineersActive: 0,
+      },
+    }));
+  };
+
+  const toggleAutoDisasters = () => {
+    setDisasterState((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        autoDisastersEnabled: !prev.settings.autoDisastersEnabled,
+      },
+    }));
+  };
+
   const createNewCivilization = (data: Partial<CivilizationProfile>) => {
     const newCiv: CivilizationProfile = {
       id: `civ-${Date.now().toString().slice(-4)}`,
@@ -1976,6 +2119,20 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       utilityStats,
       inspectedCitizen,
       setInspectedCitizen,
+      // Undo & Redo History
+      canUndo: historyStack.length > 0,
+      canRedo: redoStack.length > 0,
+      undo,
+      redo,
+      // CS2 Modals & Overlays
+      isTutorialOpen,
+      setIsTutorialOpen,
+      isShortcutsOpen,
+      setIsShortcutsOpen,
+      isBudgetOpen,
+      setIsBudgetOpen,
+      isStatisticsOpen,
+      setIsStatisticsOpen,
     }),
     [
       civilization,
@@ -2033,6 +2190,14 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       isBulldozerActive,
       utilityStats,
       inspectedCitizen,
+      historyStack.length,
+      redoStack.length,
+      undo,
+      redo,
+      isTutorialOpen,
+      isShortcutsOpen,
+      isBudgetOpen,
+      isStatisticsOpen,
       advanceTick,
       advanceYear,
       claimAchievement,

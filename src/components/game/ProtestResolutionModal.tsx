@@ -26,6 +26,18 @@ export default function ProtestResolutionModal() {
     resources,
   } = useGameState();
 
+  React.useEffect(() => {
+    if (!isProtestModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        soundFx.playClick();
+        setIsProtestModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isProtestModalOpen, setIsProtestModalOpen]);
+
   if (!isProtestModalOpen || !activeProtest) return null;
 
   return (

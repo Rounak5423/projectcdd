@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { GraphicsProvider } from './context/GraphicsSettingsContext';
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import BottomControls from './components/layout/BottomControls';
@@ -9,6 +10,10 @@ import GameModals from './components/layout/GameModals';
 import FloatingRewardBanner from './components/game/FloatingRewardBanner';
 import ProtestResolutionModal from './components/game/ProtestResolutionModal';
 import DemoShowcaseModal from './components/game/DemoShowcaseModal';
+import TutorialModal from './components/game/TutorialModal';
+import KeyboardShortcutsModal from './components/game/KeyboardShortcutsModal';
+import CS2BudgetModal from './components/cs2/CS2BudgetModal';
+import CS2StatisticsModal from './components/cs2/CS2StatisticsModal';
 
 // Pages - Direct imports for critical initial path
 import WorldExplorerPage from './pages/WorldExplorerPage';
@@ -47,8 +52,34 @@ function GameApp() {
   const [activePage, setActivePage] = useState<string>('World Explorer');
   const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(false);
   const [isPerformanceDashboardOpen, setIsPerformanceDashboardOpen] = useState<boolean>(false);
-  const { togglePlay, setSpeed, selectedBuildingId, setConstructionMode } = useGameState();
-  const { isAuthenticated, isLoading, logout, user } = useAuth();
+  const {
+    togglePlay,
+    setSpeed,
+    selectedBuilding,
+    selectedBuildingId,
+    setConstructionMode,
+    undo,
+    redo,
+    isBulldozerActive,
+    setIsBulldozerActive,
+    activeZoneTool,
+    setActiveZoneTool,
+    activeInfoView,
+    setActiveInfoView,
+    isChirperOpen,
+    setIsChirperOpen,
+    isMilestonesModalOpen,
+    setIsMilestonesModalOpen,
+    isTutorialOpen,
+    setIsTutorialOpen,
+    isShortcutsOpen,
+    setIsShortcutsOpen,
+    isBudgetOpen,
+    setIsBudgetOpen,
+    isStatisticsOpen,
+    setIsStatisticsOpen,
+  } = useGameState();
+  const { isAuthenticated, isLoading, logout, user, isAdmin } = useAuth();
 
   // App-level navigation stage: landing → auth → app
   const [stage, setStage] = useState<AppStage>('landing');
@@ -79,18 +110,44 @@ function GameApp() {
     }
   };
 
-  // Keyboard Hotkeys
+  // Keyboard Hotkeys: Space, 1-4, ESC, Ctrl+Z/Y (Undo/Redo), B, Z, I, C, M, ?
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) return;
       if (e.code === 'Escape') {
         e.preventDefault();
         soundFx.playClick();
+        if (isShortcutsOpen) {
+          setIsShortcutsOpen(false);
+          return;
+        }
+        if (isTutorialOpen) {
+          setIsTutorialOpen(false);
+          return;
+        }
+        if (isBudgetOpen) {
+          setIsBudgetOpen(false);
+          return;
+        }
+        if (isStatisticsOpen) {
+          setIsStatisticsOpen(false);
+          return;
+        }
+        if (isMilestonesModalOpen) {
+          setIsMilestonesModalOpen(false);
+          return;
+        }
+        if (isChirperOpen) {
+          setIsChirperOpen(false);
+          return;
+        }
         if (activePage !== 'World Explorer') {
           setActivePage('World Explorer');
         } else {
           setConstructionMode(false);
           setIsRightPanelOpen(false);
+          setIsBulldozerActive(false);
+          setActiveZoneTool(null);
         }
       } else if (e.code === 'Space') {
         e.preventDefault();
@@ -107,11 +164,64 @@ function GameApp() {
         e.preventDefault();
         soundFx.playClick();
         setIsPerformanceDashboardOpen((prev) => !prev);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redo();
+      } else if (e.key.toLowerCase() === 'b' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        soundFx.playClick();
+        setIsBulldozerActive(!isBulldozerActive);
+      } else if (e.key.toLowerCase() === 'z' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        soundFx.playClick();
+        setActiveZoneTool(activeZoneTool ? null : 'residential_high');
+      } else if (e.key.toLowerCase() === 'i' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        soundFx.playClick();
+        setActiveInfoView(activeInfoView === 'none' ? 'electricity' : 'none');
+      } else if (e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        soundFx.playClick();
+        setIsChirperOpen(!isChirperOpen);
+      } else if (e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        soundFx.playClick();
+        setIsMilestonesModalOpen(!isMilestonesModalOpen);
+      } else if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+        e.preventDefault();
+        soundFx.playClick();
+        setIsShortcutsOpen(!isShortcutsOpen);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlay, setSpeed, activePage, setConstructionMode]);
+  }, [
+    togglePlay,
+    setSpeed,
+    activePage,
+    setConstructionMode,
+    undo,
+    redo,
+    isBulldozerActive,
+    setIsBulldozerActive,
+    activeZoneTool,
+    setActiveZoneTool,
+    activeInfoView,
+    setActiveInfoView,
+    isChirperOpen,
+    setIsChirperOpen,
+    isMilestonesModalOpen,
+    setIsMilestonesModalOpen,
+    isShortcutsOpen,
+    setIsShortcutsOpen,
+  ]);
 
   const renderOverlay = () => {
     const handleClose = () => {
@@ -138,8 +248,10 @@ function GameApp() {
       case 'Missions & Challenges':
       case 'Missions':
         return <MissionsPage onClose={handleClose} />;
+      case 'Technology Tree':
       case 'Technology':
         return <TechnologyPage onClose={handleClose} />;
+      case 'Economy & Resources':
       case 'Economy':
         return <EconomyPage onClose={handleClose} />;
       case 'Resources':
@@ -280,6 +392,27 @@ function GameApp() {
         isOpen={isPerformanceDashboardOpen}
         onClose={() => setIsPerformanceDashboardOpen(false)}
       />
+      <TutorialModal
+        isOpen={isTutorialOpen}
+        onClose={() => {
+          setIsTutorialOpen(false);
+          try {
+            localStorage.setItem('genesis_tutorial_seen', 'true');
+          } catch {}
+        }}
+      />
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
+      />
+      <CS2BudgetModal
+        isOpen={isBudgetOpen}
+        onClose={() => setIsBudgetOpen(false)}
+      />
+      <CS2StatisticsModal
+        isOpen={isStatisticsOpen}
+        onClose={() => setIsStatisticsOpen(false)}
+      />
     </div>
   );
 }
@@ -288,7 +421,9 @@ export default function App() {
   return (
     <AuthProvider>
       <GameStateProvider>
-        <GameApp />
+        <GraphicsProvider>
+          <GameApp />
+        </GraphicsProvider>
       </GameStateProvider>
     </AuthProvider>
   );

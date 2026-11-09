@@ -5,5 +5,38 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
   ],
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalized = id.replace(/\\/g, '/');
+          if (normalized.includes('node_modules')) {
+            if (normalized.includes('three') || normalized.includes('@react-three')) {
+              return 'vendor-three';
+            }
+            if (normalized.includes('recharts')) {
+              return 'vendor-charts';
+            }
+            if (normalized.includes('framer-motion')) {
+              return 'vendor-motion';
+            }
+            if (normalized.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (normalized.includes('react') || normalized.includes('react-dom') || normalized.includes('react-router')) {
+              return 'vendor-react';
+            }
+            return 'vendor-libs';
+          }
+          if (normalized.includes('src/features/council/three')) {
+            return 'feature-council-3d';
+          }
+          if (normalized.includes('src/features/council')) {
+            return 'feature-council';
+          }
+        },
+      },
+    },
+  },
 });
-

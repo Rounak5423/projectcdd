@@ -3,7 +3,6 @@ import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameState } from '../../context/GameStateContext';
-import { useUnifiedWorld } from '../../world/useUnifiedWorld';
 import { getTerrainHeight } from './Terrain';
 import { soundFx } from '../../services/soundFx';
 
@@ -32,9 +31,6 @@ export default function CS2ZoningAndInfoView3D() {
   } = useGameState();
 
   const [hoveredBuildingId, setHoveredBuildingId] = useState<string | null>(null);
-  const { utilities } = useUnifiedWorld();
-  const unpoweredSet = useMemo(() => new Set(utilities?.unpowered_building_ids || []), [utilities]);
-  const unwateredSet = useMemo(() => new Set(utilities?.unwatered_building_ids || []), [utilities]);
 
   // 1. Zoned Cell Grid Meshes (Cities: Skylines II Style Curb Lot Grid)
   const zoneCells = useMemo(() => {
@@ -95,25 +91,21 @@ export default function CS2ZoningAndInfoView3D() {
         <group name="electricity-overlay">
           {placedBuildings.map((b) => {
             const isPowerSource = b.category === 'energy';
-            const isUnpowered = unpoweredSet.has(b.id);
-            const overlayColor = isPowerSource ? '#f1c40f' : isUnpowered ? '#e74c3c' : '#2ecc71';
-            const overlayLabel = isPowerSource ? 'GENERATOR' : isUnpowered ? 'BLACKOUT (NO POWER)' : 'GRID CONNECTED';
-
             return (
               <group key={`elec-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
                 <mesh rotation={[-Math.PI / 2, 0, 0]}>
                   <ringGeometry args={[1.8, 2.6, 16]} />
                   <meshBasicMaterial
-                    color={overlayColor}
+                    color={isPowerSource ? '#f1c40f' : '#2ecc71'}
                     transparent
-                    opacity={0.75}
+                    opacity={0.7}
                     side={THREE.DoubleSide}
                   />
                 </mesh>
                 <Html position={[0, 4.0, 0]} center distanceFactor={35} pointerEvents="none">
-                  <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${isUnpowered ? 'bg-[#2a1010]/95 border-[#e74c3c] text-[#e74c3c] animate-pulse' : 'bg-[#1b1c10]/90 border-[#f1c40f] text-[#f1c40f]'} border text-[9px] font-mono font-bold shadow-lg`}>
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#1b1c10]/90 border border-[#f1c40f] text-[#f1c40f] text-[9px] font-mono font-bold shadow-lg">
                     <span>⚡</span>
-                    <span>{overlayLabel}</span>
+                    <span>{isPowerSource ? 'GENERATOR' : 'GRID CONNECTED'}</span>
                   </div>
                 </Html>
               </group>
@@ -125,26 +117,20 @@ export default function CS2ZoningAndInfoView3D() {
       {/* 3. WATER & SEWAGE INFO VIEW OVERLAY */}
       {activeInfoView === 'water' && (
         <group name="water-overlay">
-          {placedBuildings.map((b) => {
-            const isUnwatered = unwateredSet.has(b.id);
-            const overlayColor = isUnwatered ? '#e67e22' : '#3498db';
-            const overlayLabel = isUnwatered ? 'DEFICIT (NO WATER)' : 'WATER FLOW OK';
-
-            return (
-              <group key={`water-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
-                <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                  <ringGeometry args={[1.6, 2.3, 16]} />
-                  <meshBasicMaterial color={overlayColor} transparent opacity={0.7} side={THREE.DoubleSide} />
-                </mesh>
-                <Html position={[0, 3.8, 0]} center distanceFactor={35} pointerEvents="none">
-                  <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${isUnwatered ? 'bg-[#2a1910]/95 border-[#e67e22] text-[#e67e22] animate-pulse' : 'bg-[#0e171f]/90 border-[#3498db] text-[#5dade2]'} border text-[9px] font-mono font-bold shadow-lg`}>
-                    <span>💧</span>
-                    <span>{overlayLabel}</span>
-                  </div>
-                </Html>
-              </group>
-            );
-          })}
+          {placedBuildings.map((b) => (
+            <group key={`water-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[1.6, 2.3, 16]} />
+                <meshBasicMaterial color="#3498db" transparent opacity={0.65} side={THREE.DoubleSide} />
+              </mesh>
+              <Html position={[0, 3.8, 0]} center distanceFactor={35} pointerEvents="none">
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0e171f]/90 border border-[#3498db] text-[#5dade2] text-[9px] font-mono font-bold shadow-lg">
+                  <span>💧</span>
+                  <span>WATER FLOW OK</span>
+                </div>
+              </Html>
+            </group>
+          ))}
         </group>
       )}
 
@@ -191,6 +177,120 @@ export default function CS2ZoningAndInfoView3D() {
                 </Html>
               </group>
             ))}
+        </group>
+      )}
+
+      {/* 5.1 CRIME & SECURITY OVERLAY */}
+      {activeInfoView === 'crime' && (
+        <group name="crime-overlay">
+          {placedBuildings.map((b) => (
+            <group key={`sec-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[2.5, 3.2, 16]} />
+                <meshBasicMaterial color="#3b82f6" transparent opacity={0.6} side={THREE.DoubleSide} />
+              </mesh>
+              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                <div className="px-1.5 py-0.5 rounded bg-[#0a192f]/90 border border-[#3b82f6] text-[#93c5fd] text-[9px] font-mono font-bold">
+                  🛡️ PATROL: 98% SECURE
+                </div>
+              </Html>
+            </group>
+          ))}
+        </group>
+      )}
+
+      {/* 5.2 HEALTHCARE COVERAGE OVERLAY */}
+      {activeInfoView === 'health' && (
+        <group name="health-overlay">
+          {placedBuildings.map((b) => (
+            <group key={`hlth-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[2.0, 3.0, 16]} />
+                <meshBasicMaterial color="#ef4444" transparent opacity={0.65} side={THREE.DoubleSide} />
+              </mesh>
+              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                <div className="px-1.5 py-0.5 rounded bg-[#2b0d0e]/90 border border-[#ef4444] text-[#fca5a5] text-[9px] font-mono font-bold">
+                  ❤️ CLINIC ACCESS / 82 YR
+                </div>
+              </Html>
+            </group>
+          ))}
+        </group>
+      )}
+
+      {/* 5.3 EDUCATION COGNITIVE GRID OVERLAY */}
+      {activeInfoView === 'education' && (
+        <group name="education-overlay">
+          {placedBuildings.map((b) => (
+            <group key={`edu-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[2.2, 3.4, 16]} />
+                <meshBasicMaterial color="#8b5cf6" transparent opacity={0.65} side={THREE.DoubleSide} />
+              </mesh>
+              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                <div className="px-1.5 py-0.5 rounded bg-[#1f1035]/90 border border-[#8b5cf6] text-[#c4b5fd] text-[9px] font-mono font-bold">
+                  🎓 ACADEMY COGNITIVE SHIELD
+                </div>
+              </Html>
+            </group>
+          ))}
+        </group>
+      )}
+
+      {/* 5.4 PUBLIC TRANSIT CORRIDORS OVERLAY */}
+      {activeInfoView === 'transit' && (
+        <group name="transit-overlay">
+          {placedBuildings.map((b) => (
+            <group key={`trans-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[1.6, 2.4, 16]} />
+                <meshBasicMaterial color="#10b981" transparent opacity={0.7} side={THREE.DoubleSide} />
+              </mesh>
+              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                <div className="px-1.5 py-0.5 rounded bg-[#092618]/90 border border-[#10b981] text-[#6ee7b7] text-[9px] font-mono font-bold">
+                  🚌 TRANSIT STOP: 5 MIN
+                </div>
+              </Html>
+            </group>
+          ))}
+        </group>
+      )}
+
+      {/* 5.5 NOISE EXPOSURE OVERLAY */}
+      {activeInfoView === 'noise' && (
+        <group name="noise-overlay">
+          {placedBuildings.map((b) => (
+            <group key={`noise-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                <circleGeometry args={[5.0, 16]} />
+                <meshBasicMaterial color="#e67e22" transparent opacity={0.25} side={THREE.DoubleSide} />
+              </mesh>
+              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                <div className="px-1.5 py-0.5 rounded bg-[#2e1806]/90 border border-[#e67e22] text-[#fdba74] text-[9px] font-mono font-bold">
+                  🔊 58 dB AMBIENT
+                </div>
+              </Html>
+            </group>
+          ))}
+        </group>
+      )}
+
+      {/* 5.6 UNEMPLOYMENT & JOB MARKET OVERLAY */}
+      {activeInfoView === 'unemployment' && (
+        <group name="unemployment-overlay">
+          {placedBuildings.map((b) => (
+            <group key={`unemp-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+              <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[1.8, 2.5, 16]} />
+                <meshBasicMaterial color="#f97316" transparent opacity={0.65} side={THREE.DoubleSide} />
+              </mesh>
+              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                <div className="px-1.5 py-0.5 rounded bg-[#2a1306]/90 border border-[#f97316] text-[#fed7aa] text-[9px] font-mono font-bold">
+                  💼 JOBS: 91% SATURATED
+                </div>
+              </Html>
+            </group>
+          ))}
         </group>
       )}
 

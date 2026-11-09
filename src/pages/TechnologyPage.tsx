@@ -21,6 +21,7 @@ import {
 import { useGameState } from '../context/GameStateContext';
 import { Technology, TechEra } from '../types/game';
 import { soundFx } from '../services/soundFx';
+import { civilizationApi } from '../services/civilizationApi';
 
 interface CivTechItem {
   id: string;
@@ -244,21 +245,56 @@ const civTechData: CivTechItem[] = [
 ];
 
 export default function TechnologyPage({ onClose }: { onClose?: () => void }) {
-  const { technologies, startResearch, triggerEureka, resources } = useGameState();
+  const { civilization, technologies, startResearch, triggerEureka, resources } = useGameState();
   const [techList, setTechList] = useState<CivTechItem[]>(civTechData);
-  const [activeResearchId, setActiveResearchId] = useState<string>('tech-iron');
-  const [researchProgress, setResearchProgress] = useState<number>(340);
+  const [activeResearchId, setActiveResearchId] = useState<string>('tech-celestial');
+  const [researchProgress, setResearchProgress] = useState<number>(0);
+  const [sciencePerTurn, setSciencePerTurn] = useState<number>(36.0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTech, setSelectedTech] = useState<CivTechItem | null>(null);
   const [filterEra, setFilterEra] = useState<string>('all');
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
 
-  const activeTech = techList.find((t) => t.id === activeResearchId) || techList[1];
+  // Sync with Backend Technology Overview & Tree
+  useEffect(() => {
+    let isMounted = true;
+    civilizationApi.getTechnologyOverview(civilization.id).then((res) => {
+      if (!isMounted || !res.success || !res.data) return;
+      const data = res.data;
+      if (data.science_per_turn) setSciencePerTurn(data.science_per_turn);
+      if (data.active_technology) {
+        setActiveResearchId(data.active_technology.id);
+        setResearchProgress(data.active_technology.research_progress || 0);
+      }
+      if (data.technologies && data.technologies.length > 0) {
+        setTechList((prev) =>
+          prev.map((localItem) => {
+            const serverNode = data.technologies.find((s: any) => s.id === localItem.id);
+            if (!serverNode) return localItem;
+            return {
+              ...localItem,
+              turns: serverNode.turns ?? localItem.turns,
+              isBoosted: serverNode.is_boosted ?? localItem.isBoosted,
+              boostText: serverNode.boost_text || localItem.boostText,
+              costPoints: serverNode.cost_points ?? localItem.costPoints,
+            };
+          })
+        );
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, [civilization.id]);
+
+  const activeTech = techList.find((t) => t.id === activeResearchId) || techList[3] || techList[0];
 
   const handleCommenceResearch = (tech: CivTechItem) => {
     soundFx.playResearchStart();
     setActiveResearchId(tech.id);
     setResearchProgress(0);
+
+    // Call backend API
+    civilizationApi.queueResearch(civilization.id, tech.id).catch(() => {});
+
     const matchingGlobal = technologies.find((t) => t.name.toLowerCase().includes(tech.name.toLowerCase()));
     if (matchingGlobal) {
       startResearch(matchingGlobal.id);
@@ -267,6 +303,10 @@ export default function TechnologyPage({ onClose }: { onClose?: () => void }) {
 
   const handleTriggerEureka = (techId: string) => {
     soundFx.playEureka();
+
+    // Call backend Eureka trigger
+    civilizationApi.triggerEurekaBoost(civilization.id, techId).catch(() => {});
+
     setTechList((prev) =>
       prev.map((t) =>
         t.id === techId
@@ -375,7 +415,7 @@ export default function TechnologyPage({ onClose }: { onClose?: () => void }) {
         <div className="flex items-center gap-3 font-serif">
           <div className="text-right hidden sm:block">
             <span className="text-[10px] text-[#98b8ba] block leading-none">SCIENCE PER TURN</span>
-            <span className="text-xs font-bold font-mono text-[#caa455]">+36.0 🧪</span>
+            <span className="text-xs font-bold font-mono text-[#caa455]">+{sciencePerTurn.toFixed(1)} 🧪</span>
           </div>
           <div className="w-8 h-8 rounded-full border-2 border-[#caa455] bg-[#092b2f] flex items-center justify-center text-[#caa455] shadow-md font-mono text-xs font-bold">
             {activeTech.turns}T

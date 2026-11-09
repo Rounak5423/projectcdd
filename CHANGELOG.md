@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.0] - 2026-11-09 (Full Rounak Frontend Integration & System Hardening)
+
+### Integrated & Preserved
+- **Frontend Integration from `origin/rounak`:**
+  - Integrated 3D Council character models (`public/models/council/` GLB assets).
+  - Integrated Civil Defense & Disaster Management dashboards (`DisasterManagementDashboard`, `DisasterVisualEffects`).
+  - Integrated Citizen Intelligence engine & demographic census tab in `PopulationPage.tsx`.
+  - Integrated CS2 Infoview overlays (Noise, Crime, Healthcare, Education, Transit, Unemployment) in `CS2ZoningAndInfoView3D.tsx` alongside live unified power/water blackout overlays.
+  - Integrated global keyboard shortcuts, tutorial onboarding modal, budget modal, and statistics modal.
+  - Integrated `CivoraErrorBoundary` and WebGL context restoration handlers.
+  - Integrated chunk-splitting rollup options in `vite.config.ts`.
+- **Preserved Core Backend & Model Architectures:**
+  - Preserved all Multi-Level ML Behavioral Models (Levels 1-5), LightGBM weights, Neural MLP models, Parquet training telemetry, and scenario runners.
+  - Preserved Unified World architecture (`engine/world/`), authoritative command layer, undo stack, and derived city metrics.
+  - Preserved Causal Simulation engine (`engine/causal/`), vitals endpoints (`/api/v1/causal/vitals`), and Causal Insights UI.
+- **Verification:**
+  - TypeScript & Vite build: 100% clean compilation.
+  - Backend pytest suite: **95 / 95 passing** (100%).
+  - Live system verification: **21 / 21 passing** (100%).
+  - Playwright E2E suite: **7 / 7 passing** (100%).
+
 ## [2.3.0] - 2026-11-09 (Unified World Architecture & Complete Feature Logic Wiring)
 
 ### Added

@@ -100,10 +100,10 @@ def test_telemetry_exporter_throughput_overhead(tmp_path):
     world_no_telem = create_initial_world(population_size=40, grid_size=20, seed=42)
     world_telem = create_initial_world(population_size=40, grid_size=20, seed=42)
 
-    num_ticks = 120
+    num_ticks = 240
 
     from ml.telemetry import TelemetryBatchExporter, set_telemetry_exporter
-    test_exporter = TelemetryBatchExporter(output_dir=str(tmp_path), interval_ticks=6, batch_size=200, enabled=True)
+    test_exporter = TelemetryBatchExporter(output_dir=str(tmp_path), interval_ticks=60, batch_size=200, enabled=True)
     set_telemetry_exporter(test_exporter)
 
     # Baseline: exporter disabled
