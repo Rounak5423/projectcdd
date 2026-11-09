@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import {
   CivilizationProfile,
   ResourceState,
@@ -59,6 +59,7 @@ import {
 } from '../data/cs2Data';
 import { soundFx } from '../services/soundFx';
 import { civilizationApi } from '../services/civilizationApi';
+import { civoraEventClient } from '../services/realtime/CivoraEventClient';
 import {
   calculateCitySimulation,
   CitySimulationReport,
@@ -69,34 +70,18 @@ import {
   DisasterSimulationState,
 } from '../types/disaster';
 import {
-  calculateDisasterRisks,
-  calculateEmergencyForces,
   createDisaster,
-  advanceDisasterSimulation,
   emergencyFullCivilizationRestoration,
 } from '../simulation/disasterSimulationEngine';
 import {
-  CitizenSimulationReport,
-  DetailedCitizenAgent,
-} from '../types/citizen';
-import {
   runCitizenSimulationTick,
-  createInitialDetailedAgents,
-  calculateCitizenNeeds,
-  updateCitizenRoutines,
 } from '../simulation/citizenSimulationEngine';
+import {
+  CitizenSimulationReport,
+} from '../types/citizen';
 
 export type MapLayer = 'all' | 'infrastructure' | 'population' | 'resources' | 'environment' | 'economy';
-export type ActiveDrawer =
-  | 'none'
-  | 'notifications'
-  | 'codex'
-  | 'timeline'
-  | 'construction'
-  | 'buildingInspector'
-  | 'economy'
-  | 'disaster'
-  | 'citizens';
+export type ActiveDrawer = 'none' | 'notifications' | 'codex' | 'timeline' | 'construction' | 'buildingInspector' | 'economy';
 
 export interface GameToast {
   id: string;
@@ -273,22 +258,6 @@ interface GameStateContextType {
   utilityStats: UtilityStats;
   inspectedCitizen: Citizen | null;
   setInspectedCitizen: (citizen: Citizen | null) => void;
-
-  // Undo & Redo History
-  canUndo: boolean;
-  canRedo: boolean;
-  undo: () => void;
-  redo: () => void;
-
-  // CS2 Modals & Overlays
-  isTutorialOpen: boolean;
-  setIsTutorialOpen: (open: boolean) => void;
-  isShortcutsOpen: boolean;
-  setIsShortcutsOpen: (open: boolean) => void;
-  isBudgetOpen: boolean;
-  setIsBudgetOpen: (open: boolean) => void;
-  isStatisticsOpen: boolean;
-  setIsStatisticsOpen: (open: boolean) => void;
 }
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -320,6 +289,25 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     perks: string[];
   } | null>(null);
 
+  // Managed Timer Registry (Phase 8: Prevents detached timer closures & memory leaks on unmount)
+  const activeTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  const safeSetTimeout = useCallback((fn: () => void, delayMs: number) => {
+    const timer = setTimeout(() => {
+      activeTimersRef.current.delete(timer);
+      fn();
+    }, delayMs);
+    activeTimersRef.current.add(timer);
+    return timer;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      activeTimersRef.current.forEach((t) => clearTimeout(t));
+      activeTimersRef.current.clear();
+    };
+  }, []);
+
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
@@ -328,10 +316,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const newToast: GameToast = { ...toast, id };
     setToasts((prev) => [newToast, ...prev.slice(0, 4)]);
-    setTimeout(() => {
+    safeSetTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4500);
-  }, []);
+  }, [safeSetTimeout]);
 
   const dismissLevelUp = useCallback(() => {
     setLevelUpCelebration(null);
@@ -420,26 +408,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [isBulldozerActive, setIsBulldozerActive] = useState<boolean>(false);
   const [inspectedCitizen, setInspectedCitizen] = useState<Citizen | null>(null);
 
-  // Undo & Redo History Stacks
-  const [historyStack, setHistoryStack] = useState<Array<{
-    placedBuildings: PlacedBuilding[];
-    zonedTiles: ZonedTile[];
-    resources: ResourceState;
-  }>>([]);
-  const [redoStack, setRedoStack] = useState<Array<{
-    placedBuildings: PlacedBuilding[];
-    zonedTiles: ZonedTile[];
-    resources: ResourceState;
-  }>>([]);
-
-  // CS2 Modals & Overlays State
-  const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(() => {
-    return !localStorage.getItem('genesis_tutorial_seen');
-  });
-  const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
-  const [isBudgetOpen, setIsBudgetOpen] = useState<boolean>(false);
-  const [isStatisticsOpen, setIsStatisticsOpen] = useState<boolean>(false);
-
   // Dynamic RCI Demand & Utility calculation state
   const [rciDemand, setRciDemand] = useState<RciDemand>(() =>
     calculateRciDemand(initialResources.population, initialPlacedBuildings, 18, 95)
@@ -458,66 +426,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const pushSnapshot = useCallback(() => {
-    setHistoryStack((prev) => [
-      ...prev.slice(-29),
-      {
-        placedBuildings,
-        zonedTiles,
-        resources,
-      },
-    ]);
-    setRedoStack([]);
-  }, [placedBuildings, zonedTiles, resources]);
-
-  const undo = useCallback(() => {
-    if (historyStack.length === 0) return;
-    const previous = historyStack[historyStack.length - 1];
-    setHistoryStack((prev) => prev.slice(0, prev.length - 1));
-    setRedoStack((prev) => [
-      ...prev,
-      {
-        placedBuildings,
-        zonedTiles,
-        resources,
-      },
-    ]);
-    setPlacedBuildings(previous.placedBuildings);
-    setZonedTiles(previous.zonedTiles);
-    setResources(previous.resources);
-    soundFx.playClick();
-    triggerToast({
-      type: 'info',
-      title: '↩️ ACTION UNDONE',
-      subtitle: 'Restored previous building and zoning layout.',
-    });
-  }, [historyStack, placedBuildings, zonedTiles, resources, triggerToast]);
-
-  const redo = useCallback(() => {
-    if (redoStack.length === 0) return;
-    const next = redoStack[redoStack.length - 1];
-    setRedoStack((prev) => prev.slice(0, prev.length - 1));
-    setHistoryStack((prev) => [
-      ...prev,
-      {
-        placedBuildings,
-        zonedTiles,
-        resources,
-      },
-    ]);
-    setPlacedBuildings(next.placedBuildings);
-    setZonedTiles(next.zonedTiles);
-    setResources(next.resources);
-    soundFx.playClick();
-    triggerToast({
-      type: 'info',
-      title: '↪️ ACTION REDONE',
-      subtitle: 'Re-applied building and zoning action.',
-    });
-  }, [redoStack, placedBuildings, zonedTiles, resources, triggerToast]);
-
   const paintZoneTile = useCallback((x: number, z: number, zoneType: ZoneType) => {
-    pushSnapshot();
     const tileId = `tile-${Math.round(x)}-${Math.round(z)}`;
     setZonedTiles((prev) => {
       const existing = prev.find((t) => t.id === tileId);
@@ -541,7 +450,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       return prev;
     });
     soundFx.playHammerBuild();
-  }, [pushSnapshot]);
+  }, []);
 
   // Fun Historical Twin Citizen Protests & Unrest System
   const [activeProtest, setActiveProtest] = useState<ProtestEvent | null>(historicalTwinProtests[0]);
@@ -578,7 +487,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setActiveProtest(null);
 
       // Cycle next protest after 45 seconds for continuous fun
-      setTimeout(() => {
+      safeSetTimeout(() => {
         setProtestIndex((idx) => {
           const next = (idx + 1) % historicalTwinProtests.length;
           setActiveProtest(historicalTwinProtests[next]);
@@ -586,7 +495,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         });
       }, 45000);
     },
-    [activeProtest, triggerToast]
+    [activeProtest, triggerToast, safeSetTimeout]
   );
 
   const triggerNextProtest = useCallback(() => {
@@ -651,54 +560,145 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     soundFx.playFireworksExplosion();
     soundFx.playCarnivalCheer();
     setShowFireworks(true);
-    setTimeout(() => setShowFireworks(false), 8500);
+    safeSetTimeout(() => setShowFireworks(false), 8500);
     triggerToast({
       type: 'reward',
       title: '🎆 GRAND CARNIVAL SPECTACLE',
       subtitle: 'Fireworks illuminate the Citadel spire! Stability +3%, Happiness +5%',
       icon: '🎆',
     });
-  }, [triggerToast]);
+  }, [triggerToast, safeSetTimeout]);
 
   const speedMultipliers = { '1x': 1, '2x': 2, '5x': 5, '10x': 10 };
   const mult = speedMultipliers[speed];
 
   const selectedBuilding = placedBuildings.find((b) => b.id === selectedBuildingId) || null;
 
-  // Natural Disaster Simulation State
+  // Centralized City Simulation Report (Calculates fiscal flows, resource accounting, district metrics, demands & alerts)
+  const economyReport = useMemo(() => {
+    return calculateCitySimulation(placedBuildings, buildingCatalog, resources, districts, taxRate);
+  }, [placedBuildings, resources.population, resources.health, resources.environmentalIndex, districts, taxRate]);
+
+  const economyReportRef = useRef(economyReport);
+  useEffect(() => {
+    economyReportRef.current = economyReport;
+  }, [economyReport]);
+
+  // Disaster & Emergency Response State
   const [disasterState, setDisasterState] = useState<DisasterSimulationState>(() => ({
     activeDisaster: null,
-    risks: calculateDisasterRisks('clear', 12, initialResources, { resources: { waterNet: 0 } } as any, initialPlacedBuildings),
-    emergencyForces: calculateEmergencyForces(initialPlacedBuildings, initialResources),
+    risks: {
+      floodRiskPercent: 18,
+      wildfireRiskPercent: 12,
+      droughtRiskPercent: 10,
+      stormRiskPercent: 20,
+      seismicRiskPercent: 14,
+      overallThreatLevel: 'Low',
+    },
+    emergencyForces: {
+      medicalUnitsActive: 0,
+      medicalUnitsTotal: 4,
+      fireCrewsActive: 0,
+      fireCrewsTotal: 5,
+      rescueTeamsActive: 0,
+      rescueTeamsTotal: 4,
+      repairEngineersActive: 0,
+      repairEngineersTotal: 6,
+      shelterCapacityTotal: 120000,
+      responseEfficiencyPercent: 88,
+    },
     settings: {
-      autoDisastersEnabled: true,
-      disasterFrequency: 'moderate',
+      autoDisastersEnabled: false,
+      disasterFrequency: 'rare',
     },
     historicalDisasterCount: 0,
   }));
 
-  // Detailed Citizen Agent Multi-Need Social Intelligence
-  const [detailedAgents, setDetailedAgents] = useState<DetailedCitizenAgent[]>(() =>
-    createInitialDetailedAgents(initialCitizens)
-  );
-
-  // Centralized City Simulation Report (Calculates fiscal flows, resource accounting, district metrics, demands & alerts)
-  const economyReport = useMemo(() => {
-    return calculateCitySimulation(placedBuildings, buildingCatalog, resources, districts, taxRate);
-  }, [placedBuildings, resources, districts, taxRate]);
-
+  // Centralized Intelligent Citizen & Social Behaviour Simulation Report
   const citizenReport = useMemo(() => {
-    const timeOfDay = (civilization.currentDay * 8) % 24;
     return runCitizenSimulationTick(
       resources,
       placedBuildings,
       districts,
       economyReport,
       disasterState,
-      detailedAgents,
-      timeOfDay
+      [],
+      (civilization.currentDay * 3.5) % 24
     );
-  }, [resources, placedBuildings, districts, economyReport, disasterState, detailedAgents, civilization.currentDay]);
+  }, [resources, placedBuildings, districts, economyReport, disasterState, civilization.currentDay]);
+
+  const triggerDisaster = useCallback((type: DisasterType, intensity: DisasterIntensity, districtId?: string) => {
+    const dId = districtId || 'dist-residential';
+    const newDisaster = createDisaster(type, intensity, dId);
+    setDisasterState((prev) => ({
+      ...prev,
+      activeDisaster: newDisaster,
+      emergencyForces: {
+        ...prev.emergencyForces,
+        medicalUnitsActive: Math.min(prev.emergencyForces.medicalUnitsTotal, 3),
+        fireCrewsActive: type === 'wildfire' ? prev.emergencyForces.fireCrewsTotal : 2,
+        rescueTeamsActive: 2,
+        repairEngineersActive: 3,
+      },
+    }));
+
+    setEvents((prev) => [
+      {
+        id: `ev-${Date.now()}-disaster`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: `CRISIS ALERT: ${newDisaster.name}`,
+        description: `Natural disaster detected in ${districts.find((d) => d.id === dId)?.name || 'city sector'}. Emergency response units dispatched.`,
+        category: 'crisis',
+        severity: 'critical',
+        isRead: false,
+      },
+      ...prev,
+    ]);
+  }, [civilization.currentYear, civilization.currentDay, districts]);
+
+  const dispatchEmergencyResponse = useCallback(() => {
+    setDisasterState((prev) => {
+      if (!prev.activeDisaster) return prev;
+      return {
+        ...prev,
+        activeDisaster: {
+          ...prev.activeDisaster,
+          containmentPercent: Math.min(100, prev.activeDisaster.containmentPercent + 35),
+          stage: prev.activeDisaster.containmentPercent + 35 >= 100 ? 'recovering' : 'containing',
+        },
+      };
+    });
+  }, []);
+
+  const restoreAllDisasters = useCallback(() => {
+    setPlacedBuildings((prev) => emergencyFullCivilizationRestoration(prev));
+    setDisasterState((prev) => ({
+      ...prev,
+      activeDisaster: null,
+      emergencyForces: {
+        ...prev.emergencyForces,
+        medicalUnitsActive: 0,
+        fireCrewsActive: 0,
+        rescueTeamsActive: 0,
+        repairEngineersActive: 0,
+      },
+    }));
+  }, []);
+
+  const toggleAutoDisasters = useCallback(() => {
+    setDisasterState((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        autoDisastersEnabled: !prev.settings.autoDisastersEnabled,
+      },
+    }));
+  }, []);
+
+  // Throttled tick accumulator to eliminate HTTP flooding latency
+  const accumulatedTicksRef = useRef(0);
+  const lastBackendSyncRef = useRef(Date.now());
 
   // Simulation Tick Logic
   const advanceTick = useCallback(() => {
@@ -715,7 +715,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
     // 2. Adjust Resources & Treasury based on real simulation calculations
     setResources((prev) => {
-      const liveReport = calculateCitySimulation(placedBuildings, buildingCatalog, prev, districts, taxRate);
+      const liveReport = economyReportRef.current;
 
       const netCashDelta = liveReport.economy.netDailyCashFlow * 0.1;
       const foodDelta = liveReport.resources.foodNet * 0.1;
@@ -909,52 +909,67 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setRciDemand(calculateRciDemand(resources.population, placedBuildings, taxRate, resources.health));
     setUtilityStats(calculateUtilityStats(placedBuildings, resources.population));
 
-    // 6. Real-time Citizen Chirper Network tied to real simulation events
-    if (Math.random() < 0.28 && districts.length > 0) {
+    // 7. Real-time Citizen Chirper Network
+    if (Math.random() < 0.25 && districts.length > 0) {
       const dName = districts[Math.floor(Math.random() * districts.length)].name;
-      const simStatus = {
-        powerDeficit: utilityStats.powerConsumptionMW > utilityStats.powerCapacityMW,
-        waterDeficit: utilityStats.waterConsumptionM3 > utilityStats.waterCapacityM3,
-        highTaxes: taxRate > 20,
-        highPollution: utilityStats.pollutionIndex > 40 || resources.environmentalIndex < 40,
-        highHappiness: resources.happiness > 85,
-        techBreakthrough: Math.random() < 0.15,
-        materialsShortage: resources.materials < 500,
-      };
-      const newChirp = generateRandomChirp(dName, simStatus);
+      const newChirp = generateRandomChirp(dName);
       setChirperFeed((prev) => [newChirp, ...prev.slice(0, 24)]);
     }
 
-    // 7. Disaster Simulation Progression
-    setDisasterState((prevDisaster) => {
-      if (!prevDisaster.activeDisaster) return prevDisaster;
-      const { updatedDisaster, updatedBuildings } = advanceDisasterSimulation(
-        prevDisaster.activeDisaster,
-        placedBuildings,
-        prevDisaster.emergencyForces,
-        0.5
+    // 8. Background sync to FastAPI backend (WebSocket first with REST fallback)
+    accumulatedTicksRef.current += 1;
+    const now = Date.now();
+    if (now - lastBackendSyncRef.current >= 4000) {
+      const ticksToSync = accumulatedTicksRef.current;
+      accumulatedTicksRef.current = 0;
+      lastBackendSyncRef.current = now;
+      const sent = civoraEventClient.send(
+        'tick',
+        { ticks: ticksToSync },
+        `tick_${civilization.id}_${now}`
       );
-
-      if (updatedBuildings) {
-        setPlacedBuildings(updatedBuildings);
+      if (!sent) {
+        civilizationApi.advanceSimulationTicks(civilization.id, ticksToSync).catch(() => {});
       }
+    }
+  }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts, civilization]);
 
-      return {
-        ...prevDisaster,
-        activeDisaster: updatedDisaster,
+  // Real-Time Event Engine (Phase 6): Maintain centralized WebSocket connection
+  useEffect(() => {
+    if (civilization.id) {
+      civoraEventClient.connect(civilization.id);
+
+      const unsub = civoraEventClient.subscribe('council.deliberation.completed', (envelope) => {
+        const payload = envelope.payload || {};
+        triggerToast({
+          type: 'info',
+          title: 'Council Deliberation Concluded',
+          subtitle: `${payload.recommendations_count || 'New'} policy directives synthesized.`,
+        });
+      });
+
+      return () => {
+        unsub();
+        civoraEventClient.disconnect();
       };
-    });
+    }
+  }, [civilization.id, triggerToast]);
 
-    // 8. Update detailed citizen routines
-    setDetailedAgents((prevAgents) => {
-      const hour = (civilization.currentDay * 8) % 24;
-      const needs = calculateCitizenNeeds(resources, placedBuildings, economyReport, disasterState);
-      return updateCitizenRoutines(prevAgents, hour, disasterState?.activeDisaster, needs);
-    });
-
-    // 9. Fire background tick to FastAPI backend
-    civilizationApi.advanceSimulationTicks(civilization.id, 1).catch(() => {});
-  }, [rates, resources.population, resources.health, placedBuildings, taxRate, districts, civilization, utilityStats, economyReport, disasterState]);
+  // Flush accumulated ticks when paused
+  useEffect(() => {
+    if (!isPlaying && accumulatedTicksRef.current > 0) {
+      const ticks = accumulatedTicksRef.current;
+      accumulatedTicksRef.current = 0;
+      const sent = civoraEventClient.send(
+        'tick',
+        { ticks },
+        `tick_${civilization.id}_${Date.now()}`
+      );
+      if (!sent) {
+        civilizationApi.advanceSimulationTicks(civilization.id, ticks).catch(() => {});
+      }
+    }
+  }, [isPlaying, civilization.id]);
 
   // Advance by a full year
   const advanceYear = useCallback(() => {
@@ -969,15 +984,21 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     }));
   }, [advanceTick]);
 
-  // Timer loop for simulation
+  // Keep a stable ref to advanceTick to prevent timer recreation on every frame
+  const advanceTickRef = useRef(advanceTick);
+  useEffect(() => {
+    advanceTickRef.current = advanceTick;
+  });
+
+  // Timer loop for simulation - only restarts when isPlaying or mult changes, zero timer thrashing
   useEffect(() => {
     if (!isPlaying) return;
     const intervalMs = Math.max(150, 1500 / mult);
     const timer = setInterval(() => {
-      advanceTick();
+      advanceTickRef.current();
     }, intervalMs);
     return () => clearInterval(timer);
-  }, [isPlaying, mult, advanceTick]);
+  }, [isPlaying, mult]);
 
   const togglePlay = () => setIsPlaying((p) => !p);
 
@@ -1144,9 +1165,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setEvents((prev) => [errEvent, ...prev]);
       return false;
     }
-
-    // Save state snapshot for Undo/Redo
-    pushSnapshot();
 
     // Deduct materials
     setResources((prev) => ({
@@ -1510,9 +1528,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     const building = placedBuildings.find((b) => b.id === buildingId);
     if (!building) return;
 
-    // Save state snapshot for Undo/Redo
-    pushSnapshot();
-
     setPlacedBuildings((prev) => prev.filter((b) => b.id !== buildingId));
     civilizationApi.decommissionFacility(civilization.id, buildingId).catch(() => {});
     setSelectedBuildingId(null);
@@ -1744,75 +1759,6 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     setEvents((prev) => [event, ...prev]);
   };
 
-  const triggerDisaster = (type: DisasterType, intensity: DisasterIntensity, districtId?: string) => {
-    const dId = districtId || 'dist-residential';
-    const newDisaster = createDisaster(type, intensity, dId);
-    setDisasterState((prev) => ({
-      ...prev,
-      activeDisaster: newDisaster,
-      emergencyForces: {
-        ...prev.emergencyForces,
-        medicalUnitsActive: Math.min(prev.emergencyForces.medicalUnitsTotal, 3),
-        fireCrewsActive: type === 'wildfire' ? prev.emergencyForces.fireCrewsTotal : 2,
-        rescueTeamsActive: 2,
-        repairEngineersActive: 3,
-      },
-    }));
-
-    setEvents((prev) => [
-      {
-        id: `ev-${Date.now()}-disaster`,
-        year: civilization.currentYear,
-        day: civilization.currentDay,
-        title: `CRISIS ALERT: ${newDisaster.name}`,
-        description: `Natural disaster detected in ${districts.find((d) => d.id === dId)?.name || 'city sector'}. Emergency response units dispatched.`,
-        category: 'crisis',
-        severity: 'critical',
-        isRead: false,
-      },
-      ...prev,
-    ]);
-  };
-
-  const dispatchEmergencyResponse = () => {
-    setDisasterState((prev) => {
-      if (!prev.activeDisaster) return prev;
-      return {
-        ...prev,
-        activeDisaster: {
-          ...prev.activeDisaster,
-          containmentPercent: Math.min(100, prev.activeDisaster.containmentPercent + 35),
-          stage: prev.activeDisaster.containmentPercent + 35 >= 100 ? 'recovering' : 'containing',
-        },
-      };
-    });
-  };
-
-  const restoreAllDisasters = () => {
-    setPlacedBuildings((prev) => emergencyFullCivilizationRestoration(prev));
-    setDisasterState((prev) => ({
-      ...prev,
-      activeDisaster: null,
-      emergencyForces: {
-        ...prev.emergencyForces,
-        medicalUnitsActive: 0,
-        fireCrewsActive: 0,
-        rescueTeamsActive: 0,
-        repairEngineersActive: 0,
-      },
-    }));
-  };
-
-  const toggleAutoDisasters = () => {
-    setDisasterState((prev) => ({
-      ...prev,
-      settings: {
-        ...prev.settings,
-        autoDisastersEnabled: !prev.settings.autoDisastersEnabled,
-      },
-    }));
-  };
-
   const createNewCivilization = (data: Partial<CivilizationProfile>) => {
     const newCiv: CivilizationProfile = {
       id: `civ-${Date.now().toString().slice(-4)}`,
@@ -1847,133 +1793,195 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const contextValue = useMemo<GameStateContextType>(
+    () => ({
+      civilization,
+      savedWorlds,
+      resources,
+      rates,
+      districts,
+      placedBuildings,
+      catalog: buildingCatalog,
+      technologies,
+      policies,
+      citizens,
+      scenarios,
+      experiments,
+      achievements,
+      events,
+      economyReport,
+      disasterState,
+      citizenReport,
+      triggerDisaster,
+      dispatchEmergencyResponse,
+      restoreAllDisasters,
+      toggleAutoDisasters,
+      isPlaying,
+      speed,
+      selectedBuildingId,
+      selectedBuilding,
+      activeLayer,
+      isConstructionMode,
+      selectedCatalogItem,
+      activeDrawer,
+      relocatingBuildingId,
+      togglePlay,
+      setSpeed,
+      advanceTick,
+      advanceYear,
+      selectBuilding,
+      setActiveLayer,
+      setConstructionMode,
+      placeBuilding,
+      startRelocation,
+      cancelRelocation,
+      relocateBuilding,
+      rotateBuilding,
+      repairBuilding,
+      upgradeBuilding,
+      rushConstruction,
+      cancelConstruction,
+      toggleFacilityActive,
+      demolishBuilding,
+      startResearch,
+      togglePolicy,
+      updatePolicySlider,
+      runScenario,
+      startExperiment,
+      claimAchievement,
+      quests,
+      claimQuest,
+      missions,
+      claimMission,
+      chronicle,
+      transactions,
+      eras,
+      playerTitles,
+      claimTitle,
+      triggerEureka,
+      toasts,
+      triggerToast,
+      dismissToast,
+      levelUpCelebration,
+      dismissLevelUp,
+      createNewCivilization,
+      loadCivilization,
+      markEventRead,
+      setActiveDrawer,
+      taxRate,
+      setTaxRate,
+      activeProtest,
+      isProtestModalOpen,
+      setIsProtestModalOpen,
+      resolveProtest,
+      triggerNextProtest,
+      isDemoModalOpen,
+      setIsDemoModalOpen,
+      loadMaxDemoWorld,
+      showFireworks,
+      triggerFireworks,
+      isCinematicTour,
+      setIsCinematicTour,
+      activeInfoView,
+      setActiveInfoView,
+      rciDemand,
+      activeZoneTool,
+      setActiveZoneTool,
+      zoneMode,
+      setZoneMode,
+      zonedTiles,
+      paintZoneTile,
+      chirperFeed,
+      likeChirp,
+      isChirperOpen,
+      setIsChirperOpen,
+      cityMilestones,
+      isMilestonesModalOpen,
+      setIsMilestonesModalOpen,
+      isBulldozerActive,
+      setIsBulldozerActive,
+      utilityStats,
+      inspectedCitizen,
+      setInspectedCitizen,
+    }),
+    [
+      civilization,
+      savedWorlds,
+      resources,
+      rates,
+      districts,
+      placedBuildings,
+      technologies,
+      policies,
+      citizens,
+      scenarios,
+      experiments,
+      achievements,
+      events,
+      economyReport,
+      disasterState,
+      citizenReport,
+      triggerDisaster,
+      dispatchEmergencyResponse,
+      restoreAllDisasters,
+      toggleAutoDisasters,
+      isPlaying,
+      speed,
+      selectedBuildingId,
+      selectedBuilding,
+      activeLayer,
+      isConstructionMode,
+      selectedCatalogItem,
+      activeDrawer,
+      relocatingBuildingId,
+      quests,
+      missions,
+      chronicle,
+      transactions,
+      eras,
+      playerTitles,
+      toasts,
+      levelUpCelebration,
+      taxRate,
+      activeProtest,
+      isProtestModalOpen,
+      isDemoModalOpen,
+      showFireworks,
+      isCinematicTour,
+      activeInfoView,
+      rciDemand,
+      activeZoneTool,
+      zoneMode,
+      zonedTiles,
+      chirperFeed,
+      isChirperOpen,
+      cityMilestones,
+      isMilestonesModalOpen,
+      isBulldozerActive,
+      utilityStats,
+      inspectedCitizen,
+      advanceTick,
+      advanceYear,
+      claimAchievement,
+      claimMission,
+      claimQuest,
+      claimTitle,
+      createNewCivilization,
+      dismissLevelUp,
+      dismissToast,
+      loadCivilization,
+      loadMaxDemoWorld,
+      markEventRead,
+      resolveProtest,
+      triggerEureka,
+      triggerFireworks,
+      triggerNextProtest,
+      triggerToast,
+    ]
+  );
+
   return (
-    <GameStateContext.Provider
-      value={{
-        civilization,
-        savedWorlds,
-        resources,
-        rates,
-        districts,
-        placedBuildings,
-        catalog: buildingCatalog,
-        technologies,
-        policies,
-        citizens,
-        scenarios,
-        experiments,
-        achievements,
-        events,
-        economyReport,
-        disasterState,
-        citizenReport,
-        triggerDisaster,
-        dispatchEmergencyResponse,
-        restoreAllDisasters,
-        toggleAutoDisasters,
-        isPlaying,
-        speed,
-        selectedBuildingId,
-        selectedBuilding,
-        activeLayer,
-        isConstructionMode,
-        selectedCatalogItem,
-        activeDrawer,
-        relocatingBuildingId,
-        togglePlay,
-        setSpeed,
-        advanceTick,
-        advanceYear,
-        selectBuilding,
-        setActiveLayer,
-        setConstructionMode,
-        placeBuilding,
-        startRelocation,
-        cancelRelocation,
-        relocateBuilding,
-        rotateBuilding,
-        repairBuilding,
-        upgradeBuilding,
-        rushConstruction,
-        cancelConstruction,
-        toggleFacilityActive,
-        demolishBuilding,
-        startResearch,
-        togglePolicy,
-        updatePolicySlider,
-        runScenario,
-        startExperiment,
-        claimAchievement,
-        quests,
-        claimQuest,
-        missions,
-        claimMission,
-        chronicle,
-        transactions,
-        eras,
-        playerTitles,
-        claimTitle,
-        triggerEureka,
-        toasts,
-        triggerToast,
-        dismissToast,
-        levelUpCelebration,
-        dismissLevelUp,
-        createNewCivilization,
-        loadCivilization,
-        markEventRead,
-        setActiveDrawer,
-        taxRate,
-        setTaxRate,
-        activeProtest,
-        isProtestModalOpen,
-        setIsProtestModalOpen,
-        resolveProtest,
-        triggerNextProtest,
-        isDemoModalOpen,
-        setIsDemoModalOpen,
-        loadMaxDemoWorld,
-        showFireworks,
-        triggerFireworks,
-        isCinematicTour,
-        setIsCinematicTour,
-        activeInfoView,
-        setActiveInfoView,
-        rciDemand,
-        activeZoneTool,
-        setActiveZoneTool,
-        zoneMode,
-        setZoneMode,
-        zonedTiles,
-        paintZoneTile,
-        chirperFeed,
-        likeChirp,
-        isChirperOpen,
-        setIsChirperOpen,
-        cityMilestones,
-        isMilestonesModalOpen,
-        setIsMilestonesModalOpen,
-        isBulldozerActive,
-        setIsBulldozerActive,
-        utilityStats,
-        inspectedCitizen,
-        setInspectedCitizen,
-        // Undo & Redo History
-        canUndo: historyStack.length > 0,
-        canRedo: redoStack.length > 0,
-        undo,
-        redo,
-        // CS2 Modals & Overlays
-        isTutorialOpen,
-        setIsTutorialOpen,
-        isShortcutsOpen,
-        setIsShortcutsOpen,
-        isBudgetOpen,
-        setIsBudgetOpen,
-        isStatisticsOpen,
-        setIsStatisticsOpen,
-      }}
-    >
+    <GameStateContext.Provider value={contextValue}>
       {children}
     </GameStateContext.Provider>
   );

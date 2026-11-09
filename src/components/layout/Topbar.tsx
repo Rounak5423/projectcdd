@@ -16,7 +16,7 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
-  ShieldAlert,
+  Activity,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
@@ -26,16 +26,20 @@ import CS2ChirperWidget from '../cs2/CS2ChirperWidget';
 import ResourceDetailModal, { SelectedResourceKey } from './ResourceDetailModal';
 import NotificationCenter from './NotificationCenter';
 
-export default function Topbar({
+function TopbarComponent({
   isRightPanelOpen,
   onToggleRightPanel,
   user,
   onLogout,
+  onNavigate,
+  onOpenDiagnostics,
 }: {
   isRightPanelOpen: boolean;
   onToggleRightPanel: () => void;
   user?: AuthUser | null;
   onLogout?: () => void;
+  onNavigate?: (page: string) => void;
+  onOpenDiagnostics?: () => void;
 }) {
   const {
     resources,
@@ -246,6 +250,24 @@ export default function Topbar({
             </button>
           )}
 
+          {/* High Council Chamber Direct Shortcut */}
+          {onNavigate && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onNavigate('Council of Advisors');
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#C5A66A]/20 border border-[#C5A66A]/60 text-[#C5A66A] font-serif text-xs font-bold transition-all shadow-sm"
+              title="Open Royal Council Chamber (3D)"
+            >
+              <Crown size={13} className="text-[#C5A66A]" />
+              <span className="hidden sm:inline">The Council</span>
+              <span className="px-1 py-0.2 rounded bg-[#C5A66A]/20 text-[8px] font-mono font-bold text-[#EAE3D2]">
+                3D
+              </span>
+            </button>
+          )}
+
           {/* Notifications Center Bell */}
           <button
             onClick={() => {
@@ -278,19 +300,6 @@ export default function Topbar({
             <span>Presenter</span>
           </button>
 
-          {/* Civil Defense & Disaster Command Center */}
-          <button
-            onClick={() => {
-              soundFx.playClick();
-              setActiveDrawer('disaster');
-            }}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#344435] hover:border-[#4e644f] text-[11px] font-bold text-[#a6bd82] transition-all shadow-xs"
-            title="Open Civil Defense & Emergency Response Command Center"
-          >
-            <ShieldAlert size={13} className="text-[#a6bd82]" />
-            <span>Defense</span>
-          </button>
-
           {/* User Profile Badge & Logout */}
           {user && (
             <div className="flex items-center gap-1.5 pl-1.5 border-l border-[#2B372C]">
@@ -311,6 +320,20 @@ export default function Topbar({
                 </button>
               )}
             </div>
+          )}
+
+          {/* Developer Performance Telemetry Dashboard Toggle */}
+          {onOpenDiagnostics && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onOpenDiagnostics();
+              }}
+              className="p-1.5 rounded bg-[#202820] hover:bg-[#283228] border border-[#2B372C] hover:border-[#C5A66A]/40 text-[#A5AD9D] hover:text-[#C5A66A] transition-colors"
+              title="Open Performance Telemetry & Diagnostics (F2 / Ctrl+Shift+P)"
+            >
+              <Activity size={15} />
+            </button>
           )}
 
           {/* Tactical 3D Inspector Panel Toggle */}
@@ -345,3 +368,5 @@ export default function Topbar({
     </>
   );
 }
+
+export default React.memo(TopbarComponent);

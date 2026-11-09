@@ -279,38 +279,10 @@ const warningChirps = [
   'Commercial shops are packed! We could really use another shopping arcade nearby. 🛍️🛒 #MoreShops',
 ];
 
-export interface SimStateForChirp {
-  powerDeficit?: boolean;
-  waterDeficit?: boolean;
-  highTaxes?: boolean;
-  highPollution?: boolean;
-  highHappiness?: boolean;
-  techBreakthrough?: boolean;
-  materialsShortage?: boolean;
-}
-
-export function generateRandomChirp(districtName: string, simState?: SimStateForChirp): ChirperMessage {
-  let text = '';
-  if (simState?.powerDeficit) {
-    text = `🚨 #BlackoutAlert Lights flickered out across ${districtName}! The grid is running beyond capacity. Need more power generators!`;
-  } else if (simState?.waterDeficit) {
-    text = `🚰 #WaterNotice Low water pressure in taps again. The pumping stations need attention!`;
-  } else if (simState?.highTaxes) {
-    text = `💸 #TaxHike Municipal taxes are getting way too steep! Mayor, small businesses are feeling the squeeze.`;
-  } else if (simState?.highPollution) {
-    text = `🌫️ #AirQuality Thick smog plume near the industrial perimeter today. Don't forget your breather filters.`;
-  } else if (simState?.materialsShortage) {
-    text = `📦 #SupplyChain Foundry delays! Construction crews in ${districtName} are waiting on alloy shipments.`;
-  } else if (simState?.techBreakthrough) {
-    text = `💡 #EurekaMoment Huge science discovery announced by the Citadel Research Hub! Proud of our engineers.`;
-  } else if (simState?.highHappiness) {
-    text = `✨ #ProudCitizen The skyline in ${districtName} looks stunning tonight. Clean power, zero traffic, great schools.`;
-  } else {
-    const isPos = Math.random() > 0.35;
-    const pool = isPos ? positiveChirps : warningChirps;
-    text = pool[Math.floor(Math.random() * pool.length)];
-  }
-
+export function generateRandomChirp(districtName: string): ChirperMessage {
+  const isPos = Math.random() > 0.3;
+  const pool = isPos ? positiveChirps : warningChirps;
+  const text = pool[Math.floor(Math.random() * pool.length)];
   const idx = Math.floor(Math.random() * citizenNames.length);
 
   return {

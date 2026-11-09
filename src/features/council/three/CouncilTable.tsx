@@ -1,8 +1,13 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { COUNCIL_SEATS } from './CouncilSeats';
+import { COUNCIL_MODELS } from './CouncilModelRegistry';
 
-export const CouncilTable: React.FC = () => {
+interface CouncilTableProps {
+  modelMapping?: Record<string, string>;
+}
+
+export const CouncilTable: React.FC<CouncilTableProps> = ({ modelMapping }) => {
   const materials = useMemo(() => {
     return {
       darkOak: new THREE.MeshStandardMaterial({
@@ -77,6 +82,13 @@ export const CouncilTable: React.FC = () => {
       }),
     };
   }, []);
+
+  // Clean up WebGL material resources on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(materials).forEach((mat) => mat.dispose());
+    };
+  }, [materials]);
 
   return (
     <group name="CouncilTableAndChairs">
@@ -248,8 +260,16 @@ export const CouncilTable: React.FC = () => {
       </group>
 
       {/* 4. Six Carved Advisor Chairs */}
-      {COUNCIL_SEATS.map((seat) => (
-        <group key={`chair-${seat.id}`} position={seat.position} rotation={seat.rotation}>
+      {COUNCIL_SEATS.map((seat) => {
+        const modelKey = modelMapping?.[seat.id];
+        const modelDef = modelKey ? COUNCIL_MODELS[modelKey] : undefined;
+        if (modelDef?.hasOwnChair) {
+          // Model includes its own integrated furniture / chair (e.g. Carl Manfred)
+          return null;
+        }
+
+        return (
+          <group key={`chair-${seat.id}`} position={seat.position} rotation={seat.rotation}>
           {/* Chair Seat Base */}
           <mesh position={[0, 0.46, 0]} castShadow material={materials.darkOak}>
             <boxGeometry args={[0.62, 0.06, 0.62]} />
@@ -296,7 +316,8 @@ export const CouncilTable: React.FC = () => {
             <cylinderGeometry args={[0.02, 0.02, 0.22, 6]} />
           </mesh>
         </group>
-      ))}
+        );
+      })}
     </group>
   );
 };

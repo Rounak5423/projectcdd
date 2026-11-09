@@ -2,7 +2,11 @@ import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export const CouncilLighting: React.FC = () => {
+interface CouncilLightingProps {
+  shadowMapSize?: number;
+}
+
+export const CouncilLighting: React.FC<CouncilLightingProps> = ({ shadowMapSize = 2048 }) => {
   const chandelierLight1Ref = useRef<THREE.PointLight>(null);
   const chandelierLight2Ref = useRef<THREE.PointLight>(null);
   const throneLightRef = useRef<THREE.SpotLight>(null);
@@ -33,8 +37,8 @@ export const CouncilLighting: React.FC = () => {
         color="#FFF4DC"
         intensity={2.4}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={shadowMapSize}
+        shadow-mapSize-height={shadowMapSize}
         shadow-camera-near={1}
         shadow-camera-far={35}
         shadow-camera-left={-8}
@@ -52,7 +56,7 @@ export const CouncilLighting: React.FC = () => {
         intensity={0.6}
       />
 
-      {/* Grand Chandelier 1 (North side of table) */}
+      {/* Grand Chandelier 1 (North side of table) - Warm omnidirectional fill, no heavy cubemap shadow pass */}
       <pointLight
         ref={chandelierLight1Ref}
         position={[0, 4.2, -1.2]}
@@ -60,13 +64,9 @@ export const CouncilLighting: React.FC = () => {
         intensity={2.2}
         distance={14}
         decay={2}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-        shadow-bias={-0.001}
       />
 
-      {/* Grand Chandelier 2 (South side of table) */}
+      {/* Grand Chandelier 2 (South side of table) - Warm omnidirectional fill, no heavy cubemap shadow pass */}
       <pointLight
         ref={chandelierLight2Ref}
         position={[0, 4.2, 1.2]}
@@ -74,10 +74,6 @@ export const CouncilLighting: React.FC = () => {
         intensity={2.2}
         distance={14}
         decay={2}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-        shadow-bias={-0.001}
       />
 
       {/* Throne Focus Light */}

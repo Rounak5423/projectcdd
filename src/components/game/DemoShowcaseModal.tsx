@@ -44,18 +44,6 @@ export default function DemoShowcaseModal({
     catalog,
   } = useGameState();
 
-  React.useEffect(() => {
-    if (!isDemoModalOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        soundFx.playClick();
-        setIsDemoModalOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDemoModalOpen, setIsDemoModalOpen]);
-
   if (!isDemoModalOpen) return null;
 
   const handleClose = () => {

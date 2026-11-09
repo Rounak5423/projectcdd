@@ -7,6 +7,7 @@ interface AdvisorGroupProps {
   advisors: Advisor[];
   selectedAdvisorId: string | null;
   speakingAdvisorId?: string | null;
+  modelMapping?: Record<string, string>;
   onAdvisorSelect: (advisorId: string) => void;
 }
 
@@ -14,6 +15,7 @@ export const AdvisorGroup: React.FC<AdvisorGroupProps> = ({
   advisors,
   selectedAdvisorId,
   speakingAdvisorId,
+  modelMapping,
   onAdvisorSelect,
 }) => {
   return (
@@ -22,6 +24,7 @@ export const AdvisorGroup: React.FC<AdvisorGroupProps> = ({
         const advisor = advisors.find((a) => a.id === seat.id);
         const isSelected = selectedAdvisorId === seat.id;
         const isSpeaking = speakingAdvisorId === seat.id;
+        const modelKey = modelMapping?.[seat.id];
 
         return (
           <AdvisorCharacter
@@ -30,6 +33,7 @@ export const AdvisorGroup: React.FC<AdvisorGroupProps> = ({
             advisor={advisor}
             isSelected={isSelected}
             isSpeaking={isSpeaking}
+            modelKey={modelKey}
             onClick={() => onAdvisorSelect(seat.id)}
           />
         );
@@ -37,4 +41,3 @@ export const AdvisorGroup: React.FC<AdvisorGroupProps> = ({
     </group>
   );
 };
-

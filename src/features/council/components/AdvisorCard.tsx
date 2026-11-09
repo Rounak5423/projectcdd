@@ -1,7 +1,8 @@
 import React from 'react';
 import { Advisor } from '../types/advisor';
 import { soundFx } from '../../../services/soundFx';
-import { AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Sparkles } from 'lucide-react';
+import { getStoredModelMapping, COUNCIL_MODELS } from '../three/CouncilModelRegistry';
 
 interface AdvisorCardProps {
   advisor: Advisor;
@@ -10,6 +11,9 @@ interface AdvisorCardProps {
 }
 
 export const AdvisorCard: React.FC<AdvisorCardProps> = ({ advisor, isSelected, onSelect }) => {
+  const modelKey = getStoredModelMapping()[advisor.id] || advisor.id;
+  const modelConfig = COUNCIL_MODELS[modelKey];
+  const isRealModel = modelConfig?.category === 'real_downloaded';
   const getStatusBadge = (status: Advisor['status']) => {
     switch (status) {
       case 'Optimal':
@@ -54,10 +58,15 @@ export const AdvisorCard: React.FC<AdvisorCardProps> = ({ advisor, isSelected, o
 
         {/* Advisor Details */}
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] uppercase font-mono tracking-wider text-[#C5A66A] truncate">
               {advisor.officialTitle}
             </span>
+            {isRealModel && (
+              <span className="px-1 py-0.2 rounded bg-[#C5A66A]/20 text-[#C5A66A] border border-[#C5A66A]/30 text-[8px] font-mono font-bold shrink-0">
+                ⚡ 3D Real
+              </span>
+            )}
             {advisor.hasActiveWarning && (
               <AlertTriangle className="w-3 h-3 text-[#D6A75E] shrink-0 animate-pulse" />
             )}

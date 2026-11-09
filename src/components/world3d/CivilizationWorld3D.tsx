@@ -1,6 +1,5 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { ZapOff, RefreshCw } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Canvas } from '@react-three/fiber';
 import { useGameState } from '../../context/GameStateContext';
 import { DayNightProvider, WorldLighting } from './DayNightController';
 import Terrain from './Terrain';
@@ -17,44 +16,20 @@ import PlacementSystem from './PlacementSystem';
 import CameraManager from './CameraManager';
 import WorldHUD from './WorldHUD';
 import { PerformanceSampler } from './PerformanceTelemetry';
+import { ThreeSceneSampler } from '../diagnostics/ThreeSceneSampler';
 import WorldLabelManager, { triggerRoadSelection } from './WorldLabelManager';
-import ErrorBoundary from '../common/ErrorBoundary';
-import WeatherSystem from './WeatherSystem';
-import DisasterVisualEffects from './DisasterVisualEffects';
-import { useGraphics } from '../../context/GraphicsSettingsContext';
-
-function WebGLContextWatcher({
-  onContextLost,
-  onContextRestored,
-}: {
-  onContextLost: () => void;
-  onContextRestored: () => void;
-}) {
-  const { gl } = useThree();
-  useEffect(() => {
-    const canvas = gl.domElement;
-    const handleLost = (e: Event) => {
-      e.preventDefault();
-      onContextLost();
-    };
-    const handleRestored = () => {
-      onContextRestored();
-    };
-    canvas.addEventListener('webglcontextlost', handleLost);
-    canvas.addEventListener('webglcontextrestored', handleRestored);
-    return () => {
-      canvas.removeEventListener('webglcontextlost', handleLost);
-      canvas.removeEventListener('webglcontextrestored', handleRestored);
-    };
-  }, [gl, onContextLost, onContextRestored]);
-  return null;
-}
+import { useRenderingQuality } from '../../hooks/useRenderingQuality';
 
 export function CameraHUD() {
   return <CameraManager />;
 }
 
-export default function CivilizationWorld3D() {
+export interface CivilizationWorld3DProps {
+  isPaused?: boolean;
+}
+
+export default function CivilizationWorld3D({ isPaused = false }: CivilizationWorld3DProps) {
+  const qualitySettings = useRenderingQuality();
   const {
     placedBuildings,
     selectedBuildingId,
@@ -64,14 +39,10 @@ export default function CivilizationWorld3D() {
     isConstructionMode,
   } = useGameState();
 
-  const { shadows, dpr, weatherEffects, pedestriansEnabled } = useGraphics();
-
-  const [contextLost, setContextLost] = useState(false);
-  const [viewportKey, setViewportKey] = useState(0);
-
   const handleFocusDistrict = (districtId: string) => {
     const dist = districts.find((d) => d.id === districtId);
     if (!dist) return;
+    // Find building in district or select first building
     const districtBld = placedBuildings.find((b) => b.districtId === districtId);
     if (districtBld) {
       selectBuilding(districtBld.id);
@@ -81,113 +52,80 @@ export default function CivilizationWorld3D() {
   return (
     <DayNightProvider>
       <div className="w-full h-full relative bg-[#121714] select-none overflow-hidden">
-        {contextLost && (
-          <div className="absolute inset-0 z-50 bg-[#080d0a]/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
-              <ZapOff className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-bold font-serif text-[#faecd0] mb-2">
-              WebGL Hardware Context Suspended
-            </h3>
-            <p className="text-xs text-[#a0aba3] max-w-sm mb-6">
-              The graphics processor interrupted the 3D surface. All simulation parameters and city data remain intact.
-            </p>
-            <button
-              onClick={() => {
-                setContextLost(false);
-                setViewportKey((k) => k + 1);
-              }}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-black font-semibold text-xs tracking-wider uppercase transition shadow-lg shadow-amber-500/20 active:scale-95"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Re-initialize 3D Viewport
-            </button>
-          </div>
-        )}
+        {/* 3D WebGL Canvas */}
+        <Canvas
+          frameloop={isPaused ? 'never' : 'always'}
+          camera={{ position: [30, 26, 38], fov: 40, near: 0.5, far: 350 }}
+          dpr={qualitySettings.dpr}
+          performance={{ min: 0.5 }}
+          shadows
+          gl={{
+            antialias: true,
+            alpha: false,
+            powerPreference: 'high-performance',
+          }}
+          onPointerDown={(e) => {
+            // Deselect active building and road if clicking on empty canvas directly while not in construction mode
+            if (!isConstructionMode && (e.target as HTMLElement).tagName === 'CANVAS') {
+              selectBuilding(null);
+              triggerRoadSelection(null);
+            }
+          }}
+        >
+          {/* Dynamic Sun, Moon, Ambient & Fog Environment */}
+          <WorldLighting shadowMapSize={qualitySettings.shadowMapSize} />
 
-        <ErrorBoundary onReset={() => setViewportKey((k) => k + 1)}>
-          <Canvas
-            key={viewportKey}
-            camera={{ position: [38, 34, 46], fov: 42, near: 0.5, far: 350 }}
-            shadows={shadows}
-            dpr={dpr}
-            gl={{
-              antialias: true,
-              alpha: false,
-              powerPreference: 'high-performance',
-            }}
-            onPointerDown={(e) => {
-              if (!isConstructionMode && (e.target as HTMLElement).tagName === 'CANVAS') {
-                selectBuilding(null);
-                triggerRoadSelection(null);
-              }
-            }}
-          >
-            <WebGLContextWatcher
-              onContextLost={() => setContextLost(true)}
-              onContextRestored={() => setContextLost(false)}
+          {/* Procedural Vertex-Colored Landscape */}
+          <Terrain activeLayer={activeLayer} />
+
+          {/* Realistic Dynamic River, Lake & Shoreline System */}
+          <WaterSystem />
+
+          {/* High-Performance Instanced Forests, Boulders & Flora */}
+          <NatureEnvironment activeLayer={activeLayer} />
+
+          {/* Comprehensive Connected Road Network & Architectural Bridges */}
+          <RoadNetwork />
+
+          {/* Roadside Architectural Streetlights System */}
+          <StreetlightsSystem />
+
+          {/* Autonomous Transit Vehicles & Freight Pods */}
+          <VehiclesSystem />
+
+          {/* Autonomous Intelligent Pedestrians System */}
+          <PedestriansSystem />
+
+          {/* Tactical District Projection Rings & Labels */}
+          <DistrictOverlays />
+
+          {/* Interactive Architectural Buildings */}
+          {placedBuildings.map((building) => (
+            <BuildingObject
+              key={building.id}
+              building={building}
+              isSelected={selectedBuildingId === building.id}
+              onSelect={() => selectBuilding(building.id)}
+              activeLayer={activeLayer}
             />
+          ))}
 
-            {/* Dynamic Sun, Moon, Ambient & Fog Environment */}
-            <WorldLighting />
+          {/* Cities: Skylines 2 - 3D Zoning Lots, Infoview Overlays & Bulldozer Targeter */}
+          <CS2ZoningAndInfoView3D />
 
-            {/* Dynamic Atmospheric Clouds & Weather Particle Simulation */}
-            {weatherEffects && <WeatherSystem weather="rain" />}
+          {/* Centralized 3D World Label & Selection Manager */}
+          <WorldLabelManager />
 
-            {/* Procedural 3D Natural Disaster Visual Effects */}
-            <DisasterVisualEffects />
+          {/* Real-time Holographic Placement & Grid System */}
+          <PlacementSystem />
 
-            {/* Procedural Vertex-Colored Landscape */}
-            <Terrain activeLayer={activeLayer} />
+          {/* Smooth Camera Navigation & Building Focus Controls */}
+          <CameraManager />
 
-            {/* Realistic Dynamic River, Lake & Shoreline System */}
-            <WaterSystem />
-
-            {/* High-Performance Instanced Forests, Boulders & Flora */}
-            <NatureEnvironment activeLayer={activeLayer} />
-
-            {/* Comprehensive Connected Road Network & Architectural Bridges */}
-            <RoadNetwork />
-
-            {/* Roadside Architectural Streetlights System */}
-            <StreetlightsSystem />
-
-            {/* Autonomous Transit Vehicles & Freight Pods */}
-            <VehiclesSystem />
-
-            {/* Real Agent-Based Pedestrians on Sidewalks */}
-            {pedestriansEnabled && <PedestriansSystem isRaining={weatherEffects} />}
-
-            {/* Tactical District Projection Rings & Labels */}
-            <DistrictOverlays />
-
-            {/* Interactive Architectural Buildings */}
-            {placedBuildings.map((building) => (
-              <BuildingObject
-                key={building.id}
-                building={building}
-                isSelected={selectedBuildingId === building.id}
-                onSelect={() => selectBuilding(building.id)}
-                activeLayer={activeLayer}
-              />
-            ))}
-
-            {/* CITIES: SKYLINES II - DYNAMIC ZONING LOTS, INFO VIEWS & BULLDOZER TARGETING */}
-            <CS2ZoningAndInfoView3D />
-
-            {/* Centralized 3D World Label & Selection Manager */}
-            <WorldLabelManager />
-
-            {/* Real-time Holographic Placement & Grid System */}
-            <PlacementSystem />
-
-            {/* Smooth Camera Navigation & Building Focus Controls */}
-            <CameraManager />
-
-            {/* High-Performance 3D Engine Telemetry Sampler */}
-            <PerformanceSampler />
-          </Canvas>
-        </ErrorBoundary>
+          {/* High-Performance 3D Engine Telemetry Sampler */}
+          <PerformanceSampler />
+          <ThreeSceneSampler sceneId="world" />
+        </Canvas>
 
         {/* In-World Tactical Time, Camera & District Teleport HUD */}
         <WorldHUD />

@@ -19,9 +19,22 @@ export class CivoraIntroSoundEngine {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!this.ctx && AudioCtx) {
         this.ctx = new AudioCtx();
+        const compressor = this.ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-14, this.ctx.currentTime);
+        compressor.knee.setValueAtTime(24, this.ctx.currentTime);
+        compressor.ratio.setValueAtTime(5, this.ctx.currentTime);
+        compressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
+        compressor.release.setValueAtTime(0.2, this.ctx.currentTime);
+
+        const masterFilter = this.ctx.createBiquadFilter();
+        masterFilter.type = 'lowpass';
+        masterFilter.frequency.setValueAtTime(7500, this.ctx.currentTime);
+
         this.masterGain = this.ctx.createGain();
         this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.65, this.ctx.currentTime);
-        this.masterGain.connect(this.ctx.destination);
+        this.masterGain.connect(compressor);
+        compressor.connect(masterFilter);
+        masterFilter.connect(this.ctx.destination);
       }
       if (this.ctx && this.ctx.state === 'suspended') {
         this.ctx.resume();

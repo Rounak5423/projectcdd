@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 
-export default function RightInfoPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+function RightInfoPanelComponent({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const {
     selectedBuilding,
     selectBuilding,
@@ -71,7 +71,8 @@ export default function RightInfoPanel({ isOpen, onClose }: { isOpen: boolean; o
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-4">
+        {isOpen && (
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-4">
           {selectedBuilding ? (
             /* ================= CONTEXTUAL BUILDING INSPECTOR ================= */
             <div className="space-y-3.5">
@@ -274,7 +275,10 @@ export default function RightInfoPanel({ isOpen, onClose }: { isOpen: boolean; o
             </div>
           )}
         </div>
+        )}
       </aside>
     </>
   );
 }
+
+export default React.memo(RightInfoPanelComponent);

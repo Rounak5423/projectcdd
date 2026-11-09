@@ -1,16 +1,193 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
+import { Html, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { Advisor } from '../types/advisor';
 import { AdvisorSeatConfig } from './Council3DTypes';
+import { COUNCIL_MODELS, CouncilModelConfig } from './CouncilModelRegistry';
 import { soundFx } from '../../../services/soundFx';
+
+interface AdvisorCharacterModelProps {
+  modelKey: string;
+  isSpeaking: boolean;
+  prefersReducedMotion: boolean;
+  seed: number;
+}
+
+const AdvisorCharacterModel: React.FC<AdvisorCharacterModelProps> = ({
+  modelKey,
+  isSpeaking,
+  prefersReducedMotion,
+  seed,
+}) => {
+  const config: CouncilModelConfig =
+    COUNCIL_MODELS[modelKey] || COUNCIL_MODELS['adv-chancellor'];
+  const { scene } = useGLTF(config.modelPath);
+
+  // Deep clone so each advisor instance has independent transforms and material states
+  const {
+    wrapper,
+    torsoNode,
+    headNode,
+    rightArmNode,
+    initialTorsoY,
+    initialHeadRotX,
+    initialHeadRotY,
+    initialRightArmRotX,
+  } = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    const container = new THREE.Group();
+    container.name = `CouncilModel_${config.id}`;
+
+    if (config.category === 'historical') {
+      // Historical models were exported with exact seat geometry
+      container.add(clone);
+    } else {
+      // Real downloaded models: normalize height, auto-center lateral bounds, ground feet to floor Y=0
+      const targetHeight = config.targetHeight || 1.6;
+      const rawHeight = size.y > 0.05 ? size.y : 1.0;
+      const scale = targetHeight / rawHeight;
+
+      clone.position.set(
+        -center.x + (config.offsetX || 0),
+        -box.min.y + (config.offsetY || 0),
+        -center.z + (config.offsetZ || 0)
+      );
+      if (config.rotationY) {
+        clone.rotation.y = config.rotationY;
+      }
+      container.scale.set(scale, scale, scale);
+      container.add(clone);
+    }
+
+    // Identify animation joints
+    const torso =
+      clone.getObjectByName('TorsoAssembly') ||
+      clone.getObjectByName('Spine1') ||
+      clone.getObjectByName('Spine') ||
+      clone.getObjectByName('U9M5FGRXTON58PON5RWIMVVJA') ||
+      null;
+
+    const head =
+      clone.getObjectByName('HeadAssembly') ||
+      clone.getObjectByName('Head') ||
+      clone.getObjectByName('U9M5FGRXTON58PON5RWIMVVJA_Modelpart1_head_Material005_0') ||
+      null;
+
+    const rightArm =
+      clone.getObjectByName('RightArmAssembly') ||
+      clone.getObjectByName('RightArm') ||
+      clone.getObjectByName('RightForeArm') ||
+      clone.getObjectByName('U9M5FGRXTON58PON5RWIMVVJA_Modelpart1_armr_Material003_0') ||
+      null;
+
+    // Cache initial transforms to prevent floating point numerical drift over time
+    const initialTorsoY = torso ? torso.position.y : 0;
+    const initialHeadRotX = head ? head.rotation.x : 0;
+    const initialHeadRotY = head ? head.rotation.y : 0;
+    const initialRightArmRotX = rightArm ? rightArm.rotation.x : 0;
+
+    return {
+      wrapper: container,
+      torsoNode: torso,
+      headNode: head,
+      rightArmNode: rightArm,
+      initialTorsoY,
+      initialHeadRotX,
+      initialHeadRotY,
+      initialRightArmRotX,
+    };
+  }, [scene, config]);
+
+  // Phase 8: Safe cleanup of cloned container hierarchy on unmount or model re-mapping
+  useEffect(() => {
+    return () => {
+      if (wrapper) {
+        wrapper.clear();
+      }
+    };
+  }, [wrapper]);
+
+  // Subtle breathing and expressive speaking animation (deterministic, zero drift)
+  useFrame((state) => {
+    if (prefersReducedMotion) return;
+
+    const t = state.clock.getElapsedTime();
+
+    // 1. Natural idle breathing on torso - absolute offset from initial position
+    if (torsoNode) {
+      const breath = Math.sin(t * 1.8 + seed) * 0.003;
+      torsoNode.position.y = initialTorsoY + breath;
+    }
+
+    // 2. Head micro-movements or speaking nodding
+    if (headNode) {
+      if (isSpeaking) {
+        headNode.rotation.x = initialHeadRotX + Math.sin(t * 4.5) * 0.04;
+        headNode.rotation.y = initialHeadRotY + Math.sin(t * 2.2) * 0.06;
+      } else {
+        headNode.rotation.y = initialHeadRotY + Math.sin(t * 0.6 + seed) * 0.02;
+        headNode.rotation.x = initialHeadRotX + Math.cos(t * 0.9 + seed) * 0.01;
+      }
+    }
+
+    // 3. Expressive gesture on right arm
+    if (rightArmNode) {
+      if (isSpeaking) {
+        rightArmNode.rotation.x = initialRightArmRotX + Math.sin(t * 3.8) * 0.05;
+      } else {
+        rightArmNode.rotation.x = initialRightArmRotX;
+      }
+    }
+  });
+
+  return <primitive object={wrapper} />;
+};
+
+const AdvisorLoadingPlaceholder: React.FC<{ seat: AdvisorSeatConfig }> = ({ seat }) => {
+  return (
+    <group position={[0, 0.52, 0]}>
+      <mesh position={[0, 0.32, -0.04]}>
+        <boxGeometry args={[0.42, 0.44, 0.26]} />
+        <meshStandardMaterial
+          color={seat.primaryColor || '#C5A66A'}
+          transparent
+          opacity={0.4}
+          roughness={0.5}
+        />
+      </mesh>
+      <mesh position={[0, 0.72, -0.04]}>
+        <sphereGeometry args={[0.12, 12, 12]} />
+        <meshStandardMaterial
+          color={seat.accentColor || '#C5A66A'}
+          transparent
+          opacity={0.5}
+          roughness={0.4}
+        />
+      </mesh>
+    </group>
+  );
+};
 
 interface AdvisorCharacterProps {
   seat: AdvisorSeatConfig;
   advisor?: Advisor;
   isSelected: boolean;
   isSpeaking: boolean;
+  modelKey?: string;
   onClick: () => void;
 }
 
@@ -19,17 +196,18 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
   advisor,
   isSelected,
   isSpeaking,
+  modelKey,
   onClick,
 }) => {
   const [hovered, setHovered] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
-  // Animation refs
   const rootGroupRef = useRef<THREE.Group>(null);
-  const torsoRef = useRef<THREE.Group>(null);
-  const headRef = useRef<THREE.Group>(null);
-  const rightArmRef = useRef<THREE.Group>(null);
   const selectionRingRef = useRef<THREE.Mesh>(null);
+
+  const activeModelKey = modelKey || seat.id;
+  const activeModelConfig = COUNCIL_MODELS[activeModelKey] || COUNCIL_MODELS['adv-chancellor'];
+  const seed = useMemo(() => seat.id.length * 1.7, [seat.id]);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -51,97 +229,10 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
     };
   }, [hovered]);
 
-  // Materials tailored for this advisor
-  const materials = useMemo(() => {
-    return {
-      primaryRobe: new THREE.MeshStandardMaterial({
-        color: seat.primaryColor,
-        roughness: 0.8,
-        metalness: 0.15,
-      }),
-      secondaryRobe: new THREE.MeshStandardMaterial({
-        color: seat.secondaryColor,
-        roughness: 0.75,
-        metalness: 0.1,
-      }),
-      goldAccent: new THREE.MeshStandardMaterial({
-        color: seat.accentColor,
-        roughness: 0.35,
-        metalness: 0.75,
-      }),
-      skin: new THREE.MeshStandardMaterial({
-        color: seat.skinTone,
-        roughness: 0.6,
-        metalness: 0.05,
-      }),
-      hair: new THREE.MeshStandardMaterial({
-        color: seat.hairColor,
-        roughness: 0.85,
-        metalness: 0.05,
-      }),
-      leatherBelt: new THREE.MeshStandardMaterial({
-        color: '#26180F',
-        roughness: 0.7,
-        metalness: 0.2,
-      }),
-      selectionGlow: new THREE.MeshBasicMaterial({
-        color: '#C5A66A',
-        transparent: true,
-        opacity: 0.65,
-      }),
-      speakingGlow: new THREE.MeshBasicMaterial({
-        color: '#8FA879',
-        transparent: true,
-        opacity: 0.8,
-      }),
-      warningAmber: new THREE.MeshBasicMaterial({
-        color: '#E09F3E',
-      }),
-      criticalRed: new THREE.MeshBasicMaterial({
-        color: '#C84C4C',
-      }),
-    };
-  }, [seat]);
-
-  // Subtle breathing and expressive animation
+  // Rotational animation on the selection ring
   useFrame((state) => {
     if (prefersReducedMotion) return;
-
     const t = state.clock.getElapsedTime();
-    const seed = seat.id.length * 1.7; // unique phase per advisor
-
-    // 1. Natural idle breathing
-    if (torsoRef.current) {
-      const breath = Math.sin(t * 1.8 + seed) * 0.005;
-      torsoRef.current.position.y = 0.52 + breath;
-      torsoRef.current.scale.set(
-        1 + breath * 0.5,
-        1 + breath,
-        1 + breath * 0.5
-      );
-    }
-
-    // 2. Head micro-movements or speaking nodding
-    if (headRef.current) {
-      if (isSpeaking) {
-        headRef.current.rotation.x = Math.sin(t * 4.5) * 0.05;
-        headRef.current.rotation.y = Math.sin(t * 2.2) * 0.08;
-      } else {
-        headRef.current.rotation.y = Math.sin(t * 0.6 + seed) * 0.04;
-        headRef.current.rotation.x = Math.cos(t * 0.9 + seed) * 0.015;
-      }
-    }
-
-    // 3. Speaking gesture on right arm
-    if (rightArmRef.current) {
-      if (isSpeaking) {
-        rightArmRef.current.rotation.x = -0.3 + Math.sin(t * 3.8) * 0.08;
-      } else {
-        rightArmRef.current.rotation.x = -0.28 + Math.sin(t * 0.5 + seed) * 0.01;
-      }
-    }
-
-    // 4. Selection ring rotation
     if (selectionRingRef.current && isSelected) {
       selectionRingRef.current.rotation.z = t * 0.8;
     }
@@ -174,13 +265,14 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
       {isSelected && (
         <group position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           {/* Outer runic selection ring */}
-          <mesh ref={selectionRingRef} material={materials.selectionGlow}>
+          <mesh ref={selectionRingRef}>
             <ringGeometry args={[0.72, 0.78, 32]} />
+            <meshBasicMaterial color="#C5A66A" transparent opacity={0.75} />
           </mesh>
           {/* Inner radial fill */}
           <mesh>
             <circleGeometry args={[0.7, 32]} />
-            <meshBasicMaterial color="#C5A66A" transparent opacity={0.12} />
+            <meshBasicMaterial color="#C5A66A" transparent opacity={0.14} />
           </mesh>
         </group>
       )}
@@ -196,126 +288,47 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
       {isSpeaking && (
         <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.82, 0.86, 32]} />
-          <primitive object={materials.speakingGlow} attach="material" />
+          <meshBasicMaterial color="#8FA879" transparent opacity={0.85} />
         </mesh>
       )}
 
-      {/* 2. Procedural Seated Advisor Character Model */}
-      {/* Lower Body & Draped Robes over chair */}
-      <group position={[0, 0, 0]}>
-        {/* Robes falling down to feet */}
-        <mesh position={[0, 0.28, 0.1]} castShadow material={materials.primaryRobe}>
-          <boxGeometry args={[0.44, 0.44, 0.46]} />
+      {/* 2. Realistic 3D Advisor Character Model Loaded via GLTF */}
+      <React.Suspense fallback={<AdvisorLoadingPlaceholder seat={seat} />}>
+        <AdvisorCharacterModel
+          modelKey={activeModelKey}
+          isSpeaking={isSpeaking}
+          prefersReducedMotion={prefersReducedMotion}
+          seed={seed}
+        />
+      </React.Suspense>
+
+      {/* 3. Floating Status Gem for Critical/Warning States */}
+      {hasCritical && (
+        <mesh position={[0, 1.48, 0]} castShadow>
+          <octahedronGeometry args={[0.045, 0]} />
+          <meshStandardMaterial
+            color="#C84C4C"
+            emissive="#C84C4C"
+            emissiveIntensity={0.85}
+            roughness={0.2}
+            metalness={0.8}
+          />
         </mesh>
-        {/* Lower robe skirt */}
-        <mesh position={[0, 0.12, 0.2]} castShadow material={materials.secondaryRobe}>
-          <boxGeometry args={[0.42, 0.24, 0.32]} />
+      )}
+      {!hasCritical && hasWarning && (
+        <mesh position={[0, 1.48, 0]} castShadow>
+          <octahedronGeometry args={[0.04, 0]} />
+          <meshStandardMaterial
+            color="#E09F3E"
+            emissive="#E09F3E"
+            emissiveIntensity={0.75}
+            roughness={0.2}
+            metalness={0.8}
+          />
         </mesh>
-        {/* Leather boots resting on stone */}
-        <mesh position={[-0.14, 0.04, 0.32]} material={materials.leatherBelt}>
-          <boxGeometry args={[0.1, 0.08, 0.18]} />
-        </mesh>
-        <mesh position={[0.14, 0.04, 0.32]} material={materials.leatherBelt}>
-          <boxGeometry args={[0.1, 0.08, 0.18]} />
-        </mesh>
-      </group>
+      )}
 
-      {/* Upper Body (Animated Torso & Breathing) */}
-      <group ref={torsoRef} position={[0, 0.52, 0]}>
-        {/* Robed Torso */}
-        <mesh position={[0, 0.34, -0.05]} castShadow material={materials.primaryRobe}>
-          <boxGeometry args={[0.46, 0.46, 0.28]} />
-        </mesh>
-
-        {/* Advisor Signature Gold/Accent Embroidered Sash / Stole */}
-        <mesh position={[0, 0.34, 0.1]} material={materials.goldAccent}>
-          <boxGeometry args={[0.16, 0.44, 0.02]} />
-        </mesh>
-
-        {/* Broad Robe Collar / Shoulder Mantle */}
-        <mesh position={[0, 0.52, -0.04]} castShadow material={materials.secondaryRobe}>
-          <boxGeometry args={[0.54, 0.12, 0.34]} />
-        </mesh>
-
-        {/* Neck */}
-        <mesh position={[0, 0.62, -0.04]} material={materials.skin}>
-          <cylinderGeometry args={[0.07, 0.08, 0.12, 12]} />
-        </mesh>
-
-        {/* Head & Facial Styling */}
-        <group ref={headRef} position={[0, 0.74, -0.04]}>
-          {/* Head Base */}
-          <mesh castShadow material={materials.skin}>
-            <sphereGeometry args={[0.13, 16, 16]} />
-          </mesh>
-
-          {/* Advisor Hair / Headdress */}
-          <mesh position={[0, 0.05, -0.03]} material={materials.hair}>
-            <sphereGeometry args={[0.135, 16, 16]} />
-          </mesh>
-
-          {/* Forehead Brow / Crown Fillet in Gold */}
-          <mesh position={[0, 0.05, 0.05]} material={materials.goldAccent}>
-            <torusGeometry args={[0.125, 0.012, 8, 20]} />
-          </mesh>
-
-          {/* Left and Right Eyes (subtle depth) */}
-          <mesh position={[-0.045, 0.01, 0.11]}>
-            <sphereGeometry args={[0.015, 8, 8]} />
-            <meshBasicMaterial color="#1C1814" />
-          </mesh>
-          <mesh position={[0.045, 0.01, 0.11]}>
-            <sphereGeometry args={[0.015, 8, 8]} />
-            <meshBasicMaterial color="#1C1814" />
-          </mesh>
-
-          {/* Warning / Critical Indicator Gem on Head / Fillet */}
-          {hasCritical && (
-            <mesh position={[0, 0.11, 0.13]} material={materials.criticalRed}>
-              <sphereGeometry args={[0.025, 8, 8]} />
-            </mesh>
-          )}
-          {!hasCritical && hasWarning && (
-            <mesh position={[0, 0.11, 0.13]} material={materials.warningAmber}>
-              <sphereGeometry args={[0.022, 8, 8]} />
-            </mesh>
-          )}
-        </group>
-
-        {/* Left Arm (Resting on Left Armrest) */}
-        <group position={[-0.26, 0.45, -0.04]}>
-          {/* Upper Arm */}
-          <mesh position={[0, -0.16, 0.04]} rotation={[0.2, 0, 0.1]} material={materials.primaryRobe}>
-            <cylinderGeometry args={[0.07, 0.065, 0.32, 8]} />
-          </mesh>
-          {/* Forearm angled forward */}
-          <mesh position={[-0.02, -0.28, 0.18]} rotation={[-0.4, 0, 0]} material={materials.secondaryRobe}>
-            <cylinderGeometry args={[0.06, 0.055, 0.3, 8]} />
-          </mesh>
-          {/* Left Hand */}
-          <mesh position={[-0.02, -0.32, 0.34]} material={materials.skin}>
-            <boxGeometry args={[0.08, 0.04, 0.1]} />
-          </mesh>
-        </group>
-
-        {/* Right Arm (Resting or Gesturing) */}
-        <group ref={rightArmRef} position={[0.26, 0.45, -0.04]}>
-          {/* Upper Arm */}
-          <mesh position={[0, -0.16, 0.04]} rotation={[0.2, 0, -0.1]} material={materials.primaryRobe}>
-            <cylinderGeometry args={[0.07, 0.065, 0.32, 8]} />
-          </mesh>
-          {/* Forearm */}
-          <mesh position={[0.02, -0.28, 0.18]} rotation={[-0.4, 0, 0]} material={materials.secondaryRobe}>
-            <cylinderGeometry args={[0.06, 0.055, 0.3, 8]} />
-          </mesh>
-          {/* Right Hand */}
-          <mesh position={[0.02, -0.32, 0.34]} material={materials.skin}>
-            <boxGeometry args={[0.08, 0.04, 0.1]} />
-          </mesh>
-        </group>
-      </group>
-
-      {/* 3. Floating 2D Nameplate Overlay on Hover / Select / Speaking */}
+      {/* 4. Floating 2D Nameplate Overlay on Hover / Select / Speaking */}
       {(hovered || isSelected || isSpeaking) && (
         <Html
           position={[0, 1.85, 0]}
@@ -337,6 +350,11 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
               <span className="text-[9px] uppercase font-mono tracking-wider text-[#C5A66A] font-bold">
                 {seat.title}
               </span>
+              {activeModelConfig.category === 'real_downloaded' && (
+                <span className="px-1.5 py-0.2 rounded bg-[#C5A66A]/20 text-[#C5A66A] border border-[#C5A66A]/40 text-[8px] font-mono font-bold flex items-center gap-0.5">
+                  <span>⚡ 3D Real</span>
+                </span>
+              )}
               {isSpeaking && (
                 <span className="px-1.5 py-0.2 rounded-full bg-[#8FA879]/30 text-[#8FA879] text-[8px] font-mono uppercase font-bold animate-pulse">
                   Speaking
@@ -354,7 +372,7 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
             </span>
 
             <span className="text-[9px] font-mono text-[#A5AD9D]">
-              {advisor?.domain || 'Imperial Ministry'}
+              {advisor?.domain || 'Imperial Ministry'} · {activeModelConfig.shortName}
             </span>
           </div>
         </Html>
@@ -362,3 +380,10 @@ export const AdvisorCharacter: React.FC<AdvisorCharacterProps> = ({
     </group>
   );
 };
+
+// Preload models under 25MB to eliminate runtime pop-in without blocking memory
+Object.values(COUNCIL_MODELS).forEach((cfg) => {
+  if (cfg.id !== 'real-magus') {
+    useGLTF.preload(cfg.modelPath);
+  }
+});

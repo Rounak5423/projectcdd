@@ -16,18 +16,6 @@ export default function CS2ChirperWidget() {
   const [activeTag, setActiveTag] = useState<string>('all');
   const [latestToast, setLatestToast] = useState<boolean>(true);
 
-  React.useEffect(() => {
-    if (!isChirperOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        soundFx.playClick();
-        setIsChirperOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isChirperOpen, setIsChirperOpen]);
-
   const unreadCount = chirperFeed.filter((c) => !c.isLiked).length;
   const latestChirp = chirperFeed[0];
 

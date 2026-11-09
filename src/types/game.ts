@@ -16,13 +16,7 @@ export type InfoViewType =
   | 'traffic'
   | 'land_value'
   | 'pollution'
-  | 'happiness'
-  | 'noise'
-  | 'crime'
-  | 'health'
-  | 'education'
-  | 'transit'
-  | 'unemployment';
+  | 'happiness';
 
 export interface RciDemand {
   residentialLow: number; // 0 - 100

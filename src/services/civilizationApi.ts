@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { performanceMonitor } from './monitoring/performanceMonitor';
+import { apiCache } from './apiCache';
 import {
   CivilizationProfile,
   ResourceState,
@@ -27,14 +29,45 @@ export const apiClient = axios.create({
   },
 });
 
-// Auto-inject JWT token from localStorage if present
+// Auto-inject JWT token from localStorage if present and timestamp request
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('civora_token') || localStorage.getItem('genesis_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  (config as any)._perfStartTime = performance.now();
   return config;
 });
+
+// Non-intrusively record API response latency to Central Performance Monitor
+apiClient.interceptors.response.use(
+  (response) => {
+    const startTime = (response.config as any)?._perfStartTime;
+    if (startTime) {
+      const duration = performance.now() - startTime;
+      performanceMonitor.recordApiCall(
+        response.config.method?.toUpperCase() || 'GET',
+        response.config.url || '',
+        duration,
+        response.status
+      );
+    }
+    return response;
+  },
+  (error) => {
+    const startTime = error.config?._perfStartTime;
+    if (startTime) {
+      const duration = performance.now() - startTime;
+      performanceMonitor.recordApiCall(
+        error.config?.method?.toUpperCase() || 'GET',
+        error.config?.url || '',
+        duration,
+        error.response?.status || 0
+      );
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -93,35 +126,39 @@ export interface AdminUser {
 export const civilizationApi = {
   // Civilization & World telemetry
   async getCivilization(civId: string): Promise<ApiResponse<CivilizationProfile>> {
-    try {
-      const response = await apiClient.get<CivilizationProfile>(`/worlds/${civId}`);
-      return { success: true, data: response.data };
-    } catch {
+    return apiCache.deduplicate(`civ_${civId}`, async () => {
       try {
-        const altResponse = await apiClient.get<CivilizationProfile>(`/civilizations/${civId}`);
-        return { success: true, data: altResponse.data };
+        const response = await apiClient.get<CivilizationProfile>(`/worlds/${civId}`);
+        return { success: true, data: response.data };
       } catch {
-        return {
-          success: true,
-          message: 'FastAPI service not reachable; running in authoritative local simulation engine mode.',
-          isFallback: true,
-        };
+        try {
+          const altResponse = await apiClient.get<CivilizationProfile>(`/civilizations/${civId}`);
+          return { success: true, data: altResponse.data };
+        } catch {
+          return {
+            success: true,
+            message: 'FastAPI service not reachable; running in authoritative local simulation engine mode.',
+            isFallback: true,
+          };
+        }
       }
-    }
+    }, 5000);
   },
 
   async listWorlds(): Promise<ApiResponse<any[]>> {
-    try {
-      const response = await apiClient.get('/worlds');
-      return { success: true, data: response.data };
-    } catch {
-      return { success: false, data: [] };
-    }
+    return apiCache.deduplicate('worlds_list', async () => {
+      try {
+        const response = await apiClient.get('/worlds');
+        return { success: true, data: response.data };
+      } catch {
+        return { success: false, data: [] };
+      }
+    }, 6000);
   },
 
   async advanceSimulationTicks(civId: string, ticks: number): Promise<ApiResponse<{ ticksProcessed: number }>> {
     try {
-      const response = await apiClient.post(`/worlds/${civId}/simulate`, { ticks });
+      const response = await apiClient.post(`/worlds/${civId}/simulation/advance`, { ticks });
       return { success: true, data: response.data };
     } catch {
       return {
@@ -165,36 +202,9 @@ export const civilizationApi = {
   },
 
   // Science & Tech tree
-  async getTechnologyTree(civId: string): Promise<ApiResponse<any[]>> {
-    try {
-      const response = await apiClient.get(`/worlds/${civId}/technology`);
-      return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
-    }
-  },
-
-  async getTechnologyOverview(civId: string): Promise<ApiResponse<any>> {
-    try {
-      const response = await apiClient.get(`/worlds/${civId}/technology/overview`);
-      return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
-    }
-  },
-
-  async queueResearch(civId: string, techId: string): Promise<ApiResponse<{ techId: string; status: string; technology?: any }>> {
+  async queueResearch(civId: string, techId: string): Promise<ApiResponse<{ techId: string; status: string }>> {
     try {
       const response = await apiClient.post(`/worlds/${civId}/technologies/${techId}/unlock`);
-      return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
-    }
-  },
-
-  async triggerEurekaBoost(civId: string, techId: string): Promise<ApiResponse<any>> {
-    try {
-      const response = await apiClient.post(`/worlds/${civId}/technology/${techId}/eureka`);
       return { success: true, data: response.data };
     } catch {
       return { success: true, isFallback: true };

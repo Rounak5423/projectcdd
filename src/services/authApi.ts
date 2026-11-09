@@ -89,9 +89,6 @@ export async function apiLogin(
   password: string
 ): Promise<AuthTokenResponse> {
   const baseUrl = getAuthBaseUrl();
-  const u = username.trim().toLowerCase();
-  const p = password.trim();
-
   try {
     const res = await fetch(`${baseUrl}/login`, {
       method: 'POST',
@@ -100,33 +97,29 @@ export async function apiLogin(
     });
     return await handleResponse<AuthTokenResponse>(res);
   } catch (err: any) {
-    const errMsg = err?.message?.toLowerCase() || '';
-    const isNetworkError =
-      err instanceof TypeError ||
-      errMsg.includes('fetch') ||
-      errMsg.includes('network') ||
-      errMsg.includes('load') ||
-      errMsg.includes('refused');
+    // If network connection failed (e.g. backend server is offline or starting)
+    if (err instanceof TypeError && (err.message.toLowerCase().includes('fetch') || err.message.toLowerCase().includes('network'))) {
+      const u = username.trim().toLowerCase();
+      const p = password.trim();
 
-    // If server is offline or returned an error, check demo credentials fallback
-    if (u === 'admin' && (p === 'admin' || p === 'adminpassword123!' || p === 'admin123' || p === 'password')) {
-      return createDemoAuthResponse('admin', 'admin');
-    }
-    if (u === 'player1' && (p === 'player1' || p === 'userpassword123!' || p === 'user123' || p === 'password')) {
-      return createDemoAuthResponse('player1', 'user');
-    }
-    if (u === 'commander' && (p === 'civora2026' || p === 'commander')) {
-      return createDemoAuthResponse('commander', 'user');
-    }
+      // Check default demo credentials
+      if (u === 'admin' && (p === 'AdminPassword123!' || p === 'admin123' || p === 'admin')) {
+        return createDemoAuthResponse('admin', 'admin');
+      }
+      if (u === 'player1' && (p === 'UserPassword123!' || p === 'player1' || p === 'user123')) {
+        return createDemoAuthResponse('player1', 'user');
+      }
+      if (u === 'commander' && (p === 'civora2026' || p === 'commander')) {
+        return createDemoAuthResponse('commander', 'user');
+      }
 
-    if (isNetworkError) {
-      // In offline mode, allow any valid username/password to enter
-      if (u.length >= 3 && p.length >= 3) {
+      // Also allow any valid non-empty username/password to enter in offline demo mode
+      if (u.length >= 3 && p.length >= 4) {
         return createDemoAuthResponse(username, u === 'admin' ? 'admin' : 'user');
       }
 
       throw new Error(
-        'Backend server offline at 127.0.0.1:8000. Sign in with Admin / AdminPassword123! or Player1 / UserPassword123!'
+        'Backend server offline at 127.0.0.1:8000. Please check connection or sign in with admin / AdminPassword123!'
       );
     }
     throw err;
