@@ -107,3 +107,4 @@ Records macroeconomic, environmental, and civic stability aggregates.
 | `world_id` | `STRING` | Simulation ID | Non-empty | No | Source world identifier. |
 | `seed` | `INT64` | Random seed | Any integer | No | Simulation initial RNG seed. |
 | `policies` | `STRING` | JSON string | Valid JSON | No | Serialized active policy configuration. |
+

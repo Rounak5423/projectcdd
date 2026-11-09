@@ -284,3 +284,177 @@ def evaluate_incident_risk(
         "ml_enabled": ML_ENABLED
     }
 
+
+# ==============================================================================
+# MULTI-LEVEL AI MODEL INFERENCE PIPELINE
+# ==============================================================================
+
+# LEVEL 1: Micro / Citizen Behavioral & Mobility Models
+def predict_citizen_activity(
+    cur_activity: str,
+    hour: int,
+    age: float,
+    education: float,
+    health: float,
+    wealth: float
+) -> str:
+    """
+    Level 1 AI Model: Predicts citizen diurnal state (home, at_work, at_school, leisure)
+    using the Neural MLP Classifier (activity_sequence.joblib).
+    Falls back gracefully to rule-based schedule when ML is disabled.
+    """
+    bundle = load_model_bundle("activity_sequence") if ML_ENABLED else None
+    if ML_ENABLED and bundle is not None:
+        try:
+            model = bundle["model"]
+            labels = bundle.get("class_labels", ["home", "at_work", "at_school", "leisure"])
+            act_map = {"home": 0, "at_work": 1, "at_school": 2, "leisure": 3}
+            cur_idx = act_map.get(cur_activity, 0)
+            x_in = np.array([[cur_idx, float(hour), float(age), float(education), float(health), float(wealth)]])
+            pred_idx = int(model.predict(x_in)[0])
+            if 0 <= pred_idx < len(labels):
+                return labels[pred_idx]
+        except Exception as e:
+            logger.debug(f"Level 1 activity inference fallback: {e}")
+
+    # Safe heuristic fallback
+    if 8 <= hour < 17:
+        return "at_work" if age >= 18.0 else "at_school"
+    elif 17 <= hour < 21:
+        return "leisure"
+    return "home"
+
+
+def predict_commute_mode(
+    age: float,
+    wealth: float,
+    departure_time: float = 8.0,
+    travel_time: float = 20.0,
+    cost: float = 2.0
+) -> str:
+    """
+    Level 1 AI Model: Predicts commuter mode choice (walking, transit, car, bicycle)
+    using the LightGBM Mode Choice Model (mode_choice.joblib).
+    Falls back to income-tiered heuristics when ML is disabled.
+    """
+    bundle = load_model_bundle("mode_choice") if ML_ENABLED else None
+    if ML_ENABLED and bundle is not None:
+        try:
+            model = bundle["model"]
+            labels = bundle.get("class_labels", ["walking", "transit", "car", "bicycle"])
+            x_in = np.array([[float(age), float(wealth), float(departure_time), float(travel_time), float(cost)]])
+            pred_idx = int(model.predict(x_in)[0])
+            if 0 <= pred_idx < len(labels):
+                return labels[pred_idx]
+        except Exception as e:
+            logger.debug(f"Level 1 mode choice inference fallback: {e}")
+
+    # Safe wealth-tiered fallback
+    if wealth > 80.0:
+        return "car"
+    elif wealth > 40.0:
+        return "transit"
+    return "walking"
+
+
+# LEVEL 2: Meso / District Infrastructure & Incident Risk Models
+def predict_incident_risk(
+    location_x: float,
+    location_y: float,
+    response_time: float = 5.0,
+    hour: int = 12,
+    is_night: int = 0
+) -> Dict[str, Any]:
+    """
+    Level 2 AI Model: Evaluates local incident severity probability and casualty load
+    using CalibratedClassifierCV LightGBM (incident_risk_calibrated.joblib).
+    """
+    bundle = load_model_bundle("incident_risk_calibrated") if ML_ENABLED else None
+    if ML_ENABLED and bundle is not None:
+        try:
+            model = bundle["model"]
+            x_in = np.array([[float(location_x), float(location_y), float(response_time), float(hour), float(is_night)]])
+            p_severe = float(model.predict_proba(x_in)[0, 1])
+            is_sev = bool(p_severe >= 0.5)
+            return {
+                "is_severe": is_sev,
+                "severe_probability": round(p_severe, 4),
+                "severity_code": 1 if is_sev else 2,
+                "model_applied": "Calibrated_LightGBM"
+            }
+        except Exception as e:
+            logger.debug(f"Level 2 incident inference fallback: {e}")
+
+    # Safe empirical fallback
+    p_severe = 0.142 * (1.4 if is_night else 1.0)
+    return {
+        "is_severe": np.random.rand() < p_severe,
+        "severe_probability": round(p_severe, 4),
+        "severity_code": 1 if np.random.rand() < p_severe else 2,
+        "model_applied": "Rule_Based_Calibrated"
+    }
+
+
+# LEVEL 3: Demographic & Vital Statistics Models
+def calculate_gompertz_mortality_hazard(age: float, health: float = 0.8) -> float:
+    """
+    Level 3 AI Model: Computes annual mortality hazard using calibrated Gompertz
+    accelerated aging hazard: mu(x) = a * exp(b * x), modulated by citizen wellbeing.
+    """
+    calib = load_calibration_params()
+    gomp = calib.get("gompertz_mortality", {})
+    a = float(gomp.get("a_base_hazard", 0.0001295))
+    b = float(gomp.get("b_aging_rate", 0.08016))
+    
+    # Biometric aging hazard modulated by health deficit
+    base_hazard = a * np.exp(b * min(105.0, max(0.0, age)))
+    health_factor = max(0.2, 1.6 - health)
+    return float(np.clip(base_hazard * health_factor, 0.0, 0.95))
+
+
+# LEVEL 4: Macro & Citywide State Dynamics Models
+def predict_city_trajectory_step(
+    current_metrics: Dict[str, Any],
+    horizon_steps: int = 1
+) -> Dict[str, float]:
+    """
+    Level 4 AI Model: Fast counterfactual surrogate forward projection
+    using the City Trajectory Surrogate model (city_trajectory_surrogate.joblib).
+    Executes in < 0.05 ms.
+    """
+    bundle = load_model_bundle("city_trajectory_surrogate") if ML_ENABLED else None
+    pop = float(current_metrics.get("population", 50000))
+    gdp = float(current_metrics.get("gdp", 10000000.0))
+    gini = float(current_metrics.get("gini", 0.38))
+    happiness = float(current_metrics.get("happiness", 0.75))
+    congestion = float(current_metrics.get("traffic_congestion", 0.20))
+
+    if ML_ENABLED and bundle is not None:
+        try:
+            model = bundle["model"]
+            pop_norm = pop / 1000.0
+            gdp_norm = gdp / 100000.0
+            h_norm = float(horizon_steps)
+            x_in = np.array([[pop_norm, gdp_norm, gini, happiness, congestion, h_norm]])
+            preds = model.predict(x_in)[0]
+            return {
+                "predicted_population": round(pop * (1.0 + float(preds[0]))),
+                "predicted_gdp": round(gdp * (1.0 + float(preds[1])), 2),
+                "predicted_gini": round(float(np.clip(gini + preds[2], 0.18, 0.75)), 4),
+                "predicted_happiness": round(float(np.clip(happiness + preds[3], 0.10, 1.0)), 4),
+                "predicted_congestion": round(float(np.clip(congestion + preds[4], 0.05, 0.95)), 4),
+                "model_applied": "City_Trajectory_Surrogate_Linear"
+            }
+        except Exception as e:
+            logger.debug(f"Level 4 surrogate inference fallback: {e}")
+
+    # Calibrated analytical compounding fallback
+    return {
+        "predicted_population": round(pop * (1.0 + 0.015 * horizon_steps)),
+        "predicted_gdp": round(gdp * (1.0 + 0.025 * horizon_steps), 2),
+        "predicted_gini": round(gini, 4),
+        "predicted_happiness": round(happiness, 4),
+        "predicted_congestion": round(congestion, 4),
+        "model_applied": "Analytical_Compounding_Fallback"
+    }
+

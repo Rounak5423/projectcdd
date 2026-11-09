@@ -37,3 +37,4 @@ The compiled binary `GENESIS.CS2Telemetry.dll` will be placed in `bin/Release/ne
 ## Schema & Isolation Contract
 
 All exported records adhere to the GENESIS Engine schema with an immutable `"source": "cs2"` identifier. Under no circumstances is CS2 data mingled silently with internal GENESIS telemetry.
+

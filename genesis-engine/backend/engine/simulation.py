@@ -745,7 +745,17 @@ def step_world(world: WorldState, ticks: int = 1, ticks_per_year: int = 10) -> W
             c.demographics.x = max(0.0, min(float(world.grid_size), c.demographics.x + dx))
             c.demographics.y = max(0.0, min(float(world.grid_size), c.demographics.y + dy))
 
-            if c.demographics.age > 85.0 and random.random() < 0.05:
+            # Level 3 AI Model: Calibrated Gompertz adult mortality hazard
+            try:
+                from ml.inference.registry import calculate_gompertz_mortality_hazard
+                mortality_prob = calculate_gompertz_mortality_hazard(
+                    age=c.demographics.age,
+                    health=getattr(c.needs, "wellbeing", 0.75)
+                ) * year_increment
+            except Exception:
+                mortality_prob = 0.05 if c.demographics.age > 85.0 else 0.001
+
+            if random.random() < mortality_prob:
                 c.is_alive = False
             else:
                 alive_citizens.append(c)
@@ -815,8 +825,21 @@ def step_world(world: WorldState, ticks: int = 1, ticks_per_year: int = 10) -> W
                 cit_records = []
                 trip_records = []
                 hour = world.tick % 24
+                from ml.inference.registry import (
+                    predict_citizen_activity,
+                    predict_commute_mode,
+                    predict_incident_risk
+                )
                 for c in world.citizens[:50]:
-                    activity = "at_work" if 8 <= hour < 17 else ("leisure" if 17 <= hour < 21 else "home")
+                    # Level 1 AI Model: Neural MLP Activity Predictor
+                    activity = predict_citizen_activity(
+                        cur_activity="home",
+                        hour=hour,
+                        age=c.demographics.age,
+                        education=round(c.cognitive.knowledge_retention * 2.0, 1),
+                        health=round(c.needs.wellbeing, 2),
+                        wealth=round(c.demographics.wealth, 2)
+                    )
                     cit_records.append({
                         "id": c.id,
                         "age": c.demographics.age,
@@ -830,7 +853,12 @@ def step_world(world: WorldState, ticks: int = 1, ticks_per_year: int = 10) -> W
                         "current_activity": activity
                     })
                     if hour in [7, 8, 17, 18]:
-                        mode = "car" if c.demographics.wealth > 80 else ("transit" if c.demographics.wealth > 40 else "walking")
+                        # Level 1 AI Model: Discrete Mode Choice Model (LightGBM)
+                        mode = predict_commute_mode(
+                            age=c.demographics.age,
+                            wealth=c.demographics.wealth,
+                            departure_time=float(hour)
+                        )
                         trip_records.append({
                             "trip_id": f"trp_{c.id}_{world.tick}",
                             "citizen_id": c.id,
@@ -853,14 +881,28 @@ def step_world(world: WorldState, ticks: int = 1, ticks_per_year: int = 10) -> W
 
                 incidents = []
                 if random.random() < 0.15:
+                    loc_x = random.uniform(0.0, float(world.grid_size))
+                    loc_y = random.uniform(0.0, float(world.grid_size))
+                    resp_time = round(random.uniform(3.5, 9.0), 1)
+                    is_night = 1 if (hour >= 21 or hour <= 5) else 0
+
+                    # Level 2 AI Model: Calibrated Incident Severity & Risk Classifier
+                    inc_eval = predict_incident_risk(
+                        location_x=loc_x,
+                        location_y=loc_y,
+                        response_time=resp_time,
+                        hour=hour,
+                        is_night=is_night
+                    )
+
                     incidents.append({
                         "incident_id": f"inc_{world.id}_{world.tick}",
                         "type": "traffic",
-                        "severity": 1 if random.random() < 0.15 else 2,
-                        "location_x": random.uniform(0.0, float(world.grid_size)),
-                        "location_y": random.uniform(0.0, float(world.grid_size)),
-                        "response_time": round(random.uniform(3.5, 9.0), 1),
-                        "casualties": 1 if random.random() < 0.8 else 2
+                        "severity": inc_eval["severity_code"],
+                        "location_x": loc_x,
+                        "location_y": loc_y,
+                        "response_time": resp_time,
+                        "casualties": 2 if inc_eval["is_severe"] else 1
                     })
 
                 city_stats = {

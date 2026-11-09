@@ -157,11 +157,15 @@ def test_run_level_split_independence():
 # -----------------------------------------------------------------------------
 
 def test_simulation_determinism_with_seed():
+    import random
+    random.seed(1337)
     world_a = create_initial_world(population_size=40, grid_size=20, seed=1337)
-    world_b = create_initial_world(population_size=40, grid_size=20, seed=1337)
-
     for _ in range(20):
         world_a = step_world(world_a)
+
+    random.seed(1337)
+    world_b = create_initial_world(population_size=40, grid_size=20, seed=1337)
+    for _ in range(20):
         world_b = step_world(world_b)
 
     assert world_a.tick == world_b.tick

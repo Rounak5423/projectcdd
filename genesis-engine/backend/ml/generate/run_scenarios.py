@@ -155,3 +155,4 @@ if __name__ == "__main__":
         ticks_per_run=args.ticks,
         output_dir=args.output_dir
     )
+

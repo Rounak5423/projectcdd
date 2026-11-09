@@ -78,3 +78,4 @@ All inspected community telemetry mods use standard open-source licenses (MIT/GP
 
 - **Feasibility:** **FEASIBLE & PERMITTED.**
 - **Implementation:** Created companion C# mod in `tools/cs2-telemetry/` conforming exactly to the Phase 1 schema (`citizens`, `trips`, `incidents`, `city_metrics`) with `source: "cs2"`.
+
