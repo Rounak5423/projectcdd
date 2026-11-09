@@ -45,9 +45,9 @@ function VehiclesSystem() {
   const vehiclesRef = useRef<THREE.Group>(null);
   const emergencyStrobeRef = useRef<THREE.PointLight>(null);
 
-  // 12 Realistic Transportation Vehicles with Exact Road Network Waypoints
+  // 12 Realistic Transportation Vehicles with Authoritative Masterplan Waypoints
   const vehicles: VehicleDef[] = useMemo(() => [
-    // 1. Commuter Pod (North-South Grand Arterial)
+    // 1. Commuter Pod (North-South Grand Axis & Civic Loop)
     {
       id: 'veh-ns-commuter',
       name: 'Pioneer Commuter Pod Alpha',
@@ -59,20 +59,20 @@ function VehiclesSystem() {
         [1.2, 0.72, -10.5],
         [1.2, 0.85, -3.0],   // Central Citadel Grand Arch Bridge
         [1.2, 0.72, 4.5],
-        [1.2, 0.85, 18.0],  // North throat into Roundabout
-        [3.0, 0.85, 21.0],  // Circulating around Roundabout
-        [4.25, 0.85, 24.0],
-        [3.0, 0.85, 27.0],
+        [12.0, 0.72, 4.5],  // Riverfront Esplanade (East Wing)
+        [12.0, 0.72, 24.0], // East Civic Flank Avenue
+        [6.0, 0.72, 24.0],  // East throat into Roundabout
+        [3.0, 0.85, 27.0],  // Circulating south arc
         [1.2, 0.85, 30.0],  // South throat onto South Boulevard
         [1.2, 0.72, 42.0],
         [-1.2, 0.72, 42.0], // U-turn at south boundary
         [-1.2, 0.85, 30.0], // South throat entering northbound
         [-3.0, 0.85, 27.0],
-        [-4.25, 0.85, 24.0],
-        [-3.0, 0.85, 21.0],
-        [-1.2, 0.85, 18.0], // North throat exiting northbound
-        [-1.2, 0.72, 4.5],
-        [-1.2, 0.85, -3.0],  // Central Arch Bridge northbound
+        [-6.0, 0.72, 24.0], // West throat exiting to West Flank
+        [-12.0, 0.72, 24.0],
+        [-12.0, 0.72, 4.5], // West Civic Flank Avenue
+        [-1.2, 0.72, 4.5],  // Riverfront Esplanade (West Wing)
+        [-1.2, 0.85, -3.0], // Central Arch Bridge northbound
         [-1.2, 0.72, -10.5],
         [-1.2, 0.72, -42.0],
       ],
@@ -80,7 +80,7 @@ function VehiclesSystem() {
       length: 1.6,
       isNorthSouth: true,
     },
-    // 2. Autonomous Transit Shuttle (North-South Corridor)
+    // 2. Autonomous Transit Shuttle (North-South Rapid Transit)
     {
       id: 'veh-ns-transit',
       name: 'Metro Autonomous Transit Shuttle 01',
@@ -91,18 +91,18 @@ function VehiclesSystem() {
         [1.2, 0.72, -35.0],
         [1.2, 0.85, -3.0],
         [1.2, 0.72, 4.5],
-        [1.2, 0.85, 18.0],
-        [3.0, 0.85, 21.0],
-        [4.25, 0.85, 24.0],
-        [3.0, 0.85, 27.0],
+        [-12.0, 0.72, 4.5], // West Wing
+        [-12.0, 0.72, 24.0],
+        [-6.0, 0.72, 24.0],
+        [-3.0, 0.85, 27.0],
         [1.2, 0.85, 30.0],
         [1.2, 0.72, 38.0],
         [-1.2, 0.72, 38.0],
         [-1.2, 0.85, 30.0],
-        [-3.0, 0.85, 27.0],
-        [-4.25, 0.85, 24.0],
-        [-3.0, 0.85, 21.0],
-        [-1.2, 0.85, 18.0],
+        [3.0, 0.85, 27.0],
+        [6.0, 0.72, 24.0],
+        [12.0, 0.72, 24.0],
+        [12.0, 0.72, 4.5],
         [-1.2, 0.72, 4.5],
         [-1.2, 0.85, -3.0],
         [-1.2, 0.72, -35.0],
@@ -111,7 +111,7 @@ function VehiclesSystem() {
       length: 2.4,
       isNorthSouth: true,
     },
-    // 3. Heavy Freight Hauler (East-West Arterial Corridor)
+    // 3. Heavy Freight Hauler (Transverse Arterial Corridor)
     {
       id: 'veh-ew-freight-01',
       name: 'Vulcan Intermodal Hauler 01',
@@ -121,28 +121,29 @@ function VehiclesSystem() {
       waypoints: [
         [-24.0, 0.72, 24.6], // West Crossroads
         [-15.0, 0.72, 24.6],
+        [-12.0, 0.72, 24.6],
         [-6.0, 0.72, 24.6],  // West throat into Roundabout
         [-3.0, 0.85, 27.0],  // Circulating south arc
         [0, 0.85, 28.25],
         [3.0, 0.85, 27.0],
         [6.0, 0.72, 24.6],   // East throat out to East Parkway
-        [15.0, 0.72, 24.6],
+        [12.0, 0.72, 24.6],
         [24.0, 0.72, 24.6],  // East Crossroads
         [24.0, 0.72, 23.4],
-        [15.0, 0.72, 23.4],
+        [12.0, 0.72, 23.4],
         [6.0, 0.72, 23.4],   // East throat entering westbound
         [3.0, 0.85, 21.0],   // Circulating north arc
         [0, 0.85, 19.75],
         [-3.0, 0.85, 21.0],
         [-6.0, 0.72, 23.4],  // West throat exiting westbound
-        [-15.0, 0.72, 23.4],
+        [-12.0, 0.72, 23.4],
         [-24.0, 0.72, 23.4],
       ],
       speed: 7.2,
       length: 2.8,
       isEastWest: true,
     },
-    // 4. Commuter Sedan (East-West Parkway Corridor)
+    // 4. Commuter Sedan (Science Parkway Corridor)
     {
       id: 'veh-ew-sedan',
       name: 'Science Park Commuter Sedan',
@@ -151,22 +152,22 @@ function VehiclesSystem() {
       routeId: 'r-ew-main',
       waypoints: [
         [24.0, 0.72, 23.4],
-        [15.0, 0.72, 23.4],
+        [12.0, 0.72, 23.4],
         [6.0, 0.72, 23.4],
         [3.0, 0.85, 21.0],
         [0, 0.85, 19.75],
         [-3.0, 0.85, 21.0],
         [-6.0, 0.72, 23.4],
-        [-15.0, 0.72, 23.4],
+        [-12.0, 0.72, 23.4],
         [-24.0, 0.72, 23.4],
         [-24.0, 0.72, 24.6],
-        [-15.0, 0.72, 24.6],
+        [-12.0, 0.72, 24.6],
         [-6.0, 0.72, 24.6],
         [-3.0, 0.85, 27.0],
         [0, 0.85, 28.25],
         [3.0, 0.85, 27.0],
         [6.0, 0.72, 24.6],
-        [15.0, 0.72, 24.6],
+        [12.0, 0.72, 24.6],
         [24.0, 0.72, 24.6],
       ],
       speed: 8.0,
@@ -203,20 +204,16 @@ function VehiclesSystem() {
       color: '#8e44ad',
       routeId: 'r-east-highway',
       waypoints: [
-        [25.6, 0.72, -36.0],
-        [25.6, 0.72, -15.0],
-        [25.6, 0.85, 8.0],   // East Truss Bridge
-        [25.6, 0.72, 24.0],  // East Crossroads
+        [25.0, 0.72, 24.0],  // East Crossroads
         [35.0, 0.72, 24.0],  // Vulcan Heavy Freight Cul-de-Sac
         [25.0, 0.72, 24.0],
-        [24.4, 0.85, 8.0],
-        [24.4, 0.72, -15.0],
-        [24.4, 0.72, -36.0],
+        [14.0, 0.72, 24.0],
+        [25.0, 0.72, 24.0],
       ],
       speed: 6.5,
       length: 2.8,
     },
-    // 7. Elysium Civic Roundabout VIP Cruiser
+    // 7. Elysium Civic Secondary Loop VIP Cruiser
     {
       id: 'veh-forum-vip',
       name: 'High Council Executive Limousine',
@@ -224,16 +221,17 @@ function VehiclesSystem() {
       color: '#d4af37',
       routeId: 'r-forum-loop',
       waypoints: [
-        [0, 0.85, 19.75],
-        [3.0, 0.85, 21.0],
-        [4.25, 0.85, 24.0],
-        [3.0, 0.85, 27.0],
-        [0, 0.85, 28.25],
-        [-3.0, 0.85, 27.0],
-        [-4.25, 0.85, 24.0],
-        [-3.0, 0.85, 21.0],
+        [-12.0, 0.72, 4.5],  // Northwest corner
+        [0, 0.72, 4.5],      // Riverfront Esplanade
+        [12.0, 0.72, 4.5],   // Northeast corner
+        [12.0, 0.72, 24.0],  // Southeast corner
+        [6.0, 0.72, 24.0],   // Roundabout East throat
+        [0, 0.85, 28.25],    // Roundabout south arc
+        [-6.0, 0.72, 24.0],  // Roundabout West throat
+        [-12.0, 0.72, 24.0], // Southwest corner
+        [-12.0, 0.72, 4.5],
       ],
-      speed: 5.4,
+      speed: 5.6,
       length: 1.8,
     },
     // 8. Forum Autonomous Sightseeing Trolley
@@ -244,19 +242,14 @@ function VehiclesSystem() {
       color: '#16a085',
       routeId: 'r-forum-counter',
       waypoints: [
-        [0, 0.85, 18.0],  // Roundabout North throat
-        [1.2, 0.85, 11.0],  // Senate Citadel Boulevard
-        [1.2, 0.72, 5.0],   // Bridge landing
-        [-1.2, 0.72, 5.0],
-        [-1.2, 0.85, 11.0],
-        [-1.2, 0.85, 18.0], // Back to Roundabout
-        [-3.0, 0.85, 21.0],
-        [-4.25, 0.85, 24.0],
-        [-3.0, 0.85, 27.0],
-        [0, 0.85, 28.25],
-        [3.0, 0.85, 27.0],
-        [4.25, 0.85, 24.0],
-        [3.0, 0.85, 21.0],
+        [12.0, 0.72, 24.0],
+        [12.0, 0.72, 4.5],
+        [0, 0.72, 4.5],
+        [-12.0, 0.72, 4.5],
+        [-12.0, 0.72, 24.0],
+        [-6.0, 0.72, 24.0],
+        [0, 0.85, 19.75],
+        [6.0, 0.72, 24.0],
       ],
       speed: 5.0,
       length: 2.1,
@@ -274,7 +267,7 @@ function VehiclesSystem() {
         [14.0, 0.72, 37.0],  // Oasis Residential Cul-de-Sac
         [14.0, 0.72, 31.0],
         [14.0, 0.72, 24.5],
-        [8.0, 0.72, 24.5],
+        [12.0, 0.72, 24.5],
         [14.0, 0.72, 24.5],
       ],
       speed: 5.2,
@@ -291,7 +284,7 @@ function VehiclesSystem() {
         [25.0, 0.72, 24.0], // East Crossroads
         [35.0, 0.72, 24.0], // Freight Cul-de-Sac
         [25.0, 0.72, 24.0],
-        [25.0, 0.85, 18.0],
+        [18.0, 0.72, 24.0],
         [25.0, 0.72, 24.0],
       ],
       speed: 4.8,
@@ -305,19 +298,17 @@ function VehiclesSystem() {
       color: '#ffffff',
       routeId: 'r-emergency-clinic',
       waypoints: [
-        [14.0, 0.72, 37.0], // Residential Cul-de-Sac
-        [14.0, 0.72, 24.0], // East Parkway Branch
-        [6.0, 0.72, 24.0],  // Roundabout East throat
-        [3.0, 0.85, 21.0],  // North throat
-        [0, 0.85, 18.0],
-        [0, 0.85, 11.0],   // Senate Citadel
-        [0, 0.85, 18.0],   // Back to Roundabout
-        [-3.0, 0.85, 21.0],
-        [-4.25, 0.85, 24.0],
-        [-3.0, 0.85, 27.0],
+        [14.0, 0.72, 37.0],  // Residential Cul-de-Sac
+        [14.0, 0.72, 24.0],  // East Parkway Branch
+        [12.0, 0.72, 24.0],
+        [6.0, 0.72, 24.0],   // Roundabout East throat
         [0, 0.85, 28.25],
-        [3.0, 0.85, 27.0],
-        [6.0, 0.72, 24.0],  // Exit to East Parkway
+        [-6.0, 0.72, 24.0],
+        [-12.0, 0.72, 24.0],
+        [-12.0, 0.72, 4.5],  // West Civic Flank to Riverfront
+        [0, 0.72, 4.5],      // Central Bridge Landing
+        [12.0, 0.72, 4.5],
+        [12.0, 0.72, 24.0],
         [14.0, 0.72, 24.0],
         [14.0, 0.72, 37.0],
       ],

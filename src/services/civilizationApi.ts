@@ -15,11 +15,11 @@ import {
 
 // Base URL for FastAPI backend service (supports relative URLs in production and custom VITE_API_URL)
 const getApiBaseUrl = (): string => {
-  if (import.meta.env.VITE_API_URL) {
+  if (import.meta.env?.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
   if (typeof window !== 'undefined') {
-    if (import.meta.env.PROD || window.location.port === '8000' || !window.location.port) {
+    if (import.meta.env?.PROD || window.location.port === '8000' || !window.location.port) {
       return '/api/v1';
     }
     const host = window.location.hostname || '127.0.0.1';

@@ -98,6 +98,106 @@ export function sampleSplinePath(
 }
 
 /**
+ * 1B. Precision Trimmed Spline Path Generator
+ * Trims start and end of road ribbon by node clearance radius so that road ribbons meet
+ * junctions, roundabouts, and bridge abutments with ZERO OVERLAP and ZERO GAPS.
+ */
+export function sampleTrimmedSplinePath(
+  controlPoints: [number, number][],
+  startTrim: number = 0,
+  endTrim: number = 0,
+  sampleInterval: number = 1.0,
+  fixedY?: number,
+  yOffset: number = 0.08
+): RoadVertexDef[] {
+  if (controlPoints.length < 2) return [];
+
+  // When only 2 points are given (direct straight corridor)
+  if (controlPoints.length === 2) {
+    const [p1, p2] = controlPoints;
+    const totalDist = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+    const effectiveStart = Math.min(startTrim, totalDist * 0.45);
+    const effectiveEnd = Math.min(endTrim, totalDist * 0.45);
+    const usableDist = Math.max(0.1, totalDist - effectiveStart - effectiveEnd);
+    const steps = Math.max(2, Math.ceil(usableDist / sampleInterval));
+
+    const dx = (p2[0] - p1[0]) / totalDist;
+    const dz = (p2[1] - p1[1]) / totalDist;
+    const nx = -dz;
+    const nz = dx;
+
+    const startX = p1[0] + dx * effectiveStart;
+    const startZ = p1[1] + dz * effectiveStart;
+
+    const sampledNodes: RoadVertexDef[] = [];
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const x = startX + dx * usableDist * t;
+      const z = startZ + dz * usableDist * t;
+      const groundY = fixedY !== undefined ? fixedY : getTerrainHeight(x, z);
+      const y = groundY + yOffset;
+      sampledNodes.push({
+        x,
+        y,
+        z,
+        nx,
+        nz,
+        tx: dx,
+        tz: dz,
+        dist: usableDist * t,
+      });
+    }
+    return sampledNodes;
+  }
+
+  // Multi-point spline curve
+  const v2Points = controlPoints.map(([x, z]) => new THREE.Vector2(x, z));
+  const curve = new THREE.SplineCurve(v2Points);
+  const totalLength = curve.getLength();
+
+  const effectiveStart = Math.min(startTrim, totalLength * 0.45);
+  const effectiveEnd = Math.min(endTrim, totalLength * 0.45);
+  const usableLength = Math.max(0.2, totalLength - effectiveStart - effectiveEnd);
+  const divisions = Math.max(2, Math.ceil(usableLength / sampleInterval));
+
+  const sampledNodes: RoadVertexDef[] = [];
+  let accumulatedDist = 0;
+  let prevV2: THREE.Vector2 | null = null;
+
+  for (let i = 0; i <= divisions; i++) {
+    const u = i / divisions;
+    const distOnCurve = effectiveStart + u * usableLength;
+    const t = Math.max(0, Math.min(1, distOnCurve / totalLength));
+    const pt = curve.getPoint(t);
+    const tangent = curve.getTangent(t).normalize();
+
+    const nx = -tangent.y;
+    const nz = tangent.x;
+
+    if (prevV2) {
+      accumulatedDist += pt.distanceTo(prevV2);
+    }
+    prevV2 = pt.clone();
+
+    const groundY = fixedY !== undefined ? fixedY : getTerrainHeight(pt.x, pt.y);
+    const y = groundY + yOffset;
+
+    sampledNodes.push({
+      x: pt.x,
+      y,
+      z: pt.y,
+      nx,
+      nz,
+      tx: tangent.x,
+      tz: tangent.y,
+      dist: accumulatedDist,
+    });
+  }
+
+  return sampledNodes;
+}
+
+/**
  * 2. Continuous Road Mesh Generator
  * Generates continuous smooth asphalt ribbon with terrain-adaptive vertical retaining skirts
  */
