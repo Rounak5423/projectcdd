@@ -68,6 +68,12 @@ import { soundFx } from '../services/soundFx';
 import { civilizationApi } from '../services/civilizationApi';
 import { civoraEventClient } from '../services/realtime/CivoraEventClient';
 import { getCitadelTerritoryRadius } from '../components/world3d/placementValidation';
+import {
+  saveGameStateToStorage,
+  loadActiveGameStateFromStorage,
+  loadGameStateForWorld,
+  CivoraSavedGameState,
+} from '../services/storage/gameStateStorage';
 
 export function getCitadelNameForLevel(level: number): string {
   switch (Math.max(1, Math.min(5, Math.round(level)))) {
@@ -268,6 +274,9 @@ interface GameStateContextType {
   relocatingBuildingId: string | null;
   citadelTerritoryRadius: number;
   calculateUpgradeCost: (building: PlacedBuilding) => { materials: number; money: number };
+  saveGame: () => boolean;
+  lastSavedTimestamp: number | null;
+  isSaving: boolean;
   
   // Action Handlers
   togglePlay: () => void;
@@ -362,23 +371,26 @@ interface GameStateContextType {
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
 
 export function GameStateProvider({ children }: { children: ReactNode }) {
-  const [civilization, setCivilization] = useState<CivilizationProfile>(initialCivilization);
-  const [savedWorlds, setSavedWorlds] = useState<CivilizationProfile[]>(alternateWorlds);
-  const [resources, setResources] = useState<ResourceState>(initialResources);
-  const [rates, setRates] = useState<ResourceRates>(initialRates);
-  const [districts, setDistricts] = useState<District[]>(initialDistricts);
-  const [placedBuildings, setPlacedBuildings] = useState<PlacedBuilding[]>(initialPlacedBuildings);
-  const [technologies, setTechnologies] = useState<Technology[]>(initialTechnologies);
-  const [policies, setPolicies] = useState<Policy[]>(initialPolicies);
-  const [citizens, setCitizens] = useState<Citizen[]>(initialCitizens);
+  // Synchronously load saved game progress from localStorage so the game resumes exactly where the user left off
+  const initialSaved = useMemo(() => loadActiveGameStateFromStorage(), []);
+
+  const [civilization, setCivilization] = useState<CivilizationProfile>(() => initialSaved?.civilization || initialCivilization);
+  const [savedWorlds, setSavedWorlds] = useState<CivilizationProfile[]>(() => initialSaved?.savedWorlds || alternateWorlds);
+  const [resources, setResources] = useState<ResourceState>(() => initialSaved?.resources || initialResources);
+  const [rates, setRates] = useState<ResourceRates>(() => initialSaved?.rates || initialRates);
+  const [districts, setDistricts] = useState<District[]>(() => initialSaved?.districts || initialDistricts);
+  const [placedBuildings, setPlacedBuildings] = useState<PlacedBuilding[]>(() => initialSaved?.placedBuildings || initialPlacedBuildings);
+  const [technologies, setTechnologies] = useState<Technology[]>(() => initialSaved?.technologies || initialTechnologies);
+  const [policies, setPolicies] = useState<Policy[]>(() => initialSaved?.policies || initialPolicies);
+  const [citizens, setCitizens] = useState<Citizen[]>(() => initialSaved?.citizens || initialCitizens);
   const [scenarios] = useState<SimulationScenario[]>(simulationScenarios);
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
-  const [achievements, setAchievements] = useState<Achievement[]>(initialAchievements);
+  const [achievements, setAchievements] = useState<Achievement[]>(() => initialSaved?.achievements || initialAchievements);
   const [events, setEvents] = useState<GameEvent[]>(initialEvents);
-  const [quests, setQuests] = useState<GameQuest[]>(initialQuests);
-  const [missions, setMissions] = useState<CivoraMission[]>(initialMissions);
-  const [chronicle, setChronicle] = useState<ChronicleEntry[]>(initialChronicleEntries);
-  const [transactions, setTransactions] = useState<ResearchTransaction[]>(initialTransactions);
+  const [quests, setQuests] = useState<GameQuest[]>(() => initialSaved?.quests || initialQuests);
+  const [missions, setMissions] = useState<CivoraMission[]>(() => initialSaved?.missions || initialMissions);
+  const [chronicle, setChronicle] = useState<ChronicleEntry[]>(() => initialSaved?.chronicle || initialChronicleEntries);
+  const [transactions, setTransactions] = useState<ResearchTransaction[]>(() => initialSaved?.transactions || initialTransactions);
   const [eras, setEras] = useState<HistoricalEraDefinition[]>(historicalErasList);
   const [playerTitles, setPlayerTitles] = useState<PlayerTitle[]>(playerTitlesList);
   const [toasts, setToasts] = useState<GameToast[]>([]);
@@ -485,7 +497,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     });
   }, [civilization.currentYear, civilization.currentDay, triggerToast]);
   
-  const [taxRate, setTaxRate] = useState<number>(18); // %
+  const [taxRate, setTaxRate] = useState<number>(() => initialSaved?.taxRate ?? 18); // %
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [speed, setSpeed] = useState<'1x' | '2x' | '5x' | '10x'>('1x');
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
@@ -500,7 +512,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [activeInfoView, setActiveInfoView] = useState<InfoViewType>('none');
   const [activeZoneTool, setActiveZoneTool] = useState<ZoneType | null>(null);
   const [zoneMode, setZoneMode] = useState<'brush' | 'marquee'>('brush');
-  const [zonedTiles, setZonedTiles] = useState<ZonedTile[]>(initialZonedTiles);
+  const [zonedTiles, setZonedTiles] = useState<ZonedTile[]>(() => initialSaved?.zonedTiles || initialZonedTiles);
   const [chirperFeed, setChirperFeed] = useState<ChirperMessage[]>(initialChirperMessages);
   const [isChirperOpen, setIsChirperOpen] = useState<boolean>(false);
   const [cityMilestones, setCityMilestones] = useState<CityMilestone[]>(initialCityMilestones);
@@ -529,12 +541,17 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [isStatisticsOpen, setIsStatisticsOpen] = useState<boolean>(false);
 
   // Dynamic RCI Demand & Utility calculation state
-  const [rciDemand, setRciDemand] = useState<RciDemand>(() =>
-    calculateRciDemand(initialResources.population, initialPlacedBuildings, 18, 95)
-  );
-  const [utilityStats, setUtilityStats] = useState<UtilityStats>(() =>
-    calculateUtilityStats(initialPlacedBuildings, initialResources.population)
-  );
+  const [rciDemand, setRciDemand] = useState<RciDemand>(() => {
+    const pop = initialSaved?.resources?.population ?? initialResources.population;
+    const blds = initialSaved?.placedBuildings ?? initialPlacedBuildings;
+    const tax = initialSaved?.taxRate ?? 18;
+    return calculateRciDemand(pop, blds, tax, 95);
+  });
+  const [utilityStats, setUtilityStats] = useState<UtilityStats>(() => {
+    const pop = initialSaved?.resources?.population ?? initialResources.population;
+    const blds = initialSaved?.placedBuildings ?? initialPlacedBuildings;
+    return calculateUtilityStats(blds, pop);
+  });
 
   const likeChirp = useCallback((chirpId: string) => {
     setChirperFeed((prev) =>
@@ -739,9 +756,14 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   }));
 
   // Detailed Citizen Agent Multi-Need Social Intelligence
-  const [detailedAgents, setDetailedAgents] = useState<DetailedCitizenAgent[]>(() =>
-    createInitialDetailedAgents(initialCitizens)
-  );
+  const [detailedAgents, setDetailedAgents] = useState<DetailedCitizenAgent[]>(() => {
+    if (initialSaved?.detailedAgents && initialSaved.detailedAgents.length > 0) {
+      return initialSaved.detailedAgents;
+    }
+    const cits = initialSaved?.citizens || initialCitizens;
+    const lvl = initialSaved?.civilization?.level || 1;
+    return createInitialDetailedAgents(cits, lvl);
+  });
 
   // Centralized City Simulation Report (Calculates fiscal flows, resource accounting, district metrics, demands & alerts)
   const economyReport = useMemo(() => {
@@ -759,6 +781,8 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const citizenReport = useMemo(() => {
     const timeOfDay = (civilization.currentDay * 8) % 24;
+    const citadel = placedBuildings.find((b) => b.modelType === 'citadel' || b.catalogId === 'bld-gov-citadel');
+    const citadelLevel = citadel?.level || civilization?.level || 1;
     return runCitizenSimulationTick(
       resources,
       placedBuildings,
@@ -766,9 +790,123 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       economyReport,
       disasterState,
       detailedAgents,
-      timeOfDay
+      timeOfDay,
+      citadelLevel
     );
-  }, [resources, placedBuildings, districts, economyReport, disasterState, detailedAgents, civilization.currentDay]);
+  }, [resources, placedBuildings, districts, economyReport, disasterState, detailedAgents, civilization.currentDay, civilization.level]);
+
+  // Persistent Progress Management (Zero Progress Loss on page exit, reload, or tab switch)
+  const [lastSavedTimestamp, setLastSavedTimestamp] = useState<number | null>(() => initialSaved?.timestamp || null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  // Latest state ref for exit / unload event handlers to eliminate stale closures
+  const latestStateRef = useRef<CivoraSavedGameState>({
+    version: 2,
+    timestamp: Date.now(),
+    civilization,
+    resources,
+    rates,
+    districts,
+    placedBuildings,
+    technologies,
+    policies,
+    citizens,
+    detailedAgents,
+    quests,
+    missions,
+    chronicle,
+    transactions,
+    achievements,
+    zonedTiles,
+    taxRate,
+    savedWorlds,
+  });
+
+  useEffect(() => {
+    latestStateRef.current = {
+      version: 2,
+      timestamp: Date.now(),
+      civilization,
+      resources,
+      rates,
+      districts,
+      placedBuildings,
+      technologies,
+      policies,
+      citizens,
+      detailedAgents,
+      quests,
+      missions,
+      chronicle,
+      transactions,
+      achievements,
+      zonedTiles,
+      taxRate,
+      savedWorlds,
+    };
+  }, [
+    civilization,
+    resources,
+    rates,
+    districts,
+    placedBuildings,
+    technologies,
+    policies,
+    citizens,
+    detailedAgents,
+    quests,
+    missions,
+    chronicle,
+    transactions,
+    achievements,
+    zonedTiles,
+    taxRate,
+    savedWorlds,
+  ]);
+
+  const saveGame = useCallback((): boolean => {
+    setIsSaving(true);
+    const success = saveGameStateToStorage(latestStateRef.current);
+    if (success) {
+      setLastSavedTimestamp(Date.now());
+    }
+    setTimeout(() => setIsSaving(false), 500);
+    return success;
+  }, []);
+
+  // Multi-event exit & page navigation persistence (tab close, refresh, mobile app switch, tab switch)
+  useEffect(() => {
+    const handleExit = () => {
+      saveGameStateToStorage(latestStateRef.current);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveGameStateToStorage(latestStateRef.current);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleExit);
+    window.addEventListener('pagehide', handleExit);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleExit);
+      window.removeEventListener('pagehide', handleExit);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // Periodic throttled auto-save every 8 seconds when running
+  const lastAutoSaveRef = useRef<number>(Date.now());
+  useEffect(() => {
+    const now = Date.now();
+    if (now - lastAutoSaveRef.current >= 8000) {
+      lastAutoSaveRef.current = now;
+      saveGameStateToStorage(latestStateRef.current);
+      setLastSavedTimestamp(now);
+    }
+  }, [resources, placedBuildings, civilization.currentDay]);
 
   // Simulation Tick Logic
   const advanceTick = useCallback(() => {
@@ -2091,6 +2229,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   };
 
   const createNewCivilization = (data: Partial<CivilizationProfile>) => {
+    // 1. Archive current active world first
+    saveGameStateToStorage(latestStateRef.current);
+
     const newCiv: CivilizationProfile = {
       id: `civ-${Date.now().toString().slice(-4)}`,
       name: data.name || 'Nova Terra',
@@ -2107,14 +2248,45 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       terrainType: data.terrainType || 'Verdant River Valley',
       climateType: data.climateType || 'Temperate',
     };
+
+    const newSavedWorlds = [newCiv, ...savedWorlds];
+    const newAgents = createInitialDetailedAgents(initialCitizens, 1);
+
     setCivilization(newCiv);
-    setSavedWorlds((prev) => [newCiv, ...prev]);
+    setSavedWorlds(newSavedWorlds);
     setPlacedBuildings(initialPlacedBuildings);
     setResources(initialResources);
     setRates(initialRates);
     setDistricts(initialDistricts);
     setCitizens(initialCitizens);
+    setDetailedAgents(newAgents);
     setZonedTiles([]);
+    setTechnologies(initialTechnologies);
+    setPolicies(initialPolicies);
+
+    // Save immediately so the fresh world is persisted as active state
+    saveGameStateToStorage({
+      version: 2,
+      timestamp: Date.now(),
+      civilization: newCiv,
+      resources: initialResources,
+      rates: initialRates,
+      districts: initialDistricts,
+      placedBuildings: initialPlacedBuildings,
+      technologies: initialTechnologies,
+      policies: initialPolicies,
+      citizens: initialCitizens,
+      detailedAgents: newAgents,
+      quests: initialQuests,
+      missions: initialMissions,
+      chronicle: initialChronicleEntries,
+      transactions: initialTransactions,
+      achievements: initialAchievements,
+      zonedTiles: [],
+      taxRate: 18,
+      savedWorlds: newSavedWorlds,
+    });
+
     triggerToast({
       type: 'info',
       title: `🌱 Welcome to ${newCiv.name}!`,
@@ -2124,6 +2296,40 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   };
 
   const loadCivilization = (civId: string) => {
+    // 1. Save currently active world before switching
+    saveGameStateToStorage(latestStateRef.current);
+
+    // 2. Check if target world has saved state in storage
+    const savedForTarget = loadGameStateForWorld(civId);
+    if (savedForTarget) {
+      setCivilization(savedForTarget.civilization);
+      setPlacedBuildings(savedForTarget.placedBuildings);
+      setResources(savedForTarget.resources);
+      setRates(savedForTarget.rates);
+      setDistricts(savedForTarget.districts);
+      setCitizens(savedForTarget.citizens);
+      setDetailedAgents(
+        savedForTarget.detailedAgents ||
+        createInitialDetailedAgents(savedForTarget.citizens, savedForTarget.civilization.level)
+      );
+      setTechnologies(savedForTarget.technologies || initialTechnologies);
+      setPolicies(savedForTarget.policies || initialPolicies);
+      setZonedTiles(savedForTarget.zonedTiles || []);
+      setTaxRate(savedForTarget.taxRate ?? 18);
+      if (savedForTarget.quests) setQuests(savedForTarget.quests);
+      if (savedForTarget.missions) setMissions(savedForTarget.missions);
+      if (savedForTarget.chronicle) setChronicle(savedForTarget.chronicle);
+
+      saveGameStateToStorage(savedForTarget);
+      triggerToast({
+        type: 'info',
+        title: `🏛️ World Loaded: ${savedForTarget.civilization.name}`,
+        subtitle: `Resumed from your saved progress at Day ${savedForTarget.civilization.currentDay}, Year ${savedForTarget.civilization.currentYear}.`,
+        icon: '💾',
+      });
+      return;
+    }
+
     const target = savedWorlds.find((w) => w.id === civId);
     if (target) {
       setCivilization(target);
@@ -2133,12 +2339,14 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         setRates(demoMetropolisRates);
         setDistricts(demoMetropolisDistricts);
         setCitizens(demoMetropolisCitizens);
+        setDetailedAgents(createInitialDetailedAgents(demoMetropolisCitizens, 5));
       } else {
         setPlacedBuildings(initialPlacedBuildings);
         setResources(initialResources);
         setRates(initialRates);
         setDistricts(initialDistricts);
         setCitizens(initialCitizens);
+        setDetailedAgents(createInitialDetailedAgents(initialCitizens, 1));
       }
     }
   };
@@ -2201,6 +2409,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       relocatingBuildingId,
       citadelTerritoryRadius,
       calculateUpgradeCost,
+      saveGame,
+      lastSavedTimestamp,
+      isSaving,
       togglePlay,
       setSpeed,
       advanceTick,
@@ -2378,6 +2589,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       triggerFireworks,
       triggerNextProtest,
       triggerToast,
+      saveGame,
+      lastSavedTimestamp,
+      isSaving,
     ]
   );
 

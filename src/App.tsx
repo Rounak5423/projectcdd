@@ -77,6 +77,7 @@ function GameApp() {
     setIsBudgetOpen,
     isStatisticsOpen,
     setIsStatisticsOpen,
+    saveGame,
   } = useGameState();
   const { isAuthenticated, isLoading, logout, user, isAdmin } = useAuth();
 
@@ -324,6 +325,7 @@ function GameApp() {
           onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
           user={user}
           onLogout={() => {
+            saveGame();
             logout();
             setStage('auth');
           }}

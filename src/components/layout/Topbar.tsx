@@ -18,6 +18,9 @@ import {
   AlertTriangle,
   Activity,
   ShieldAlert,
+  Save,
+  CheckCircle2,
+  RefreshCw,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
@@ -54,6 +57,9 @@ function TopbarComponent({
     setIsProtestModalOpen,
     setIsDemoModalOpen,
     economyReport,
+    saveGame,
+    isSaving,
+    lastSavedTimestamp,
   } = useGameState();
 
   const [selectedResource, setSelectedResource] = useState<SelectedResourceKey | null>(null);
@@ -312,6 +318,32 @@ function TopbarComponent({
           >
             <ShieldAlert size={13} className="text-[#a6bd82]" />
             <span>Defense</span>
+          </button>
+
+          {/* Persistent Auto-Save Status & Manual Save Trigger */}
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              saveGame();
+            }}
+            disabled={isSaving}
+            className={`hidden sm:flex items-center gap-1.5 px-2 py-1 rounded border text-[11px] font-mono transition-all ${
+              isSaving
+                ? 'bg-[#1e2a22] border-[#2ecc71] text-[#2ecc71]'
+                : 'bg-[#18211b] border-[#2B372C] hover:border-[#3d503e] text-[#a5ad9d] hover:text-[#ede8dc]'
+            }`}
+            title={
+              lastSavedTimestamp
+                ? `Progress saved at ${new Date(lastSavedTimestamp).toLocaleTimeString()}. Click to force save now.`
+                : 'Click to save your progress now.'
+            }
+          >
+            {isSaving ? (
+              <RefreshCw size={12} className="animate-spin text-[#2ecc71]" />
+            ) : (
+              <CheckCircle2 size={12} className="text-[#2ecc71]" />
+            )}
+            <span className="hidden lg:inline">{isSaving ? 'Saving...' : 'Saved'}</span>
           </button>
 
           {/* User Profile Badge & Logout */}
