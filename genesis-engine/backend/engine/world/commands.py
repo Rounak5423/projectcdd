@@ -182,10 +182,11 @@ class UnifiedCommandManager:
 
             # When residential capacity is created, spawn real citizens into home
             res_cap = config.get("residents_capacity", 0)
+            spawned_ids = []
             if res_cap > 0 or "Residential" in b_type:
                 from engine.demographics import spawn_citizens_for_world
                 spawn_count = max(10, res_cap)
-                spawn_citizens_for_world(
+                spawned_ids = spawn_citizens_for_world(
                     conn=conn,
                     world_id=world_id,
                     count=spawn_count,
@@ -193,6 +194,21 @@ class UnifiedCommandManager:
                     center_x=x,
                     center_y=z
                 )
+
+            # Assign unemployed workers if workplace
+            jobs_cap = config.get("jobs_capacity", 0)
+            assigned_worker_ids = []
+            if jobs_cap > 0:
+                unemployed = conn.execute("""
+                SELECT id FROM citizens
+                WHERE world_id = ? AND is_alive = 1 AND 18.0 <= age AND age < 65.0
+                  AND (work_building_id IS NULL OR employed = 0)
+                LIMIT ?
+                """, (world_id, jobs_cap)).fetchall()
+                for u in unemployed:
+                    conn.execute("UPDATE citizens SET work_building_id = ?, employed = 1 WHERE id = ?", (b_id, u["id"]))
+                    assigned_worker_ids.append(u["id"])
+                conn.execute("UPDATE buildings SET current_workers = ? WHERE id = ?", (len(assigned_worker_ids), b_id))
 
             now = datetime.now(timezone.utc).isoformat()
             log_id = f"act_{uuid.uuid4().hex[:8]}"
@@ -210,6 +226,8 @@ class UnifiedCommandManager:
             "action": "place_building",
             "building_id": b_id,
             "cost_materials": cost_mat,
+            "spawned_citizen_ids": spawned_ids,
+            "assigned_worker_ids": assigned_worker_ids
         })
 
         return CommandResult(
@@ -255,6 +273,14 @@ class UnifiedCommandManager:
         refund_materials = round(float(cost.get("materials", 100)) * BULLDOZE_REFUND_RATE, 1)
 
         saved_building_data = dict(b)
+        displaced_home = [r["id"] for r in conn.execute(
+            "SELECT id FROM citizens WHERE home_building_id = ? AND world_id = ?",
+            (b_id, world_id)
+        ).fetchall()]
+        displaced_workers = [r["id"] for r in conn.execute(
+            "SELECT id FROM citizens WHERE work_building_id = ? AND world_id = ?",
+            (b_id, world_id)
+        ).fetchall()]
 
         with conn:
             # Unlink occupants and workers
@@ -284,6 +310,8 @@ class UnifiedCommandManager:
             "action": "demolish_building",
             "building_data": saved_building_data,
             "refund_materials": refund_materials,
+            "displaced_home_citizens": displaced_home,
+            "displaced_workers": displaced_workers,
         })
 
         return CommandResult(
@@ -520,25 +548,46 @@ class UnifiedCommandManager:
                 if action_name == "place_building":
                     b_id = last_action["building_id"]
                     refund = last_action.get("cost_materials", 0)
+                    spawned_ids = last_action.get("spawned_citizen_ids", [])
+                    assigned_worker_ids = last_action.get("assigned_worker_ids", [])
+
+                    if spawned_ids:
+                        placeholders = ",".join("?" for _ in spawned_ids)
+                        conn.execute(f"DELETE FROM citizens WHERE id IN ({placeholders})", spawned_ids)
+                    if assigned_worker_ids:
+                        placeholders = ",".join("?" for _ in assigned_worker_ids)
+                        conn.execute(f"UPDATE citizens SET work_building_id = NULL, employed = 0 WHERE id IN ({placeholders})", assigned_worker_ids)
+
                     conn.execute("DELETE FROM buildings WHERE id = ? AND world_id = ?", (b_id, world_id))
                     conn.execute("UPDATE economy_resources SET materials = materials + ? WHERE world_id = ?", (refund, world_id))
+                    from engine.demographics import sync_demographics_state
+                    sync_demographics_state(conn, world_id)
                     return {"success": True, "undone_action": action_name, "entity_id": b_id, "refunded_materials": refund}
 
                 elif action_name == "demolish_building":
                     data = last_action["building_data"]
                     cost_refund = last_action.get("refund_materials", 0)
-                    conn.execute("""
-                    INSERT INTO buildings (
-                        id, world_id, name, type, level, x, y, z, width, length, height,
-                        orientation, status, capacity, construction_cost, upgrade_cost, effects
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        data["id"], world_id, data["name"], data["type"], data["level"],
-                        data["x"], data["y"], data["z"], data["width"], data["length"], data["height"],
-                        data["orientation"], data["status"], data["capacity"],
-                        data["construction_cost"], data["upgrade_cost"], data["effects"]
-                    ))
-                    conn.execute("UPDATE economy_resources SET materials = MAX(0.0, materials - ?) WHERE world_id = ?", (cost_refund, world_id))
+                    displaced_home = last_action.get("displaced_home_citizens", [])
+                    displaced_workers = last_action.get("displaced_workers", [])
+
+                    cols = [c[1] for c in conn.execute("PRAGMA table_info(buildings)").fetchall()]
+                    b_cols = [k for k in data.keys() if k in cols]
+                    placeholders = ", ".join("?" for _ in b_cols)
+                    col_names = ", ".join(b_cols)
+                    values = [data[k] for k in b_cols]
+
+                    conn.execute(f"INSERT OR REPLACE INTO buildings ({col_names}) VALUES ({placeholders})", values)
+
+                    if displaced_home:
+                        placeholders = ",".join("?" for _ in displaced_home)
+                        conn.execute(f"UPDATE citizens SET home_building_id = ? WHERE id IN ({placeholders})", [data["id"]] + displaced_home)
+                    if displaced_workers:
+                        placeholders = ",".join("?" for _ in displaced_workers)
+                        conn.execute(f"UPDATE citizens SET work_building_id = ?, employed = 1 WHERE id IN ({placeholders})", [data["id"]] + displaced_workers)
+
+                    conn.execute("UPDATE economy_resources SET materials = materials - ? WHERE world_id = ?", (cost_refund, world_id))
+                    from engine.demographics import sync_demographics_state
+                    sync_demographics_state(conn, world_id)
                     return {"success": True, "undone_action": action_name, "restored_building_id": data["id"]}
 
                 return {"success": False, "message": f"Action '{action_name}' is not reversible"}

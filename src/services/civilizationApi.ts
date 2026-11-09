@@ -421,4 +421,40 @@ export const civilizationApi = {
       return { success: false, message: msg };
     }
   },
+
+  async getBudget(worldId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/budget`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to fetch budget' };
+    }
+  },
+
+  async updateBudget(worldId: string, data: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${worldId}/budget`, data);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to update budget' };
+    }
+  },
+
+  async issueBond(worldId: string, amount: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${worldId}/bonds/issue`, { amount });
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to issue municipal bond' };
+    }
+  },
+
+  async repayBond(worldId: string, amount: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${worldId}/bonds/repay`, { amount });
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to repay municipal bond' };
+    }
+  },
 };

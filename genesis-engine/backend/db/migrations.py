@@ -209,12 +209,35 @@ def migration_v5_citizens_single_truth(conn: sqlite3.Connection):
     """)
 
 
+def migration_v6_honest_economy_and_bonds(conn: sqlite3.Connection):
+    """Adds taxes, sector budgets, municipal debt, and interest tracking to economy_resources."""
+    cols = [c[1] for c in conn.execute("PRAGMA table_info(economy_resources)").fetchall()]
+    budget_cols = [
+        ("residential_tax", "REAL DEFAULT 0.14"),
+        ("commercial_tax", "REAL DEFAULT 0.12"),
+        ("industrial_tax", "REAL DEFAULT 0.15"),
+        ("office_tax", "REAL DEFAULT 0.13"),
+        ("road_budget_pct", "REAL DEFAULT 100.0"),
+        ("power_budget_pct", "REAL DEFAULT 100.0"),
+        ("water_budget_pct", "REAL DEFAULT 100.0"),
+        ("health_budget_pct", "REAL DEFAULT 100.0"),
+        ("education_budget_pct", "REAL DEFAULT 100.0"),
+        ("police_budget_pct", "REAL DEFAULT 100.0"),
+        ("municipal_debt", "REAL DEFAULT 0.0"),
+        ("total_interest_paid", "REAL DEFAULT 0.0"),
+    ]
+    for col_name, col_type in budget_cols:
+        if col_name not in cols:
+            conn.execute(f"ALTER TABLE economy_resources ADD COLUMN {col_name} {col_type}")
+
+
 MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (1, "baseline_init", migration_v1_baseline),
     (2, "save_slots_and_autosaves", migration_v2_save_slots),
     (3, "cs2_simulation_depth_and_infrastructure", migration_v3_cs2_simulation_depth),
     (4, "civilization_tech_tree", migration_v4_civilization_tech_tree),
     (5, "citizens_single_truth", migration_v5_citizens_single_truth),
+    (6, "honest_economy_and_bonds", migration_v6_honest_economy_and_bonds),
 ]
 
 

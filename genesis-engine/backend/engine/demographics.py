@@ -69,22 +69,32 @@ def spawn_citizens_for_world(
         return []
 
     spawned_ids = []
-    work_ids = work_building_ids or []
+    work_capacity_map = {}
+    if work_building_ids:
+        placeholders = ",".join("?" for _ in work_building_ids)
+        rows = conn.execute(
+            f"SELECT id, capacity, COALESCE(current_workers, 0) as workers FROM buildings WHERE id IN ({placeholders})",
+            work_building_ids
+        ).fetchall()
+        for r in rows:
+            work_capacity_map[r["id"]] = max(0, int(r["capacity"] or 0) - int(r["workers"] or 0))
 
     for i in range(count):
         cit_id = f"cit_{world_id}_{uuid.uuid4().hex[:8]}"
         age = sample_realistic_age()
         health = sample_health_for_age(age)
         home_id = residential_building_ids[i % len(residential_building_ids)]
-        
+
         is_working_age = (18.0 <= age < 65.0)
         work_id = None
         employed = 0
-        if is_working_age and work_ids:
-            work_id = work_ids[i % len(work_ids)]
-            employed = 1
-        elif is_working_age:
-            employed = 1
+        if is_working_age:
+            for w_cand in (work_building_ids or []):
+                if work_capacity_map.get(w_cand, 0) > 0:
+                    work_id = w_cand
+                    employed = 1
+                    work_capacity_map[w_cand] -= 1
+                    break
 
         occ = random.choice(PIONEER_OCCUPATIONS) if is_working_age else ("Student" if age < 18 else "Retiree")
         offset_x = (i % 5) * 0.5 - 1.0

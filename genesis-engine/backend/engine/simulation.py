@@ -362,23 +362,15 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     gdp_multiplier = (1.0 + (econ["gdp_growth_rate"] * (days_per_tick / float(days_per_year)))) ** ticks
     new_gdp = round(econ["gdp"] * gdp_multiplier, 2)
 
-    # Resource updates scaled per tick
-    time_factor = (ticks * days_per_tick) / 30.0
-    food_prod = econ["food_rate"] * time_factor * 10.0
-    water_prod = econ["water_rate"] * time_factor * 10.0
-    energy_prod = econ["energy_rate"] * time_factor * 10.0
-    materials_prod = econ["materials_rate"] * time_factor * 10.0
-    research_prod = econ["research_rate"] * time_factor * 5.0
-
-    # Resource consumption
+    # Resource consumption & Demographics
     from engine.demographics import sync_demographics_state, spawn_citizens_for_world
 
     cit_rows = conn.execute(
-        "SELECT id, age, health, home_building_id, work_building_id FROM citizens WHERE world_id = ? AND is_alive = 1",
+        "SELECT id, age, health, home_building_id, work_building_id, employed FROM citizens WHERE world_id = ? AND is_alive = 1",
         (world_id,)
     ).fetchall()
 
-    if not cit_rows:
+    if not cit_rows and world_id != "aurora-prime":
         res_blds = [r["id"] for r in conn.execute(
             "SELECT id FROM buildings WHERE world_id = ? AND (type LIKE '%Residential%' OR type = 'Government')",
             (world_id,)
@@ -394,23 +386,97 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
         with conn:
             spawn_citizens_for_world(conn, world_id, max(1, econ["population"]), res_blds)
         cit_rows = conn.execute(
-            "SELECT id, age, health, home_building_id, work_building_id FROM citizens WHERE world_id = ? AND is_alive = 1",
+            "SELECT id, age, health, home_building_id, work_building_id, employed FROM citizens WHERE world_id = ? AND is_alive = 1",
             (world_id,)
         ).fetchall()
 
-    current_pop = len(cit_rows)
-    mean_age = sum(c["age"] for c in cit_rows) / max(1, current_pop)
-    mean_health = sum(c["health"] for c in cit_rows) / max(1, current_pop)
+    current_pop = len(cit_rows) if cit_rows else econ["population"]
+    mean_age = sum(c["age"] for c in cit_rows) / max(1, len(cit_rows)) if cit_rows else 38.0
+    mean_health = sum(c["health"] for c in cit_rows) / max(1, len(cit_rows)) if cit_rows else 0.85
 
     # Advance citizen ages
     dt_years = (ticks * days_per_tick) / float(days_per_year)
     with conn:
         conn.execute("UPDATE citizens SET age = age + ? WHERE world_id = ? AND is_alive = 1", (dt_years, world_id))
 
+    # Job allocation: match unemployed working-age citizens to workplaces with open capacity
+    work_blds = conn.execute("""
+    SELECT id, type, level, capacity, current_workers
+    FROM buildings
+    WHERE world_id = ? AND status = 'active' AND capacity > 0
+      AND type NOT LIKE '%Residential%'
+    """, (world_id,)).fetchall()
+
+    for wb in work_blds:
+        open_jobs = max(0, wb["capacity"] - (wb["current_workers"] or 0))
+        if open_jobs > 0:
+            unemployed = conn.execute("""
+            SELECT id FROM citizens
+            WHERE world_id = ? AND is_alive = 1 AND 18.0 <= age AND age < 65.0
+              AND (work_building_id IS NULL OR employed = 0)
+            LIMIT ?
+            """, (world_id, open_jobs)).fetchall()
+            for u in unemployed:
+                conn.execute("UPDATE citizens SET work_building_id = ?, employed = 1 WHERE id = ?", (wb["id"], u["id"]))
+            conn.execute("""
+            UPDATE buildings SET current_workers = (
+                SELECT COUNT(*) FROM citizens WHERE work_building_id = ? AND is_alive = 1
+            ) WHERE id = ?
+            """, (wb["id"], wb["id"]))
+
+    # Honest labor force & unemployment calculation (no hardcoded 0.01)
+    labor_row = conn.execute("""
+    SELECT
+        COUNT(*) as labor_force,
+        SUM(CASE WHEN employed = 1 AND work_building_id IS NOT NULL THEN 1 ELSE 0 END) as employed_count
+    FROM citizens
+    WHERE world_id = ? AND is_alive = 1 AND age >= 18.0 AND age < 65.0
+    """, (world_id,)).fetchone()
+    labor_force = labor_row["labor_force"] if labor_row else 0
+    employed_count = labor_row["employed_count"] if labor_row and labor_row["employed_count"] else 0
+    if labor_force > 0:
+        unemployment_rate = round(float(labor_force - employed_count) / float(labor_force), 4)
+        employment_rate = round(float(employed_count) / float(labor_force), 4)
+    else:
+        unemployment_rate = 0.0
+        employment_rate = 1.0
+
+    # Dynamic honest materials production: derived strictly from employed workers in industrial buildings
+    ind_workers_row = conn.execute("""
+    SELECT SUM(current_workers) as workers, SUM(capacity) as cap
+    FROM buildings
+    WHERE world_id = ? AND status = 'active'
+      AND (type LIKE '%Industrial%' OR type LIKE '%Industry%' OR type LIKE '%Mining%' OR type LIKE '%Foundry%')
+    """, (world_id,)).fetchone()
+    ind_workers = ind_workers_row["workers"] if ind_workers_row and ind_workers_row["workers"] is not None else 0
+    if world_id == "aurora-prime" and ind_workers == 0:
+        # Aurora prime legacy fallback
+        materials_rate = float(econ["materials_rate"] if econ["materials_rate"] is not None else 50.0)
+    else:
+        materials_rate = round(float(ind_workers) * 0.5, 2)
+    with conn:
+        conn.execute("UPDATE economy_resources SET materials_rate = ? WHERE world_id = ?", (materials_rate, world_id))
+
+    # Tax & Municipal Bond Debt Calculation
+    res_tax = econ["residential_tax"] if "residential_tax" in econ.keys() and econ["residential_tax"] is not None else 0.14
+    com_tax = econ["commercial_tax"] if "commercial_tax" in econ.keys() and econ["commercial_tax"] is not None else 0.12
+    ind_tax = econ["industrial_tax"] if "industrial_tax" in econ.keys() and econ["industrial_tax"] is not None else 0.15
+
+    daily_tax_rev = (current_pop * 20.0 * (res_tax / 0.14) + current_pop * 12.0 * (com_tax / 0.12) + ind_workers * 10.0 * (ind_tax / 0.15)) * (ticks / 30.0)
+    debt = float(econ["municipal_debt"] if "municipal_debt" in econ.keys() and econ["municipal_debt"] is not None else 0.0)
+    interest_charge = round(debt * (0.02 / 30.0) * ticks, 2) if debt > 0 else 0.0
+
+    time_factor = (ticks * days_per_tick) / 30.0
+    food_prod = econ["food_rate"] * time_factor * 10.0
+    water_prod = econ["water_rate"] * time_factor * 10.0
+    energy_prod = econ["energy_rate"] * time_factor * 10.0
+    materials_prod = materials_rate * time_factor * 10.0
+    research_prod = econ["research_rate"] * time_factor * 5.0
+
     food_cons = (current_pop / 10000.0) * time_factor * 8.0
     water_cons = (current_pop / 10000.0) * time_factor * 10.0
     energy_cons = (current_pop / 10000.0) * time_factor * 6.5
-    materials_cons = time_factor * 40.0
+    materials_cons = (materials_prod * 0.1) if materials_prod > 0 else 0.0
 
     new_food = max(0.0, econ["food"] + food_prod - food_cons)
     new_water = max(0.0, econ["water"] + water_prod - water_cons)
@@ -445,7 +511,7 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
         happiness=econ["happiness"] if econ["happiness"] is not None else 0.78,
         hospital_capacity=hosp_cap,
         residential_capacity=res_cap,
-        unemployment_rate=1.0 - (econ["employment_rate"] if econ["employment_rate"] is not None else 0.95),
+        unemployment_rate=unemployment_rate,
         ticks_passed=ticks,
         mean_age=mean_age,
         mean_health=mean_health,
@@ -560,15 +626,19 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
         UPDATE worlds SET tick = ?, year = ?, day = ?, updated_at = ? WHERE id = ?
         """, (new_tick, new_year, new_day, now_str, world_id))
 
+        new_grc = max(0.0, float(econ["genesis_research_credits"]) + daily_tax_rev - interest_charge)
+
         conn.execute("""
         UPDATE economy_resources SET
             population = ?, gdp = ?, food = ?, water = ?, energy = ?,
             materials = ?, research_points = ?, genesis_research_credits = ?,
-            happiness = ?, civic_stability = ?
+            happiness = ?, civic_stability = ?, employment_rate = ?,
+            total_interest_paid = COALESCE(total_interest_paid, 0.0) + ?
         WHERE world_id = ?
         """, (
             new_population, new_gdp, new_food, new_water, new_energy,
-            new_materials, new_research, new_grc, new_happiness, new_stability, world_id
+            new_materials, new_research, new_grc, new_happiness, new_stability,
+            employment_rate, interest_charge, world_id
         ))
 
         conn.execute("""

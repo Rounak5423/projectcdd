@@ -151,6 +151,18 @@ def init_db():
             happiness REAL DEFAULT 0.75,
             environmental_health REAL DEFAULT 0.80,
             pollution REAL DEFAULT 0.15,
+            residential_tax REAL DEFAULT 0.14,
+            commercial_tax REAL DEFAULT 0.12,
+            industrial_tax REAL DEFAULT 0.15,
+            office_tax REAL DEFAULT 0.13,
+            road_budget_pct REAL DEFAULT 100.0,
+            power_budget_pct REAL DEFAULT 100.0,
+            water_budget_pct REAL DEFAULT 100.0,
+            health_budget_pct REAL DEFAULT 100.0,
+            education_budget_pct REAL DEFAULT 100.0,
+            police_budget_pct REAL DEFAULT 100.0,
+            municipal_debt REAL DEFAULT 0.0,
+            total_interest_paid REAL DEFAULT 0.0,
             FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
         );
 

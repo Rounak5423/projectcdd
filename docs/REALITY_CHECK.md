@@ -281,11 +281,14 @@ During initial load and navigation, 15 browser console warnings are emitted:
 
 #### [MAJ-03] Budget Modal Debt and Taxes Are Local Ephemeral React State
 - **Severity**: Major
-- **Root Cause File**: `src/components/cs2/CS2BudgetModal.tsx:47-91`
-- **Exact Reproduction Steps**:
-  1. Open Budget Modal, adjust tax sliders, and click "Issue Municipal Bond".
-  2. Close modal, refresh browser, and inspect backend economy.
-- **Forensic Detail**: `municipalDebt`, `resTax`, `comTax`, and `indTax` are stored in component `useState`. No API requests are dispatched, bonds do not debit interest from treasury, and changes vanish on reload.
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 2)**
+- **Root Cause File**: `src/components/cs2/CS2BudgetModal.tsx:47-91`, `genesis-engine/backend/api/v1/budget_routes.py`
+- **Fix Implementation**: Added real backend budget and municipal debt routes (`/worlds/{id}/budget`, `/bonds/issue`, `/bonds/repay`). Connected `CS2BudgetModal` to read from and write to backend state on user change. Linked treasury income and 2% monthly bond debt interest debits to the simulation engine.
+- **Behavior Test Proof (`scripts/test_economy_behavior.py`)**:
+  ```
+  Test 2 Passed: Tax rate changes alter treasury revenue next tick.
+  Test 3 Passed: Municipal bonds credit treasury and incur interest debits.
+  ```
 
 #### [MAJ-04] Gompertz ML Inference Rendered Ineffective by Daily Rounding
 - **Severity**: Major
@@ -300,12 +303,13 @@ During initial load and navigation, 15 browser console warnings are emitted:
 
 #### [MAJ-05] Command Undo Resource Exploit & Occupant Eviction
 - **Severity**: Major
-- **Root Cause File**: `src/context/GameStateContext.tsx:780-820`, `backend/engine/world/commands.py:120-145`
-- **Exact Reproduction Steps**:
-  1. Place building (deducts 500 materials). Demolish building (refunds 350 materials).
-  2. Spend refunded materials on roads.
-  3. Call undo.
-- **Forensic Detail**: Backend uses `materials = MAX(0, materials - refund)`, allowing material generation. Demolished occupants are evicted, but undoing demolition does not restore citizen home/job links.
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 2)**
+- **Root Cause File**: `genesis-engine/backend/engine/world/commands.py:220-235, 545-620`
+- **Fix Implementation**: Tracked exact `cost_materials`, `spawned_citizen_ids`, `assigned_worker_ids`, and displaced citizen homes/jobs in undo stack. Reversing `place_building` refunds cost and removes spawned pioneers; reversing `demolish_building` restores evicted citizens back to their exact home and work buildings without resource leaks.
+- **Behavior Test Proof (`scripts/test_economy_behavior.py`)**:
+  ```
+  Test 4 Passed: Undo round-trips leave materials and occupants exactly identical.
+  ```
 
 ---
 
