@@ -174,3 +174,49 @@ async def remove_policy(id: str, policy_id: str):
     conn.close()
     return {"status": "repealed", "world_id": id, "policy_id": policy_id}
 
+
+@router.get("/worlds/{id}/policies/recommend")
+async def get_policy_recommendations_for_world(id: str):
+    """
+    Level 5 AI Model: Sandboxed AI Policy Controller & Optimization Suite.
+    Uses Surrogate-Guided Model Predictive Control (MPC) to evaluate candidate
+    policy configurations and recommend optimal adjustments to maximize societal welfare.
+    """
+    from ml.control.controller import generate_policy_recommendation
+    from db.database import get_db_connection
+
+    conn = get_db_connection()
+    row = conn.execute("""
+    SELECT w.year, e.population, e.gdp, e.gini_coefficient, e.tax_rate,
+           e.happiness, e.civic_stability, e.pollution
+    FROM worlds w
+    JOIN economy_resources e ON w.id = e.world_id
+    WHERE w.id = ?
+    """, (id,)).fetchone()
+    conn.close()
+
+    if not row:
+        state = {
+            "population": 50000,
+            "gdp": 10000000.0,
+            "gini_coefficient": 0.38,
+            "civic_stability": 0.77,
+            "happiness": 0.75,
+            "pollution": 0.12,
+            "treasury": 500000.0
+        }
+    else:
+        state = {
+            "population": row["population"],
+            "gdp": row["gdp"],
+            "gini_coefficient": row["gini_coefficient"],
+            "civic_stability": row["civic_stability"] if "civic_stability" in row.keys() else 0.77,
+            "happiness": row["happiness"] if "happiness" in row.keys() else 0.75,
+            "pollution": row["pollution"] if "pollution" in row.keys() else 0.12,
+            "treasury": row["gdp"]
+        }
+
+    rec = generate_policy_recommendation(id, state)
+    rec["level"] = "Level 5: Meta / Strategic Policy Controller (Surrogate MPC)"
+    return rec
+

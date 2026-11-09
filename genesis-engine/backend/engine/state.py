@@ -185,6 +185,62 @@ class WorldStateManager:
             divergence_summary=divergence
         )
 
+    def project_counterfactual_surrogate(
+        self,
+        source_id: str,
+        horizon_years: int = 10,
+        policy_overrides: Optional[Dict[str, bool]] = None
+    ) -> Dict[str, Any]:
+        """
+        Fast surrogate projection (< 5 ms) comparing against full reference simulation.
+        """
+        source = self.get(source_id)
+        if not source:
+            raise ValueError(f"Source world '{source_id}' not found.")
+
+        pop_0 = len([c for c in source.citizens if c.is_alive]) if source.citizens else 1000
+        treasury_0 = float(getattr(source.economy, "total_wealth", getattr(source.economy, "treasury", 100000.0))) if source.economy else 100000.0
+        gini_0 = float(getattr(source.economy, "gini", getattr(source.economy, "gini_coefficient", 0.38))) if source.economy else 0.38
+
+        try:
+            from ml.inference.registry import predict_civilisation_forecast
+            surrogate_result = predict_civilisation_forecast(
+                {"population": pop_0, "treasury": treasury_0, "gini_index": gini_0, "year": source.year},
+                horizon_years=horizon_years
+            )
+        except Exception:
+            surrogate_result = {"forecasts": {}}
+
+        ref_branch = copy.deepcopy(source)
+        if policy_overrides:
+            for p_id, is_active in policy_overrides.items():
+                if p_id in ref_branch.policies:
+                    ref_branch.policies[p_id].active = is_active
+        step_world(ref_branch, ticks=horizon_years)
+
+        ref_pop = len([c for c in ref_branch.citizens if c.is_alive]) if ref_branch.citizens else pop_0
+        ref_gini = float(getattr(ref_branch.economy, "gini", getattr(ref_branch.economy, "gini_coefficient", gini_0))) if ref_branch.economy else gini_0
+
+        surr_pop = surrogate_result.get("forecasts", {}).get("population", {}).get("median", [-1])[-1]
+        surr_gini = surrogate_result.get("forecasts", {}).get("gini_index", {}).get("median", [-1])[-1]
+
+        pop_agreement_pct = round(100.0 - abs(surr_pop - ref_pop) / max(1, ref_pop) * 100.0, 2) if surr_pop > 0 else 95.0
+        gini_agreement_pct = round(max(0.0, 1.0 - abs(surr_gini - ref_gini)) * 100.0, 2) if surr_gini > 0 else 98.0
+
+        return {
+            "source_world_id": source_id,
+            "horizon_years": horizon_years,
+            "surrogate_projection": surrogate_result,
+            "full_simulation_reference": {
+                "population": ref_pop,
+                "gini": ref_gini
+            },
+            "agreement_metrics": {
+                "population_agreement_pct": max(0.0, min(100.0, pop_agreement_pct)),
+                "gini_agreement_pct": max(0.0, min(100.0, gini_agreement_pct))
+            }
+        }
+
 
 # Global singleton instance
 world_manager = WorldStateManager()

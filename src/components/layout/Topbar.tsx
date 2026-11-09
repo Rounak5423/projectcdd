@@ -17,6 +17,7 @@ import {
   TrendingDown,
   AlertTriangle,
   Activity,
+  ShieldAlert,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
@@ -298,6 +299,19 @@ function TopbarComponent({
             title="Open Presenter Suite: Showcase All Potential Capabilities"
           >
             <span>Presenter</span>
+          </button>
+
+          {/* Civil Defense & Disaster Command Center */}
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setActiveDrawer('disaster');
+            }}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#344435] hover:border-[#4e644f] text-[11px] font-bold text-[#a6bd82] transition-all shadow-xs"
+            title="Open Civil Defense & Emergency Response Command Center"
+          >
+            <ShieldAlert size={13} className="text-[#a6bd82]" />
+            <span>Defense</span>
           </button>
 
           {/* User Profile Badge & Logout */}

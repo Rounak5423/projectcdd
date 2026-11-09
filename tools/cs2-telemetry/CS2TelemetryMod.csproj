@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>GENESIS.CS2Telemetry</AssemblyName>
+    <RootNamespace>GENESIS.CS2Telemetry</RootNamespace>
+    <Authors>GENESIS Simulation Engineering Team</Authors>
+    <Description>Cities: Skylines II Telemetry Exporter for Comparative Simulation Science</Description>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <!-- Reference Cities: Skylines II game managed assemblies when building locally -->
+  <ItemGroup Condition="Exists('$(CS2_MANAGED_DIR)')">
+    <Reference Include="Game">
+      <HintPath>$(CS2_MANAGED_DIR)\Game.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Colossal.Core">
+      <HintPath>$(CS2_MANAGED_DIR)\Colossal.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Entities">
+      <HintPath>$(CS2_MANAGED_DIR)\Unity.Entities.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Collections">
+      <HintPath>$(CS2_MANAGED_DIR)\Unity.Collections.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Mathematics">
+      <HintPath>$(CS2_MANAGED_DIR)\Unity.Mathematics.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
+

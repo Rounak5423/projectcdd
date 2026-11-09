@@ -75,16 +75,29 @@ async def resume_simulation(id: str):
     return await get_simulation_status(id)
 
 
+def _resolve_world_id(id: str) -> str:
+    conn = get_db_connection()
+    row = conn.execute("SELECT id FROM worlds WHERE id = ?", (id,)).fetchone()
+    conn.close()
+    if row:
+        return id
+    if id in ["civ-aurora-01", "civ-default", "prime", "default"]:
+        return "aurora-prime"
+    return id
+
+
 @router.post("/worlds/{id}/simulation/advance", response_model=SimulationStatusResponse)
+@router.post("/worlds/{id}/simulate", response_model=SimulationStatusResponse)
 @router.post("/civilizations/{id}/simulate", response_model=SimulationStatusResponse, include_in_schema=False)
 async def advance_simulation(id: str, req: SimulationAdvanceRequest):
+    target_id = _resolve_world_id(id)
     try:
         # Thread-safe, lock-guaranteed advance avoiding concurrent race conditions (Task 2 & 5)
-        res = await simulation_scheduler.advance_world(id, ticks=req.ticks)
+        res = await simulation_scheduler.advance_world(target_id, ticks=req.ticks)
         try:
             from realtime import rt_ws_manager, delta_engine, EventPriority
-            ev_type, delta_payload, base_v, new_v = delta_engine.compute_state_delta(id, res)
-            await rt_ws_manager.broadcast(id, {
+            ev_type, delta_payload, base_v, new_v = delta_engine.compute_state_delta(target_id, res)
+            await rt_ws_manager.broadcast(target_id, {
                 "type": "tick_update",
                 "event_type": ev_type,
                 "delta": delta_payload,
@@ -95,13 +108,14 @@ async def advance_simulation(id: str, req: SimulationAdvanceRequest):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-    return await get_simulation_status(id)
+    return await get_simulation_status(target_id)
 
 
 @router.get("/worlds/{id}/simulation/status", response_model=SimulationStatusResponse)
 async def get_simulation_status(id: str):
+    target_id = _resolve_world_id(id)
     conn = get_db_connection()
-    world = conn.execute("SELECT * FROM worlds WHERE id = ?", (id,)).fetchone()
+    world = conn.execute("SELECT * FROM worlds WHERE id = ?", (target_id,)).fetchone()
     conn.close()
 
     if not world:

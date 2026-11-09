@@ -1,0 +1,146 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-11-09T09:29:37.486447",
+  "random_seed": 42,
+  "gompertz_mortality": {
+    "parameter_name": "gompertz_mortality",
+    "description": "Hazard rate mu(x) = a * exp(b * age) for adult citizens",
+    "formula": "mu(x) = a * exp(b * age)",
+    "a_base_hazard": 0.0001295,
+    "b_aging_rate": 0.08016,
+    "empirical_r2": 0.9959,
+    "data_source": "UN World Population Prospects (2024 Revision) - Life Table Abridged mx",
+    "sample_cohorts": 12
+  },
+  "hadwiger_fertility": {
+    "parameter_name": "hadwiger_fertility_curve",
+    "description": "Maternal age fertility probability curve f(age)",
+    "peak_fertility_rate": 0.13518,
+    "peak_maternal_age": 27.3,
+    "cohort_spread_years": 9.99,
+    "total_fertility_rate_implied": 2.316,
+    "empirical_r2": 0.975,
+    "data_source": "UN World Population Prospects (2024 Revision) - ASFR Cohorts"
+  },
+  "incident_accident_engine": {
+    "parameter_name": "incident_accident_engine",
+    "description": "Baseline collision frequencies, severity splits, and conditional multipliers",
+    "severity_probabilities": {
+      "fatal": 0.0141,
+      "serious": 0.1271,
+      "slight": 0.8588
+    },
+    "night_hazard_multiplier": 1.248,
+    "mean_casualties_per_incident": 1.259,
+    "sample_size": 6515,
+    "data_source": "UK Department for Transport STATS19 Open Data (accidents.csv)"
+  },
+  "macro_inequality_bounds": {
+    "parameter_name": "macro_inequality_bounds",
+    "description": "Real-world Gini index calibration bounds and median benchmark",
+    "gini_min": 0.298,
+    "gini_median": 0.354,
+    "gini_max": 0.438,
+    "gini_annual_volatility": 0.0263,
+    "data_source": "World Bank World Development Indicators (WDI) / API_SI"
+  },
+  "sim_to_real_validation": {
+    "sim_to_real_gaps": {
+      "crude_birth_rate_per_1000": {
+        "real_world_benchmark": 17.5,
+        "simulation_output": 20.0,
+        "absolute_gap": 2.5,
+        "percentage_gap": 14.29
+      },
+      "crude_death_rate_per_1000": {
+        "real_world_benchmark": 7.8,
+        "simulation_output": 8.5,
+        "absolute_gap": 0.7,
+        "percentage_gap": 8.97
+      },
+      "life_expectancy_years": {
+        "real_world_benchmark": 72.8,
+        "simulation_output": 76.5,
+        "absolute_gap": 3.7,
+        "percentage_gap": 5.08
+      },
+      "road_fatalities_per_100k": {
+        "real_world_benchmark": 16.7,
+        "simulation_output": 18.2,
+        "absolute_gap": 1.5,
+        "percentage_gap": 8.98
+      },
+      "car_mode_share_pct": {
+        "real_world_benchmark": 58.0,
+        "simulation_output": 62.0,
+        "absolute_gap": 4.0,
+        "percentage_gap": 6.9
+      },
+      "transit_mode_share_pct": {
+        "real_world_benchmark": 18.0,
+        "simulation_output": 16.0,
+        "absolute_gap": -2.0,
+        "percentage_gap": -11.11
+      },
+      "walking_mode_share_pct": {
+        "real_world_benchmark": 24.0,
+        "simulation_output": 22.0,
+        "absolute_gap": -2.0,
+        "percentage_gap": -8.33
+      },
+      "mean_commute_minutes": {
+        "real_world_benchmark": 26.4,
+        "simulation_output": 22.0,
+        "absolute_gap": -4.4,
+        "percentage_gap": -16.67
+      }
+    },
+    "calibration_factors": {
+      "crude_birth_rate_per_1000": 0.875,
+      "crude_death_rate_per_1000": 0.9176,
+      "life_expectancy_years": 0.9516,
+      "road_fatalities_per_100k": 0.9176,
+      "car_mode_share_pct": 0.9355,
+      "transit_mode_share_pct": 1.125,
+      "walking_mode_share_pct": 1.0909,
+      "mean_commute_minutes": 1.2
+    },
+    "data_sources": {
+      "demographics": "UN World Population Prospects (2024 Revision)",
+      "road_safety": "WHO Global Status Report on Road Safety + UK STATS19",
+      "mobility": "National Household Travel Survey (NHTS 2017)"
+    }
+  },
+  "realism_guardrails": {
+    "annual_population_growth_rate": [
+      -0.05,
+      0.08
+    ],
+    "life_expectancy_years": [
+      35.0,
+      95.0
+    ],
+    "gini_index": [
+      0.18,
+      0.75
+    ],
+    "gdp_growth_rate": [
+      -0.2,
+      0.25
+    ],
+    "annual_accident_rate_per_100k": [
+      5.0,
+      350.0
+    ],
+    "maternal_fertility_age_bounds": [
+      14.0,
+      50.0
+    ]
+  },
+  "validation_backtest": {
+    "backtest_period": "2010-2020 (10 years)",
+    "gini_backtest_mae": 0.0098,
+    "gini_backtest_mape_pct": 2.76,
+    "status": "passed_within_tolerance"
+  }
+}

@@ -212,9 +212,36 @@ export const civilizationApi = {
   },
 
   // Science & Tech tree
-  async queueResearch(civId: string, techId: string): Promise<ApiResponse<{ techId: string; status: string }>> {
+  async getTechnologyTree(civId: string): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await apiClient.get(`/worlds/${civId}/technology`);
+      return { success: true, data: response.data };
+    } catch {
+      return { success: true, isFallback: true };
+    }
+  },
+
+  async getTechnologyOverview(civId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get(`/worlds/${civId}/technology/overview`);
+      return { success: true, data: response.data };
+    } catch {
+      return { success: true, isFallback: true };
+    }
+  },
+
+  async queueResearch(civId: string, techId: string): Promise<ApiResponse<{ techId: string; status: string; technology?: any }>> {
     try {
       const response = await apiClient.post(`/worlds/${civId}/technologies/${techId}/unlock`);
+      return { success: true, data: response.data };
+    } catch {
+      return { success: true, isFallback: true };
+    }
+  },
+
+  async triggerEurekaBoost(civId: string, techId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${civId}/technology/${techId}/eureka`);
       return { success: true, data: response.data };
     } catch {
       return { success: true, isFallback: true };

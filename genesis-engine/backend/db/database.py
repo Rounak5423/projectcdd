@@ -312,6 +312,11 @@ def init_db():
             pass
 
     conn.close()
+    try:
+        from db.migrations import run_migrations
+        run_migrations()
+    except Exception as e:
+        print(f"Migration error: {e}")
     seed_default_users()
     seed_council_advisors()
 
@@ -332,17 +337,18 @@ def seed_council_advisors():
 def seed_default_users():
     """
     Seeds default admin and user accounts if they don't already exist.
-    Admin: admin / AdminPassword123!
-    User: player1 / UserPassword123!
+    Uses ADMIN_DEFAULT_PASSWORD and USER_DEFAULT_PASSWORD environment variables if provided.
     """
     from auth.security import hash_password
+    admin_pwd = os.environ.get("ADMIN_DEFAULT_PASSWORD", "AdminPassword123!")
+    user_pwd = os.environ.get("USER_DEFAULT_PASSWORD", "UserPassword123!")
     conn = get_db_connection()
     now = datetime.now(timezone.utc).isoformat()
     with conn:
         # Check admin
         admin = conn.execute("SELECT id FROM users WHERE username = 'admin'").fetchone()
         if not admin:
-            p_hash, salt = hash_password("AdminPassword123!")
+            p_hash, salt = hash_password(admin_pwd)
             conn.execute("""
             INSERT INTO users (id, username, email, password_hash, salt, role, is_active, created_at, updated_at)
             VALUES ('usr_admin_001', 'admin', 'admin@genesis.ai', ?, ?, 'admin', 1, ?, ?)
@@ -351,7 +357,7 @@ def seed_default_users():
         # Check player1
         player1 = conn.execute("SELECT id FROM users WHERE username = 'player1'").fetchone()
         if not player1:
-            p_hash, salt = hash_password("UserPassword123!")
+            p_hash, salt = hash_password(user_pwd)
             conn.execute("""
             INSERT INTO users (id, username, email, password_hash, salt, role, is_active, created_at, updated_at)
             VALUES ('usr_player1_001', 'player1', 'player1@genesis.ai', ?, ?, 'user', 1, ?, ?)

@@ -14,9 +14,9 @@ from engine.models import (
     BranchRequest, CompareResponse
 )
 from engine.state import world_manager
-from engine.simulation import step_world
-from engine.simulation_v1 import seed_aurora_prime_if_not_exists, advance_world_simulation
+from engine.simulation import step_world, seed_aurora_prime_if_not_exists, advance_world_simulation
 from engine.scheduler import simulation_scheduler
+from auth.security import decode_access_token
 from db.database import get_db_connection
 from api.v1.router import api_v1_router
 from app.features.council.router import router as council_router
@@ -493,7 +493,7 @@ async def stop_autotick(world_id: str):
 
 # WebSocket streaming endpoint
 @app.websocket("/ws/world/{world_id}")
-async def websocket_world_stream(websocket: WebSocket, world_id: str):
+async def websocket_world_stream(websocket: WebSocket, world_id: str, token: Optional[str] = Query(None)):
     session = await rt_ws_manager.connect(world_id, websocket)
     try:
         # Send initial full state immediately on connection via snapshot
@@ -597,16 +597,23 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str):
                         else:
                             perf_collector.record_ws_snapshot_emitted()
 
+                        delta_dict = {
+                            "population": target_world.population_count,
+                            "gini": target_world.economy.gini,
+                            "civic_stability": target_world.economy.civic_stability,
+                            "macro_innovation": target_world.economy.macro_innovation_index,
+                            "resources": target_world.resources.model_dump(),
+                            **(delta_payload if isinstance(delta_payload, dict) else {})
+                        }
                         out_msg = {
                             "type": "tick_update",
                             "event_type": ev_type,
-                            "delta": delta_payload,
+                            "delta": delta_dict,
                             **curr_state
                         }
                         idempotency_manager.complete(world_id, idemp_key, out_msg)
                         await rt_ws_manager.broadcast(world_id, out_msg)
                     else:
-                        # Advance in SQLite
                         try:
                             delta = advance_world_simulation(world_id, ticks=ticks)
                             ev_type, delta_payload, base_v, new_v = delta_engine.compute_state_delta(world_id, delta)
@@ -615,10 +622,19 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str):
                             else:
                                 perf_collector.record_ws_snapshot_emitted()
 
+                            delta_dict = {
+                                "population": delta.get("population"),
+                                "gdp": delta.get("gdp"),
+                                "happiness": delta.get("happiness"),
+                                "civic_stability": delta.get("civic_stability"),
+                                "resources": delta.get("resources"),
+                                "progression": delta.get("progression"),
+                                **(delta_payload if isinstance(delta_payload, dict) else {})
+                            }
                             out_msg = {
                                 "type": "tick_update",
                                 "event_type": ev_type,
-                                "delta": delta_payload,
+                                "delta": delta_dict,
                                 **delta
                             }
                             idempotency_manager.complete(world_id, idemp_key, out_msg)
@@ -637,7 +653,6 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str):
                         latest = delta_engine.get_latest_snapshot(world_id)
                         full_st = latest.get("state", {}) if latest else {}
                     await rt_ws_manager.resync_client(session, full_st)
-
                 elif action == "ping":
                     pong_env = EventEnvelope(
                         event_type="pong",

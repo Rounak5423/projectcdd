@@ -31,3 +31,17 @@ genesis-engine/backend/db/backups/
 .vscode/
 .idea/
 
+# Large datasets and raw ML files
+datasets/
+genesis-engine/backend/ml/data/raw/
+genesis-engine/backend/ml/data/processed/
+genesis-engine/backend/ml/data/generated/
+*.parquet
+*.gz
+*.pbf
+*.xlsx
+*.xls
+test-results/
+playwright-report/
+
+

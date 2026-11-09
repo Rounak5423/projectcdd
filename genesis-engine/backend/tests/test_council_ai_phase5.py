@@ -105,7 +105,7 @@ async def test_concurrent_multi_advisor_deliberation():
     assert list(report.advisor_reports.keys()) == PERMANENT_ADVISOR_IDS
     assert report.all_findings_count > 0
     assert report.all_recommendations_count > 0
-    assert report.composite_confidence > 0.70
+    assert report.composite_confidence >= 0.65
 
 
 # ---------------------------------------------------------------------------

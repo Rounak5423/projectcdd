@@ -47,4 +47,8 @@ class EventEnvelope(BaseModel):
         """
         d = self.model_dump()
         d["type"] = self.event_type
+        if isinstance(self.payload, dict):
+            for k, v in self.payload.items():
+                if k not in d:
+                    d[k] = v
         return d
