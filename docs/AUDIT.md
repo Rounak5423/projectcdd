@@ -375,3 +375,4 @@ This audit provides concrete code citations, runtime evidence, severity ratings,
 ---
 
 *Forensic audit certified by Principal Simulation Architect & Systems Engineer on November 9, 2026.*
+
