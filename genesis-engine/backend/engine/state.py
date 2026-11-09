@@ -63,6 +63,17 @@ class WorldStateManager:
     def delete(self, world_id: str) -> bool:
         if world_id in self._worlds:
             del self._worlds[world_id]
+            # Phase 8: Cascade purge from delta cache and AI cache
+            try:
+                from realtime.delta import delta_engine
+                delta_engine.clear(world_id)
+            except Exception:
+                pass
+            try:
+                from app.features.council.intelligence.ai_cache import ai_cache
+                ai_cache.invalidate_world(world_id)
+            except Exception:
+                pass
             return True
         return False
 

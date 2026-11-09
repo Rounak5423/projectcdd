@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Settings as SettingsIcon,
   Sliders,
@@ -32,6 +32,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onClose }) => {
   const [autosaveInterval, setAutosaveInterval] = useState('90 Days');
   const [pauseOnCritical, setPauseOnCritical] = useState(true);
   const [exportedStatus, setExportedStatus] = useState(false);
+  const exportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (exportTimerRef.current) clearTimeout(exportTimerRef.current);
+    };
+  }, []);
 
   const handleExportState = () => {
     soundFx.playSuccess();
@@ -46,8 +53,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onClose }) => {
     a.href = url;
     a.download = `civora-${civilization.name.toLowerCase().replace(/\s+/g, '-')}-state.json`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 100);
     setExportedStatus(true);
-    setTimeout(() => setExportedStatus(false), 3000);
+    if (exportTimerRef.current) clearTimeout(exportTimerRef.current);
+    exportTimerRef.current = setTimeout(() => setExportedStatus(false), 3000);
   };
 
   return (

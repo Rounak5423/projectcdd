@@ -4,7 +4,7 @@
 // Uses the CIVORA brand identity and connects to the backend auth API.
 // ===========================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, Loader2, Shield, User, Mail, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -38,6 +38,13 @@ export default function CivoraAuthPage({ onAuthenticated, onBackToLanding }: Civ
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldError>({});
   const [success, setSuccess] = useState('');
+  const authTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (authTimerRef.current) clearTimeout(authTimerRef.current);
+    };
+  }, []);
 
   // If auth resolves externally (e.g. token refresh) navigate straight in
   useEffect(() => {
@@ -92,7 +99,7 @@ export default function CivoraAuthPage({ onAuthenticated, onBackToLanding }: Civ
         await register(username.trim(), email.trim(), password);
         setSuccess('Your civilisation awaits, Commander.');
       }
-      setTimeout(() => onAuthenticated(), 700);
+      authTimerRef.current = setTimeout(() => onAuthenticated(), 700);
     } catch {
       // error is set in context
     } finally {

@@ -25,6 +25,7 @@ class CentralEventBus:
         self._batch_queue: List[EventEnvelope] = []
         self._batch_task: Optional[asyncio.Task] = None
         self._batch_window_sec: float = 0.05  # 50ms batching for low-priority events
+        self._background_tasks: set = set()
 
     def subscribe(self, event_pattern: str, handler: Callable[[EventEnvelope], Any]):
         """Registers a listener for a specific event type or wildcard '*'."""
@@ -82,7 +83,9 @@ class CentralEventBus:
             try:
                 res = h(envelope)
                 if asyncio.iscoroutine(res):
-                    asyncio.create_task(res)
+                    task = asyncio.create_task(res)
+                    self._background_tasks.add(task)
+                    task.add_done_callback(self._background_tasks.discard)
             except Exception:
                 pass
 
@@ -95,6 +98,11 @@ class CentralEventBus:
     def clear(self):
         self._critical_outbox.clear()
         self._batch_queue.clear()
+        for t in list(self._background_tasks):
+            if not t.done():
+                t.cancel()
+        self._background_tasks.clear()
 
 
 event_bus = CentralEventBus()
+

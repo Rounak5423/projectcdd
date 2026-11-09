@@ -15,11 +15,12 @@ class DeltaEngine:
     deterministic snapshot-equivalent state on the client.
     """
 
-    def __init__(self, max_delta_ratio: float = 0.70):
+    def __init__(self, max_delta_ratio: float = 0.70, max_cached_worlds: int = 64):
         self._lock = threading.Lock()
         self._previous_states: Dict[str, Dict[str, Any]] = {}
         self._state_versions: Dict[str, int] = {}
         self.max_delta_ratio = max_delta_ratio
+        self.max_cached_worlds = max_cached_worlds
 
     def _diff_dicts(self, old: Dict[str, Any], new: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
         """
@@ -67,6 +68,11 @@ class DeltaEngine:
 
             if force_snapshot or prev_state is None:
                 # Full snapshot required
+                if world_id not in self._previous_states and len(self._previous_states) >= self.max_cached_worlds:
+                    oldest_w = next(iter(self._previous_states))
+                    del self._previous_states[oldest_w]
+                    self._state_versions.pop(oldest_w, None)
+
                 self._previous_states[world_id] = copy.deepcopy(current_state)
                 self._state_versions[world_id] = new_ver
                 payload = {
@@ -174,3 +180,4 @@ class DeltaEngine:
 
 
 delta_engine = DeltaEngine()
+

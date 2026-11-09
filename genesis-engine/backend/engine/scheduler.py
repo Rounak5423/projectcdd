@@ -143,6 +143,9 @@ class SimulationRunner:
 
     def pause(self):
         self.stop_event.set()
+        if self._task and not self._task.done():
+            self._task.cancel()
+        self._task = None
         self.status = "paused"
 
     async def pause_async(self):
@@ -153,10 +156,12 @@ class SimulationRunner:
             except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
                 if not self._task.done():
                     self._task.cancel()
+        self._task = None
         self.status = "paused"
 
     def stop(self):
         self.pause()
+        self._task = None
         self.status = "stopped"
 
     async def stop_async(self):
@@ -167,6 +172,7 @@ class SimulationRunner:
             except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
                 if not self._task.done():
                     self._task.cancel()
+        self._task = None
         self.status = "stopped"
 
 

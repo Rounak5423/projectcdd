@@ -268,6 +268,25 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     perks: string[];
   } | null>(null);
 
+  // Managed Timer Registry (Phase 8: Prevents detached timer closures & memory leaks on unmount)
+  const activeTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  const safeSetTimeout = useCallback((fn: () => void, delayMs: number) => {
+    const timer = setTimeout(() => {
+      activeTimersRef.current.delete(timer);
+      fn();
+    }, delayMs);
+    activeTimersRef.current.add(timer);
+    return timer;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      activeTimersRef.current.forEach((t) => clearTimeout(t));
+      activeTimersRef.current.clear();
+    };
+  }, []);
+
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
@@ -276,10 +295,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const newToast: GameToast = { ...toast, id };
     setToasts((prev) => [newToast, ...prev.slice(0, 4)]);
-    setTimeout(() => {
+    safeSetTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4500);
-  }, []);
+  }, [safeSetTimeout]);
 
   const dismissLevelUp = useCallback(() => {
     setLevelUpCelebration(null);
@@ -447,7 +466,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setActiveProtest(null);
 
       // Cycle next protest after 45 seconds for continuous fun
-      setTimeout(() => {
+      safeSetTimeout(() => {
         setProtestIndex((idx) => {
           const next = (idx + 1) % historicalTwinProtests.length;
           setActiveProtest(historicalTwinProtests[next]);
@@ -455,7 +474,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         });
       }, 45000);
     },
-    [activeProtest, triggerToast]
+    [activeProtest, triggerToast, safeSetTimeout]
   );
 
   const triggerNextProtest = useCallback(() => {
@@ -520,14 +539,14 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     soundFx.playFireworksExplosion();
     soundFx.playCarnivalCheer();
     setShowFireworks(true);
-    setTimeout(() => setShowFireworks(false), 8500);
+    safeSetTimeout(() => setShowFireworks(false), 8500);
     triggerToast({
       type: 'reward',
       title: '🎆 GRAND CARNIVAL SPECTACLE',
       subtitle: 'Fireworks illuminate the Citadel spire! Stability +3%, Happiness +5%',
       icon: '🎆',
     });
-  }, [triggerToast]);
+  }, [triggerToast, safeSetTimeout]);
 
   const speedMultipliers = { '1x': 1, '2x': 2, '5x': 5, '10x': 10 };
   const mult = speedMultipliers[speed];

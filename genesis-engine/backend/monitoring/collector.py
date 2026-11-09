@@ -7,9 +7,23 @@ Captures API latencies, Database execution, Simulation ticks, Council AI and Web
 import time
 import threading
 import re
+import gc
 from collections import deque
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Deque
+
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
+_NORM_PATTERNS = [
+    (re.compile(r"/worlds/[a-zA-Z0-9_\-]+"), "/worlds/{id}"),
+    (re.compile(r"/advisors/[a-zA-Z0-9_\-]+"), "/advisors/{id}"),
+    (re.compile(r"/users/[a-zA-Z0-9_\-]+"), "/users/{id}"),
+    (re.compile(r"/citizens/[a-zA-Z0-9_\-]+"), "/citizens/{id}"),
+    (re.compile(r"/buildings/[a-zA-Z0-9_\-]+"), "/buildings/{id}"),
+]
 
 
 # Helper to calculate percentiles from a sequence of numbers
@@ -125,7 +139,11 @@ class PerformanceMetricsCollector:
         is_error = status_code >= 400
         is_slow = duration_ms >= 250.0
 
-        endpoint_key = f"{method.upper()} {path}"
+        # Phase 8: Normalize parameterized routes to prevent unbounded endpoint proliferation
+        norm_path = path
+        for pat, repl in _NORM_PATTERNS:
+            norm_path = pat.sub(repl, norm_path)
+        endpoint_key = f"{method.upper()} {norm_path}"
 
         with self._lock:
             self._api_total_requests += 1
@@ -136,6 +154,11 @@ class PerformanceMetricsCollector:
             self._api_timestamps.append(now)
 
             if endpoint_key not in self._api_endpoints:
+                if len(self._api_endpoints) >= 256:
+                    # Pop oldest entry to enforce strict bounded memory
+                    oldest_k = next(iter(self._api_endpoints))
+                    del self._api_endpoints[oldest_k]
+
                 self._api_endpoints[endpoint_key] = {
                     "count": 0,
                     "errors": 0,
@@ -611,6 +634,21 @@ class PerformanceMetricsCollector:
                     "deltas_emitted": self._ws_deltas_emitted,
                     "snapshots_emitted": self._ws_snapshots_emitted,
                     "limitations_note": "Server-side processing duration is measured. True client network round-trip latency requires client echo ping/pong.",
+                },
+                "memory": {
+                    "process_rss_mb": (
+                        round(psutil.Process().memory_info().rss / (1024 * 1024), 2)
+                        if psutil
+                        else None
+                    ),
+                    "gc_gen_counts": {
+                        "gen0": gc.get_count()[0],
+                        "gen1": gc.get_count()[1],
+                        "gen2": gc.get_count()[2],
+                    },
+                    "tracked_endpoints_count": len(self._api_endpoints),
+                    "db_pool_hits": self._db_pool_hits,
+                    "db_pool_creations": self._db_pool_creations,
                 },
             }
 

@@ -88,6 +88,10 @@ export const CouncilChamber3D: React.FC<CouncilChamber3DProps> = ({
       const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
       if (!gl) {
         setWebglSupported(false);
+      } else {
+        // Phase 8: Explicitly release test WebGL context to prevent context exhaustion
+        const loseExt = (gl as WebGLRenderingContext).getExtension('WEBGL_lose_context');
+        if (loseExt) loseExt.loseContext();
       }
     } catch {
       setWebglSupported(false);

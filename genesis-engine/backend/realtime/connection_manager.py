@@ -221,6 +221,8 @@ class RealtimeConnectionManager:
                 for world_id, client_map in list(self._sessions.items()):
                     for cid, session in list(client_map.items()):
                         if not session.is_alive:
+                            # Phase 8: Actively purge dead client sessions to eliminate dangling queues
+                            client_map.pop(cid, None)
                             continue
                         # Send ping envelope
                         ping_env = EventEnvelope(
@@ -231,6 +233,8 @@ class RealtimeConnectionManager:
                             payload={"server_time": now}
                         )
                         session.enqueue(json.dumps(ping_env.to_client_dict()), priority=EventPriority.LOW)
+                    if not client_map:
+                        self._sessions.pop(world_id, None)
         except asyncio.CancelledError:
             pass
 

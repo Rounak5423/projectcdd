@@ -327,12 +327,19 @@ export class CivoraEventClient {
       this.socket.onclose = null;
       this.socket.onerror = null;
       this.socket.onmessage = null;
-      this.socket.close(1000, 'Client disconnected');
+      try {
+        this.socket.close(1000, 'Client disconnected');
+      } catch {}
       this.socket = null;
     }
+    this.isConnecting = false;
+    this.authoritativeState = {}; // Phase 8: Release world state memory
+    this.lastSequenceNumber = 0;
+    this.lastStateVersion = 0;
     performanceMonitor.setWebSocketStatus('idle');
   }
 }
 
 // Global Singleton Client
 export const civoraEventClient = new CivoraEventClient();
+

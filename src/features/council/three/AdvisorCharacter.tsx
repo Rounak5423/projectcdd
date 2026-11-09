@@ -112,6 +112,15 @@ const AdvisorCharacterModel: React.FC<AdvisorCharacterModelProps> = ({
     };
   }, [scene, config]);
 
+  // Phase 8: Safe cleanup of cloned container hierarchy on unmount or model re-mapping
+  useEffect(() => {
+    return () => {
+      if (wrapper) {
+        wrapper.clear();
+      }
+    };
+  }, [wrapper]);
+
   // Subtle breathing and expressive speaking animation (deterministic, zero drift)
   useFrame((state) => {
     if (prefersReducedMotion) return;
