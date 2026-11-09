@@ -67,6 +67,61 @@ import {
 import { soundFx } from '../services/soundFx';
 import { civilizationApi } from '../services/civilizationApi';
 import { civoraEventClient } from '../services/realtime/CivoraEventClient';
+import { getCitadelTerritoryRadius } from '../components/world3d/placementValidation';
+
+export function getCitadelNameForLevel(level: number): string {
+  switch (Math.max(1, Math.min(5, Math.round(level)))) {
+    case 1:
+      return 'Frontier Colony Outpost';
+    case 2:
+      return 'Frontier Civic Forum';
+    case 3:
+      return 'High Council Citadel';
+    case 4:
+      return 'Planetary Senate Citadel';
+    case 5:
+      return 'Imperial High Citadel';
+    default:
+      return 'High Council Citadel';
+  }
+}
+
+export function calculateBuildingUpgradeCost(
+  building: PlacedBuilding,
+  catalogItem?: BuildingCatalogItem
+): { materials: number; money: number } {
+  const isCitadel = building.modelType === 'citadel' || building.catalogId === 'bld-gov-citadel';
+  const targetLvl = building.level + 1;
+
+  if (isCitadel) {
+    switch (targetLvl) {
+      case 2:
+        return { money: 1200, materials: 850 };
+      case 3:
+        return { money: 3800, materials: 2600 };
+      case 4:
+        return { money: 9500, materials: 6800 };
+      case 5:
+        return { money: 24000, materials: 16500 };
+      default:
+        return { money: 1200, materials: 850 };
+    }
+  }
+
+  // Building upgrades become progressively tougher after each level
+  const baseMat = catalogItem?.costMaterials ?? 160;
+  const baseMoney = catalogItem?.costCredits ?? 100;
+
+  let multiplier = 1.8;
+  if (targetLvl === 3) multiplier = 4.5;
+  else if (targetLvl === 4) multiplier = 10.5;
+  else if (targetLvl >= 5) multiplier = 24.0;
+
+  return {
+    materials: Math.round(baseMat * multiplier),
+    money: Math.round(baseMoney * multiplier),
+  };
+}
 import {
   calculateCitySimulation,
   CitySimulationReport,
@@ -209,6 +264,8 @@ interface GameStateContextType {
   selectedCatalogItem: BuildingCatalogItem | null;
   activeDrawer: ActiveDrawer;
   relocatingBuildingId: string | null;
+  citadelTerritoryRadius: number;
+  calculateUpgradeCost: (building: PlacedBuilding) => { materials: number; money: number };
   
   // Action Handlers
   togglePlay: () => void;
@@ -857,16 +914,71 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         // B. Active Building Upgrade Lifecycle (Levels 1 to 5)
         if (b.status === 'upgrading') {
           const currentUp = b.upgradeProgress || 0;
-          const nextUp = Math.min(100, currentUp + 5);
+          const targetLvl = b.targetLevel || (b.level + 1);
+          const isCitadel = b.modelType === 'citadel' || b.catalogId === 'bld-gov-citadel';
+
+          // Upgrades take longer at higher levels, making each tier hard-earned
+          let tickRate = 2.8; // Level 2: ~35 ticks (~25-30s)
+          if (targetLvl === 3) tickRate = 1.4; // Level 3: ~70 ticks (~50-60s)
+          else if (targetLvl === 4) tickRate = 0.7; // Level 4: ~140 ticks (~1.5-2 mins)
+          else if (targetLvl >= 5) tickRate = 0.35; // Level 5: ~280 ticks (~3.5 mins)
+
+          if (isCitadel) {
+            // Citadel upgrades are monumental village-wide architectural undertakings
+            tickRate *= 0.65;
+          }
+
+          const nextUp = Math.min(100, currentUp + tickRate);
           if (nextUp >= 100) {
-            const nextLvl = b.targetLevel || (b.level + 1);
+            const nextLvl = targetLvl;
             const item = buildingCatalog.find((c) => c.id === b.catalogId);
             if (item?.productionType && item?.productionAmount) {
               const rKey = `${item.productionType}Rate` as keyof ResourceRates;
-              const bonus = Math.round(item.productionAmount * 0.25);
+              const bonus = Math.round(item.productionAmount * 0.35);
               rateDeltas[rKey] = (rateDeltas[rKey] || 0) + bonus;
               ratesChanged = true;
             }
+
+            // Handle Citadel / Village Level Advancement
+            if (isCitadel) {
+              setCivilization((prevCiv) => ({
+                ...prevCiv,
+                level: nextLvl,
+                xpToNextLevel: nextLvl * 1500,
+              }));
+              const newName = getCitadelNameForLevel(nextLvl);
+              const newRadius = getCitadelTerritoryRadius(nextLvl);
+
+              soundFx.playHeroicFanfare();
+              triggerToast({
+                type: 'levelup',
+                title: `CITADEL ELEVATED TO LEVEL ${nextLvl}!`,
+                subtitle: `Sovereign dominion expanded to ${newRadius}m! Building tier ${nextLvl} authorized village-wide!`,
+              });
+
+              newEvents.push({
+                id: `ev-${Date.now()}-${b.id}`,
+                year: civilization.currentYear,
+                day: civilization.currentDay,
+                title: `Imperial Era Milestone: Citadel Level ${nextLvl}`,
+                description: `The heart of your civilization has been elevated to ${newName}! Survey beacons have expanded sovereign territory to ${newRadius}m radius. All citizens celebrate this new era of prosperity!`,
+                category: 'diplomatic',
+                severity: 'success',
+                isRead: false,
+              });
+
+              return {
+                ...b,
+                name: newName,
+                status: 'active' as const,
+                level: nextLvl,
+                upgradeProgress: 0,
+                targetLevel: undefined,
+                efficiency: 100,
+                health: 100,
+              };
+            }
+
             newEvents.push({
               id: `ev-${Date.now()}-${b.id}`,
               year: civilization.currentYear,
@@ -877,6 +989,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
               severity: 'success',
               isRead: false,
             });
+
             return {
               ...b,
               status: 'active' as const,
@@ -1298,14 +1411,54 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     )
       return false;
 
-    const upgradeCost = building.level * 280;
-    if (resources.materials < upgradeCost) {
+    const isCitadel = building.modelType === 'citadel' || building.catalogId === 'bld-gov-citadel';
+    const citadel = placedBuildings.find(
+      (b) => b.modelType === 'citadel' || b.catalogId === 'bld-gov-citadel'
+    );
+    const citadelLevel = citadel?.level || civilization.level || 1;
+
+    // VILLAGE ANCHOR RULE: Facilities cannot exceed the current Citadel command level
+    if (!isCitadel && building.level >= citadelLevel) {
+      soundFx.playError();
+      triggerToast({
+        type: 'info',
+        title: 'UPGRADE RESTRICTED BY CITADEL',
+        subtitle: `Village Citadel must reach Level ${building.level + 1} first to authorize Tier ${building.level + 1} facilities!`,
+      });
       const errEvent: GameEvent = {
         id: `ev-${Date.now()}`,
         year: civilization.currentYear,
         day: civilization.currentDay,
-        title: 'Upgrade Suspended: Insufficient Materials',
-        description: `Upgrade to Level ${building.level + 1} requires ${upgradeCost} materials. Available: ${resources.materials}.`,
+        title: 'Upgrade Denied: Citadel Tier Constraint',
+        description: `Village protocol dictates no facility may exceed the command level of the central Citadel (Currently Level ${citadelLevel}). Elevate your Citadel first.`,
+        category: 'diplomatic',
+        severity: 'warning',
+        isRead: false,
+      };
+      setEvents((prev) => [errEvent, ...prev]);
+      return false;
+    }
+
+    const item = buildingCatalog.find((c) => c.id === building.catalogId);
+    const { materials: reqMat, money: reqMoney } = calculateBuildingUpgradeCost(building, item);
+
+    if (resources.materials < reqMat || resources.grc < reqMoney) {
+      soundFx.playError();
+      const missing: string[] = [];
+      if (resources.materials < reqMat) missing.push(`${reqMat - resources.materials} Materials`);
+      if (resources.grc < reqMoney) missing.push(`${reqMoney - resources.grc} Credits`);
+
+      triggerToast({
+        type: 'info',
+        title: 'INSUFFICIENT CAPITAL FOR UPGRADE',
+        subtitle: `Need: ${missing.join(' and ')}. Earn credits through commerce, taxes, and trade.`,
+      });
+      const errEvent: GameEvent = {
+        id: `ev-${Date.now()}`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: 'Upgrade Suspended: Insufficient Capital',
+        description: `Upgrade to Level ${building.level + 1} requires ${reqMat} Materials and ${reqMoney} Credits. Available: ${resources.materials} Mat, ${resources.grc} Cr.`,
         category: 'economic',
         severity: 'warning',
         isRead: false,
@@ -1316,8 +1469,8 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
     setResources((prev) => ({
       ...prev,
-      materials: prev.materials - upgradeCost,
-      grc: prev.grc + 15,
+      materials: prev.materials - reqMat,
+      grc: prev.grc - reqMoney,
     }));
 
     setPlacedBuildings((prev) =>
@@ -1337,8 +1490,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     soundFx.playHammerBuild();
     triggerToast({
       type: 'build',
-      title: `EXPANSION UNDERWAY: ${building.name}`,
-      subtitle: `Upgrading to Level ${building.level + 1}. Construction crew dispatched.`,
+      title: isCitadel ? `EXPANDING IMPERIAL CITADEL` : `UPGRADE UNDERWAY: ${building.name}`,
+      subtitle: isCitadel
+        ? `Upgrading to Level ${building.level + 1}. Sovereign territory will expand upon completion!`
+        : `Upgrading to Level ${building.level + 1}. Specialized engineering teams dispatched.`,
     });
 
     const event: GameEvent = {
@@ -1346,7 +1501,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       year: civilization.currentYear,
       day: civilization.currentDay,
       title: `Expansion Commenced: ${building.name}`,
-      description: `Structural renovation underway targeting Level ${building.level + 1}.`,
+      description: `Structural renovation underway targeting Level ${building.level + 1} (${reqMat} Mat, ${reqMoney} Cr invested).`,
       category: 'economic',
       severity: 'info',
       isRead: false,
@@ -1422,15 +1577,32 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setEvents((prev) => [event, ...prev]);
     } else if (building.status === 'upgrading') {
       const nextLvl = building.targetLevel || building.level + 1;
+      const isCitadel = building.modelType === 'citadel' || building.catalogId === 'bld-gov-citadel';
       const item = buildingCatalog.find((c) => c.id === building.catalogId);
       if (item?.productionType && item?.productionAmount) {
         setRates((prev) => {
           const key = `${item.productionType}Rate` as keyof ResourceRates;
-          const bonus = Math.round(item.productionAmount * 0.25);
+          const bonus = Math.round(item.productionAmount * 0.35);
           return {
             ...prev,
             [key]: (prev[key] as number) + bonus,
           };
+        });
+      }
+
+      const newName = isCitadel ? getCitadelNameForLevel(nextLvl) : building.name;
+      if (isCitadel) {
+        setCivilization((prevCiv) => ({
+          ...prevCiv,
+          level: nextLvl,
+          xpToNextLevel: nextLvl * 1500,
+        }));
+        const newRadius = getCitadelTerritoryRadius(nextLvl);
+        soundFx.playHeroicFanfare();
+        triggerToast({
+          type: 'levelup',
+          title: `CITADEL ELEVATED TO LEVEL ${nextLvl}!`,
+          subtitle: `Sovereign dominion expanded to ${newRadius}m! Building tier ${nextLvl} authorized village-wide!`,
         });
       }
 
@@ -1439,12 +1611,13 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
           b.id === buildingId
             ? {
                 ...b,
+                name: newName,
                 status: 'active',
                 level: nextLvl,
                 upgradeProgress: 0,
                 targetLevel: undefined,
                 health: 100,
-                efficiency: Math.min(100, b.efficiency + 5),
+                efficiency: 100,
               }
             : b
         )
@@ -1454,9 +1627,13 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         id: `ev-${Date.now()}`,
         year: civilization.currentYear,
         day: civilization.currentDay,
-        title: `Priority Upgrade Complete: ${building.name} (Level ${nextLvl})`,
-        description: `Expansion accelerated with emergency capital. All structural enhancements active!`,
-        category: 'economic',
+        title: isCitadel
+          ? `Imperial Milestone: Citadel Level ${nextLvl} Fast-Tracked`
+          : `Priority Upgrade Complete: ${building.name} (Level ${nextLvl})`,
+        description: isCitadel
+          ? `Emergency sovereign funding finalized ${newName}! Territory expanded to ${getCitadelTerritoryRadius(nextLvl)}m radius.`
+          : `Expansion accelerated with emergency capital. All structural enhancements active!`,
+        category: isCitadel ? 'diplomatic' : 'economic',
         severity: 'success',
         isRead: false,
       };
@@ -1949,6 +2126,21 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const citadel = useMemo(
+    () => placedBuildings.find((b) => b.modelType === 'citadel' || b.catalogId === 'bld-gov-citadel'),
+    [placedBuildings]
+  );
+  const citadelLevel = citadel?.level || civilization.level || 1;
+  const citadelTerritoryRadius = useMemo(() => getCitadelTerritoryRadius(citadelLevel), [citadelLevel]);
+  const calculateUpgradeCost = useCallback(
+    (b: PlacedBuilding) =>
+      calculateBuildingUpgradeCost(
+        b,
+        buildingCatalog.find((c) => c.id === b.catalogId)
+      ),
+    []
+  );
+
   const contextValue = useMemo<GameStateContextType>(
     () => ({
       civilization,
@@ -1981,6 +2173,8 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       selectedCatalogItem,
       activeDrawer,
       relocatingBuildingId,
+      citadelTerritoryRadius,
+      calculateUpgradeCost,
       togglePlay,
       setSpeed,
       advanceTick,

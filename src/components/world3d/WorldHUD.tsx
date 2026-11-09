@@ -15,6 +15,7 @@ import {
   FastForward,
   DollarSign,
   AlertTriangle,
+  Shield,
 } from 'lucide-react';
 import { useDayNight, WeatherType } from './DayNightController';
 import { useGameState } from '../../context/GameStateContext';
@@ -45,6 +46,8 @@ export default function WorldHUD() {
     placedBuildings,
     economyReport,
     setActiveDrawer,
+    civilization,
+    citadelTerritoryRadius,
   } = useGameState();
   const telemetry = usePerformanceTelemetry();
   const [showTelemetry, setShowTelemetry] = useState<boolean>(true);
@@ -79,7 +82,32 @@ export default function WorldHUD() {
 
   return (
     <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2.5 pointer-events-none">
-      {/* 0. INTELLIGENT CITY ECONOMY & ALERTS TRIGGER */}
+      {/* 0. CITADEL SOVEREIGN SEAT & TERRITORY DOMINION WIDGET */}
+      <div className="pointer-events-auto flex items-center gap-2 min-w-[260px] w-full">
+        <button
+          onClick={() => {
+            const citadelBld = placedBuildings.find(
+              (b) => b.modelType === 'citadel' || b.catalogId === 'bld-gov-citadel'
+            );
+            if (citadelBld) {
+              selectBuilding(citadelBld.id);
+              triggerCameraFocus(citadelBld.x, citadelBld.y + 2, citadelBld.z, 22);
+            }
+          }}
+          title="Click to inspect Citadel Village Center & Upgrade Territory"
+          className="flex-1 flex items-center justify-between px-3 py-1.5 rounded-xl bg-[#171d18]/94 hover:bg-[#202921] border border-[#39443a] hover:border-[#c6a76a] shadow-2xl backdrop-blur-md text-xs font-mono text-[#e8e9e3] transition-all cursor-pointer group"
+        >
+          <div className="flex items-center gap-1.5 text-[#c6a76a] font-bold">
+            <Shield size={13} className="group-hover:scale-110 transition-transform" />
+            <span>CITADEL LVL {civilization?.level || 1}</span>
+          </div>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#221c12] border border-[#4a3b22] text-[#c6a76a] font-semibold">
+            {citadelTerritoryRadius}m Dominion
+          </span>
+        </button>
+      </div>
+
+      {/* 1. INTELLIGENT CITY ECONOMY & ALERTS TRIGGER */}
       <div className="pointer-events-auto flex items-center gap-2 min-w-[260px] w-full">
         <button
           onClick={() => setActiveDrawer('economy')}

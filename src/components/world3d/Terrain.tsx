@@ -719,6 +719,38 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
               </group>
             ))
           )}
+
+          {/* Level 3+ Monumental Imperial Obelisk Pillars */}
+          {(civilization?.level ?? 1) >= 3 && (
+            <>
+              {[-6.2, 6.2].map((ox, idx) => (
+                <group key={`obelisk-${idx}`} position={[ox, 0.4, -4.5]}>
+                  <mesh castShadow receiveShadow>
+                    <cylinderGeometry args={[0.3, 0.45, 4.2, 8]} />
+                    <meshStandardMaterial color="#c6a76a" metalness={0.5} roughness={0.3} />
+                  </mesh>
+                  <mesh position={[0, 2.35, 0]}>
+                    <coneGeometry args={[0.34, 0.85, 8]} />
+                    <meshStandardMaterial color="#ffe082" emissive="#ffe082" emissiveIntensity={0.8} />
+                  </mesh>
+                </group>
+              ))}
+            </>
+          )}
+
+          {/* Level 4+ Sovereign Planetary Senate Spire Dome */}
+          {(civilization?.level ?? 1) >= 4 && (
+            <group position={[0, 1.2, 0]}>
+              <mesh position={[0, 2.8, 0]} castShadow>
+                <cylinderGeometry args={[0.15, 0.25, 5.6, 8]} />
+                <meshStandardMaterial color="#c6a76a" metalness={0.7} roughness={0.2} />
+              </mesh>
+              <mesh position={[0, 5.8, 0]}>
+                <sphereGeometry args={[0.32, 12, 12]} />
+                <meshStandardMaterial color="#3be8b0" emissive="#3be8b0" emissiveIntensity={2.0} />
+              </mesh>
+            </group>
+          )}
         </group>
       )}
 
