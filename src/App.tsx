@@ -80,8 +80,8 @@ function GameApp() {
   } = useGameState();
   const { isAuthenticated, isLoading, logout, user, isAdmin } = useAuth();
 
-  // App-level navigation stage: landing → auth → app
-  const [stage, setStage] = useState<AppStage>('landing');
+  // App-level navigation stage: Always start on auth page as required
+  const [stage, setStage] = useState<AppStage>('auth');
 
   // Auto-open tactical inspector when a building is selected in 3D world
   useEffect(() => {
@@ -89,13 +89,6 @@ function GameApp() {
       setIsRightPanelOpen(true);
     }
   }, [selectedBuildingId]);
-
-  // If the user is already authenticated on mount, skip landing & auth
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      setStage('app');
-    }
-  }, [isLoading, isAuthenticated]);
 
   // Handle Navigation across Civora Empire & Shell
   const handleNavigate = (page: string) => {

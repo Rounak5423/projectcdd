@@ -59,16 +59,16 @@ export default function CameraManager() {
           case 'topDown':
             // Orthogonal city-planning top-down overview centered on civilization core
             targetVec.current.set(0, 1.0, 10.0);
-            camVec.current.set(0.01, 82, 10.05);
+            camVec.current.set(0.01, 120, 10.05);
             break;
           case 'panoramic':
             targetVec.current.set(0, 2.5, 12.0);
-            camVec.current.set(45, 14, 35);
+            camVec.current.set(58, 20, 42);
             break;
           case 'reset':
           default:
             targetVec.current.set(0, 1.8, 10.0);
-            camVec.current.set(32, 28, 38);
+            camVec.current.set(38, 34, 46);
             break;
         }
         isTransitioning.current = true;
@@ -106,10 +106,10 @@ export default function CameraManager() {
   return (
     <OrbitControls
       ref={controlsRef}
-      maxPolarAngle={Math.PI / 2.15}
+      maxPolarAngle={Math.PI / 2.06}
       minPolarAngle={0.06}
-      minDistance={12}
-      maxDistance={115}
+      minDistance={6}
+      maxDistance={260}
       dampingFactor={0.08}
       enableDamping
     />

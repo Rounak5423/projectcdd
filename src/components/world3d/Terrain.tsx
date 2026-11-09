@@ -59,7 +59,7 @@ export function isNearLake(x: number, z: number, tolerance: number = 2.0): boole
   return dist < 12.2 + tolerance;
 }
 
-export function getTerrainHeight(x: number, z: number, terrainType: MapTerrainType = 'Verdant River Valley'): number {
+export function getCoreTerrainHeight(x: number, z: number, terrainType: MapTerrainType = 'Verdant River Valley'): number {
   if (terrainType === 'Archipelago') {
     // 5 island centers with lagoons in between
     const islands = [
@@ -143,7 +143,7 @@ export function getTerrainHeight(x: number, z: number, terrainType: MapTerrainTy
     return 0.6 + dunes;
   }
 
-  // Default: Verdant River Valley
+  // Default: Verdant River Valley (and Boreal Basin)
   // 1. Highland Lake check (Northwest mountain tarn & reservoir lake at [-38, -22])
   const lakeDist = Math.hypot(x - (-38), z - (-22));
   if (lakeDist < 12.2) {
@@ -225,16 +225,151 @@ export function getTerrainHeight(x: number, z: number, terrainType: MapTerrainTy
   return 0.42 + Math.sin(x * 0.08) * 0.14 + Math.cos(z * 0.08) * 0.14;
 }
 
+// Procedural Multi-Octave Continental Landscape Generator for Expansive 1km+ Worlds
+export function getContinentalTerrainHeight(x: number, z: number, terrainType: MapTerrainType = 'Verdant River Valley'): number {
+  const r = Math.hypot(x, z);
+  let contH = 0.5;
+
+  if (terrainType === 'Archipelago') {
+    // Vast tropical ocean dotted with distant island chains, sea mounts and coral atolls
+    const outerIslands = [
+      { x: 130, z: -110, r: 42, h: 7.5 },
+      { x: -150, z: 85, r: 46, h: 8.8 },
+      { x: 175, z: 155, r: 48, h: 7.8 },
+      { x: -145, z: -175, r: 52, h: 10.5 },
+      { x: 260, z: -60, r: 58, h: 13.0 },
+      { x: -250, z: -90, r: 64, h: 15.0 },
+      { x: 75, z: 270, r: 50, h: 9.0 },
+      { x: -95, z: 285, r: 48, h: 8.0 },
+      { x: 310, z: 180, r: 68, h: 16.5 },
+      { x: -320, z: 195, r: 72, h: 18.5 },
+    ];
+    let maxElev = -1.65; // deep tropical ocean floor
+    for (const isl of outerIslands) {
+      const d = Math.hypot(x - isl.x, z - isl.z);
+      if (d < isl.r) {
+        const t = Math.cos((d / isl.r) * (Math.PI / 2));
+        const elev = isl.h * Math.pow(t, 1.4) - 0.25;
+        if (elev > maxElev) maxElev = elev;
+      }
+    }
+    maxElev += Math.sin(x * 0.035) * Math.cos(z * 0.035) * 0.35;
+    contH = maxElev;
+  } else if (terrainType === 'Crimson Canyon') {
+    // Immense stepped sandstone mesas, dry canyon washes, and towering desert buttes
+    const canyonZ = x * 0.18 + Math.sin(x * 0.04) * 16.0;
+    const distCanyon = Math.abs(z - canyonZ);
+    const mesaTier = Math.floor(Math.min(5, (distCanyon - 10.0) / 16.0));
+    const mesaBase = 1.2 + mesaTier * 4.2;
+    const noise = Math.sin(x * 0.035) * 2.8 + Math.cos(z * 0.04) * 2.4 + Math.sin((x + z) * 0.02) * 3.2;
+    const outerMesa = r > 180 ? Math.min(26.0, (r - 180) * 0.12) : 0;
+    contH = distCanyon < 10.0 ? -0.85 + Math.pow(distCanyon / 10.0, 2) * 1.5 : mesaBase + noise + outerMesa;
+  } else if (terrainType === 'Frostpeak Taiga') {
+    // Northern and Western colossal alpine wall, frozen taiga pine valleys to East & South
+    let taigaElev = 0.8;
+    if (z < -45) {
+      const distN = -45 - z;
+      taigaElev += distN * 0.15 + Math.sin(x * 0.03) * 6.5 + Math.cos(z * 0.025) * 8.0;
+    }
+    if (x < -45) {
+      const distW = -45 - x;
+      taigaElev += distW * 0.13 + Math.cos(x * 0.03) * 5.5 + Math.sin(z * 0.035) * 5.0;
+    }
+    const taigaHills = Math.sin(x * 0.025 + 1.2) * 4.8 + Math.cos(z * 0.028) * 4.2;
+    contH = taigaElev + taigaHills;
+  } else if (terrainType === 'Obsidian Caldera') {
+    // Vast outer caldera volcanic crater rim and towering volcanic massifs
+    const rimDist = Math.abs(r - 120);
+    const outerRim = Math.max(0, 18.0 - rimDist * 0.2);
+    const ashPlains = Math.sin(x * 0.03) * 3.2 + Math.cos(z * 0.03) * 3.2;
+    const outerVolcanoes = r > 200 ? Math.min(34.0, (r - 200) * 0.16) : 0;
+    contH = 1.2 + outerRim + ashPlains + outerVolcanoes;
+  } else if (terrainType === 'Highland Plateau') {
+    // High-altitude tablelands flanked by sheer escarpments into lower valleys
+    const plateauNoise = Math.sin(x * 0.02) * 1.8 + Math.cos(z * 0.02) * 1.8;
+    if (r > 150) {
+      const dropProgress = Math.min(1.0, (r - 150) / 65);
+      const valley = 2.0 - dropProgress * 3.5;
+      const horizonPeaks = r > 240 ? Math.min(35.0, (r - 240) * 0.2) : 0;
+      contH = valley + plateauNoise + horizonPeaks;
+    } else {
+      contH = 2.0 + plateauNoise;
+    }
+  } else if (terrainType === 'Arid Oasis') {
+    // Sweeping golden sand dunes and rugged desert ranges
+    const dunes = Math.sin(x * 0.03 + z * 0.015) * 4.0 + Math.cos(z * 0.025 - x * 0.01) * 3.0;
+    const distantRanges = r > 200 ? Math.min(25.0, (r - 200) * 0.14) : 0;
+    contH = 0.8 + dunes + distantRanges;
+  } else {
+    // Verdant River Valley (and Boreal Basin):
+    // Northern alpine wall, Western granite ridges, Eastern rolling pastoral hills, Southern ocean delta
+    let base = 0.5;
+    if (z < -42) {
+      const distN = -42 - z;
+      const alpineRamp = Math.min(46.0, distN * 0.16 + Math.pow(distN * 0.03, 1.85));
+      const ridgeNoise = Math.sin(x * 0.035 + 1.0) * 7.0 + Math.cos(z * 0.03) * 7.5 + Math.sin((x - z) * 0.02) * 5.0;
+      base += alpineRamp + ridgeNoise;
+    }
+    if (x < -42) {
+      const distW = -42 - x;
+      const westRamp = Math.min(35.0, distW * 0.14);
+      const westNoise = Math.cos(x * 0.03) * 6.0 + Math.sin(z * 0.035) * 5.0;
+      base += westRamp + westNoise;
+    }
+    if (x > 42) {
+      const distE = x - 42;
+      const eastRamp = Math.min(26.0, distE * 0.095);
+      const eastNoise = Math.sin(x * 0.025) * 4.5 + Math.cos(z * 0.03) * 4.0;
+      base += eastRamp + eastNoise;
+    }
+    if (z > 42) {
+      const distS = z - 42;
+      const deltaSlope = -Math.min(2.8, distS * 0.018);
+      const coastalHills = Math.sin(x * 0.03) * 2.4 + Math.cos(z * 0.025) * 2.0;
+      base += deltaSlope + coastalHills;
+    }
+    contH = base;
+  }
+
+  return contH;
+}
+
+// Master Terrain Elevation function connecting core city grid to expansive continental landscape
+export function getTerrainHeight(x: number, z: number, terrainType: MapTerrainType = 'Verdant River Valley'): number {
+  const r = Math.hypot(x, z);
+
+  // Exact core heights for city, roads, bridges, and zoning
+  if (r <= 56) {
+    return getCoreTerrainHeight(x, z, terrainType);
+  }
+
+  const coreH = getCoreTerrainHeight(x, z, terrainType);
+  const contH = getContinentalTerrainHeight(x, z, terrainType);
+
+  // Hermite smoothstep blend across r: 56m to 76m
+  const blendT = Math.min(1.0, Math.max(0.0, (r - 56) / 20.0));
+  const smoothBlend = blendT * blendT * (3 - 2 * blendT);
+  let finalH = coreH * (1.0 - smoothBlend) + contH * smoothBlend;
+
+  // Peripheral skirt: At outer perimeter (r > 420m), slope down smoothly into horizon sea level (y = -2.5m)
+  if (r > 410) {
+    const skirtT = Math.min(1.0, (r - 410) / 90.0);
+    const skirtBlend = skirtT * skirtT;
+    finalH = finalH * (1.0 - skirtBlend) + (-2.5) * skirtBlend;
+  }
+
+  return finalH;
+}
+
 function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
   const { civilization } = useGameState();
   const terrainType = civilization?.terrainType || 'Verdant River Valley';
   const isPioneerOutpost = (civilization?.level ?? 1) <= 1;
 
-  // Generate high quality procedural terrain geometry with vertex colors
+  // Generate high quality procedural terrain geometry with vertex colors across vast 1km+ continental landscape
   const { geometry } = useMemo(() => {
-    const size = 136;
-    const segments = 128; // High resolution, silky smooth terrain mesh
-    const geo = new THREE.PlaneGeometry(size, size, segments, segments);
+    const segments = 180; // High resolution, silky smooth terrain mesh
+    const geo = new THREE.PlaneGeometry(1, 1, segments, segments);
     geo.rotateX(-Math.PI / 2);
 
     const positions = geo.attributes.position;
@@ -318,9 +453,30 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
       cCitadelPaved = new THREE.Color('#63513b');
     }
 
+    // Map normalized planar coordinates [-0.5, 0.5] into vast 1040m continental world:
+    // Core city zone: [-68, 68] with high density
+    // Outer continent zone: expands out to [-520, 520]
     for (let i = 0; i < positions.count; i++) {
-      const vx = positions.getX(i);
-      const vz = positions.getZ(i);
+      const u = positions.getX(i); // in [-0.5, 0.5]
+      const v = positions.getZ(i); // in [-0.5, 0.5]
+
+      const su = u * 2.0; // [-1.0, 1.0]
+      const sv = v * 2.0; // [-1.0, 1.0]
+
+      const mapCoord = (s: number): number => {
+        const absS = Math.abs(s);
+        const sign = Math.sign(s) || 1;
+        if (absS <= 0.52) {
+          return (s / 0.52) * 68.0;
+        }
+        const t = (absS - 0.52) / 0.48;
+        return sign * (68.0 + (520.0 - 68.0) * (0.65 * t + 0.35 * t * t));
+      };
+
+      const vx = mapCoord(su);
+      const vz = mapCoord(sv);
+      positions.setX(i, vx);
+      positions.setZ(i, vz);
 
       const vy = getTerrainHeight(vx, vz, terrainType);
       positions.setY(i, vy);
@@ -328,42 +484,62 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
       // Vertex color blending based on elevation, slope, and water proximity
       let vertexColor = cLushGreen.clone();
 
-      // Check river channel proximity for rich riverbed geology
-      const { z: rz, width: rWidth } = getRiverPath(vx);
-      const { tangentX } = getRiverDerivative(vx);
-      const distPerp = Math.abs(vz - rz) * tangentX;
-      const halfW = rWidth * 0.5;
+      // Check river channel proximity for rich riverbed geology (in central region)
+      if (Math.abs(vx) < 70 && Math.abs(vz) < 70) {
+        const { z: rz, width: rWidth } = getRiverPath(vx);
+        const { tangentX } = getRiverDerivative(vx);
+        const distPerp = Math.abs(vz - rz) * tangentX;
+        const halfW = rWidth * 0.5;
 
-      if (distPerp < halfW + 3.5) {
-        if (distPerp < halfW * 0.55) {
+        if (distPerp < halfW + 3.5) {
+          if (distPerp < halfW * 0.55) {
+            vertexColor = cBedSilt.clone();
+          } else if (distPerp < halfW) {
+            const t = (distPerp - halfW * 0.55) / (halfW * 0.45);
+            vertexColor = cBedSilt.clone().lerp(cPebbleGravel, t);
+          } else {
+            const t = (distPerp - halfW) / 3.5;
+            vertexColor = cPebbleGravel.clone().lerp(cLushGreen, t);
+          }
+        } else if (vy < -0.8) {
           vertexColor = cBedSilt.clone();
-        } else if (distPerp < halfW) {
-          const t = (distPerp - halfW * 0.55) / (halfW * 0.45);
-          vertexColor = cBedSilt.clone().lerp(cPebbleGravel, t);
+        } else if (vy < 0.2) {
+          const t = Math.max(0, Math.min(1, (vy + 0.8) / 1.0));
+          vertexColor = cBedSilt.clone().lerp(cSandRiver, t);
+        } else if (vy < 2.2) {
+          const distCitadel = Math.hypot(vx, vz - 13);
+          if (distCitadel < 12) {
+            vertexColor = cCitadelPaved.clone();
+          } else {
+            vertexColor = Math.sin(vx * 0.15 + vz * 0.15) > 0 ? cLushGreen : cDeepGreen;
+          }
+        } else if (vy < 6.5) {
+          vertexColor = cHillOlive.clone();
+        } else if (vy < 14.0) {
+          vertexColor = cCliffStone.clone();
+        } else if (vy < 24.0) {
+          vertexColor = cMountainRock.clone();
         } else {
-          const t = (distPerp - halfW) / 3.5;
-          vertexColor = cPebbleGravel.clone().lerp(cLushGreen, t);
+          vertexColor = cSnowPeak.clone();
         }
-      } else if (vy < -0.8) {
-        vertexColor = cBedSilt.clone();
-      } else if (vy < 0.2) {
-        const t = (vy + 0.8) / 1.0;
-        vertexColor = cBedSilt.clone().lerp(cSandRiver, t);
-      } else if (vy < 1.8) {
-        const distCitadel = Math.hypot(vx, vz - 13);
-        if (distCitadel < 12) {
-          vertexColor = cCitadelPaved.clone();
-        } else {
-          vertexColor = Math.sin(vx * 0.3 + vz * 0.3) > 0 ? cLushGreen : cDeepGreen;
-        }
-      } else if (vy < 4.5) {
-        vertexColor = cHillOlive.clone();
-      } else if (vy < 8.5) {
-        vertexColor = cCliffStone.clone();
-      } else if (vy < 12.0) {
-        vertexColor = cMountainRock.clone();
       } else {
-        vertexColor = cSnowPeak.clone();
+        // Outer continental landscape coloring
+        if (vy < -0.8) {
+          vertexColor = cBedSilt.clone();
+        } else if (vy < 0.25) {
+          const t = Math.max(0, Math.min(1, (vy + 0.8) / 1.05));
+          vertexColor = cBedSilt.clone().lerp(cSandRiver, t);
+        } else if (vy < 2.5) {
+          vertexColor = Math.sin(vx * 0.04 + vz * 0.04) > 0 ? cLushGreen : cDeepGreen;
+        } else if (vy < 6.5) {
+          vertexColor = cHillOlive.clone();
+        } else if (vy < 14.0) {
+          vertexColor = cCliffStone.clone();
+        } else if (vy < 24.0) {
+          vertexColor = cMountainRock.clone();
+        } else {
+          vertexColor = cSnowPeak.clone();
+        }
       }
 
       colors[i * 3] = vertexColor.r;
@@ -546,26 +722,83 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
         </group>
       )}
 
-      {/* Majestic Northern Alpine Horizon Backdrop Peaks (Distant background mountains ONLY, Z < -48) */}
+      {/* 360-Degree Panoramic Horizon Mountain Massifs Ring (Radius 240m - 380m) */}
       {[
-        [-52, -50, 15, 12],
-        [-26, -54, 16, 13],
-        [0, -56, 17, 14],
-        [26, -54, 16, 13],
-        [50, -50, 15, 12],
-      ].map(([mx, mz, my, radius], idx) => (
-        <group key={idx} position={[mx, my * 0.42, mz]}>
-          <mesh castShadow receiveShadow>
-            <coneGeometry args={[radius, my, 12]} />
-            <meshStandardMaterial color="#4d5752" roughness={0.85} />
-          </mesh>
-          {/* Pristine Alpine Snow Summit */}
-          <mesh position={[0, my * 0.35, 0]} castShadow>
-            <coneGeometry args={[radius * 0.38, my * 0.34, 12]} />
-            <meshStandardMaterial color="#e8f0ec" roughness={0.3} />
-          </mesh>
-        </group>
-      ))}
+        // North Alpine Range (Towering Snow Summits)
+        [-280, -320, 52, 34],
+        [-190, -340, 48, 30],
+        [-90, -350, 55, 36],
+        [0, -360, 58, 38],
+        [90, -350, 54, 35],
+        [190, -340, 50, 32],
+        [280, -320, 46, 30],
+        // North-East & East Continental Range
+        [340, -220, 42, 28],
+        [360, -110, 38, 26],
+        [370, 0, 36, 25],
+        [350, 120, 32, 24],
+        [320, 220, 28, 22],
+        // South & South-East Coastal Ranges & Headlands
+        [210, 320, 24, 20],
+        [100, 340, 20, 18],
+        [-10, 350, 18, 16],
+        [-110, 340, 22, 19],
+        [-210, 310, 26, 22],
+        // West & North-West Highlands & Crags
+        [-320, 210, 32, 24],
+        [-360, 100, 38, 26],
+        [-370, -10, 42, 28],
+        [-350, -120, 46, 30],
+        [-320, -230, 50, 32],
+      ].map(([mx, mz, my, radius], idx) => {
+        const isSnowBiome =
+          terrainType === 'Frostpeak Taiga' ||
+          terrainType === 'Verdant River Valley' ||
+          terrainType === 'Highland Plateau' ||
+          terrainType === 'Boreal Basin';
+        const hasSnow = isSnowBiome && my >= 28;
+        return (
+          <group key={idx} position={[mx, my * 0.42, mz]}>
+            {/* Primary Mountain Massif */}
+            <mesh castShadow receiveShadow>
+              <coneGeometry args={[radius, my, 12]} />
+              <meshStandardMaterial
+                color={
+                  terrainType === 'Crimson Canyon'
+                    ? '#7a3424'
+                    : terrainType === 'Obsidian Caldera'
+                    ? '#362b33'
+                    : terrainType === 'Arid Oasis'
+                    ? '#947046'
+                    : '#4c5651'
+                }
+                roughness={0.85}
+              />
+            </mesh>
+            {/* Organic Shoulder Crag */}
+            <mesh position={[radius * 0.35, -my * 0.22, radius * 0.2]} castShadow receiveShadow>
+              <coneGeometry args={[radius * 0.6, my * 0.58, 8]} />
+              <meshStandardMaterial
+                color={
+                  terrainType === 'Crimson Canyon'
+                    ? '#6e2d20'
+                    : terrainType === 'Obsidian Caldera'
+                    ? '#2c2229'
+                    : '#434b47'
+                }
+                roughness={0.88}
+              />
+            </mesh>
+            {/* Pristine Alpine Snow Summit */}
+            {hasSnow && (
+              <mesh position={[0, my * 0.34, 0]} castShadow>
+                <coneGeometry args={[radius * 0.38, my * 0.35, 12]} />
+                <meshStandardMaterial color="#f0f7f4" roughness={0.35} />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
     </group>
   );
 }

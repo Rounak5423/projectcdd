@@ -703,6 +703,28 @@ export default React.memo(function WaterSystem() {
 
   return (
     <group raycast={() => null}>
+      {/* 0. Boundless Horizon Ocean & Continental Water Body (1600m x 1600m) */}
+      <mesh position={[0, -0.16, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[1600, 1600, 32, 32]} />
+        <meshStandardMaterial
+          color={
+            isNight
+              ? '#09151e'
+              : civilization?.terrainType === 'Archipelago'
+              ? '#14687d'
+              : civilization?.terrainType === 'Crimson Canyon'
+              ? '#3a2824'
+              : civilization?.terrainType === 'Obsidian Caldera'
+              ? '#1a1924'
+              : '#194254'
+          }
+          roughness={0.16}
+          metalness={0.35}
+          transparent
+          opacity={0.92}
+        />
+      </mesh>
+
       {/* 1. Wet Sand & Gravel Silt Shore Under-Ribbon (Seamless Land-Water Transition) */}
       <mesh geometry={shoreGeo} receiveShadow>
         <meshStandardMaterial

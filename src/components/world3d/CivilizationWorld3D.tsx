@@ -120,7 +120,7 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
           <Canvas
             key={viewportKey}
             frameloop={isPaused ? 'never' : 'always'}
-            camera={{ position: [38, 34, 46], fov: 42, near: 0.5, far: 350 }}
+            camera={{ position: [38, 34, 46], fov: 42, near: 0.5, far: 1400 }}
             shadows={shadows}
             dpr={dpr}
             performance={{ min: 0.5 }}
