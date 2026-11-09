@@ -3,6 +3,7 @@ import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameState } from '../../context/GameStateContext';
+import { useUnifiedWorld } from '../../world/useUnifiedWorld';
 import { getTerrainHeight } from './Terrain';
 import { soundFx } from '../../services/soundFx';
 
@@ -31,6 +32,9 @@ export default function CS2ZoningAndInfoView3D() {
   } = useGameState();
 
   const [hoveredBuildingId, setHoveredBuildingId] = useState<string | null>(null);
+  const { utilities } = useUnifiedWorld();
+  const unpoweredSet = useMemo(() => new Set(utilities?.unpowered_building_ids || []), [utilities]);
+  const unwateredSet = useMemo(() => new Set(utilities?.unwatered_building_ids || []), [utilities]);
 
   // 1. Zoned Cell Grid Meshes (Cities: Skylines II Style Curb Lot Grid)
   const zoneCells = useMemo(() => {
@@ -91,21 +95,25 @@ export default function CS2ZoningAndInfoView3D() {
         <group name="electricity-overlay">
           {placedBuildings.map((b) => {
             const isPowerSource = b.category === 'energy';
+            const isUnpowered = unpoweredSet.has(b.id);
+            const overlayColor = isPowerSource ? '#f1c40f' : isUnpowered ? '#e74c3c' : '#2ecc71';
+            const overlayLabel = isPowerSource ? 'GENERATOR' : isUnpowered ? 'BLACKOUT (NO POWER)' : 'GRID CONNECTED';
+
             return (
               <group key={`elec-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
                 <mesh rotation={[-Math.PI / 2, 0, 0]}>
                   <ringGeometry args={[1.8, 2.6, 16]} />
                   <meshBasicMaterial
-                    color={isPowerSource ? '#f1c40f' : '#2ecc71'}
+                    color={overlayColor}
                     transparent
-                    opacity={0.7}
+                    opacity={0.75}
                     side={THREE.DoubleSide}
                   />
                 </mesh>
                 <Html position={[0, 4.0, 0]} center distanceFactor={35} pointerEvents="none">
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#1b1c10]/90 border border-[#f1c40f] text-[#f1c40f] text-[9px] font-mono font-bold shadow-lg">
+                  <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${isUnpowered ? 'bg-[#2a1010]/95 border-[#e74c3c] text-[#e74c3c] animate-pulse' : 'bg-[#1b1c10]/90 border-[#f1c40f] text-[#f1c40f]'} border text-[9px] font-mono font-bold shadow-lg`}>
                     <span>⚡</span>
-                    <span>{isPowerSource ? 'GENERATOR' : 'GRID CONNECTED'}</span>
+                    <span>{overlayLabel}</span>
                   </div>
                 </Html>
               </group>
@@ -117,20 +125,26 @@ export default function CS2ZoningAndInfoView3D() {
       {/* 3. WATER & SEWAGE INFO VIEW OVERLAY */}
       {activeInfoView === 'water' && (
         <group name="water-overlay">
-          {placedBuildings.map((b) => (
-            <group key={`water-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
-              <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[1.6, 2.3, 16]} />
-                <meshBasicMaterial color="#3498db" transparent opacity={0.65} side={THREE.DoubleSide} />
-              </mesh>
-              <Html position={[0, 3.8, 0]} center distanceFactor={35} pointerEvents="none">
-                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0e171f]/90 border border-[#3498db] text-[#5dade2] text-[9px] font-mono font-bold shadow-lg">
-                  <span>💧</span>
-                  <span>WATER FLOW OK</span>
-                </div>
-              </Html>
-            </group>
-          ))}
+          {placedBuildings.map((b) => {
+            const isUnwatered = unwateredSet.has(b.id);
+            const overlayColor = isUnwatered ? '#e67e22' : '#3498db';
+            const overlayLabel = isUnwatered ? 'DEFICIT (NO WATER)' : 'WATER FLOW OK';
+
+            return (
+              <group key={`water-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[1.6, 2.3, 16]} />
+                  <meshBasicMaterial color={overlayColor} transparent opacity={0.7} side={THREE.DoubleSide} />
+                </mesh>
+                <Html position={[0, 3.8, 0]} center distanceFactor={35} pointerEvents="none">
+                  <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${isUnwatered ? 'bg-[#2a1910]/95 border-[#e67e22] text-[#e67e22] animate-pulse' : 'bg-[#0e171f]/90 border-[#3498db] text-[#5dade2]'} border text-[9px] font-mono font-bold shadow-lg`}>
+                    <span>💧</span>
+                    <span>{overlayLabel}</span>
+                  </div>
+                </Html>
+              </group>
+            );
+          })}
         </group>
       )}
 

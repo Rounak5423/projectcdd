@@ -60,6 +60,7 @@ import {
 import { soundFx } from '../services/soundFx';
 import { civilizationApi } from '../services/civilizationApi';
 import { civoraEventClient } from '../services/realtime/CivoraEventClient';
+import { globalWorldStore } from '../world/worldStore';
 import {
   calculateCitySimulation,
   CitySimulationReport,
@@ -223,6 +224,7 @@ interface GameStateContextType {
   setActiveDrawer: (drawer: ActiveDrawer) => void;
   taxRate: number;
   setTaxRate: (rate: number) => void;
+  undoLastAction: () => Promise<void>;
   activeProtest: ProtestEvent | null;
   isProtestModalOpen: boolean;
   setIsProtestModalOpen: (open: boolean) => void;
@@ -386,7 +388,42 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     });
   }, [civilization.currentYear, civilization.currentDay, triggerToast]);
   
-  const [taxRate, setTaxRate] = useState<number>(18); // %
+  const [taxRate, setTaxRateState] = useState<number>(18); // %
+  const setTaxRate = useCallback((rate: number) => {
+    setTaxRateState(rate);
+    globalWorldStore.sendCommand({
+      action: 'set_tax_rate',
+      payload: { tax_rate: rate }
+    }).catch(() => {});
+  }, []);
+
+  // Synchronize top HUD metrics directly with authoritative simulation store
+  useEffect(() => {
+    const unsub = globalWorldStore.subscribe(() => {
+      const m = globalWorldStore.getMetrics();
+      const u = globalWorldStore.getUtilities();
+      setResources((prev) => ({
+        ...prev,
+        population: m.population || prev.population,
+        energy: Math.round(u.total_power_supply_mw) || prev.energy,
+        water: Math.round(u.total_water_supply_t * 100) || prev.water,
+        happiness: Math.round(m.average_happiness * 100) || prev.happiness,
+        stability: Math.round(m.civic_stability * 100) || prev.stability,
+      }));
+    });
+    return unsub;
+  }, []);
+
+  const undoLastAction = useCallback(async () => {
+    const success = await globalWorldStore.undoLastAction();
+    if (success) {
+      triggerToast({
+        type: 'info',
+        title: 'Action Undone',
+        subtitle: 'State reverted to previous snapshot',
+      });
+    }
+  }, [triggerToast]);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [speed, setSpeed] = useState<'1x' | '2x' | '5x' | '10x'>('1x');
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
@@ -428,6 +465,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const paintZoneTile = useCallback((x: number, z: number, zoneType: ZoneType) => {
     const tileId = `tile-${Math.round(x)}-${Math.round(z)}`;
+    globalWorldStore.sendCommand({
+      action: 'paint_zone',
+      payload: { x, z, zone_type: zoneType },
+    }).catch(() => {});
     setZonedTiles((prev) => {
       const existing = prev.find((t) => t.id === tileId);
       if (existing) {
@@ -1207,6 +1248,29 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       districtId: newBuilding.districtId,
     }).catch(() => {});
 
+    globalWorldStore.sendCommand({
+      action: 'place_building',
+      payload: {
+        catalog_id: newBuilding.catalogId,
+        name: newBuilding.name,
+        type: item.category.charAt(0).toUpperCase() + item.category.slice(1),
+        category: newBuilding.category,
+        x: newBuilding.x,
+        z: newBuilding.z,
+        y: newBuilding.y,
+        rotation: newBuilding.rotation,
+        district_id: newBuilding.districtId,
+      },
+    }).then((cmdRes) => {
+      if (cmdRes && cmdRes.status === 'rejected') {
+        triggerToast({
+          type: 'info',
+          title: 'Construction Suspended',
+          subtitle: cmdRes.reason || 'Placement denied by simulation authority',
+        });
+      }
+    });
+
     const event: GameEvent = {
       id: `ev-${Date.now()}`,
       year: civilization.currentYear,
@@ -1530,6 +1594,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
     setPlacedBuildings((prev) => prev.filter((b) => b.id !== buildingId));
     civilizationApi.decommissionFacility(civilization.id, buildingId).catch(() => {});
+    globalWorldStore.sendCommand({
+      action: 'demolish_building',
+      payload: { building_id: buildingId },
+    }).catch(() => {});
     setSelectedBuildingId(null);
     setActiveDrawer('none');
 
@@ -1599,6 +1667,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       prev.map((p) => {
         if (p.id === policyId) {
           const nextActive = !p.isActive;
+          globalWorldStore.sendCommand({
+            action: 'set_policy',
+            payload: { policy_id: policyId, is_active: nextActive ? 1 : 0 }
+          }).catch(() => {});
           // Apply instant political capital impact
           if (nextActive) {
             setResources((r) => ({
@@ -1870,6 +1942,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setActiveDrawer,
       taxRate,
       setTaxRate,
+      undoLastAction,
       activeProtest,
       isProtestModalOpen,
       setIsProtestModalOpen,

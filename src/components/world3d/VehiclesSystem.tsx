@@ -5,6 +5,7 @@ import { useIsNight } from './DayNightController';
 import { useGameState } from '../../context/GameStateContext';
 import { getGlobalTrafficSignal } from './RoadNetwork';
 import { VehicleCategory, TrafficFlowMetrics } from './cityLifeTypes';
+import { useUnifiedWorld } from '../../world/useUnifiedWorld';
 
 interface VehicleDef {
   id: string;
@@ -42,8 +43,20 @@ export function setTrafficFlowMetrics(metrics: Partial<TrafficFlowMetrics>) {
 function VehiclesSystem() {
   const isNight = useIsNight();
   const { isPlaying, speed: simSpeed, resources } = useGameState();
+  const { traffic } = useUnifiedWorld();
   const vehiclesRef = useRef<THREE.Group>(null);
   const emergencyStrobeRef = useRef<THREE.PointLight>(null);
+
+  React.useEffect(() => {
+    if (traffic) {
+      setTrafficFlowMetrics({
+        activeVehicles: traffic.active_vehicles_count || 12,
+        averageSpeedKph: traffic.average_speed_kmh || 45,
+        trafficFlowEfficiency: Math.round(traffic.traffic_flow_efficiency || 90),
+        congestionIndex: Math.round(traffic.congestion_index || 10),
+      });
+    }
+  }, [traffic]);
 
   // 12 Realistic Transportation Vehicles with Exact Road Network Waypoints
   const vehicles: VehicleDef[] = useMemo(() => [

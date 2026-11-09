@@ -1,111 +1,128 @@
-# GENESIS Engine: Subsystem Coupling & Dependency Audit Map
+# GENESIS Engine: Master Coupling & Architecture Map
 
-**Document Version:** 1.0.0  
-**Audit Date:** November 9, 2026  
-**Status:** FORENSIC DIAGNOSTIC COMPLETED — IDENTIFIED DISCONNECTED SUBSYSTEMS & ZERO-DEATH ANOMALY  
-
----
-
-## 1. Executive Dependency Graph & Coupling Status
-
-The simulation currently operates with **severely decoupled and siloed subsystems**, where vital human lifecycle, emergency infrastructure, resource deprivation, and civil unrest dynamics do not form causal feedback loops.
-
-```
-CURRENT (DISCONNECTED) ARCHITECTURE:
-[Resource Deprivation (Food=0, Water=0)] ---> [Arbitrary Happiness -0.03]   (NO HEALTH / MORTALITY IMPACT)
-[Healthcare Facilities (Hospitals)] --------> [Static Database Row]         (NO BED OCCUPANCY / ADMISSION DYNAMICS)
-[Citizen Aging / Life-cycle] ---------------> [Isolated Net Growth Mult]   (ZERO TICK DEATHS LOGGED)
-[Incidents / Accidents] --------------------> [Synthetic Event String]     (NO CASUALTY HOSPITALISATION)
-[High Unrest (Stability < 0.20)] -----------> [No-op / Silent Ledger]      (ZERO PROTESTS OCCURRING)
-```
+**Document Version:** 2.0.0 (Unified World Architecture Edition)  
+**Date:** November 9, 2026  
+**Status:** ARCHITECTURAL SPECIFICATION & SUBSYSTEM COUPLING MATRIX  
 
 ---
 
-## 2. Field Read/Write Dependency Matrix
+## 1. Before vs. Target Architecture Overview
 
-| Subsystem Module | Fields Written | Fields Read | Coupled Downstream? | Status / Disconnection Defect |
-| :--- | :--- | :--- | :--- | :--- |
-| **Resources & Utilities** (`engine/simulation.py`) | `food`, `water`, `energy`, `materials` | `population`, `food_rate`, `water_rate`, `energy_rate` | ❌ Partial | When food/water/power hit 0.0, it only subtracts a small static constant from `happiness`. **Never impairs health, never causes illness, never raises mortality.** |
-| **Public Health & Healthcare** (`engine/simulation.py`, `models.py`) | Building records (`bld_hospital_1`) | None | ❌ **DEAD SYSTEM** | Hospital buildings exist in database with `health_bonus: 0.08`, but **bed occupancy, admissions, emergency ambulance load, and capacity overload are NEVER tracked or read.** |
-| **Vital Statistics & Mortality** (`engine/simulation.py`) | `population` (via growth multiplier) | `population_growth_rate` | ❌ **BROKEN** | `new_population` is computed via `population * (1 + growth_rate)^t`. **Deaths are NEVER subtracted per tick. Cumulative deaths stay at 0.** |
-| **Incident & Emergency Engine** (`engine/simulation.py`) | `events` (category: traffic) | `speed_limit`, `road_type` | ❌ **DISCONNECTED** | Generates synthetic incident events, but **casualties never enter hospitals, never consume medical capacity, and never produce citizen grief or deaths.** |
-| **Citizen Needs & Cognition** (`engine/cognitive.py`) | `independent_reasoning`, `ai_dependency` | `ai_coverage`, `scaffolding` | ⚠️ Isolated | Only affects cognitive score; **never feeds into civic unrest, dissatisfaction, or strikes.** |
-| **Social Unrest & Protests** (`engine/simulation.py`) | None | None | ❌ **COMPLETELY MISSING** | The backend simulation engine contains **zero logic to trigger or resolve protests.** Even with 90% unrest, protest intensity remains strictly 0.0. |
-| **Municipal Governance** (`api/v1/policies.py`) | `policies.is_active` | None | ❌ Open Loop | Policy changes do not causally respond to protests, hospital collapses, or famine. |
+### 1.1 Before Architecture: Decoupled & Siloed Layers
 
----
+```mermaid
+flowchart TD
+    subgraph Frontend["3D WebGL Frontend (Client-Side Only)"]
+        UI_Placement["PlacementSystem (Local placedBuildings)"]
+        UI_Zoning["CS2ZoningAndInfoView3D (Local zonedTiles)"]
+        UI_Vehicles["VehiclesSystem (Hardcoded 12 Vehicles)"]
+        UI_Peds["PedestriansSystem (Hardcoded 36 Walkers)"]
+        UI_HUD["WorldHUD / EconomyPage (Local taxRate, Fake Stats)"]
+    end
 
-## 3. Disconnected Fields Inventory
+    subgraph BackendSim["Backend Simulation Engine (SQLite Counters)"]
+        DB_Worlds["worlds (tick, year, day)"]
+        DB_Econ["economy_resources (Static Multipliers: energy_rate, water_rate)"]
+        SimLoop["advance_world_simulation (Net Compound Formula)"]
+        CausalVitals["causal_vitals (Vital Signs Engine)"]
+    end
 
-### A. Fields Written But Never Read by Any Other System
-1. `economy_resources.pollution`: Updated in periodic snapshots, but never read to increase respiratory illness, hospital demand, or mortality.
-2. `buildings.capacity` (Hospital capacity): Static building capacity (1,500 beds) is stored in the database but **never checked against patient admissions.**
-3. `citizens.is_alive`: In `perform_yearly_aggregation`, `is_alive` is flipped to `0` for citizens $>88$ years, but this value is **never aggregated back into `economy_resources.population` or municipal death registers.**
-4. `events` (incident casualties): Recorded in JSON text payloads, but never read by demographic, health, or economic accounting.
+    subgraph MLAI["Machine Learning & AI Layer"]
+        ModelRegistry["ml/inference/registry.py"]
+        AccidentModel["Accident Severity / Casualties (Synthetic Vectors)"]
+        ForecastModel["Forecast Model (Synthetic Compound Curves)"]
+    end
 
-### B. Systems That Never Read Upstream Outputs
-1. **Mortality System:** Never reads `health`, `unmet_needs`, `pollution`, or `hospital_bed_occupancy`.
-2. **Protest System:** Does not exist in simulation loop; never reads `unemployment`, `gini`, `shortages`, or `recent_deaths`.
-3. **Hospital Admissions:** Never reads traffic incident casualties or disease outbreaks.
-4. **Economic Production:** Never reads protest strike disruptions or worker illness rates.
+    UI_Placement -.->|"Fails / Silently Falls Back"| BackendSim
+    UI_Zoning -.->|"NO-OP (Zero Backend Call)"| BackendSim
+    UI_Vehicles -.->|"NO-OP (Isolated Waypoints)"| BackendSim
+    UI_Peds -.->|"NO-OP (Isolated Loops)"| BackendSim
+    SimLoop -.->|"Arbitrary Counters (No Graph)"| DB_Econ
+    MLAI -.->|"Reads Offline / Synthetic Data"| SimLoop
 
----
-
-## 4. Root Causes Ranked by Impact
-
-### Rank 1: Authoritative Tick Uses Pure Net Compounding (Zero-Death Root Cause)
-- **Root Cause:** In `advance_world_simulation` (lines 366–369 of `engine/simulation.py`), population is updated as:
-  $$\text{Population}_{t+1} = \text{Population}_t \times (1 + r_{\text{net}})^{\Delta t}$$
-  There is **no separation of births and deaths.** Deaths are neither calculated nor subtracted per tick.
-- **Evidence:** Running 60 ticks in `ml/diagnostics/trace_run.py` results in `total_deaths_observed = 0` and population monotonically increasing from 6,657,347 to 6,683,195.
-
-### Rank 2: Total Absence of Hospital Occupancy & Disease Dynamics
-- **Root Cause:** Hospital buildings exist only as static database entities. There is no state variable for active patients, bed capacity utilisation, or treatment capacity.
-- **Evidence:** `hospital_admissions` and `bed_occupancy_pct` are missing columns in `economy_resources`. Overcrowding failure modes (where lack of beds causes preventable deaths) do not exist.
-
-### Rank 3: Resource Deprivations Do Not Propagate to Health or Mortality
-- **Root Cause:** When food, water, or energy drop to $0.0$, line 407 of `engine/simulation.py` only applies:
-  $$\text{happiness} \leftarrow \max(0.05, \text{happiness} - 0.015)$$
-- **Evidence:** Citizens never starve, dehydrate, or freeze. Health and mortality hazard remain completely unaffected by zero-food conditions.
-
-### Rank 4: Civil Protests Are Purely Frontend Mock Data Without Backend Engine
-- **Root Cause:** The backend simulation has no protest calculation or event generation. The frontend previously rendered static mocks from `src/data/protestData.ts`.
-- **Evidence:** When civic stability fell to 0.10 (90% unrest), `protest_intensity` remained 0.0 and zero protest events were emitted to the database or WebSocket.
-
----
-
-## 5. Target Causally Coupled Architecture (Phase 2 Target)
-
-The fixed, documented execution sequence per tick:
-
-```
-[1. Basic Needs & Utilities] (Food, Water, Energy, Shelter)
-           │
-           ▼ (Unmet Need Deficits)
-[2. Environmental Quality & Pollution]
-           │
-           ▼ (Exposure Multiplier)
-[3. Health, Chronic Disease & Epidemics]
-           │
-           ▼ (Patient Load)
-[4. Incidents, Accidents & Hazards]
-           │
-           ▼ (Emergency Demand)
-[5. Hospitals & Emergency Services] (Bed Occupancy, Triage Capacity, Overload)
-           │
-           ▼ (Treatment Deficit)
-[6. Mortality & Demographics] (Gompertz Baseline × Health × Needs × Hospital Overcrowding)
-           │
-           ▼ (Deaths & Injuries)
-[7. Macro Economy & Labor Force] (Productivity, Employment, Treasury)
-           │
-           ▼ (Grievance & Poverty)
-[8. Citizen Satisfaction & Trust] (Happiness, Trust in Government)
-           │
-           ▼ (Escalation Threshold)
-[9. Civil Unrest & Protests] (Strike Disruption, Policy Pressure, Riot Intensity)
-           │
-           ▼ (Feedback & Budget Allocation)
-[10. Governance & Policy Intervention] ───► Feeds back into [1. Needs & Hospital Budgets]
+    style UI_Placement stroke:#e74c3c,stroke-width:2px;
+    style UI_Zoning stroke:#e74c3c,stroke-width:2px;
+    style UI_Vehicles stroke:#e74c3c,stroke-width:2px;
+    style SimLoop stroke:#f39c12,stroke-width:2px;
+    style AccidentModel stroke:#e74c3c,stroke-width:2px;
 ```
 
+---
+
+### 1.2 Target Unified Architecture: Single Source of Truth
+
+```mermaid
+flowchart TD
+    subgraph Client3D["3D WebGL Command Center (View + Command Source)"]
+        Tools["Build / Bulldoze / Zone / Road / Policy Tools"]
+        Store["frontend/src/world/worldStore (Synced State by ID & Version)"]
+        Renderer3D["Three.js Renderers (Instanced Buildings, Roads, Vehicles, Agents)"]
+        HUD["HUD & InfoViews (Painted strictly from Synced State)"]
+    end
+
+    subgraph CommandGateway["Unified Command & Sync Gateway"]
+        CmdEndpoint["POST /api/v1/worlds/{id}/commands (Batch, Idempotent, RBAC, Costs)"]
+        SyncEndpoint["GET /api/v1/worlds/{id}/state (Authoritative Snapshot)"]
+        ActionLog["GET /api/v1/worlds/{id}/action-log (Audit Trail & Undo Stack)"]
+        WS["WebSocket /ws/world/{id} (Versioned Entity Deltas)"]
+    end
+
+    subgraph UnifiedWorld["Backend Unified World State & Simulation Engine"]
+        WState["Authoritative WorldState (Entities with Stable IDs)"]
+        RoadNet["Road Network Graph (A* Routing, Capacity, BPR Congestion)"]
+        Utilities["Utility Graphs (Power Flow, Water Pressure, Outages)"]
+        BuildingsZoning["Zoned Lots & Buildings (RCI Demand, Spawn, Abandonment)"]
+        CitizensVehicles["Citizens & Vehicles (Schedules, OD Pairs, LOD Trips)"]
+        DerivedSim["Deterministic Tick Order (All Metrics Derived from Graph)"]
+    end
+
+    subgraph AIEngine["Unified AI & Decision Engine"]
+        FeatureExtractor["engine/world/features.py (Single Live State Extractor)"]
+        RiskOverlays["Live Spatial Risk Scores (Blackouts, Traffic, Accidents)"]
+        Counterfactuals["Branch Counterfactual Projections (Surrogate / Sim)"]
+        AdvisorControl["Sandboxed Policy Recommendations (Guardrailed Commands)"]
+    end
+
+    %% Bidirectional Flows
+    Tools -->|"Validated Commands"| CmdEndpoint
+    CmdEndpoint -->|"Mutate Entities & Invalidate Caches"| WState
+    WState -->|"Advance Tick"| DerivedSim
+    DerivedSim -->|"Update Entities & Metrics"| WState
+    WState -->|"State Version Deltas"| WS
+    WState -->|"Full Snapshot"| SyncEndpoint
+    WS -->|"Reconcile by Version"| Store
+    SyncEndpoint -->|"Initial Load / Resync"| Store
+    Store -->|"Render"| Renderer3D
+    Store -->|"Display"| HUD
+    CmdEndpoint -->|"Record Changes"| ActionLog
+
+    %% AI Connections
+    WState -->|"Authoritative Graph"| FeatureExtractor
+    FeatureExtractor -->|"Live Features"| RiskOverlays
+    FeatureExtractor -->|"Live Features"| Counterfactuals
+    FeatureExtractor -->|"Live Features"| AdvisorControl
+    RiskOverlays -->|"Overlays to View"| HUD
+    AdvisorControl -->|"Propose Commands"| CmdEndpoint
+
+    style Client3D fill:#1a241e,stroke:#2ecc71,stroke-width:2px;
+    style CommandGateway fill:#1f2824,stroke:#3498db,stroke-width:2px;
+    style UnifiedWorld fill:#1e261f,stroke:#f39c12,stroke-width:2px;
+    style AIEngine fill:#251e2b,stroke:#9b59b6,stroke-width:2px;
+```
+
+---
+
+## 2. Authoritative Tick Sequence Order
+
+The unified simulation advances in a strict, deterministic sequence where each subsystem consumes the output of upstream stages and writes into the shared `WorldState`:
+
+1. **Needs & Utilities:** Power and water flow across network graphs. Supply, demand, and shortages/outages computed per building node. Disconnected buildings lose operational efficacy.
+2. **Environmental Quality:** Industrial emissions and road traffic diffuse into air pollution and noise fields.
+3. **Public Health & Disease:** Shortages and pollution propagate into sickness and hospital admission queues.
+4. **Incidents & Hazards:** Traffic volume and road types generate accidents; emergency dispatch routes vehicles via A*.
+5. **Hospital & Emergency Response:** Hospitals admit patients up to capacity; bed occupancy determines mortality hazard.
+6. **Mortality & Demographics:** Gompertz aging and hazard multipliers compute deaths by cause; Hadwiger fertility computes births.
+7. **Economy & Labor Force:** Citizen schedules determine commutes; commercial/industrial buildings employ workers and generate tax revenue.
+8. **Citizen Satisfaction & Happiness:** Commute times, noise, utility stability, and taxation determine citizen happiness.
+9. **Unrest & Protests:** Low satisfaction and basic need deprivations trigger civil unrest and strikes.
+10. **Governance & AI Feedback:** Policy edicts and AI advisor recommendations respond to state metrics.

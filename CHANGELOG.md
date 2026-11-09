@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0] - 2026-11-09 (Unified World Architecture & Complete Feature Logic Wiring)
+
+### Added
+- **Unified World State & Architecture (`engine/world/`):**
+  - Single source of truth backend state holding road networks, buildings, utility grids, zoned lots, and agent mobility.
+  - `POST /api/v1/worlds/{id}/commands`: Batch, idempotent, and RBAC-validated command engine with undo stack support.
+  - `GET /api/v1/worlds/{id}/state`: Authoritative full-snapshot state endpoint with monotonic versioning.
+  - `GET /api/v1/worlds/{id}/action-log`: Persistent chronological audit log of all player and administrator actions.
+  - `GET /api/v1/worlds/{id}/risk-overlays`: Spatial AI risk heatmaps (blackout, accident, disease, unrest).
+  - `POST /api/v1/worlds/{id}/counterfactual`: Branch copy counterfactual simulation projecting policy impact.
+- **Derived Simulation Metrics:**
+  - Population derived directly from occupied residential building capacity.
+  - Jobs derived from active commercial and industrial capacity.
+  - Utility supply & demand derived from power plants and water facilities via transmission graph solving.
+  - Traffic congestion derived from road volume-to-capacity (V/C) ratios and BPR travel times.
+- **Frontend Unified World Client (`src/world/`):**
+  - `worldStore.ts`: Synced client-side store with version gap reconciliation and optimistic updates.
+  - `useUnifiedWorld.ts`: Reactive React hook for UI components to access authoritative entities and metrics.
+- **Documentation & Verification:**
+  - `docs/disconnect_report.md`: Forensic analysis of the 5 disconnect pillars with file and code evidence.
+  - `docs/coupling_map.md`: Architecture diagrams contrasting before (siloed) vs. target unified system.
+  - `docs/feature_spec.md`: Complete specification of all user-facing features, inputs, costs, and state changes.
+  - `docs/feature_audit.md`: Classification scorecard and audit matrix.
+  - `tests/test_unified_world_and_commands.py`: 10 pytest unit & benchmark tests passing in 1.6s.
+  - `frontend/e2e/unified_world.spec.ts`: Playwright E2E suite verifying 3D HUD, command execution, and undo.
+
+### Modified Existing Frontend Files (Conflict-Safe Minimal Touch)
+- `src/context/GameStateContext.tsx`: Connected `placeBuilding`, `demolishBuilding`, `paintZoneTile`, and `setTaxRate` to `globalWorldStore.sendCommand`, synced top HUD resources with simulation metrics, and exposed `undoLastAction`.
+- `src/components/world3d/CS2ZoningAndInfoView3D.tsx`: Wired real unpowered/unwatered building blackout indicators from `useUnifiedWorld().utilities`.
+- `src/components/world3d/VehiclesSystem.tsx`: Synced global traffic flow metrics with real road network congestion from `useUnifiedWorld().traffic`.
+
+---
+
 ## [2.2.0] - 2026-11-09 (Causal Simulation Coupling & Vital Signs Intelligence)
 
 ### Added

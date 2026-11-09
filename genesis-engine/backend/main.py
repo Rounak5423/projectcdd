@@ -539,6 +539,28 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str, token: Opt
                                     "events": delta.get("events", [])
                                 }
                             })
+                            # Broadcast versioned unified world delta
+                            try:
+                                from engine.world.simulation import get_unified_simulation
+                                u_sim = get_unified_simulation(world_id)
+                                w_delta, _ = u_sim.advance_tick(ticks=ticks)
+                                await ws_manager.broadcast(world_id, {
+                                    "type": "world_state_delta",
+                                    "world_id": world_id,
+                                    "version": w_delta.to_version,
+                                    "from_version": w_delta.from_version,
+                                    "tick": w_delta.tick,
+                                    "year": w_delta.year,
+                                    "day": w_delta.day,
+                                    "created_buildings": [b.model_dump() for b in w_delta.created_buildings],
+                                    "updated_buildings": [b.model_dump() for b in w_delta.updated_buildings],
+                                    "active_vehicles": [v.model_dump() for v in w_delta.active_vehicles],
+                                    "metrics": w_delta.metrics.model_dump(),
+                                    "utilities": w_delta.utilities.model_dump(),
+                                    "traffic": w_delta.traffic.model_dump(),
+                                })
+                            except Exception:
+                                pass
                         except Exception as e:
                             await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
                 elif action == "ping":

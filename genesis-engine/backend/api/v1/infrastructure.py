@@ -294,7 +294,9 @@ async def upgrade_building(building_id: str):
 
 
 @router.delete("/buildings/{building_id}")
-async def remove_building(building_id: str):
+@router.delete("/worlds/{id}/buildings/{building_id}", include_in_schema=False)
+@router.delete("/civilizations/{id}/buildings/{building_id}", include_in_schema=False)
+async def remove_building(building_id: str, id: Optional[str] = None):
     conn = get_db_connection()
     b = conn.execute("SELECT * FROM buildings WHERE id = ?", (building_id,)).fetchone()
     if not b:

@@ -13,6 +13,7 @@ from api.v1.cs2_routes import router as cs2_router
 from app.features.council.router import router as council_router
 from api.v1.ml_routes import router as ml_router
 from api.v1.causal_routes import router as causal_router
+from api.v1.world_routes import router as world_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -30,3 +31,4 @@ api_v1_router.include_router(cs2_router)
 api_v1_router.include_router(council_router)
 api_v1_router.include_router(ml_router)
 api_v1_router.include_router(causal_router)
+api_v1_router.include_router(world_router)
