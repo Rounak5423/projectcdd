@@ -1,10 +1,16 @@
 import asyncio
 import json
 import time
-from playwright.async_api import async_playwright
+try:
+    from playwright.async_api import async_playwright
+except ImportError:
+    async_playwright = None
 
 async def run_browser_audit():
     print("=== STARTING PLAYWRIGHT BROWSER AUDIT ===")
+    if async_playwright is None:
+        print("Playwright is not installed in the current environment.")
+        return
     
     console_logs = []
     network_errors = []

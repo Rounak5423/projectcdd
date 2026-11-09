@@ -221,3 +221,4 @@ def repay_municipal_bond(id: str, req: BondActionRequest):
         "treasury": updated["genesis_research_credits"],
         "municipal_debt": updated["municipal_debt"]
     }
+

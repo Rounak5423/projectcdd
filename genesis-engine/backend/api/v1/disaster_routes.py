@@ -158,3 +158,4 @@ def clear_world_disaster(id: str, disaster_id: str):
         """, (now_str, disaster_id, world_id))
     conn.close()
     return {"status": "resolved", "disaster_id": disaster_id}
+

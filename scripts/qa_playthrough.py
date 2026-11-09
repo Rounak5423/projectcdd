@@ -2,7 +2,23 @@ import sys
 import os
 import json
 import time
-import requests
+try:
+    import requests
+    create_session = requests.Session
+except ImportError:
+    try:
+        import httpx
+        class RequestsSessionAdapter:
+            def __init__(self):
+                self._client = httpx.Client()
+                self.headers = self._client.headers
+            def post(self, url, json=None, headers=None):
+                return self._client.post(url, json=json, headers=headers)
+            def get(self, url, headers=None):
+                return self._client.get(url, headers=headers)
+        create_session = RequestsSessionAdapter
+    except ImportError:
+        create_session = None
 import sqlite3
 
 BASE_URL = "http://127.0.0.1:8000/api/v1"
@@ -10,7 +26,10 @@ DB_PATH = "genesis-engine/backend/db/genesis.db"
 
 def run_qa_session():
     print("=== STARTING QA PLAYTHROUGH SESSION ===")
-    session = requests.Session()
+    if create_session is None:
+        print("Neither requests nor httpx installed.")
+        return
+    session = create_session()
 
     # 1. Admin Login
     print("\n1. Logging in as admin...")
