@@ -14,12 +14,11 @@ import {
   ResourceState,
   District,
   CivilizationProfile,
-  BuildingCatalogItem,
 } from '../types/game';
 import { CitySimulationReport } from './economySimulationEngine';
 import { CitizenSimulationReport } from '../types/citizen';
 import { DisasterSimulationState } from '../types/disaster';
-import { getTerrainHeight } from '../components/world3d/Terrain';
+import { getTerrainHeight, isNearRiver } from '../components/world3d/Terrain';
 import {
   CivilizationStageId,
   CivilizationStageConfig,
@@ -27,6 +26,8 @@ import {
   HistoricalYearSnapshot,
   DevelopmentRecommendation,
   CivilizationEvolutionReport,
+  DistrictDevelopmentSummary,
+  DisasterRecoverySummary,
 } from '../types/evolution';
 
 // ================= 1. THE 6 DYNAMIC CIVILIZATION STAGES =================
@@ -43,8 +44,10 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minGdpBillion: 5,
     minTreasuryCredits: 500,
     minQualityOfLife: 55,
+    minEnvironmentalIndex: 60,
     requiredCategories: ['residential', 'agriculture', 'energy'],
-    unlockedOpportunities: ['Hydroponic Domes', 'Solar Arrays', 'Basic Roadways', 'Local Wells'],
+    unlockedOpportunities: ['Hydroponic Bio-Domes', 'Solar Arrays', 'Basic Roadways', 'Local Aquifer Wells'],
+    themeColor: '#C5A66A',
   },
   {
     id: 'village',
@@ -58,8 +61,10 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minGdpBillion: 15,
     minTreasuryCredits: 1200,
     minQualityOfLife: 65,
+    minEnvironmentalIndex: 65,
     requiredCategories: ['residential', 'agriculture', 'energy', 'industrial'],
-    unlockedOpportunities: ['Habitat Blocks', 'Water Filtration Basins', 'Foundry Smelters', 'Civic Council'],
+    unlockedOpportunities: ['Modular Habitat Blocks', 'Water Filtration Basins', 'Foundry Smelters', 'Civic Assembly Grounds'],
+    themeColor: '#8FA879',
   },
   {
     id: 'town',
@@ -73,8 +78,10 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minGdpBillion: 20,
     minTreasuryCredits: 1500,
     minQualityOfLife: 70,
+    minEnvironmentalIndex: 70,
     requiredCategories: ['residential', 'agriculture', 'energy', 'industrial', 'healthcare'],
     unlockedOpportunities: ['Cellular Care Clinics', 'Commercial Plazas', 'Paved Avenues', 'Civil Defense Forces'],
+    themeColor: '#6e98b3',
   },
   {
     id: 'city',
@@ -88,8 +95,10 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minGdpBillion: 35,
     minTreasuryCredits: 2500,
     minQualityOfLife: 75,
+    minEnvironmentalIndex: 75,
     requiredCategories: ['residential', 'agriculture', 'energy', 'industrial', 'healthcare', 'education'],
-    unlockedOpportunities: ['Polytechnic Institutes', 'Deep Observatories', 'Architectural Bridges', 'Advanced Logistics'],
+    unlockedOpportunities: ['Polytechnic Institutes', 'Deep Space Observatories', 'Architectural Bridges', 'Advanced Logistics'],
+    themeColor: '#9F8859',
   },
   {
     id: 'metropolis',
@@ -103,8 +112,10 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minGdpBillion: 45,
     minTreasuryCredits: 4000,
     minQualityOfLife: 80,
+    minEnvironmentalIndex: 78,
     requiredCategories: ['residential', 'agriculture', 'energy', 'industrial', 'healthcare', 'education', 'government', 'environment'],
     unlockedOpportunities: ['Arcology Spires', 'Elysium Citadel', 'Biosphere Parks', 'Transit Pods', 'Universal Basic Income'],
+    themeColor: '#D6A75E',
   },
   {
     id: 'advanced_civilization',
@@ -118,8 +129,10 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minGdpBillion: 90,
     minTreasuryCredits: 10000,
     minQualityOfLife: 85,
+    minEnvironmentalIndex: 85,
     requiredCategories: ['residential', 'agriculture', 'energy', 'industrial', 'healthcare', 'education', 'government', 'environment'],
     unlockedOpportunities: ['Quantum Neural AI Grids', 'Geothermal Megawells', 'Planetary Ecological Equilibrium', 'Stellar Telemetry Arrays'],
+    themeColor: '#3be8b0',
   },
 ];
 
@@ -131,7 +144,8 @@ export function evaluateCivilizationStage(
   placedBuildings: PlacedBuilding[],
   resources: ResourceState,
   economyReport: CitySimulationReport,
-  citizenReport: CitizenSimulationReport
+  citizenReport: CitizenSimulationReport,
+  disasterState?: DisasterSimulationState
 ): {
   currentStage: CivilizationStageConfig;
   nextStage: CivilizationStageConfig | null;
@@ -141,10 +155,11 @@ export function evaluateCivilizationStage(
   const activeBuildings = placedBuildings.filter((b) => b.status === 'active' || b.status === 'upgrading');
   const activeCategories = new Set(activeBuildings.map((b) => b.category));
   const activeCount = activeBuildings.length;
-  const happiness = citizenReport.overallHappiness;
-  const qol = citizenReport.qualityOfLifeIndex;
+  const happiness = citizenReport?.overallHappiness ?? resources.happiness;
+  const qol = citizenReport?.qualityOfLifeIndex ?? 70;
   const gdp = resources.gdp;
   const treasury = resources.grc;
+  const env = resources.environmentalIndex;
 
   // Determine highest stage where all criteria are satisfied
   let currentStageIndex = 0;
@@ -154,10 +169,12 @@ export function evaluateCivilizationStage(
     const hasBuildings = activeCount >= stage.minBuildings;
     const hasHappiness = happiness >= stage.minHappiness;
     const hasGdp = gdp >= stage.minGdpBillion;
+    const hasTreasury = treasury >= stage.minTreasuryCredits;
     const hasQol = qol >= stage.minQualityOfLife;
+    const hasEnv = env >= stage.minEnvironmentalIndex;
     const hasCategories = stage.requiredCategories.every((cat) => activeCategories.has(cat));
 
-    if (hasPop && hasBuildings && hasHappiness && hasGdp && hasQol && hasCategories) {
+    if (hasPop && hasBuildings && hasHappiness && hasGdp && hasTreasury && hasQol && hasEnv && hasCategories) {
       currentStageIndex = i;
     } else {
       break;
@@ -169,7 +186,7 @@ export function evaluateCivilizationStage(
 
   const criteriaChecklist: StageRequirementCriterion[] = [];
   let metCount = 0;
-  const totalCount = nextStage ? 6 : 6;
+  const totalCount = nextStage ? 8 : 8;
 
   if (nextStage) {
     // 1. Population Target
@@ -178,9 +195,11 @@ export function evaluateCivilizationStage(
     criteriaChecklist.push({
       id: 'crit-pop',
       label: 'Population Census',
+      category: 'demographics',
       currentValue: `${(population / 1000000).toFixed(3)}M`,
       targetValue: `${(nextStage.minPopulation / 1000000).toFixed(2)}M`,
       isMet: popMet,
+      tooltip: 'Sustained census required to operate specialized municipal sectors.',
     });
 
     // 2. Active Buildings Target
@@ -188,10 +207,12 @@ export function evaluateCivilizationStage(
     if (bldMet) metCount++;
     criteriaChecklist.push({
       id: 'crit-bld',
-      label: 'Operational Buildings',
+      label: 'Operational Facilities',
+      category: 'infrastructure',
       currentValue: activeCount,
       targetValue: nextStage.minBuildings,
       isMet: bldMet,
+      tooltip: 'Total active buildings maintaining city infrastructure.',
     });
 
     // 3. Citizen Happiness Target
@@ -200,9 +221,11 @@ export function evaluateCivilizationStage(
     criteriaChecklist.push({
       id: 'crit-hap',
       label: 'Citizen Happiness',
+      category: 'social',
       currentValue: `${happiness}/100`,
       targetValue: `${nextStage.minHappiness}/100`,
       isMet: hapMet,
+      tooltip: 'Public morale reflecting adequate food, safety, healthcare and housing.',
     });
 
     // 4. Quality of Life Target
@@ -210,10 +233,12 @@ export function evaluateCivilizationStage(
     if (qolMet) metCount++;
     criteriaChecklist.push({
       id: 'crit-qol',
-      label: 'Quality of Life Index',
+      label: 'Quality of Life Score',
+      category: 'social',
       currentValue: `${qol}%`,
       targetValue: `${nextStage.minQualityOfLife}%`,
       isMet: qolMet,
+      tooltip: 'Composite satisfaction across essential and higher-order needs.',
     });
 
     // 5. Annual Gross Output (GDP) Target
@@ -222,30 +247,62 @@ export function evaluateCivilizationStage(
     criteriaChecklist.push({
       id: 'crit-gdp',
       label: 'Annual GDP Output',
+      category: 'economy',
       currentValue: `${gdp.toFixed(1)}B Cr`,
       targetValue: `${nextStage.minGdpBillion}B Cr`,
       isMet: gdpMet,
+      tooltip: 'Economic productivity generated across commercial and industrial sectors.',
     });
 
-    // 6. Category Diversity
+    // 6. Treasury Reserves Target
+    const treasuryMet = treasury >= nextStage.minTreasuryCredits;
+    if (treasuryMet) metCount++;
+    criteriaChecklist.push({
+      id: 'crit-treasury',
+      label: 'Treasury Reserves (CRC)',
+      category: 'economy',
+      currentValue: `${treasury.toLocaleString()} GRC`,
+      targetValue: `${nextStage.minTreasuryCredits.toLocaleString()} GRC`,
+      isMet: treasuryMet,
+      tooltip: 'Fiscal buffer to sustain public payroll and civic maintenance.',
+    });
+
+    // 7. Ecological Purity Target
+    const envMet = env >= nextStage.minEnvironmentalIndex;
+    if (envMet) metCount++;
+    criteriaChecklist.push({
+      id: 'crit-env',
+      label: 'Biosphere Ecological Purity',
+      category: 'environment',
+      currentValue: `${env}%`,
+      targetValue: `${nextStage.minEnvironmentalIndex}%`,
+      isMet: envMet,
+      tooltip: 'Air filtration, water cleanliness, and green canopy coverage.',
+    });
+
+    // 8. Category Diversity
     const missingCats = nextStage.requiredCategories.filter((cat) => !activeCategories.has(cat));
     const catMet = missingCats.length === 0;
     if (catMet) metCount++;
     criteriaChecklist.push({
       id: 'crit-cats',
       label: 'District Category Diversity',
-      currentValue: `${activeCategories.size} Categories Active`,
+      category: 'infrastructure',
+      currentValue: `${activeCategories.size} Active`,
       targetValue: `${nextStage.requiredCategories.length} Required`,
       isMet: catMet,
+      tooltip: `Requires functional coverage in: ${nextStage.requiredCategories.join(', ')}`,
     });
   } else {
     // Stage 6 Pinnacle
     criteriaChecklist.push({
       id: 'crit-pinnacle',
       label: 'Planetary Synthesis Achieved',
+      category: 'infrastructure',
       currentValue: 'Pinnacle',
       targetValue: 'All Eras Completed',
       isMet: true,
+      tooltip: 'The civilization has unlocked full post-scarcity synthesis.',
     });
   }
 
@@ -279,7 +336,7 @@ export function generateDevelopmentRecommendations(
   const credits = resources.grc;
 
   // 1. Residential Housing Shortage Recommendation
-  if (demands.residentialDemand > 70 || needs.housing.satisfactionPercent < 85) {
+  if (demands.residentialDemand > 65 || needs.housing.satisfactionPercent < 85) {
     const costMat = 900;
     const costCred = 450;
     recommendations.push({
@@ -292,7 +349,7 @@ export function generateDevelopmentRecommendations(
       recommendedAction: 'Erect an Arcology Spire in the residential sector along the southern roadway.',
       expectedOutcome: '+180,000 Housing Capacity, +12% Housing Satisfaction, +3.5 pts Overall Happiness.',
       targetDistrictId: 'dist-residential',
-      suggestedCatalogId: 'bld-arcology-01',
+      suggestedCatalogId: 'bld-res-arcology',
       materialsCost: costMat,
       creditsCost: costCred,
       canExecute: materials >= costMat && credits >= costCred,
@@ -300,20 +357,20 @@ export function generateDevelopmentRecommendations(
   }
 
   // 2. Power Grid Overload / Energy Expansion
-  if (energyStress > 85 || needs.electricity.satisfactionPercent < 85) {
+  if (energyStress > 80 || needs.electricity.satisfactionPercent < 85) {
     const costMat = 650;
     const costCred = 380;
     recommendations.push({
       id: 'rec-energy-expansion',
-      title: 'Deploy High-Yield Fusion Solar Array',
+      title: 'Deploy Clean Solar Concentrator Array',
       category: 'energy',
-      priority: energyStress > 98 ? 'critical' : 'high',
+      priority: energyStress > 95 ? 'critical' : 'high',
       problemStatement: 'Grid load is approaching generation capacity, creating brownout vulnerability.',
       simulationEvidence: `Grid Stress: ${energyStress.toFixed(0)}% · Power Demand: ${economyReport.resources.energyConsumedMW} MW · Generation: ${economyReport.resources.energyProducedMW} MW`,
       recommendedAction: 'Construct an additional clean energy generator in the Science or Industrial Basin.',
       expectedOutcome: '+85 MW Clean Power Output, Grid Stress reduced to safe threshold (<75%).',
       targetDistrictId: 'dist-science',
-      suggestedCatalogId: 'bld-solar-01',
+      suggestedCatalogId: 'bld-ene-solar',
       materialsCost: costMat,
       creditsCost: costCred,
       canExecute: materials >= costMat && credits >= costCred,
@@ -330,11 +387,11 @@ export function generateDevelopmentRecommendations(
       category: 'healthcare',
       priority: 'high',
       problemStatement: 'Medical triage capacity is strained by rapid demographic expansion.',
-      simulationEvidence: `Healthcare Satisfaction: ${needs.healthcare.satisfactionPercent}% · Triage Wait Time Elevated`,
+      simulationEvidence: `Healthcare Satisfaction: ${needs.healthcare.satisfactionPercent}% · Clinical Bed Margin Deficit`,
       recommendedAction: 'Overhaul healthcare medical wings with regenerative cellular therapy suites.',
-      expectedOutcome: '+90,000 Patient Bed Capacity, +15% Healthcare Satisfaction, +2 pts Public Health.',
+      expectedOutcome: '+90,000 Patient Bed Capacity, +15% Healthcare Satisfaction, +2.5 pts Public Health.',
       targetDistrictId: 'dist-residential',
-      suggestedCatalogId: 'bld-hospital-01',
+      suggestedCatalogId: 'bld-hea-clinic',
       materialsCost: costMat,
       creditsCost: costCred,
       canExecute: materials >= costMat && credits >= costCred,
@@ -342,7 +399,7 @@ export function generateDevelopmentRecommendations(
   }
 
   // 4. Industrial Smelter / Job Creation
-  if (demands.industrialDemand > 70 || economyReport.resources.employmentRatePercent < 88) {
+  if (demands.industrialDemand > 65 || economyReport.resources.employmentRatePercent < 88) {
     const costMat = 800;
     const costCred = 400;
     recommendations.push({
@@ -355,7 +412,7 @@ export function generateDevelopmentRecommendations(
       recommendedAction: 'Construct an automated Foundry Smelter Hub in the industrial sector.',
       expectedOutcome: '+160 Industrial Jobs, +120 Tons/day Construction Materials production.',
       targetDistrictId: 'dist-industrial',
-      suggestedCatalogId: 'bld-foundry-01',
+      suggestedCatalogId: 'bld-ind-foundry',
       materialsCost: costMat,
       creditsCost: costCred,
       canExecute: materials >= costMat && credits >= costCred,
@@ -363,7 +420,7 @@ export function generateDevelopmentRecommendations(
   }
 
   // 5. Agri-Basin Food Production
-  if (foodNet < 25 || needs.food.satisfactionPercent < 80) {
+  if (foodNet < 35 || needs.food.satisfactionPercent < 82) {
     const costMat = 550;
     const costCred = 280;
     recommendations.push({
@@ -376,7 +433,7 @@ export function generateDevelopmentRecommendations(
       recommendedAction: 'Build an additional climate-controlled Hydroponic Bio-Dome along the western riverbank.',
       expectedOutcome: '+150 Rations/day Food Surplus, guaranteed emergency famine security.',
       targetDistrictId: 'dist-agriculture',
-      suggestedCatalogId: 'bld-dome-01',
+      suggestedCatalogId: 'bld-agr-hydroponic',
       materialsCost: costMat,
       creditsCost: costCred,
       canExecute: materials >= costMat && credits >= costCred,
@@ -397,7 +454,49 @@ export function generateDevelopmentRecommendations(
       recommendedAction: 'Plant a protected Biosphere Park with native riparian flora near the central forum.',
       expectedOutcome: '+18% Recreation Score, +8 pts Ecological Purity, +3.5 pts Societal Happiness.',
       targetDistrictId: 'dist-citadel',
-      suggestedCatalogId: 'bld-park-01',
+      suggestedCatalogId: 'bld-env-park',
+      materialsCost: costMat,
+      creditsCost: costCred,
+      canExecute: materials >= costMat && credits >= costCred,
+    });
+  }
+
+  // 7. Water Filtration & Hydrological Grid
+  if (waterNet < 40 || needs.water.satisfactionPercent < 85) {
+    const costMat = 600;
+    const costCred = 320;
+    recommendations.push({
+      id: 'rec-water-filtration',
+      title: 'Construct Aquifer Water Treatment Basin',
+      category: 'infrastructure',
+      priority: waterNet < 0 ? 'critical' : 'medium',
+      problemStatement: 'Freshwater aquifer withdrawal is pacing population growth closely.',
+      simulationEvidence: `Water Net: ${waterNet >= 0 ? '+' : ''}${waterNet} kL/day · Satisfaction: ${needs.water.satisfactionPercent}%`,
+      recommendedAction: 'Install an automated riparian water filtration plant beside the river mouth.',
+      expectedOutcome: '+80 kL/day Potable Water Surplus, +10% Hydrological Satisfaction.',
+      targetDistrictId: 'dist-agriculture',
+      suggestedCatalogId: 'bld-env-water',
+      materialsCost: costMat,
+      creditsCost: costCred,
+      canExecute: materials >= costMat && credits >= costCred,
+    });
+  }
+
+  // 8. Higher Education & Polytechnic Institute
+  if (needs.education.satisfactionPercent < 80) {
+    const costMat = 750;
+    const costCred = 420;
+    recommendations.push({
+      id: 'rec-edu-polytechnic',
+      title: 'Erect Polytechnic Scholar Towers',
+      category: 'education',
+      priority: 'medium',
+      problemStatement: 'Vocational training and advanced technical academies have reached student enrollment capacity.',
+      simulationEvidence: `Education Satisfaction: ${needs.education.satisfactionPercent}% · Index: ${resources.educationIndex}%`,
+      recommendedAction: 'Construct a state-of-the-art Polytechnic Institute campus in the Science Ridge.',
+      expectedOutcome: '+250 Student Capacity, +15% Education Satisfaction, +12 Research Points/day.',
+      targetDistrictId: 'dist-science',
+      suggestedCatalogId: 'bld-edu-college',
       materialsCost: costMat,
       creditsCost: costCred,
       canExecute: materials >= costMat && credits >= costCred,
@@ -410,6 +509,7 @@ export function generateDevelopmentRecommendations(
 /**
  * 4. Road-Adjacent Collision-Free Intelligent Expansion Slot Finder
  * Finds an optimal [x, y, z] site alongside roads inside the target district.
+ * Validates collision, road adjacency, terrain height and ensures buildings are never submerged in rivers.
  */
 export function findOptimalExpansionSlot(
   districtId: string,
@@ -423,30 +523,41 @@ export function findOptimalExpansionSlot(
       [7.5, 36.5, 0],
       [-7.5, 36.5, Math.PI],
       [8.0, 24.5, -Math.PI / 2],
+      [-8.0, 24.5, Math.PI / 2],
+      [7.5, 43.0, 0],
+      [-7.5, 43.0, Math.PI],
     ],
     'dist-industrial': [
       [27.0, -18.5, 0],
       [27.0, -25.0, 0],
       [33.5, -18.5, Math.PI],
       [33.5, -25.0, Math.PI],
+      [27.0, -12.0, 0],
+      [33.5, -12.0, Math.PI],
     ],
     'dist-science': [
       [-19.5, -17.5, 0],
       [-19.5, -23.0, 0],
       [-26.0, -17.5, Math.PI],
       [-26.0, -23.0, Math.PI],
+      [-19.5, -11.0, 0],
+      [-26.0, -11.0, Math.PI],
     ],
     'dist-agriculture': [
       [-27.0, 31.0, 0],
       [-27.0, 37.0, 0],
       [-21.0, 31.0, Math.PI],
       [-21.0, 37.0, Math.PI],
+      [-27.0, 25.0, 0],
+      [-21.0, 25.0, Math.PI],
     ],
     'dist-citadel': [
       [11.5, 12.0, -Math.PI / 2],
       [-11.5, 12.0, Math.PI / 2],
       [7.5, 18.0, 0],
       [-7.5, 18.0, 0],
+      [11.5, 6.0, -Math.PI / 2],
+      [-11.5, 6.0, Math.PI / 2],
     ],
   };
 
@@ -455,19 +566,39 @@ export function findOptimalExpansionSlot(
   for (const [cx, cz, rot] of candidates) {
     // Check distance to all existing placed buildings (minimum 5.2m separation)
     const isOccupied = placedBuildings.some((b) => Math.hypot(b.x - cx, b.z - cz) < 5.2);
-    if (!isOccupied) {
+    // Check river proximity (must not be inside river channel)
+    const isInWater = isNearRiver(cx, cz, 3.8);
+
+    if (!isOccupied && !isInWater) {
       const gy = getTerrainHeight(cx, cz);
-      return { x: cx, y: gy, z: cz, rotation: rot };
+      // Must not be below ground water level
+      if (gy >= -0.05) {
+        return { x: cx, y: gy, z: cz, rotation: rot };
+      }
     }
   }
 
-  // Fallback: offset slightly from first building in that district
+  // Fallback: offset slightly from first building in that district with safety checks
   const distBld = placedBuildings.find((b) => b.districtId === districtId);
   if (distBld) {
-    const fx = distBld.x + 6.5;
-    const fz = distBld.z + 1.5;
-    const fy = getTerrainHeight(fx, fz);
-    return { x: fx, y: fy, z: fz, rotation: distBld.rotation || 0 };
+    const offsets = [
+      [6.5, 1.5],
+      [-6.5, 1.5],
+      [1.5, 6.5],
+      [-1.5, -6.5],
+    ];
+    for (const [ox, oz] of offsets) {
+      const fx = distBld.x + ox;
+      const fz = distBld.z + oz;
+      const isOccupied = placedBuildings.some((b) => Math.hypot(b.x - fx, b.z - fz) < 5.0);
+      const isInWater = isNearRiver(fx, fz, 3.8);
+      if (!isOccupied && !isInWater) {
+        const fy = getTerrainHeight(fx, fz);
+        if (fy >= -0.05) {
+          return { x: fx, y: fy, z: fz, rotation: distBld.rotation || 0 };
+        }
+      }
+    }
   }
 
   return null;
@@ -538,7 +669,91 @@ export function generateInitialHistory(
 }
 
 /**
- * 6. Central Evolution Engine Tick: Evaluates Stage, Progress, Snapshots & Recommendations
+ * 6. Generates District Development Summaries
+ */
+export function generateDistrictSummaries(
+  districts: District[],
+  placedBuildings: PlacedBuilding[],
+  economyReport: CitySimulationReport
+): DistrictDevelopmentSummary[] {
+  return districts.map((dist) => {
+    const blds = placedBuildings.filter((b) => b.districtId === dist.id);
+    const activeBlds = blds.filter((b) => b.status === 'active' || b.status === 'upgrading');
+    const avgHealth = blds.length > 0 ? Math.round(blds.reduce((acc, b) => acc + b.health, 0) / blds.length) : 100;
+    const isExpanding = blds.some((b) => b.status === 'constructing' || b.status === 'upgrading');
+
+    let jobsCap = 0;
+    if (dist.id === 'dist-industrial') jobsCap = 420;
+    else if (dist.id === 'dist-science') jobsCap = 380;
+    else if (dist.id === 'dist-agriculture') jobsCap = 290;
+    else jobsCap = 180;
+
+    const jobsFilled = Math.round(jobsCap * (economyReport.resources.employmentRatePercent / 100));
+
+    return {
+      districtId: dist.id,
+      name: dist.name,
+      population: dist.population,
+      buildingsCount: activeBlds.length,
+      jobsCapacity: jobsCap,
+      jobsFilled,
+      infrastructureHealth: avgHealth,
+      growthStatus: isExpanding ? 'expanding' : dist.population > 200000 ? 'stable' : 'constrained',
+    };
+  });
+}
+
+/**
+ * 7. Generates Disaster Recovery & Emergency Readiness Summary
+ */
+export function generateDisasterRecoverySummary(
+  disasterState?: DisasterSimulationState
+): DisasterRecoverySummary {
+  if (!disasterState) {
+    return {
+      hasActiveDisaster: false,
+      containmentPercent: 100,
+      overallDisasterReadiness: 90,
+      recoveryStatus: 'Nominal',
+    };
+  }
+
+  const active = disasterState.activeDisaster;
+  const forces = disasterState.emergencyForces;
+  const readiness = forces
+    ? Math.round(
+        forces.responseEfficiencyPercent * 0.5 +
+          Math.min(1, (forces.shelterCapacityTotal || 2000) / 5000) * 30 +
+          Math.min(
+            1,
+            ((forces.medicalUnitsActive || 0) +
+              (forces.fireCrewsActive || 0) +
+              (forces.rescueTeamsActive || 0)) /
+              10
+          ) *
+            20
+      )
+    : 85;
+
+  let recoveryStatus: DisasterRecoverySummary['recoveryStatus'] = 'Nominal';
+  if (active) {
+    if (active.stage === 'warning') recoveryStatus = 'Alert';
+    else if (active.stage === 'active' || active.stage === 'containing') recoveryStatus = 'Emergency Containment';
+    else recoveryStatus = 'Restoration Phase';
+  }
+
+  return {
+    hasActiveDisaster: Boolean(active),
+    activeDisasterType: active?.type,
+    activeDisasterIntensity: active?.intensity,
+    containmentPercent: active ? Math.round(active.containmentPercent) : 100,
+    overallDisasterReadiness: Math.min(100, Math.max(0, readiness)),
+    recoveryStatus,
+  };
+}
+
+/**
+ * 8. Central Evolution Engine Tick: Evaluates Stage, Progress, Snapshots & Recommendations
  */
 export function runEvolutionSimulationTick(
   civilization: CivilizationProfile,
@@ -547,7 +762,8 @@ export function runEvolutionSimulationTick(
   districts: District[],
   economyReport: CitySimulationReport,
   citizenReport: CitizenSimulationReport,
-  existingHistory: HistoricalYearSnapshot[]
+  existingHistory: HistoricalYearSnapshot[],
+  disasterState?: DisasterSimulationState
 ): CivilizationEvolutionReport {
   // Stage evaluation
   const { currentStage, nextStage, stageProgressPercent, criteriaChecklist } = evaluateCivilizationStage(
@@ -555,7 +771,8 @@ export function runEvolutionSimulationTick(
     placedBuildings,
     resources,
     economyReport,
-    citizenReport
+    citizenReport,
+    disasterState
   );
 
   // Recommendations
@@ -567,13 +784,20 @@ export function runEvolutionSimulationTick(
     districts
   );
 
+  // District development summaries
+  const districtsSummary = generateDistrictSummaries(districts, placedBuildings, economyReport);
+
+  // Disaster recovery summary
+  const disasterRecovery = generateDisasterRecoverySummary(disasterState);
+
   // Overall civilization score (0 - 1000 scale)
   const popScore = Math.min(300, (resources.population / 2000000) * 300);
-  const qolScore = (citizenReport.qualityOfLifeIndex / 100) * 250;
+  const qolScore = ((citizenReport?.qualityOfLifeIndex || 75) / 100) * 250;
   const gdpScore = Math.min(200, (resources.gdp / 150) * 200);
   const envScore = (resources.environmentalIndex / 100) * 150;
   const bldScore = Math.min(100, (placedBuildings.length / 25) * 100);
   const overallCivilizationScore = Math.round(popScore + qolScore + gdpScore + envScore + bldScore);
+  const compositeScore = Math.round(overallCivilizationScore / 10);
 
   // Update or record yearly snapshot
   let updatedHistory = [...existingHistory];
@@ -586,8 +810,8 @@ export function runEvolutionSimulationTick(
       population: resources.population,
       populationGrowthRate: 2.1,
       gdp: resources.gdp,
-      happiness: citizenReport.overallHappiness,
-      qualityOfLife: citizenReport.qualityOfLifeIndex,
+      happiness: citizenReport?.overallHappiness || resources.happiness,
+      qualityOfLife: citizenReport?.qualityOfLifeIndex || 75,
       treasuryBalance: resources.grc,
       netDailyCashFlow: economyReport.economy.netDailyCashFlow,
       energyProducedMW: economyReport.resources.energyProducedMW,
@@ -607,8 +831,8 @@ export function runEvolutionSimulationTick(
       day: civilization.currentDay,
       population: resources.population,
       gdp: resources.gdp,
-      happiness: citizenReport.overallHappiness,
-      qualityOfLife: citizenReport.qualityOfLifeIndex,
+      happiness: citizenReport?.overallHappiness || resources.happiness,
+      qualityOfLife: citizenReport?.qualityOfLifeIndex || 75,
       treasuryBalance: resources.grc,
       netDailyCashFlow: economyReport.economy.netDailyCashFlow,
       activeBuildingsCount: placedBuildings.length,
@@ -623,8 +847,11 @@ export function runEvolutionSimulationTick(
     stageProgressPercent,
     criteriaChecklist,
     overallCivilizationScore,
+    compositeScore,
     historicalTimeline: updatedHistory,
     recommendations,
+    districtsSummary,
+    disasterRecovery,
     totalYearsSimulated: civilization.currentYear,
   };
 }

@@ -2,9 +2,10 @@
  * GENESIS — Advanced Civilization Evolution & Long-Term Simulation Types
  */
 
-import { BuildingCategory, PlacedBuilding, ResourceState, CivilizationProfile } from './game';
+import { BuildingCategory, PlacedBuilding, ResourceState, CivilizationProfile, District } from './game';
 import { CitySimulationReport } from '../simulation/economySimulationEngine';
 import { CitizenSimulationReport } from './citizen';
+import { DisasterSimulationState } from './disaster';
 
 export type CivilizationStageId =
   | 'settlement'
@@ -17,10 +18,12 @@ export type CivilizationStageId =
 export interface StageRequirementCriterion {
   id: string;
   label: string;
+  category: 'demographics' | 'infrastructure' | 'economy' | 'social' | 'environment';
   currentValue: number | string;
   targetValue: number | string;
   isMet: boolean;
   unit?: string;
+  tooltip?: string;
 }
 
 export interface CivilizationStageConfig {
@@ -35,8 +38,10 @@ export interface CivilizationStageConfig {
   minGdpBillion: number;
   minTreasuryCredits: number;
   minQualityOfLife: number;
+  minEnvironmentalIndex: number;
   requiredCategories: BuildingCategory[];
   unlockedOpportunities: string[];
+  themeColor: string;
 }
 
 export interface HistoricalYearSnapshot {
@@ -75,16 +80,38 @@ export interface DevelopmentRecommendation {
   canExecute: boolean;
 }
 
+export interface DistrictDevelopmentSummary {
+  districtId: string;
+  name: string;
+  population: number;
+  buildingsCount: number;
+  jobsCapacity: number;
+  jobsFilled: number;
+  infrastructureHealth: number;
+  growthStatus: 'expanding' | 'stable' | 'constrained';
+}
+
+export interface DisasterRecoverySummary {
+  hasActiveDisaster: boolean;
+  activeDisasterType?: string;
+  activeDisasterIntensity?: string;
+  containmentPercent: number;
+  overallDisasterReadiness: number;
+  recoveryStatus: 'Nominal' | 'Alert' | 'Emergency Containment' | 'Restoration Phase';
+}
+
 export interface CivilizationEvolutionReport {
   currentStage: CivilizationStageConfig;
   nextStage: CivilizationStageConfig | null;
   stageProgressPercent: number; // 0 to 100%
   criteriaChecklist: StageRequirementCriterion[];
-  overallCivilizationScore: number; // 0 to 1000
+  overallCivilizationScore: number; // 0 to 1000 scale
+  compositeScore: number; // 0 to 100 scale
   historicalTimeline: HistoricalYearSnapshot[];
   recommendations: DevelopmentRecommendation[];
+  districtsSummary: DistrictDevelopmentSummary[];
+  disasterRecovery: DisasterRecoverySummary;
   totalYearsSimulated: number;
   lastStageUpgradeYear?: number;
   lastStageUpgradeTitle?: string;
 }
-

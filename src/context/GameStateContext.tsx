@@ -268,6 +268,8 @@ interface GameStateContextType {
   executeDevelopmentRecommendation: (recommendationId: string) => boolean;
   saveGameToStorage: () => void;
   loadGameFromStorage: () => boolean;
+  exportGameStateJSON: () => string;
+  importGameStateJSON: (jsonStr: string) => boolean;
   resetGameToInitial: () => void;
 
   triggerDisaster: (type: DisasterType, intensity: DisasterIntensity, districtId?: string) => void;
@@ -840,9 +842,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       districts,
       economyReport,
       citizenReport,
-      historicalTimeline
+      historicalTimeline,
+      disasterState
     );
-  }, [civilization, resources, placedBuildings, districts, economyReport, citizenReport, historicalTimeline]);
+  }, [civilization, resources, placedBuildings, districts, economyReport, citizenReport, historicalTimeline, disasterState]);
 
   // Stage Advancement Promotion Milestone Detection
   useEffect(() => {
@@ -852,6 +855,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       previousStageIdRef.current = newStage.id;
 
       if (oldStageId) {
+        soundFx.playHeroicFanfare();
         setEvents((prev) => [
           {
             id: `evt-stage-${Date.now()}`,
@@ -932,6 +936,8 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
         setPlacedBuildings((prev) => [...prev, newBuilding]);
       }
+
+      soundFx.playHammerBuild();
 
       const projectEvent: GameEvent = {
         id: `ev-rec-ok-${Date.now()}`,
@@ -2631,8 +2637,68 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       saveGameToStorage: () => {
         saveGame();
       },
-      loadGameFromStorage: () => true,
+      loadGameFromStorage: () => {
+        const saved = loadActiveGameStateFromStorage();
+        if (!saved) return false;
+        setCivilization(saved.civilization);
+        setPlacedBuildings(saved.placedBuildings);
+        setResources(saved.resources);
+        if (saved.rates) setRates(saved.rates);
+        if (saved.districts) setDistricts(saved.districts);
+        if (saved.citizens) setCitizens(saved.citizens);
+        if (saved.detailedAgents) setDetailedAgents(saved.detailedAgents);
+        if (saved.technologies) setTechnologies(saved.technologies);
+        if (saved.policies) setPolicies(saved.policies);
+        if (saved.zonedTiles) setZonedTiles(saved.zonedTiles);
+        if (saved.taxRate !== undefined) setTaxRate(saved.taxRate);
+        if (saved.quests) setQuests(saved.quests);
+        if (saved.missions) setMissions(saved.missions);
+        if (saved.chronicle) setChronicle(saved.chronicle);
+        return true;
+      },
+      exportGameStateJSON: (): string => {
+        const payload = {
+          ...latestStateRef.current,
+          historicalTimeline,
+          evolutionReport: {
+            currentStage: evolutionReport.currentStage,
+            overallCivilizationScore: evolutionReport.overallCivilizationScore,
+          },
+          exportedAt: new Date().toISOString(),
+        };
+        return JSON.stringify(payload, null, 2);
+      },
+      importGameStateJSON: (jsonStr: string): boolean => {
+        try {
+          const parsed = JSON.parse(jsonStr);
+          if (!parsed || !parsed.civilization || !Array.isArray(parsed.placedBuildings)) {
+            return false;
+          }
+          setCivilization(parsed.civilization);
+          setPlacedBuildings(parsed.placedBuildings);
+          setResources(parsed.resources);
+          if (parsed.rates) setRates(parsed.rates);
+          if (parsed.districts) setDistricts(parsed.districts);
+          if (parsed.citizens) setCitizens(parsed.citizens);
+          if (parsed.detailedAgents) setDetailedAgents(parsed.detailedAgents);
+          if (parsed.historicalTimeline && Array.isArray(parsed.historicalTimeline)) {
+            setHistoricalTimeline(parsed.historicalTimeline);
+          }
+          if (parsed.technologies) setTechnologies(parsed.technologies);
+          if (parsed.policies) setPolicies(parsed.policies);
+          if (parsed.zonedTiles) setZonedTiles(parsed.zonedTiles);
+          if (parsed.taxRate !== undefined) setTaxRate(parsed.taxRate);
+          saveGameStateToStorage(parsed);
+          return true;
+        } catch {
+          return false;
+        }
+      },
       resetGameToInitial: () => {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.removeItem('civora_saved_game_state_active');
+          localStorage.removeItem('civora_active_world_id');
+        }
         window.location.reload();
       },
       lastSavedTimestamp,
