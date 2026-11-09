@@ -691,7 +691,19 @@ ${policy.description}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <a
+                    href="/GENESIS_POLICY_ML_EDA_AND_ACCURACY_REPORT.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download="GENESIS_POLICY_ML_EDA_AND_ACCURACY_REPORT.pdf"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#C5A66A]/20 hover:bg-[#C5A66A]/30 border border-[#C5A66A]/40 text-[#EAE3D2] text-xs font-mono font-bold transition-all"
+                    title="Download Official 4-Page Academic Technical PDF Report with EDA Charts & Proof"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#C5A66A]" />
+                    <span>Download Technical PDF</span>
+                  </a>
+
                   <button
                     onClick={handleRunAccuracyAudit}
                     disabled={isAuditingAccuracy}

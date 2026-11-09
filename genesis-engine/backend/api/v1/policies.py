@@ -247,6 +247,24 @@ async def get_policy_model_accuracy():
     return get_verified_model_accuracy_report()
 
 
+@router.get("/policies/report-pdf")
+async def download_policy_accuracy_pdf():
+    """
+    Serves the publication-quality 4-page academic PDF report covering EDA,
+    feature distributions, correlation matrices, and 5-fold cross-validation accuracy proof.
+    """
+    from fastapi.responses import FileResponse
+    pdf_path = os.path.join(os.path.dirname(__file__), "..", "ml", "reports", "genesis_policy_ml_eda_and_accuracy_report.pdf")
+    if not os.path.exists(pdf_path):
+        from ml.generate_eda_and_accuracy_pdf import build_pdf_report
+        build_pdf_report()
+    return FileResponse(
+        path=pdf_path,
+        filename="GENESIS_POLICY_ML_EDA_AND_ACCURACY_REPORT.pdf",
+        media_type="application/pdf"
+    )
+
+
 @router.post("/policies/train-benchmark")
 async def retrain_and_verify_model_accuracy():
     """

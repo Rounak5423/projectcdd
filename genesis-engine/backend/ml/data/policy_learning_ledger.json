@@ -68,5 +68,15 @@
     "actual_approval": 78.5,
     "error_delta": 6.5,
     "adapted_confidence": 0.981
+  },
+  {
+    "instance_id": "inst_1794243021572",
+    "timestamp": 1794243021.5725203,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.984
   }
 ]
