@@ -237,6 +237,26 @@ async def get_policy_learning_status():
     return learner.get_learning_status()
 
 
+@router.get("/policies/model-accuracy")
+async def get_policy_model_accuracy():
+    """
+    Returns verified empirical accuracy benchmarks, goodness-of-fit R2,
+    mean absolute error (MAE), directional concordance, and 5-fold cross-validation proofs.
+    """
+    from ml.train_policy_evolution import get_verified_model_accuracy_report
+    return get_verified_model_accuracy_report()
+
+
+@router.post("/policies/train-benchmark")
+async def retrain_and_verify_model_accuracy():
+    """
+    Triggers a live cross-validation re-training cycle against empirical benchmark datasets
+    to verify and refine model prediction accuracy.
+    """
+    from ml.train_policy_evolution import train_and_verify_accuracy
+    return train_and_verify_accuracy()
+
+
 @router.post("/policies/deliberate")
 async def deliberate_policy(req: Dict[str, Any]):
     """
