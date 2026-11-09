@@ -10,28 +10,29 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('three') || id.includes('@react-three')) {
+          const normalized = id.replace(/\\/g, '/');
+          if (normalized.includes('node_modules')) {
+            if (normalized.includes('three') || normalized.includes('@react-three')) {
               return 'vendor-three';
             }
-            if (id.includes('recharts')) {
+            if (normalized.includes('recharts')) {
               return 'vendor-charts';
             }
-            if (id.includes('framer-motion')) {
+            if (normalized.includes('framer-motion')) {
               return 'vendor-motion';
             }
-            if (id.includes('lucide-react')) {
+            if (normalized.includes('lucide-react')) {
               return 'vendor-icons';
             }
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+            if (normalized.includes('react') || normalized.includes('react-dom') || normalized.includes('react-router')) {
               return 'vendor-react';
             }
             return 'vendor-libs';
           }
-          if (id.includes('src/features/council/three')) {
+          if (normalized.includes('src/features/council/three')) {
             return 'feature-council-3d';
           }
-          if (id.includes('src/features/council')) {
+          if (normalized.includes('src/features/council')) {
             return 'feature-council';
           }
         },

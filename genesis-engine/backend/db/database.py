@@ -7,8 +7,9 @@ from datetime import datetime, timezone
 
 from monitoring.db_tracer import TracedConnection
 from db.pool import SQLiteConnectionPool
+from config import settings
 
-DB_PATH = os.environ.get("GENESIS_DB_PATH", os.path.join(os.path.dirname(__file__), "genesis.db"))
+DB_PATH = os.environ.get("GENESIS_DB_PATH", settings.DB_PATH)
 
 # High-Performance SQLite Connection Pool (Phase 7)
 db_pool = SQLiteConnectionPool(DB_PATH, max_connections=16, timeout=10.0)

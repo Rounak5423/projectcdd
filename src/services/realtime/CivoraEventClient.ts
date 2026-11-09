@@ -101,13 +101,21 @@ export class CivoraEventClient {
     performanceMonitor.setWebSocketStatus('connecting');
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host =
-      import.meta.env.VITE_WS_URL ||
-      (window.location.port === '8000'
-        ? window.location.host
-        : `${window.location.hostname}:8000`);
+    let wsUrl: string;
 
-    const wsUrl = `${protocol}//${host}/ws/world/${encodeURIComponent(worldId)}`;
+    if (import.meta.env.VITE_WS_URL) {
+      const customWs = import.meta.env.VITE_WS_URL;
+      if (customWs.startsWith('ws://') || customWs.startsWith('wss://')) {
+        wsUrl = `${customWs.replace(/\/$/, '')}/ws/world/${encodeURIComponent(worldId)}`;
+      } else {
+        wsUrl = `${protocol}//${customWs.replace(/^\/+/, '').replace(/\/$/, '')}/ws/world/${encodeURIComponent(worldId)}`;
+      }
+    } else if (import.meta.env.PROD || window.location.port === '8000' || !window.location.port) {
+      wsUrl = `${protocol}//${window.location.host}/ws/world/${encodeURIComponent(worldId)}`;
+    } else {
+      const host = `${window.location.hostname || '127.0.0.1'}:8000`;
+      wsUrl = `${protocol}//${host}/ws/world/${encodeURIComponent(worldId)}`;
+    }
 
     try {
       this.socket = new WebSocket(wsUrl);

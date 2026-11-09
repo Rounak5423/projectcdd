@@ -6,9 +6,11 @@ from typing import Optional, Dict, Any, Tuple
 import jwt
 from fastapi import Depends, HTTPException, Header, status
 
-JWT_SECRET_KEY = os.environ.get("GENESIS_JWT_SECRET", "genesis_super_secret_jwt_key_2026_dev")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 24
+from config import settings
+
+JWT_SECRET_KEY = settings.JWT_SECRET
+ALGORITHM = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_HOURS = settings.ACCESS_TOKEN_EXPIRE_HOURS
 
 
 def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:

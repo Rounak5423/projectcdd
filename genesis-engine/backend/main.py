@@ -25,6 +25,7 @@ from monitoring import (
     PerformanceMonitoringMiddleware,
     diagnostics_router,
 )
+from config import settings
 from realtime import (
     EventEnvelope,
     EventPriority,
@@ -58,6 +59,9 @@ def serialize_world_state(world: WorldState, include_all_citizens: bool = True) 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Validate critical configuration invariants
+    settings.validate_production_invariants()
+
     # Seed persistent SQLite database with Aurora Prime
     seed_aurora_prime_if_not_exists()
 
@@ -98,10 +102,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for local development and frontend clients
+# Enable CORS (Explicit origins in production, development fallback)
+cors_origins = settings.ALLOWED_ORIGINS if settings.ALLOWED_ORIGINS else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -109,6 +114,33 @@ app.add_middleware(
 
 # Centralized Performance Monitoring Middleware
 app.add_middleware(PerformanceMonitoringMiddleware)
+
+# Dedicated Production Health Probes (Liveness & Readiness)
+@app.get("/health/live", tags=["Health Probes"])
+async def liveness_probe():
+    """Liveness probe: returns 200 OK if the backend event loop and process are alive."""
+    return {"status": "alive"}
+
+
+@app.get("/health/ready", tags=["Health Probes"])
+async def readiness_probe():
+    """Readiness probe: verifies persistent SQLite connectivity and scheduler state."""
+    try:
+        conn = get_db_connection()
+        row = conn.execute("SELECT 1 as ok").fetchone()
+        conn.close()
+        if not row or row["ok"] != 1:
+            raise RuntimeError("Database query failed")
+        return {
+            "status": "ready",
+            "database": "connected",
+            "active_worlds": len(world_manager.list_all())
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Service not ready: {str(e)}"
+        )
 
 # Mount /api/v1 router
 app.include_router(api_v1_router)

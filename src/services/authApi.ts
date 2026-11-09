@@ -5,8 +5,15 @@
 // ===========================================================================
 
 const getAuthBaseUrl = (): string => {
+  if (import.meta.env.VITE_AUTH_URL) {
+    return import.meta.env.VITE_AUTH_URL;
+  }
+  if (import.meta.env.VITE_API_URL) {
+    const base = import.meta.env.VITE_API_URL.replace(/\/$/, '');
+    return `${base}/auth`;
+  }
   if (typeof window !== 'undefined') {
-    if (window.location.port === '8000') {
+    if (import.meta.env.PROD || window.location.port === '8000' || !window.location.port) {
       return '/api/v1/auth';
     }
     const host = window.location.hostname || '127.0.0.1';

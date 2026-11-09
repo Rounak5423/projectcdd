@@ -240,3 +240,4 @@ def test_07_diagnostics_telemetry_phase9_metrics(client):
     assert "overload_rejections" in data["council_ai"]
     assert "connection_rejections" in data["websocket"]
     assert "contention_events" in data["database"]
+

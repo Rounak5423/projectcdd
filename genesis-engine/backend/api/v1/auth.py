@@ -7,11 +7,12 @@ from engine.models_v1 import (
     UserRegisterRequest, UserLoginRequest, UserResponse, TokenResponse
 )
 from auth.security import hash_password, verify_password, create_access_token, get_current_user
+from auth.rate_limiter import check_auth_rate_limit
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(check_auth_rate_limit)])
 async def register(req: UserRegisterRequest):
     conn = get_db_connection()
     # Check if username or email is already taken
@@ -57,7 +58,7 @@ async def register(req: UserRegisterRequest):
     )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, dependencies=[Depends(check_auth_rate_limit)])
 async def login(req: UserLoginRequest):
     conn = get_db_connection()
     user = conn.execute("""
