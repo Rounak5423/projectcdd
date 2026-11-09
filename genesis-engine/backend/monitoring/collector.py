@@ -67,6 +67,7 @@ class PerformanceMetricsCollector:
         self.slow_query_threshold_ms: float = 50.0
         self._db_pool_hits: int = 0
         self._db_pool_creations: int = 0
+        self._db_contention_events: int = 0
         self._cache_hits: int = 0
         self._cache_misses: int = 0
 
@@ -93,12 +94,15 @@ class PerformanceMetricsCollector:
         self._ai_dedup_hits: int = 0
         self._ai_circuit_breaker_trips: int = 0
         self._ai_concurrent_operations: int = 0
+        self._ai_queue_waiters: int = 0
+        self._ai_overload_rejections: int = 0
         self._ai_tokens_used: int = 0
 
         # WebSocket Metrics (Phase 6 Real-Time Event Engine)
         self._ws_active_connections: int = 0
         self._ws_total_connected: int = 0
         self._ws_total_disconnected: int = 0
+        self._ws_rejections: int = 0
         self._ws_messages_sent: int = 0
         self._ws_messages_received: int = 0
         self._ws_bytes_sent_approx: int = 0
@@ -371,6 +375,30 @@ class PerformanceMetricsCollector:
         with self._lock:
             self._ai_tokens_used += max(0, tokens)
 
+    def set_ai_queue_depth(self, depth: int) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ai_queue_waiters = max(0, depth)
+
+    def record_ai_overload_rejection(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ai_overload_rejections += 1
+
+    def record_db_contention(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._db_contention_events += 1
+
+    def record_ws_rejection(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._ws_rejections += 1
+
     # -------------------------------------------------------------------------
     # WebSocket Recording
     # -------------------------------------------------------------------------
@@ -567,6 +595,7 @@ class PerformanceMetricsCollector:
                     "slow_query_threshold_ms": self.slow_query_threshold_ms,
                     "pool_hits": self._db_pool_hits,
                     "pool_creations": self._db_pool_creations,
+                    "contention_events": self._db_contention_events,
                     "latency": {
                         "avg_ms": db_avg_ms,
                         "p95_ms": db_p95_ms,
@@ -601,6 +630,8 @@ class PerformanceMetricsCollector:
                     "retries_count": self._ai_retries_count,
                     "pending_operations": self._ai_pending_operations,
                     "concurrent_operations": self._ai_concurrent_operations,
+                    "queue_depth": self._ai_queue_waiters,
+                    "overload_rejections": self._ai_overload_rejections,
                     "cache_hits": self._ai_cache_hits,
                     "cache_misses": self._ai_cache_misses,
                     "cache_hit_rate_pct": round(
@@ -620,6 +651,7 @@ class PerformanceMetricsCollector:
                     "active_connections": self._ws_active_connections,
                     "total_connected": self._ws_total_connected,
                     "total_disconnected": self._ws_total_disconnected,
+                    "connection_rejections": self._ws_rejections,
                     "messages_sent": self._ws_messages_sent,
                     "messages_received": self._ws_messages_received,
                     "bytes_sent_approx": self._ws_bytes_sent_approx,
@@ -668,6 +700,7 @@ class PerformanceMetricsCollector:
             self._db_slow_queries.clear()
             self._db_pool_hits = 0
             self._db_pool_creations = 0
+            self._db_contention_events = 0
             self._cache_hits = 0
             self._cache_misses = 0
 
@@ -679,11 +712,14 @@ class PerformanceMetricsCollector:
             self._ai_deliberation_durations.clear()
             self._ai_total_requests = 0
             self._ai_failed_requests = 0
+            self._ai_queue_waiters = 0
+            self._ai_overload_rejections = 0
 
             self._ws_messages_sent = 0
             self._ws_messages_received = 0
             self._ws_bytes_sent_approx = 0
             self._ws_bytes_received_approx = 0
+            self._ws_rejections = 0
             self._ws_message_durations.clear()
             self._ws_errors_count = 0
             self._ws_queue_depth = 0

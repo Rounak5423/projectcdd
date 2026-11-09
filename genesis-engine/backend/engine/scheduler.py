@@ -7,6 +7,7 @@ and executes simulation ticks asynchronously off the main event loop.
 
 import asyncio
 import time
+import threading
 from typing import Dict, Optional, Any, Callable, Coroutine
 from monitoring.collector import perf_collector
 
@@ -182,9 +183,11 @@ class SimulationScheduler:
     def __init__(self):
         self._runners: Dict[str, SimulationRunner] = {}
         self._default_tick_func: Optional[Callable[[str, int], Coroutine[Any, Any, Dict[str, Any]]]] = None
+        self._lock = threading.RLock()
 
     def set_default_tick_handler(self, handler: Callable[[str, int], Coroutine[Any, Any, Dict[str, Any]]]):
-        self._default_tick_func = handler
+        with self._lock:
+            self._default_tick_func = handler
 
     def get_or_create_runner(
         self,
@@ -192,16 +195,18 @@ class SimulationScheduler:
         speed: str = "1x",
         tick_func: Optional[Callable[[str, int], Coroutine[Any, Any, Dict[str, Any]]]] = None
     ) -> SimulationRunner:
-        if world_id not in self._runners:
-            func = tick_func or self._default_tick_func
-            self._runners[world_id] = SimulationRunner(world_id=world_id, speed=speed, tick_func=func)
-        runner = self._runners[world_id]
-        if speed != runner.speed:
-            runner.set_speed(speed)
-        return runner
+        with self._lock:
+            if world_id not in self._runners:
+                func = tick_func or self._default_tick_func
+                self._runners[world_id] = SimulationRunner(world_id=world_id, speed=speed, tick_func=func)
+            runner = self._runners[world_id]
+            if speed != runner.speed:
+                runner.set_speed(speed)
+            return runner
 
     def get_runner(self, world_id: str) -> Optional[SimulationRunner]:
-        return self._runners.get(world_id)
+        with self._lock:
+            return self._runners.get(world_id)
 
     async def advance_world(self, world_id: str, ticks: int = 1) -> Dict[str, Any]:
         """Thread-safe, mutex-guaranteed manual tick advance."""
@@ -220,11 +225,12 @@ class SimulationScheduler:
         return runner
 
     def stop_world(self, world_id: str) -> Optional[SimulationRunner]:
-        runner = self.get_runner(world_id)
-        if runner:
-            runner.stop()
-            del self._runners[world_id]
-        return runner
+        with self._lock:
+            runner = self.get_runner(world_id)
+            if runner:
+                runner.stop()
+                del self._runners[world_id]
+            return runner
 
     def get_status(self, world_id: str) -> Dict[str, Any]:
         runner = self.get_runner(world_id)
@@ -247,9 +253,11 @@ class SimulationScheduler:
 
     async def shutdown(self):
         """Gracefully halts all runners on application shutdown."""
-        for runner in list(self._runners.values()):
+        with self._lock:
+            runners_copy = list(self._runners.values())
+            self._runners.clear()
+        for runner in runners_copy:
             runner.stop()
-        self._runners.clear()
 
 
 # Global Singleton Scheduler

@@ -92,10 +92,12 @@ class AIRequestManager:
     def __init__(
         self,
         max_concurrency: int = 6,
+        max_queue_depth: int = 32,
         default_timeout_sec: float = 5.0,
         default_max_retries: int = 2,
     ):
         self.max_concurrency = max_concurrency
+        self.max_queue_depth = max_queue_depth
         self.default_timeout_sec = default_timeout_sec
         self.default_max_retries = default_max_retries
 
@@ -104,6 +106,7 @@ class AIRequestManager:
         self._circuit_breakers: Dict[str, CircuitBreaker] = {}
         self._lock: Optional[asyncio.Lock] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._queue_waiters: int = 0
 
     def _ensure_async_primitives(self) -> None:
         """Lazy initialization of asyncio primitives bound to the currently running event loop."""
@@ -206,46 +209,62 @@ class AIRequestManager:
                 return fallback_value
             raise RuntimeError(msg)
 
-        async with self._semaphore:
-            perf_collector.inc_ai_concurrent()
-            attempt = 0
-            last_err = None
+        # Phase 9: Backpressure queue bounding check
+        if self._semaphore.locked() and self._queue_waiters >= self.max_queue_depth:
+            perf_collector.record_ai_overload_rejection()
+            msg = f"AI request queue saturated ({self._queue_waiters}/{self.max_queue_depth}). Fast-failing under load."
+            logger.warning(msg)
+            if fallback_value is not None:
+                return fallback_value
+            raise RuntimeError(msg)
 
-            try:
-                while attempt <= max_retries:
-                    try:
-                        result = await asyncio.wait_for(coro_func(), timeout=timeout_sec)
-                        circuit_breaker.record_success()
-                        return result
-                    except asyncio.TimeoutError as te:
-                        perf_collector.record_ai_timeout()
-                        last_err = te
-                        logger.warning(
-                            f"AI task [{circuit_breaker.name}] timed out after {timeout_sec:.2f}s (attempt {attempt + 1}/{max_retries + 1})"
-                        )
-                    except Exception as err:
-                        last_err = err
-                        logger.warning(
-                            f"AI task [{circuit_breaker.name}] failed: {err} (attempt {attempt + 1}/{max_retries + 1})"
-                        )
+        self._queue_waiters += 1
+        perf_collector.set_ai_queue_depth(self._queue_waiters)
+        try:
+            async with self._semaphore:
+                self._queue_waiters = max(0, self._queue_waiters - 1)
+                perf_collector.set_ai_queue_depth(self._queue_waiters)
+                perf_collector.inc_ai_concurrent()
+                attempt = 0
+                last_err = None
 
-                    attempt += 1
-                    if attempt <= max_retries:
-                        perf_collector.record_ai_retry()
-                        # Exponential backoff with jitter
-                        base_backoff = 0.05 * (2 ** attempt)
-                        jitter = random.uniform(0.01, 0.05)
-                        delay = min(1.0, base_backoff + jitter)
-                        await asyncio.sleep(delay)
+                try:
+                    while attempt <= max_retries:
+                        try:
+                            result = await asyncio.wait_for(coro_func(), timeout=timeout_sec)
+                            circuit_breaker.record_success()
+                            return result
+                        except asyncio.TimeoutError as te:
+                            perf_collector.record_ai_timeout()
+                            last_err = te
+                            logger.warning(
+                                f"AI task [{circuit_breaker.name}] timed out after {timeout_sec:.2f}s (attempt {attempt + 1}/{max_retries + 1})"
+                            )
+                        except Exception as err:
+                            last_err = err
+                            logger.warning(
+                                f"AI task [{circuit_breaker.name}] failed: {err} (attempt {attempt + 1}/{max_retries + 1})"
+                            )
 
-                # All attempts exhausted
-                circuit_breaker.record_failure()
-                if fallback_value is not None:
-                    logger.warning(f"AI task [{circuit_breaker.name}] exhausted retries. Returning fallback value.")
-                    return fallback_value
-                raise last_err or RuntimeError("Task failed after all retries.")
-            finally:
-                perf_collector.dec_ai_concurrent()
+                        attempt += 1
+                        if attempt <= max_retries:
+                            perf_collector.record_ai_retry()
+                            # Exponential backoff with jitter
+                            base_backoff = 0.05 * (2 ** attempt)
+                            jitter = random.uniform(0.01, 0.05)
+                            delay = min(1.0, base_backoff + jitter)
+                            await asyncio.sleep(delay)
+
+                    # All attempts exhausted
+                    circuit_breaker.record_failure()
+                    if fallback_value is not None:
+                        logger.warning(f"AI task [{circuit_breaker.name}] exhausted retries. Returning fallback value.")
+                        return fallback_value
+                    raise last_err or RuntimeError("Task failed after all retries.")
+                finally:
+                    perf_collector.dec_ai_concurrent()
+        finally:
+            perf_collector.set_ai_queue_depth(self._queue_waiters)
 
     async def shutdown(self) -> None:
         """Gracefully cancels any remaining in-flight tasks upon shutdown."""

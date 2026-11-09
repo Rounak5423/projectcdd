@@ -70,9 +70,17 @@ class RealtimeConnectionManager:
     Eliminates head-of-line blocking using per-client asynchronous queues.
     """
 
-    def __init__(self, client_queue_size: int = 128, heartbeat_interval: float = 25.0):
+    def __init__(
+        self,
+        client_queue_size: int = 128,
+        heartbeat_interval: float = 25.0,
+        max_connections_per_world: int = 250,
+        max_total_connections: int = 1000,
+    ):
         self.client_queue_size = client_queue_size
         self.heartbeat_interval = heartbeat_interval
+        self.max_connections_per_world = max_connections_per_world
+        self.max_total_connections = max_total_connections
         self._sessions: Dict[str, Dict[str, ClientSession]] = {}  # world_id -> {client_id: session}
         self._lock: Optional[asyncio.Lock] = None
         self._heartbeat_task: Optional[asyncio.Task] = None
@@ -84,12 +92,21 @@ class RealtimeConnectionManager:
         return self._lock
 
     async def connect(self, world_id: str, websocket: WebSocket) -> ClientSession:
-        """Registers and initializes a new client connection with dedicated worker."""
-        await websocket.accept()
-        session = ClientSession(websocket, world_id, queue_size=self.client_queue_size)
-
+        """Registers and initializes a new client connection with dedicated worker under capacity limits."""
         lock = self._ensure_lock()
         async with lock:
+            total_active = sum(len(c) for c in self._sessions.values())
+            world_active = len(self._sessions.get(world_id, {}))
+            if total_active >= self.max_total_connections or world_active >= self.max_connections_per_world:
+                perf_collector.record_ws_rejection()
+                try:
+                    await websocket.close(code=1008, reason="WebSocket server connection capacity limit reached")
+                except Exception:
+                    pass
+                raise WebSocketDisconnect(code=1008)
+
+            await websocket.accept()
+            session = ClientSession(websocket, world_id, queue_size=self.client_queue_size)
             if world_id not in self._sessions:
                 self._sessions[world_id] = {}
             self._sessions[world_id][session.client_id] = session

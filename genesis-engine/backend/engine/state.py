@@ -1,5 +1,6 @@
 import copy
 import uuid
+import threading
 from typing import Dict, List, Optional, Any
 from .models import WorldState, CompareResponse, HistorySnapshot
 from .simulation import create_initial_world, step_world
@@ -8,10 +9,12 @@ from .simulation import create_initial_world, step_world
 class WorldStateManager:
     """
     Manages in-memory active worlds, snapshot cloning, and counterfactual branch comparisons.
+    Thread-safe implementation with re-entrant locking for concurrent access.
     """
 
     def __init__(self):
         self._worlds: Dict[str, WorldState] = {}
+        self._lock = threading.RLock()
 
     def create(
         self,
@@ -37,45 +40,49 @@ class WorldStateManager:
             active_policy_ids=active_policies,
             seed=seed
         )
-        self._worlds[w_id] = world
+        with self._lock:
+            self._worlds[w_id] = world
         return world
 
     def get(self, world_id: str) -> Optional[WorldState]:
-        return self._worlds.get(world_id)
+        with self._lock:
+            return self._worlds.get(world_id)
 
     def list_all(self) -> List[Dict[str, Any]]:
-        return [
-            {
-                "id": w.id,
-                "name": w.name,
-                "parent_world_id": w.parent_world_id,
-                "tick": w.tick,
-                "year": w.year,
-                "population": w.population_count,
-                "gini": w.economy.gini,
-                "civic_stability": w.economy.civic_stability,
-                "macro_innovation": w.economy.macro_innovation_index,
-                "active_policies": [p.id for p in w.policies.values() if p.active]
-            }
-            for w in self._worlds.values()
-        ]
+        with self._lock:
+            return [
+                {
+                    "id": w.id,
+                    "name": w.name,
+                    "parent_world_id": w.parent_world_id,
+                    "tick": w.tick,
+                    "year": w.year,
+                    "population": w.population_count,
+                    "gini": w.economy.gini,
+                    "civic_stability": w.economy.civic_stability,
+                    "macro_innovation": w.economy.macro_innovation_index,
+                    "active_policies": [p.id for p in w.policies.values() if p.active]
+                }
+                for w in self._worlds.values()
+            ]
 
     def delete(self, world_id: str) -> bool:
-        if world_id in self._worlds:
-            del self._worlds[world_id]
-            # Phase 8: Cascade purge from delta cache and AI cache
-            try:
-                from realtime.delta import delta_engine
-                delta_engine.clear(world_id)
-            except Exception:
-                pass
-            try:
-                from app.features.council.intelligence.ai_cache import ai_cache
-                ai_cache.invalidate_world(world_id)
-            except Exception:
-                pass
-            return True
-        return False
+        with self._lock:
+            if world_id in self._worlds:
+                del self._worlds[world_id]
+                # Phase 8: Cascade purge from delta cache and AI cache
+                try:
+                    from realtime.delta import delta_engine
+                    delta_engine.clear(world_id)
+                except Exception:
+                    pass
+                try:
+                    from app.features.council.intelligence.ai_cache import ai_cache
+                    ai_cache.invalidate_world(world_id)
+                except Exception:
+                    pass
+                return True
+            return False
 
     def branch(
         self,
@@ -85,38 +92,40 @@ class WorldStateManager:
         policy_overrides: Optional[Dict[str, bool]] = None,
         project_ticks: int = 0
     ) -> WorldState:
-        source = self.get(source_id)
-        if not source:
-            raise ValueError(f"Source world '{source_id}' not found.")
+        with self._lock:
+            source = self.get(source_id)
+            if not source:
+                raise ValueError(f"Source world '{source_id}' not found.")
 
-        # Deep copy snapshot of current state
-        branched_world: WorldState = copy.deepcopy(source)
-        branched_id = new_id or str(uuid.uuid4())[:8]
-        branched_world.id = branched_id
-        branched_world.name = new_name
-        branched_world.parent_world_id = source_id
+            # Deep copy snapshot of current state
+            branched_world: WorldState = copy.deepcopy(source)
+            branched_id = new_id or str(uuid.uuid4())[:8]
+            branched_world.id = branched_id
+            branched_world.name = new_name
+            branched_world.parent_world_id = source_id
 
-        # Update IDs for citizens in the branched universe
-        for c in branched_world.citizens:
-            c.id = f"{c.id}_b_{branched_id}"
-            c.demographics.id = c.id
+            # Update IDs for citizens in the branched universe
+            for c in branched_world.citizens:
+                c.id = f"{c.id}_b_{branched_id}"
+                c.demographics.id = c.id
 
-        # Apply policy overrides
-        if policy_overrides:
-            for p_id, is_active in policy_overrides.items():
-                if p_id in branched_world.policies:
-                    branched_world.policies[p_id].active = is_active
+            # Apply policy overrides
+            if policy_overrides:
+                for p_id, is_active in policy_overrides.items():
+                    if p_id in branched_world.policies:
+                        branched_world.policies[p_id].active = is_active
 
-        # Optionally project simulation forward
-        if project_ticks > 0:
-            step_world(branched_world, ticks=project_ticks)
+            # Optionally project simulation forward
+            if project_ticks > 0:
+                step_world(branched_world, ticks=project_ticks)
 
-        self._worlds[branched_id] = branched_world
-        return branched_world
+            self._worlds[branched_id] = branched_world
+            return branched_world
 
     def compare(self, source_id: str, target_id: str) -> CompareResponse:
-        source = self.get(source_id)
-        target = self.get(target_id)
+        with self._lock:
+            source = self.get(source_id)
+            target = self.get(target_id)
 
         if not source or not target:
             raise ValueError(f"One or both worlds ({source_id}, {target_id}) do not exist.")
