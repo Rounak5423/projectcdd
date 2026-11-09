@@ -608,8 +608,8 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
         # Research tech progress
         active_tech = conn.execute("SELECT * FROM technologies WHERE world_id = ? AND is_researching = 1", (world_id,)).fetchall()
         for t in active_tech:
-            add_prog = research_prod * 0.5 * ticks
-            total_prog = t["research_progress"] + add_prog
+            add_prog = max(1.0 * ticks, round(research_prod, 2))
+            total_prog = float(t["research_progress"] or 0.0) + add_prog
             cost = float(t["cost_points"] if "cost_points" in t.keys() and t["cost_points"] else t["research_cost"])
             if total_prog >= cost:
                 conn.execute("""
@@ -623,7 +623,8 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
                 """, (evt_id, world_id, new_year, new_day, f"Research Breakthrough: {t['name']}",
                       f"Civilisation successfully unlocked {t['name']}.", datetime.now(timezone.utc).isoformat()))
             else:
-                rem_turns = max(1, math.ceil((cost - total_prog) / max(add_prog, 1.0)))
+                science_per_single_tick = max(add_prog / float(ticks), 1.0)
+                rem_turns = max(1, math.ceil((cost - total_prog) / science_per_single_tick))
                 conn.execute("""
                 UPDATE technologies SET research_progress = ?, turns_remaining = ?
                 WHERE world_id = ? AND id = ?

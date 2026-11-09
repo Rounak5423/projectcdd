@@ -264,6 +264,17 @@ export const civilizationApi = {
     }
   },
 
+  async completeTechnology(civId: string, techId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${civId}/technology/${techId}/complete`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to complete technology';
+      console.error(`[civilizationApi.completeTechnology] Error:`, err);
+      return { success: false, message: msg };
+    }
+  },
+
   // Policy Laboratory
   async enactPolicy(civId: string, policyId: string, sliderValue: number): Promise<ApiResponse<Policy>> {
     try {

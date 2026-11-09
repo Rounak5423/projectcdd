@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-11-09T23:56:02.446879",
+  "generated_at": "2026-11-10T00:38:14.450541",
   "random_seed": 42,
   "gompertz_mortality": {
     "parameter_name": "gompertz_mortality",

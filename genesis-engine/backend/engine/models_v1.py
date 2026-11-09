@@ -326,6 +326,8 @@ class TechnologyNode(BaseModel):
     prerequisites: Optional[List[str]] = None
     unlocks: Optional[List[str]] = None
     cost_points: Optional[int] = 300
+    can_research: Optional[bool] = True
+    missing_prerequisites: Optional[List[str]] = None
 
 
 class TechResearchRequest(BaseModel):
