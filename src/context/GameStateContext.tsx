@@ -2187,6 +2187,34 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     };
     setEvents((prev) => [event, ...prev]);
 
+    // Permanent record in Civilisation Chronicle
+    const chronicleEntry: ChronicleEntry = {
+      id: `chron-res-${Date.now()}`,
+      year: civilization.currentYear,
+      day: civilization.currentDay,
+      era: civilization.era || 'Era I: Dawn of Genesis',
+      title: `Empirical Research Monograph: ${policy.name}`,
+      category: 'Breakthrough',
+      description: `Official longitudinal empirical study compiled by the High Directorate across ${policy.daysActive || 60} simulation days.`,
+      relatedPolicy: policy.name,
+      impactSummary: `Measured population shift: +${policy.effectsSummary.happinessModifier} happiness, +${policy.effectsSummary.gdpModifier}% productivity. Public compliance reached ${Math.round(progress)}%.`,
+    };
+    setChronicle((prev) => [chronicleEntry, ...prev]);
+
+    // Financial grant record in Research Wallet
+    const transaction: ResearchTransaction = {
+      id: `tx-res-${Date.now()}`,
+      timestamp: `Year ${civilization.currentYear}, Day ${civilization.currentDay}`,
+      simYear: civilization.currentYear,
+      simDay: civilization.currentDay,
+      type: 'Grant',
+      description: `Empirical Research Grant: ${policy.name} Monograph`,
+      amount: 250,
+      balanceAfter: resources.grc + 250,
+      status: 'Confirmed',
+    };
+    setTransactions((prev) => [transaction, ...prev]);
+
     soundFx.playReward();
     triggerToast({
       type: 'reward',

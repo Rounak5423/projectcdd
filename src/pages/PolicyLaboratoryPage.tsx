@@ -35,7 +35,8 @@ import {
   Clock,
   Compass,
   ArrowRight,
-  SendHorizontal
+  SendHorizontal,
+  Download
 } from 'lucide-react';
 import { useGameState } from '../context/GameStateContext';
 import { Policy } from '../types/game';
@@ -80,6 +81,7 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
   const [isLoadingDeliberation, setIsLoadingDeliberation] = useState<boolean>(false);
   const [isDraftingCustom, setIsDraftingCustom] = useState<boolean>(false);
   const [learningStatus, setLearningStatus] = useState<any | null>(null);
+  const [inspectedDossierPolicy, setInspectedDossierPolicy] = useState<Policy | null>(null);
 
   // Custom Policy Form State
   const [customForm, setCustomForm] = useState({
@@ -222,6 +224,49 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
 
     // Directly open Council of Advisors Meeting for the new policy
     handleOpenCouncilMeeting(newPolicy);
+  };
+
+  const handleExportDossier = (policy: Policy) => {
+    soundFx.playReward();
+    const findings = policy.researchFindings;
+    const content = `# EMPIRICAL POLICY RESEARCH WHITE PAPER: ${policy.name.toUpperCase()}
+*Civora Imperial Academy of Governance & Science · Longitudinal Audit Series*
+*Ratified & Supervised by the High Council of Advisors*
+*Observation Timeline: Year ${civilization.currentYear}, Day ${civilization.currentDay} (Active for ${policy.daysActive || 60} Days)*
+
+## 1. Executive Summary & Policy Mandate
+${policy.description}
+- Category: ${policy.category}
+- Enforcement Calibration: ${policy.sliderValue} ${policy.unit} (${policy.sliderLabel})
+- Resource Outlay: ${policy.costPoliticalCapital} Political Capital
+
+## 2. Longitudinal Societal Assimilation
+- Final Measured Compliance & Assimilation Score: ${policy.assimilationProgress || 0}%
+- Progression Status: ${policy.currentPhase || 'Mature Equilibrium'}
+- Total Empirical Observation Cycles: ${findings?.totalObservations || 1}
+
+## 3. Measured Population Welfare Shifts
+- Net Happiness Delta: +${findings?.measuredHappinessShift || policy.effectsSummary.happinessModifier} pts
+- Net Productivity & GDP Shift: +${findings?.measuredProductivityShift || policy.effectsSummary.gdpModifier}%
+- Civic Stability Shift: +${findings?.measuredStabilityShift || policy.effectsSummary.stabilityModifier} pts
+
+## 4. Synthesized Empirical Breakthrough
+"${findings?.breakthroughDiscovery || 'Empirical findings show profound restructuring of living citizen routines.'}"
+
+## 5. Storage & Archive Verification
+- 🏛️ Civilisation Chronicle: Cataloged in Imperial Archives under Breakthroughs
+- 🪙 Research Wallet: +250 Genesis Research Credits (GRC) grant confirmed
+- 🧠 Evolutionary ML Model Ledger: Feedback logged into policy_learning_ledger.json
+- 📜 Directorate Council Chamber: Signed by the 6 Royal Council Advisors
+`;
+
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Empirical_Research_${policy.name.replace(/\s+/g, '_')}_Year${civilization.currentYear}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSubmitResearch = (policyId: string) => {
@@ -628,11 +673,23 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                         </div>
 
                         {isSubmitted ? (
-                          <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-[#8FA879]/20 border border-[#8FA879]/50 text-[#8FA879]">
-                            <Award className="w-4 h-4 text-[#8FA879]" />
-                            <span className="font-serif text-xs font-bold uppercase tracking-wider">
-                              Research Submitted & Cataloged
-                            </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                soundFx.playClick();
+                                setInspectedDossierPolicy(p);
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#C5A66A]/15 hover:bg-[#C5A66A]/25 border border-[#C5A66A]/40 text-xs font-serif text-[#C5A66A] transition-colors"
+                            >
+                              <FileCheck2 className="w-3.5 h-3.5" />
+                              <span>View Submitted Dossier</span>
+                            </button>
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#8FA879]/20 border border-[#8FA879]/50 text-[#8FA879]">
+                              <Award className="w-4 h-4 text-[#8FA879]" />
+                              <span className="font-serif text-xs font-bold uppercase tracking-wider">
+                                Archived
+                              </span>
+                            </div>
                           </div>
                         ) : (
                           <button
@@ -1185,6 +1242,143 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* INSPECT SUBMITTED RESEARCH DOSSIER MODAL */}
+      {/* ========================================================================= */}
+      {inspectedDossierPolicy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-3xl max-h-[90vh] flex flex-col bg-[#1D241E] border-2 border-[#C5A66A]/80 rounded shadow-2xl overflow-hidden font-sans">
+            {/* Header */}
+            <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-r from-[#171D18] via-[#232F24] to-[#171D18] border-b border-[#C5A66A]/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded border border-[#C5A66A]/40 bg-[#17231B] flex items-center justify-center text-[#C5A66A]">
+                  <Award className="w-5 h-5 text-[#8FA879]" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-[#EAE3D2] tracking-wide">
+                    EMPIRICAL RESEARCH DOSSIER & MONOGRAPH
+                  </h3>
+                  <p className="text-xs text-[#A5AD9D]">
+                    Official Archival Publication · Civora Imperial Academy of Sciences
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setInspectedDossierPolicy(null)}
+                className="text-[#A5AD9D] hover:text-[#EAE3D2] p-1.5 rounded hover:bg-[#C5A66A]/10 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Dossier Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Monograph Banner */}
+              <div className="p-4 rounded bg-[#171D18] border border-[#C5A66A]/30 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-mono text-[#A5AD9D]">
+                  <span className="text-[#C5A66A] font-bold uppercase">{inspectedDossierPolicy.category} Directive</span>
+                  <span>Submitted: Year {civilization.currentYear}, Day {civilization.currentDay}</span>
+                </div>
+                <h2 className="font-serif text-2xl font-bold text-[#EAE3D2]">
+                  {inspectedDossierPolicy.name}
+                </h2>
+                <p className="text-xs text-[#A5AD9D] leading-relaxed">
+                  {inspectedDossierPolicy.description}
+                </p>
+              </div>
+
+              {/* Empirical Findings Metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-mono">
+                <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/20">
+                  <span className="text-[10px] text-[#A5AD9D] uppercase block">Measured Happiness Delta</span>
+                  <strong className="text-sm text-[#8FA879]">
+                    +{inspectedDossierPolicy.researchFindings?.measuredHappinessShift || inspectedDossierPolicy.effectsSummary.happinessModifier} pts
+                  </strong>
+                </div>
+                <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/20">
+                  <span className="text-[10px] text-[#A5AD9D] uppercase block">Productivity Shift</span>
+                  <strong className="text-sm text-[#C5A66A]">
+                    +{inspectedDossierPolicy.researchFindings?.measuredProductivityShift || inspectedDossierPolicy.effectsSummary.gdpModifier}%
+                  </strong>
+                </div>
+                <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/20">
+                  <span className="text-[10px] text-[#A5AD9D] uppercase block">Societal Assimilation</span>
+                  <strong className="text-sm text-[#8FA879]">
+                    {inspectedDossierPolicy.assimilationProgress || 0}%
+                  </strong>
+                </div>
+                <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/20">
+                  <span className="text-[10px] text-[#A5AD9D] uppercase block">Active Study Window</span>
+                  <strong className="text-sm text-[#EAE3D2]">
+                    {inspectedDossierPolicy.daysActive || 60} Days
+                  </strong>
+                </div>
+              </div>
+
+              {/* Breakthrough Findings */}
+              <div className="p-4 rounded bg-[#171D18] border border-[#8FA879]/40 space-y-1.5">
+                <span className="text-[10px] font-mono uppercase text-[#8FA879] font-bold block">
+                  Peer-Reviewed Empirical Discovery
+                </span>
+                <p className="text-xs text-[#EAE3D2] leading-relaxed italic">
+                  "{inspectedDossierPolicy.researchFindings?.breakthroughDiscovery || 'Longitudinal data reveals sharp divergence in self-directed problem-solving capability when autonomous cognitive agents surpass 80% decision delegation.'}"
+                </p>
+              </div>
+
+              {/* Where the results are saved */}
+              <div className="p-4 rounded bg-[#171D18] border border-[#C5A66A]/30 space-y-2.5">
+                <span className="text-[10px] font-mono uppercase text-[#C5A66A] font-bold block">
+                  Archive Verification & Storage Records
+                </span>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center gap-2 text-[#EAE3D2]">
+                    <span className="text-base">🏛️</span>
+                    <span><strong>Civilisation Chronicle:</strong> Permanently logged in the imperial annals under <em>Breakthroughs</em>.</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#EAE3D2]">
+                    <span className="text-base">🪙</span>
+                    <span><strong>Research Wallet:</strong> +250 Genesis Research Credits (GRC) granted to sovereign treasury.</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#EAE3D2]">
+                    <span className="text-base">🧠</span>
+                    <span><strong>Self-Learning ML Model:</strong> Feedback instance recorded in <code>policy_learning_ledger.json</code> to train future AI projections.</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#EAE3D2]">
+                    <span className="text-base">📜</span>
+                    <span><strong>Council of Advisors:</strong> Signed and ratified by all 6 Royal Advisors.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="flex-shrink-0 px-6 py-4 bg-[#171D18] border-t border-[#C5A66A]/30 flex items-center justify-between">
+              <span className="text-xs font-mono text-[#8FA879]">
+                ✓ Validated by Imperial Research Directorate
+              </span>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleExportDossier(inspectedDossierPolicy)}
+                  className="px-4 py-2 rounded bg-gradient-to-r from-[#C5A66A] to-[#D8CBAA] hover:brightness-110 text-[#171D18] font-serif text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Whitepaper (.md)</span>
+                </button>
+
+                <button
+                  onClick={() => setInspectedDossierPolicy(null)}
+                  className="px-4 py-2 border border-[#C5A66A]/30 text-xs font-serif text-[#A5AD9D] hover:text-[#EAE3D2] rounded transition-colors"
+                >
+                  Close Dossier
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
