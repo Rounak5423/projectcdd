@@ -25,7 +25,17 @@ export default function WorldDashboard({
 }: {
   onNavigate: (page: string) => void;
 }) {
-  const { civilization, resources, rates, placedBuildings, districts, achievements, events } = useGameState();
+  const {
+    civilization,
+    resources,
+    rates,
+    placedBuildings,
+    districts,
+    achievements,
+    events,
+    evolutionReport,
+    setActiveDrawer,
+  } = useGameState();
 
   const stats = [
     {
@@ -102,6 +112,62 @@ export default function WorldDashboard({
           );
         })}
       </div>
+
+      {/* Civilization Evolution & Stage Progression Hero Banner */}
+      {evolutionReport && (
+        <section
+          onClick={() => setActiveDrawer('evolution')}
+          className="p-4 rounded-xl bg-gradient-to-r from-[#1c271e] via-[#222e23] to-[#182119] border border-[#3b4c3c] hover:border-[#6b8563] transition-all cursor-pointer shadow-lg group"
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-12 h-12 rounded-xl bg-[#2a382c] border border-[#506952] flex items-center justify-center text-[#c6a76a] group-hover:scale-105 transition-transform shrink-0">
+                <Sparkles size={24} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono tracking-wider text-[#a6bd82] uppercase font-bold">
+                    CIVILIZATION STAGE {evolutionReport.currentStage.order} / 6
+                  </span>
+                  <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-[#2e3e2b] text-[#c6a76a] border border-[#526a4d]">
+                    {evolutionReport.currentStage.name}
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-[#f3f5ee] mt-0.5">
+                  {evolutionReport.currentStage.subtitle}
+                </h3>
+                <p className="text-xs text-[#9da99b] mt-0.5">
+                  {evolutionReport.nextStage
+                    ? `Advancing toward ${evolutionReport.nextStage.name} (${Math.round(evolutionReport.stageProgressPercent)}% requirements fulfilled)`
+                    : 'Maximum civilization pinnacle reached.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="w-48 hidden sm:block">
+                <div className="flex justify-between text-[10px] font-mono mb-1 text-[#9da99b]">
+                  <span>PROGRESS</span>
+                  <span className="font-bold text-[#c6a76a]">
+                    {Math.round(evolutionReport.stageProgressPercent)}%
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-[#121813] overflow-hidden border border-[#2d3a2e]">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#7a9d60] to-[#c6a76a] transition-all duration-500 rounded-full"
+                    style={{ width: `${Math.min(100, evolutionReport.stageProgressPercent)}%` }}
+                  />
+                </div>
+              </div>
+
+              <button className="px-4 py-2 rounded-lg bg-[#314232] group-hover:bg-[#3d523e] text-[#dce9ca] text-xs font-semibold border border-[#526b53] inline-flex items-center gap-1.5 transition-colors whitespace-nowrap">
+                <span>Inspect Evolution</span>
+                <ArrowUpRight size={14} />
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Strategic Commodity Stockpiles & Reserve Runway */}
       <ResourcePanel />

@@ -25,7 +25,16 @@ export default function Topbar({
   isRightPanelOpen: boolean;
   onToggleRightPanel: () => void;
 }) {
-  const { resources, rates, civilization, events, setActiveDrawer, disasterState, economyReport } = useGameState();
+  const {
+    resources,
+    rates,
+    civilization,
+    events,
+    setActiveDrawer,
+    disasterState,
+    economyReport,
+    evolutionReport,
+  } = useGameState();
   const unreadCount = events.filter((e) => !e.isRead).length;
 
   const resourceItems = [
@@ -100,6 +109,22 @@ export default function Topbar({
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#2a2416] text-[#c6a76a] border border-[#524424] font-semibold">
               LVL {civilization.level}
             </span>
+            {evolutionReport && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveDrawer('evolution');
+                }}
+                className="flex items-center gap-1.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#233124] hover:bg-[#2d402e] text-[#a6bd82] hover:text-[#c6d8a8] border border-[#3e563f] hover:border-[#6b8563] transition-all cursor-pointer shadow-sm"
+                title="Civilization Evolution Stage — Click to view progression matrix"
+              >
+                <Sparkles size={11} className="text-[#c6a76a]" />
+                <span>{evolutionReport.currentStage.name}</span>
+                <span className="text-[#c6a76a]">
+                  ({Math.round(evolutionReport.stageProgressPercent)}%)
+                </span>
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2 text-xs text-[#9da99b] mt-0.5">
             <span className="text-[#a6bd82] font-medium">{civilization.era} Era</span>
@@ -112,7 +137,7 @@ export default function Topbar({
       </div>
 
       {/* Resource HUD Bar */}
-      <div className="hidden xl:flex items-center gap-4 bg-[#141914] px-4 py-2 rounded-xl border border-[#2b352c]">
+      <div className="hidden xl:flex items-center gap-3.5 bg-[#141914] px-4 py-2 rounded-xl border border-[#2b352c] shrink">
         {resourceItems.map((res) => {
           const Icon = res.icon;
           const isPop = res.label === 'POPULATION';
@@ -126,7 +151,7 @@ export default function Topbar({
               title={isPop ? 'Open Citizen Intelligence & Social Behaviour Dashboard' : undefined}
             >
               <div
-                className="w-6 h-6 rounded flex items-center justify-center"
+                className="w-6 h-6 rounded flex items-center justify-center shrink-0"
                 style={{ backgroundColor: `${res.color}22` }}
               >
                 <Icon size={14} style={{ color: res.color }} />
@@ -148,7 +173,7 @@ export default function Topbar({
       </div>
 
       {/* Right Quick Controls & Modals */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2.5 shrink-0">
         {/* City Economy Quick Drawer Trigger */}
         <button
           onClick={() => setActiveDrawer('economy')}

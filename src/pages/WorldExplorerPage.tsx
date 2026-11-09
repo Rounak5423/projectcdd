@@ -84,9 +84,9 @@ export default function WorldExplorerPage() {
         {/* 1. TOP STRATEGIC LAYER TOGGLES */}
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5 bg-[#171d18]/90 backdrop-blur-md p-1.5 rounded-xl border border-[#39443a] shadow-xl"
+          className="absolute top-4 left-4 z-10 flex items-center gap-1.5 bg-[#171d18]/90 backdrop-blur-md p-1.5 rounded-xl border border-[#39443a] shadow-xl max-w-[calc(100vw-360px)] overflow-x-auto"
         >
-          <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-[#c6a76a] font-semibold border-r border-[#2d372e]">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-[#c6a76a] font-semibold border-r border-[#2d372e] shrink-0">
             <Layers size={14} />
             <span className="hidden sm:inline">DATA LAYER:</span>
           </div>
@@ -94,7 +94,7 @@ export default function WorldExplorerPage() {
             <button
               key={layer.id}
               onClick={() => setActiveLayer(layer.id)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all shrink-0 ${
                 activeLayer === layer.id
                   ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#617c5b] shadow-sm font-semibold'
                   : 'text-[#9da99b] hover:text-white hover:bg-[#222a22]'

@@ -18,6 +18,7 @@ import {
   ShieldAlert,
   ChevronRight,
   Maximize2,
+  Sparkles,
 } from 'lucide-react';
 import { useDayNight, WeatherType } from './DayNightController';
 import { useGameState } from '../../context/GameStateContext';
@@ -54,6 +55,7 @@ export default function WorldHUD() {
     placedBuildings,
     setActiveDrawer,
     disasterState,
+    evolutionReport,
   } = useGameState();
 
   const telemetry = usePerformanceTelemetry();
@@ -91,10 +93,10 @@ export default function WorldHUD() {
   const activeDisaster = disasterState?.activeDisaster;
 
   return (
-    <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none max-w-[360px]">
+    <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none max-w-fit">
       {/* ================= 1. ACTIVE CRISIS HERO BANNER ================= */}
       {activeDisaster && (
-        <div className="pointer-events-auto w-full p-3.5 rounded-2xl bg-gradient-to-r from-[#4d1616]/96 via-[#3b1515]/96 to-[#4d1616]/96 border-2 border-[#e74c3c] shadow-[0_0_30px_rgba(231,76,60,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-top-3 duration-200">
+        <div className="pointer-events-auto w-full max-w-[360px] p-3.5 rounded-2xl bg-gradient-to-r from-[#4d1616]/96 via-[#3b1515]/96 to-[#4d1616]/96 border-2 border-[#e74c3c] shadow-[0_0_30px_rgba(231,76,60,0.45)] backdrop-blur-xl animate-in fade-in slide-in-from-top-3 duration-200">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <span className="text-xl">🚨</span>
@@ -152,11 +154,11 @@ export default function WorldHUD() {
       )}
 
       {/* ================= 2. SPACIOUS FLOATING HUD CONTROL DOCK ================= */}
-      <div className="pointer-events-auto flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#151b16]/95 border border-[#39443a] shadow-2xl backdrop-blur-xl">
+      <div className="pointer-events-auto flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#151b16]/95 border border-[#39443a] shadow-2xl backdrop-blur-xl shrink-0">
         {/* Sectors Quick-Jump Button */}
         <button
           onClick={() => setActivePanel(activePanel === 'sectors' ? null : 'sectors')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             activePanel === 'sectors'
               ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#617c5b] shadow-md'
               : 'text-[#9da99b] hover:text-[#f3f5ee] hover:bg-[#202921]'
@@ -170,7 +172,7 @@ export default function WorldHUD() {
         {/* Atmosphere & Weather Button */}
         <button
           onClick={() => setActivePanel(activePanel === 'atmosphere' ? null : 'atmosphere')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             activePanel === 'atmosphere'
               ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#617c5b] shadow-md'
               : 'text-[#9da99b] hover:text-[#f3f5ee] hover:bg-[#202921]'
@@ -184,7 +186,7 @@ export default function WorldHUD() {
         {/* Camera Views Button */}
         <button
           onClick={() => setActivePanel(activePanel === 'camera' ? null : 'camera')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             activePanel === 'camera'
               ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#617c5b] shadow-md'
               : 'text-[#9da99b] hover:text-[#f3f5ee] hover:bg-[#202921]'
@@ -198,7 +200,7 @@ export default function WorldHUD() {
         {/* Performance Metrics Button */}
         <button
           onClick={() => setActivePanel(activePanel === 'metrics' ? null : 'metrics')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
             activePanel === 'metrics'
               ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#617c5b] shadow-md'
               : 'text-[#9da99b] hover:text-[#f3f5ee] hover:bg-[#202921]'
