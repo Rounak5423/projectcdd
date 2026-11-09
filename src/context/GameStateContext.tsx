@@ -302,6 +302,7 @@ interface GameStateContextType {
   triggerEureka: (techId: string) => void;
   togglePolicy: (policyId: string) => void;
   updatePolicySlider: (policyId: string, value: number) => void;
+  addCustomPolicy: (policy: Policy) => void;
   runScenario: (scenarioId: string) => boolean;
   startExperiment: (experimentId: string) => boolean;
   claimAchievement: (achievementId: string) => void;
@@ -2008,12 +2009,65 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
               stability: Math.min(100, Math.max(0, r.stability + p.effectsSummary.stabilityModifier)),
               environmentalIndex: Math.min(100, Math.max(0, r.environmentalIndex + p.effectsSummary.environmentModifier)),
             }));
+
+            // Reflect on citizen thoughts and public discourse
+            setCitizens((cPrev) =>
+              cPrev.map((c, i) =>
+                i % 3 === 0
+                  ? {
+                      ...c,
+                      currentThought: `Discussing ${p.name}: ${
+                        p.effectsSummary.happinessModifier >= 0
+                          ? 'Optimistic about new civil reforms.'
+                          : 'Cautiously adapting to administrative directives.'
+                      }`,
+                    }
+                  : c
+              )
+            );
+
+            // Announce in Chirper feed
+            setChirperFeed((feedPrev) => [
+              {
+                id: `chirp-policy-${Date.now()}`,
+                author: 'Civic Directorate Dispatch',
+                handle: '@imperial_council',
+                avatar: '🏛️',
+                text: `High Council Directive: "${p.name}" has been ratified into imperial law. Municipal sectors are synchronizing.`,
+                time: 'Just now',
+                district: 'Imperial Citadel',
+                likes: Math.floor(Math.random() * 20) + 5,
+                isLiked: false,
+                tag: '#ImperialDecree',
+              },
+              ...feedPrev.slice(0, 24),
+            ]);
+
+            // Feed outcome back into backend self-learning model
+            const estimatedApproval = Math.min(95, Math.max(25, 60 + p.effectsSummary.happinessModifier * 2));
+            civilizationApi
+              .recordPolicyFeedback({
+                policy_id: p.id,
+                policy_name: p.name,
+                category: p.category,
+                predicted_approval: estimatedApproval,
+                actual_approval: estimatedApproval + (Math.random() * 6 - 3),
+                world_id: civilization.id,
+              })
+              .catch(() => {});
           }
           return { ...p, isActive: nextActive };
         }
         return p;
       })
     );
+  };
+
+  const addCustomPolicy = (policy: Policy) => {
+    setPolicies((prev) => {
+      if (prev.some((p) => p.id === policy.id)) return prev;
+      return [policy, ...prev];
+    });
   };
 
   const updatePolicySlider = (policyId: string, value: number) => {
@@ -2433,6 +2487,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       startResearch,
       togglePolicy,
       updatePolicySlider,
+      addCustomPolicy,
       runScenario,
       startExperiment,
       claimAchievement,

@@ -283,7 +283,14 @@ export interface Policy {
     | 'Universal Basic Income'
     | 'Environmental Protection'
     | 'Resource Equality'
-    | 'Economic Regulation';
+    | 'Economic Regulation'
+    | 'Research'
+    | 'Social'
+    | 'Economic'
+    | 'Labor'
+    | 'Environmental'
+    | 'Custom'
+    | string;
   description: string;
   costPoliticalCapital: number;
   maintenanceCostCredits: number;
