@@ -272,19 +272,12 @@ def seed_aurora_prime_if_not_exists():
 def perform_yearly_aggregation(conn: sqlite3.Connection, world_id: str, new_year: int) -> Dict[str, Any]:
     """
     Executes a discrete annual aggregation pass:
-    - Demographic aging (+1 year)
-    - Macro census rebalancing
-    - Milestone logging
+    - Annual Census and milestone logging
+    - Single truth state synchronization
     """
     now = datetime.now(timezone.utc).isoformat()
-    # Age living citizens in this world
-    conn.execute("UPDATE citizens SET age = age + 1.0 WHERE world_id = ? AND is_alive = 1", (world_id,))
-
-    # Check natural life-cycle mortality for seniors
-    conn.execute("""
-    UPDATE citizens SET is_alive = 0
-    WHERE world_id = ? AND age > 88.0 AND (age * 13) % 10 < 3
-    """, (world_id,))
+    from engine.demographics import sync_demographics_state
+    sync_demographics_state(conn, world_id)
 
     # Log annual milestone event
     evt_id = f"evt_year_{new_year}_{uuid.uuid4().hex[:6]}"
@@ -378,7 +371,42 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     research_prod = econ["research_rate"] * time_factor * 5.0
 
     # Resource consumption
-    current_pop = econ["population"]
+    from engine.demographics import sync_demographics_state, spawn_citizens_for_world
+
+    cit_rows = conn.execute(
+        "SELECT id, age, health, home_building_id, work_building_id FROM citizens WHERE world_id = ? AND is_alive = 1",
+        (world_id,)
+    ).fetchall()
+
+    if not cit_rows:
+        res_blds = [r["id"] for r in conn.execute(
+            "SELECT id FROM buildings WHERE world_id = ? AND (type LIKE '%Residential%' OR type = 'Government')",
+            (world_id,)
+        ).fetchall()]
+        if not res_blds:
+            res_id = f"bld_res_auto_{uuid.uuid4().hex[:6]}"
+            with conn:
+                conn.execute("""
+                INSERT INTO buildings (id, world_id, name, type, level, x, y, z, status, capacity, current_occupants)
+                VALUES (?, ?, 'Auto Habitation Unit', 'Residential', 1, 16.0, 16.0, 0.0, 'active', ?, 0)
+                """, (res_id, world_id, max(100, econ["population"])))
+            res_blds = [res_id]
+        with conn:
+            spawn_citizens_for_world(conn, world_id, max(1, econ["population"]), res_blds)
+        cit_rows = conn.execute(
+            "SELECT id, age, health, home_building_id, work_building_id FROM citizens WHERE world_id = ? AND is_alive = 1",
+            (world_id,)
+        ).fetchall()
+
+    current_pop = len(cit_rows)
+    mean_age = sum(c["age"] for c in cit_rows) / max(1, current_pop)
+    mean_health = sum(c["health"] for c in cit_rows) / max(1, current_pop)
+
+    # Advance citizen ages
+    dt_years = (ticks * days_per_tick) / float(days_per_year)
+    with conn:
+        conn.execute("UPDATE citizens SET age = age + ? WHERE world_id = ? AND is_alive = 1", (dt_years, world_id))
+
     food_cons = (current_pop / 10000.0) * time_factor * 8.0
     water_cons = (current_pop / 10000.0) * time_factor * 10.0
     energy_cons = (current_pop / 10000.0) * time_factor * 6.5
@@ -419,9 +447,51 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
         residential_capacity=res_cap,
         unemployment_rate=1.0 - (econ["employment_rate"] if econ["employment_rate"] is not None else 0.95),
         ticks_passed=ticks,
+        mean_age=mean_age,
+        mean_health=mean_health,
     )
 
-    new_population = causal_res["new_population"]
+    num_deaths = causal_res["vitals"]["deaths"]
+    num_births = causal_res["vitals"]["births"]
+
+    with conn:
+        if num_deaths > 0:
+            dead_cits = conn.execute("""
+            SELECT id FROM citizens
+            WHERE world_id = ? AND is_alive = 1
+            ORDER BY (age * (1.6 - health)) DESC
+            LIMIT ?
+            """, (world_id, num_deaths)).fetchall()
+            for dc in dead_cits:
+                conn.execute("""
+                UPDATE citizens SET
+                    is_alive = 0,
+                    home_building_id = NULL,
+                    work_building_id = NULL,
+                    employed = 0
+                WHERE id = ?
+                """, (dc["id"],))
+
+        if num_births > 0:
+            res_rows = conn.execute("""
+            SELECT id FROM buildings
+            WHERE world_id = ? AND (type LIKE '%Residential%' OR type = 'Government')
+            ORDER BY current_occupants ASC
+            """, (world_id,)).fetchall()
+            default_home = res_rows[0]["id"] if res_rows else None
+            for b_idx in range(num_births):
+                b_cit_id = f"cit_{world_id}_{uuid.uuid4().hex[:8]}"
+                h_id = res_rows[b_idx % len(res_rows)]["id"] if res_rows else default_home
+                conn.execute("""
+                INSERT INTO citizens (
+                    id, world_id, age, occupation, wealth, x, y, hunger, energy, wellbeing,
+                    education_level, health, independent_reasoning, problem_solving, critical_evaluation,
+                    creativity, knowledge_retention, ai_dependency, is_alive, home_building_id, work_building_id, employed
+                ) VALUES (?, ?, 0.0, 'Infant', 50.0, 16.0, 16.0, 0.1, 0.9, 0.95, 0.1, 0.95, 0.5, 0.5, 0.5, 0.5, 0.5, 0.0, 1, ?, NULL, 0)
+                """, (b_cit_id, world_id, h_id))
+
+        new_population = sync_demographics_state(conn, world_id)
+
     new_happiness = causal_res["happiness"]
     new_stability = causal_res["civic_stability"]
 
@@ -577,6 +647,13 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
             perform_autosave(conn, world_id, new_tick, new_year, new_day)
 
     conn.close()
+
+    try:
+        from engine.world.simulation import get_unified_simulation
+        sim = get_unified_simulation(world_id)
+        sim.load_world_from_db()
+    except Exception:
+        pass
 
     return {
         "world_id": world_id,

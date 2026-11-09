@@ -164,8 +164,8 @@ class UnifiedWorldSimulation:
                     status=r["status"] if "status" in r.keys() else "active",
                     capacity_residents=res_cap,
                     capacity_jobs=jobs_cap,
-                    current_occupants=min(res_cap, int(res_cap * 0.90)),
-                    current_workers=min(jobs_cap, int(jobs_cap * 0.85)),
+                    current_occupants=int(r["current_occupants"]) if "current_occupants" in r.keys() and r["current_occupants"] is not None else 0,
+                    current_workers=int(r["current_workers"]) if "current_workers" in r.keys() and r["current_workers"] is not None else 0,
                     power_demand_mw=cfg.get("power_demand_mw", 1.0),
                     water_demand_t=cfg.get("water_demand_t", 1.0),
                     efficiency=1.0,
@@ -196,8 +196,34 @@ class UnifiedWorldSimulation:
             except Exception:
                 pass
 
-            # 6. Seed initial citizen population sample and vehicles
-            self._generate_initial_agents()
+            # 6. Load Authoritative Citizens from DB
+            self.citizens.clear()
+            cit_rows = conn.execute("SELECT * FROM citizens WHERE world_id = ? AND is_alive = 1", (self.world_id,)).fetchall()
+            for r in cit_rows:
+                home_b = self.buildings.get(r["home_building_id"]) if "home_building_id" in r.keys() and r["home_building_id"] else None
+                cx = home_b.x if home_b else float(r["x"] if "x" in r.keys() and r["x"] else 0.0)
+                cz = home_b.z if home_b else float(r["y"] if "y" in r.keys() and r["y"] else 0.0)
+                age = float(r["age"])
+                stage = "Child" if age < 15 else ("Teen" if age < 18 else ("Adult" if age < 65 else "Senior"))
+                c = CitizenEntity(
+                    id=r["id"],
+                    world_id=self.world_id,
+                    name=r["occupation"] if "occupation" in r.keys() and r["occupation"] else f"Citizen {r['id'][:6]}",
+                    age=age,
+                    life_stage=stage,
+                    household_id=f"hh_{r['home_building_id'] if 'home_building_id' in r.keys() and r['home_building_id'] else 'none'}",
+                    home_building_id=r["home_building_id"] if "home_building_id" in r.keys() else None,
+                    work_building_id=r["work_building_id"] if "work_building_id" in r.keys() else None,
+                    education_level=float(r["education_level"] if "education_level" in r.keys() else 0.6),
+                    wealth=float(r["wealth"] if "wealth" in r.keys() else 100.0),
+                    health=float(r["health"] if "health" in r.keys() else 0.85),
+                    happiness=float(r["wellbeing"] if "wellbeing" in r.keys() else 0.75),
+                    current_x=cx,
+                    current_z=cz,
+                    schedule_state="home",
+                    transport_mode="car" if random.random() > 0.4 else "transit"
+                )
+                self.citizens[c.id] = c
 
         finally:
             conn.close()
@@ -442,8 +468,8 @@ class UnifiedWorldSimulation:
         res_capacity = sum(b.capacity_residents for b in active_buildings)
         total_occupants = sum(b.current_occupants for b in active_buildings)
 
-        # Base population directly anchored to residential building capacity
-        derived_population = max(100, total_occupants)
+        # Base population directly anchored to residential building occupants and citizens
+        derived_population = total_occupants if total_occupants > 0 else len(self.citizens)
 
         jobs_capacity = sum(b.capacity_jobs for b in active_buildings)
         working_age_citizens = int(derived_population * 0.65)

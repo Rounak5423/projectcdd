@@ -225,23 +225,27 @@ During initial load and navigation, 15 browser console warnings are emitted:
 
 #### [BLK-01] Demographics Fractional Underflow Kills All Mortality and Births
 - **Severity**: Blocker
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 1)**
 - **Root Cause File**: `genesis-engine/backend/engine/causal/engine.py:175-197`
-- **Exact Reproduction Steps**:
-  1. Create a world with population between 100 and 10,000.
-  2. Advance simulation by 365 ticks via `POST /api/v1/worlds/{id}/simulation/advance`.
-  3. Query vitals via `GET /api/v1/worlds/{id}/vitals`.
-  4. Observe `births: 0` and `deaths: 0` across all 365 ticks.
-- **Forensic Detail**: Annual rates ($0.0145$ for births, $0.008$ for natural deaths) scaled by $dt = \frac{1}{365}$ evaluate to $< 0.5$ per tick for any population under $\approx 12,600$. `int(round(...))` permanently rounds them to 0.
+- **Fix Implementation**: Replaced int truncation with fractional accumulators (`_birth_accumulators`, `_death_accumulators`) and real demographic birth/death processing in database.
+- **Behavior Test Proof (`scripts/test_demographics_behavior.py`)**:
+  ```
+  [ML=False] World created: world_55f9d625. DB living citizens: 500, Economy pop: 500
+    Tick  365: State Pop=504, DB Cit=504, Econ Pop=504, Occupants=504, Births=7, Deaths=3
+    Tick 3650: State Pop=541, DB Cit=541, Econ Pop=541, Occupants=541, Births=81, Deaths=40
+  [ML=False] Final Demographic Profile: Pop=541, Avg Age=38.2, Min=0.0, Max=81.3, Births=81, Deaths=40
+  ```
 
 #### [BLK-02] Citizen Entity Disconnection & Triple Population Divergence
 - **Severity**: Blocker
-- **Root Cause File**: `genesis-engine/backend/engine/world/simulation.py:446`, `db/database.py:180-210`
-- **Exact Reproduction Steps**:
-  1. Create a world with `initial_population: 120`.
-  2. Query `SELECT population FROM economy_resources WHERE world_id = ?` (returns 120).
-  3. Place 2 residential buildings and query `GET /api/v1/worlds/{id}/state` (returns 54 from building occupants sum).
-  4. Query `SELECT COUNT(*) FROM citizens WHERE world_id = ?` (returns 0).
-- **Forensic Detail**: Three completely disjoint sources of truth for population exist simultaneously: `economy_resources.population`, building `current_occupants`, and SQLite `citizens` table.
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 1)**
+- **Root Cause File**: `genesis-engine/backend/engine/world/simulation.py:446`, `db/database.py:180-210`, `engine/demographics.py`
+- **Fix Implementation**: Made `citizens` table the authoritative single source of truth. Added `home_building_id`, `work_building_id`, `employed` foreign keys and columns. Derived `economy_resources.population` and `buildings.current_occupants` directly from living citizens.
+- **Behavior Test Proof (`scripts/test_demographics_behavior.py`)**:
+  ```
+  Assertion: db_cit_count == db_econ_pop == occupants_sum == state.metrics.population
+  Verified at EVERY checked tick across 3650 continuous simulation steps.
+  ```
 
 #### [BLK-03] Policy "What-If" Shortcuts Advance Simulation Without Enacting Policies
 - **Severity**: Blocker
@@ -285,11 +289,14 @@ During initial load and navigation, 15 browser console warnings are emitted:
 
 #### [MAJ-04] Gompertz ML Inference Rendered Ineffective by Daily Rounding
 - **Severity**: Major
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 1)**
 - **Root Cause File**: `genesis-engine/backend/engine/causal/engine.py:184-197`
-- **Exact Reproduction Steps**:
-  1. Run `scripts/compare_ml_modes.py`.
-  2. Observe 365 model evaluations with 0 trajectory change compared to rule-based fallback.
-- **Forensic Detail**: Model outputs a hazard multiplier between $0.5$ and $2.0$, but multiplying by daily base rate ($\approx 0.0000219$) and rounding to integer keeps output at 0.
+- **Fix Implementation**: Passed dynamic citizen cohort `effective_age` and `effective_health` to `calculate_gompertz_mortality_hazard`, applied calibrated `[0.70, 1.40]` hazard multipliers, and accumulated fractional rates.
+- **Behavior Test Proof (`scripts/test_demographics_behavior.py`)**:
+  ```
+  Rule-based Deaths: 40 | ML-mode Deaths: 28 | Delta: 12
+  VERIFIED: ML_ENABLED mode produced a measurably distinct demographic trajectory!
+  ```
 
 #### [MAJ-05] Command Undo Resource Exploit & Occupant Eviction
 - **Severity**: Major

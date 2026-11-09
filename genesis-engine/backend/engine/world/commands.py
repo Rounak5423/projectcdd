@@ -180,6 +180,20 @@ class UnifiedCommandManager:
             WHERE world_id = ?
             """, (cost_mat, world_id))
 
+            # When residential capacity is created, spawn real citizens into home
+            res_cap = config.get("residents_capacity", 0)
+            if res_cap > 0 or "Residential" in b_type:
+                from engine.demographics import spawn_citizens_for_world
+                spawn_count = max(10, res_cap)
+                spawn_citizens_for_world(
+                    conn=conn,
+                    world_id=world_id,
+                    count=spawn_count,
+                    residential_building_ids=[b_id],
+                    center_x=x,
+                    center_y=z
+                )
+
             now = datetime.now(timezone.utc).isoformat()
             log_id = f"act_{uuid.uuid4().hex[:8]}"
             conn.execute("""
@@ -243,10 +257,16 @@ class UnifiedCommandManager:
         saved_building_data = dict(b)
 
         with conn:
+            # Unlink occupants and workers
+            conn.execute("UPDATE citizens SET home_building_id = NULL WHERE home_building_id = ? AND world_id = ?", (b_id, world_id))
+            conn.execute("UPDATE citizens SET work_building_id = NULL, employed = 0 WHERE work_building_id = ? AND world_id = ?", (b_id, world_id))
             conn.execute("DELETE FROM buildings WHERE id = ? AND world_id = ?", (b_id, world_id))
             conn.execute("""
             UPDATE economy_resources SET materials = materials + ? WHERE world_id = ?
             """, (refund_materials, world_id))
+
+            from engine.demographics import sync_demographics_state
+            sync_demographics_state(conn, world_id)
 
             now = datetime.now(timezone.utc).isoformat()
             log_id = f"act_{uuid.uuid4().hex[:8]}"

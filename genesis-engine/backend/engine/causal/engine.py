@@ -35,6 +35,8 @@ class CausalCouplingEngine:
         self._protest_intensity: Dict[str, float] = {}
         self._hospitalized_patients: Dict[str, float] = {}
         self._health_index: Dict[str, float] = {}
+        self._birth_accumulators: Dict[str, float] = {}
+        self._death_accumulators: Dict[str, float] = {}
         self.history_limit = 200
 
     def _get_history(self, world_id: str) -> Tuple[deque, deque]:
@@ -54,6 +56,8 @@ class CausalCouplingEngine:
             self._protest_intensity[world_id] = 0.0
             self._hospitalized_patients[world_id] = 0.0
             self._health_index[world_id] = 0.88
+            self._birth_accumulators[world_id] = 0.0
+            self._death_accumulators[world_id] = 0.0
 
     def step(
         self,
@@ -75,6 +79,8 @@ class CausalCouplingEngine:
         residential_capacity: int = 1500000,
         unemployment_rate: float = 0.05,
         ticks_passed: int = 1,
+        mean_age: Optional[float] = None,
+        mean_health: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Executes a single or multi-tick causal coupling step.
@@ -173,18 +179,23 @@ class CausalCouplingEngine:
         # Births decrease during famine, dehydration, or extreme unrest
         fertility_modifier = (curr_health / 0.88) * (0.5 + 0.5 * civic_stability)
         raw_births = population * cbr_rate * dt * fertility_modifier
-        births = max(0, int(round(raw_births)))
+        accum_b = self._birth_accumulators.get(world_id, 0.0) + raw_births
+        births = int(accum_b)
+        self._birth_accumulators[world_id] = accum_b - births
 
         # 6b. Baseline Gompertz/Natural Mortality
         # Calibrated baseline CDR ~ 7.8 per 1,000/yr
         cdr_rate = self.config.baseline_crude_death_rate / 1000.0
         ml_hazard_multiplier = 1.0
 
+        effective_age = mean_age if mean_age is not None else 42.0
+        effective_health = mean_health if mean_health is not None else curr_health
+
         # Query ML inference model if enabled
         if os.environ.get("ML_ENABLED", "false").lower() in ("1", "true", "yes"):
             try:
                 from ml.inference.registry import calculate_gompertz_mortality_hazard
-                ml_inferred = calculate_gompertz_mortality_hazard(age=42.0, health=curr_health)
+                ml_inferred = calculate_gompertz_mortality_hazard(age=effective_age, health=effective_health)
                 # Bounded strictly within [0.70, 1.40] for numerical stability
                 ml_hazard_multiplier = max(
                     self.config.ml_hazard_min_bound,
@@ -193,7 +204,10 @@ class CausalCouplingEngine:
             except Exception:
                 ml_hazard_multiplier = 1.0
 
-        baseline_aging_deaths = int(round(population * cdr_rate * dt * ml_hazard_multiplier))
+        raw_aging_deaths = population * cdr_rate * dt * ml_hazard_multiplier
+        accum_d = self._death_accumulators.get(world_id, 0.0) + raw_aging_deaths
+        baseline_aging_deaths = int(accum_d)
+        self._death_accumulators[world_id] = accum_d - baseline_aging_deaths
 
         # 6c. Specific Causal Hazards
         # Starvation

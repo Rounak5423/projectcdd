@@ -184,11 +184,37 @@ def migration_v4_civilization_tech_tree(conn: sqlite3.Connection):
         seed_civilization_technologies(conn, w["id"])
 
 
+def migration_v5_citizens_single_truth(conn: sqlite3.Connection):
+    """Adds home/work building foreign keys and employment to citizens, occupants to buildings."""
+    # Add columns to citizens if not present
+    cit_cols = [c[1] for c in conn.execute("PRAGMA table_info(citizens)").fetchall()]
+    if "home_building_id" not in cit_cols:
+        conn.execute("ALTER TABLE citizens ADD COLUMN home_building_id TEXT REFERENCES buildings(id) ON DELETE SET NULL")
+    if "work_building_id" not in cit_cols:
+        conn.execute("ALTER TABLE citizens ADD COLUMN work_building_id TEXT REFERENCES buildings(id) ON DELETE SET NULL")
+    if "employed" not in cit_cols:
+        conn.execute("ALTER TABLE citizens ADD COLUMN employed INTEGER DEFAULT 0")
+
+    # Add current_occupants and current_workers to buildings if not present
+    bld_cols = [c[1] for c in conn.execute("PRAGMA table_info(buildings)").fetchall()]
+    if "current_occupants" not in bld_cols:
+        conn.execute("ALTER TABLE buildings ADD COLUMN current_occupants INTEGER DEFAULT 0")
+    if "current_workers" not in bld_cols:
+        conn.execute("ALTER TABLE buildings ADD COLUMN current_workers INTEGER DEFAULT 0")
+
+    conn.executescript("""
+    CREATE INDEX IF NOT EXISTS idx_citizens_home_bld ON citizens(world_id, home_building_id);
+    CREATE INDEX IF NOT EXISTS idx_citizens_work_bld ON citizens(world_id, work_building_id);
+    CREATE INDEX IF NOT EXISTS idx_citizens_alive ON citizens(world_id, is_alive);
+    """)
+
+
 MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (1, "baseline_init", migration_v1_baseline),
     (2, "save_slots_and_autosaves", migration_v2_save_slots),
     (3, "cs2_simulation_depth_and_infrastructure", migration_v3_cs2_simulation_depth),
     (4, "civilization_tech_tree", migration_v4_civilization_tech_tree),
+    (5, "citizens_single_truth", migration_v5_citizens_single_truth),
 ]
 
 

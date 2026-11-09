@@ -90,6 +90,8 @@ def init_db():
             orientation REAL DEFAULT 0.0,
             status TEXT DEFAULT 'active',
             capacity INTEGER DEFAULT 50,
+            current_occupants INTEGER DEFAULT 0,
+            current_workers INTEGER DEFAULT 0,
             construction_cost TEXT DEFAULT '{}',
             upgrade_cost TEXT DEFAULT '{}',
             effects TEXT DEFAULT '{}',
@@ -116,7 +118,12 @@ def init_db():
             knowledge_retention REAL DEFAULT 0.7,
             ai_dependency REAL DEFAULT 0.1,
             is_alive INTEGER DEFAULT 1,
-            FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
+            home_building_id TEXT,
+            work_building_id TEXT,
+            employed INTEGER DEFAULT 0,
+            FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE,
+            FOREIGN KEY (home_building_id) REFERENCES buildings(id) ON DELETE SET NULL,
+            FOREIGN KEY (work_building_id) REFERENCES buildings(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS economy_resources (
