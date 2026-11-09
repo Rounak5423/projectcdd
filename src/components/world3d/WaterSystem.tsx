@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { getRiverPath, getRiverDerivative, getRiverZ } from './Terrain';
 import { useDayNight } from './DayNightController';
+import { useGameState } from '../../context/GameStateContext';
 
 // Exact pier coordinates matching RoadNetwork.tsx bridges
 const BRIDGE_PIERS: [number, number][] = [
@@ -94,6 +95,7 @@ const RiverFragmentShader = /* glsl */ `
   uniform vec3 uSkyColor;
   uniform vec3 uCameraPosition;
   uniform float uIsNight;
+  uniform vec3 uWaterTint;
 
   varying vec2 vUv;
   varying vec3 vWorldPosition;
@@ -180,7 +182,7 @@ const RiverFragmentShader = /* glsl */ `
     centerDist = clamp(centerDist, 0.0, 1.0);
 
     vec3 waterColor = mix(waterDeep, waterMid, smoothstep(0.0, 0.6, centerDist));
-    waterColor = mix(waterColor, waterShallow, smoothstep(0.6, 0.98, centerDist));
+    waterColor = mix(waterColor, waterShallow, smoothstep(0.6, 0.98, centerDist)) * uWaterTint;
 
     // Under-Bridge continuous shadowing (water continues cleanly under bridge with ambient shadow)
     if (underBridge > 0.01) {
@@ -259,6 +261,7 @@ const LakeFragmentShader = /* glsl */ `
   uniform vec3 uSkyColor;
   uniform vec3 uCameraPosition;
   uniform float uIsNight;
+  uniform vec3 uWaterTint;
 
   varying vec2 vUv;
   varying vec3 vWorldPosition;
@@ -279,7 +282,7 @@ const LakeFragmentShader = /* glsl */ `
 
     vec3 cDeep = mix(vec3(0.025, 0.140, 0.360), vec3(0.010, 0.045, 0.130), uIsNight);
     vec3 cEdge = mix(vec3(0.120, 0.420, 0.680), vec3(0.035, 0.120, 0.260), uIsNight);
-    vec3 waterColor = mix(cDeep, cEdge, pow(rFrac, 1.2));
+    vec3 waterColor = mix(cDeep, cEdge, pow(rFrac, 1.2)) * uWaterTint;
 
     vec3 skyReflect = mix(uSkyColor * 0.90, vec3(0.58, 0.78, 0.96), 0.42);
     if (uIsNight > 0.5) {
@@ -298,6 +301,7 @@ const LakeFragmentShader = /* glsl */ `
 `;
 
 export default React.memo(function WaterSystem() {
+  const { civilization } = useGameState();
   const { isNight, sunPosition, sunIntensity, skyColor, directionalColor } = useDayNight();
   const { camera } = useThree();
 
@@ -579,6 +583,7 @@ export default React.memo(function WaterSystem() {
         uSkyColor: { value: new THREE.Color('#d4e6f1') },
         uCameraPosition: { value: new THREE.Vector3(0, 30, 40) },
         uIsNight: { value: 0.0 },
+        uWaterTint: { value: new THREE.Color('#ffffff') },
       },
       transparent: true,
       depthWrite: false,
@@ -599,6 +604,7 @@ export default React.memo(function WaterSystem() {
         uSkyColor: { value: new THREE.Color('#d4e6f1') },
         uCameraPosition: { value: new THREE.Vector3(0, 30, 40) },
         uIsNight: { value: 0.0 },
+        uWaterTint: { value: new THREE.Color('#ffffff') },
       },
       transparent: true,
       depthWrite: false,
@@ -617,6 +623,19 @@ export default React.memo(function WaterSystem() {
   useFrame(({ clock }) => {
     const elapsed = clock.getElapsedTime();
 
+    // Biome-adaptive water tint
+    const terrainType = civilization?.terrainType;
+    let r = 1.0, g = 1.0, b = 1.0;
+    if (terrainType === 'Archipelago') {
+      r = 0.75; g = 1.35; b = 1.45;
+    } else if (terrainType === 'Crimson Canyon' || terrainType === 'Arid Oasis') {
+      r = 0.85; g = 1.25; b = 1.20;
+    } else if (terrainType === 'Frostpeak Taiga') {
+      r = 0.75; g = 1.05; b = 1.40;
+    } else if (terrainType === 'Obsidian Caldera') {
+      r = 1.35; g = 0.75; b = 0.65;
+    }
+
     // 1. Update River Shader Uniforms
     riverMaterial.uniforms.uTime.value = elapsed;
     riverMaterial.uniforms.uCameraPosition.value.copy(camera.position);
@@ -625,6 +644,7 @@ export default React.memo(function WaterSystem() {
     riverMaterial.uniforms.uSunIntensity.value = sunIntensity;
     riverMaterial.uniforms.uSkyColor.value.set(skyColor);
     riverMaterial.uniforms.uIsNight.value = isNight ? 1.0 : 0.0;
+    riverMaterial.uniforms.uWaterTint.value.setRGB(r, g, b);
 
     // 2. Update Lake Shader Uniforms
     lakeMaterial.uniforms.uTime.value = elapsed;
@@ -634,6 +654,7 @@ export default React.memo(function WaterSystem() {
     lakeMaterial.uniforms.uSunIntensity.value = sunIntensity;
     lakeMaterial.uniforms.uSkyColor.value.set(skyColor);
     lakeMaterial.uniforms.uIsNight.value = isNight ? 1.0 : 0.0;
+    lakeMaterial.uniforms.uWaterTint.value.setRGB(r, g, b);
   });
 
   // Reed and Stone Meshes

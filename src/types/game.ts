@@ -378,6 +378,16 @@ export interface GameEvent {
   isRead: boolean;
 }
 
+export type MapTerrainType =
+  | 'Verdant River Valley'
+  | 'Highland Plateau'
+  | 'Archipelago'
+  | 'Boreal Basin'
+  | 'Arid Oasis'
+  | 'Crimson Canyon'
+  | 'Frostpeak Taiga'
+  | 'Obsidian Caldera';
+
 export interface CivilizationProfile {
   id: string;
   name: string;
@@ -391,7 +401,7 @@ export interface CivilizationProfile {
   foundingYear: number;
   currentYear: number;
   currentDay: number;
-  terrainType: 'Verdant River Valley' | 'Highland Plateau' | 'Archipelago' | 'Boreal Basin' | 'Arid Oasis';
+  terrainType: MapTerrainType;
   climateType: 'Temperate' | 'Subtropical' | 'Subpolar' | 'Continental';
 }
 

@@ -68,7 +68,8 @@ function mergeBufferGeometries(geometries: THREE.BufferGeometry[]): THREE.Buffer
 }
 
 function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
-  const { placedBuildings } = useGameState();
+  const { placedBuildings, civilization } = useGameState();
+  const terrainType = civilization?.terrainType || 'Verdant River Valley';
 
   // Instanced mesh references for paired trunk and foliage rendering
   const pineTrunkRef = useRef<THREE.InstancedMesh>(null);
@@ -129,33 +130,32 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
     const dummy = new THREE.Object3D();
 
     // 1. Generate Trees in natural biome clusters
-    for (let i = 0; i < 480; i++) {
+    const treeLimit = terrainType === 'Crimson Canyon' || terrainType === 'Arid Oasis' ? 180 : 480;
+    for (let i = 0; i < treeLimit; i++) {
       const rx = (random() - 0.5) * 116;
       const rz = (random() - 0.5) * 116;
 
       if (isExcluded(rx, rz, 2.0)) continue;
 
-      const ry = getTerrainHeight(rx, rz);
+      const ry = getTerrainHeight(rx, rz, terrainType);
       // Ensure trees are neither submerged in water nor on jagged snow-caps
       if (ry < 0.25 || ry > 10.8) continue;
 
       const scale = 0.82 + random() * 0.55;
       const rotY = random() * Math.PI * 2;
-      // Subtle natural tree lean (1.5 - 2 degrees)
       const tiltX = (random() - 0.5) * 0.05;
       const tiltZ = (random() - 0.5) * 0.05;
 
-      // Position set strictly at terrain surface height
       dummy.position.set(rx, ry, rz);
       dummy.rotation.set(tiltX, rotY, tiltZ);
       dummy.scale.set(scale, scale, scale);
       dummy.updateMatrix();
 
-      // Biome distribution:
-      // Mountain flanks & high elevations -> Conifer Pines
-      // Lowland plains & rolling hills -> Broadleaf Oaks & Silver Birches
-      if (ry > 2.0 || Math.abs(rx) > 34 || Math.abs(rz) > 34) {
+      if (terrainType === 'Frostpeak Taiga' || ry > 2.0 || Math.abs(rx) > 34 || Math.abs(rz) > 34) {
         pines.push(dummy.matrix.clone());
+      } else if (terrainType === 'Archipelago') {
+        if (random() > 0.3) birches.push(dummy.matrix.clone());
+        else decs.push(dummy.matrix.clone());
       } else if (random() > 0.42) {
         decs.push(dummy.matrix.clone());
       } else {
@@ -163,14 +163,15 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
       }
     }
 
-    // 2. Generate Boulders & River Rocks (Firmly embedded into ground)
-    for (let i = 0; i < 160; i++) {
+    // 2. Generate Boulders & River Rocks
+    const rockLimit = terrainType === 'Crimson Canyon' || terrainType === 'Obsidian Caldera' ? 240 : 160;
+    for (let i = 0; i < rockLimit; i++) {
       const rx = (random() - 0.5) * 118;
       const rz = (random() - 0.5) * 118;
 
       if (isExcluded(rx, rz, 1.2)) continue;
 
-      const ry = getTerrainHeight(rx, rz);
+      const ry = getTerrainHeight(rx, rz, terrainType);
       if (ry < -0.9) continue;
 
       const nearWaterEdge = isNearRiver(rx, rz, 5.5) && !isNearRiver(rx, rz, 1.2);
@@ -182,7 +183,6 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
       const sy = 0.5 + random() * 0.9;
       const sz = 0.7 + random() * 1.3;
 
-      // Base firmly sunk into terrain
       dummy.position.set(rx, ry, rz);
       dummy.rotation.set((random() - 0.5) * 0.3, random() * Math.PI * 2, (random() - 0.5) * 0.3);
       dummy.scale.set(sx, sy, sz);
@@ -192,12 +192,13 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
     }
 
     // 3. Generate Bushes & Wild Shrubs
-    for (let i = 0; i < 210; i++) {
+    const bushLimit = terrainType === 'Crimson Canyon' || terrainType === 'Arid Oasis' ? 280 : 210;
+    for (let i = 0; i < bushLimit; i++) {
       const rx = (random() - 0.5) * 108;
       const rz = (random() - 0.5) * 108;
 
       if (isExcluded(rx, rz, 1.0)) continue;
-      const ry = getTerrainHeight(rx, rz);
+      const ry = getTerrainHeight(rx, rz, terrainType);
       if (ry < 0.25 || ry > 6.0) continue;
 
       const scale = 0.5 + random() * 0.5;
@@ -216,7 +217,7 @@ function NatureEnvironment({ activeLayer }: NatureEnvironmentProps) {
       rockTransforms: rocks,
       bushTransforms: bushes,
     };
-  }, []);
+  }, [placedBuildings, terrainType]);
 
   // Update instance matrices on GPU
   useEffect(() => {

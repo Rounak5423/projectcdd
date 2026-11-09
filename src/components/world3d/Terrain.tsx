@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
-import { MapLayer } from '../../context/GameStateContext';
+import { MapLayer, useGameState } from '../../context/GameStateContext';
+import { MapTerrainType } from '../../types/game';
 
 // Procedural River Centerline Coordinate Z(x)
 // Smoothly meanders through the landscape from NW Lake to SE Delta, perfectly aligned with the 3 bridges:
@@ -58,7 +59,91 @@ export function isNearLake(x: number, z: number, tolerance: number = 2.0): boole
   return dist < 12.2 + tolerance;
 }
 
-export function getTerrainHeight(x: number, z: number): number {
+export function getTerrainHeight(x: number, z: number, terrainType: MapTerrainType = 'Verdant River Valley'): number {
+  if (terrainType === 'Archipelago') {
+    // 5 island centers with lagoons in between
+    const islands = [
+      { x: 0, z: 13, r: 16, h: 1.25 },
+      { x: -28, z: -14, r: 18, h: 1.6 },
+      { x: 26, z: -16, r: 17, h: 1.5 },
+      { x: -22, z: 24, r: 15, h: 1.2 },
+      { x: 24, z: 25, r: 15, h: 1.2 },
+    ];
+    let maxElevation = -1.1; // shallow ocean floor
+    for (const isl of islands) {
+      const d = Math.hypot(x - isl.x, z - isl.z);
+      if (d < isl.r) {
+        const t = Math.cos((d / isl.r) * (Math.PI / 2));
+        const elev = isl.h * t - (1 - t) * 0.2;
+        if (elev > maxElevation) maxElevation = elev;
+      }
+    }
+    maxElevation += Math.sin(x * 0.2) * Math.cos(z * 0.2) * 0.08;
+    return maxElevation;
+  }
+
+  if (terrainType === 'Crimson Canyon') {
+    const canyonZ = x * 0.18 + Math.sin(x * 0.08) * 8.0;
+    const distCanyon = Math.abs(z - canyonZ);
+    if (distCanyon < 9.0) {
+      const t = distCanyon / 9.0;
+      return -0.85 + Math.pow(t, 2.0) * 1.2;
+    }
+    const mesaStep = Math.floor(Math.min(3, (distCanyon - 9.0) / 7.0));
+    const mesaBase = 1.1 + mesaStep * 1.0;
+    const roughness = Math.sin(x * 0.15) * Math.cos(z * 0.15) * 0.12;
+    if (Math.hypot(x, z - 13) < 13) return 1.15;
+    return mesaBase + roughness;
+  }
+
+  if (terrainType === 'Frostpeak Taiga') {
+    const lakeDist = Math.hypot(x - (-38), z - (-22));
+    if (lakeDist < 12.2) {
+      return -1.35 * Math.cos((lakeDist / 12.2) * (Math.PI / 2));
+    }
+    const distCitadel = Math.hypot(x, z - 13);
+    if (distCitadel < 12) return 0.95;
+    const taigaNoise = Math.sin(x * 0.12) * 0.35 + Math.cos(z * 0.1) * 0.35;
+    if (z < -28 || x < -32) {
+      const distFlank = Math.max(-28 - z, -32 - x);
+      return 1.2 + taigaNoise + (distFlank / 15) * 7.5;
+    }
+    return 0.65 + taigaNoise;
+  }
+
+  if (terrainType === 'Obsidian Caldera') {
+    const centerDist = Math.hypot(x, z - 2);
+    if (centerDist < 11) {
+      return -0.9 * Math.cos((centerDist / 11) * (Math.PI / 2));
+    }
+    if (centerDist >= 11 && centerDist < 36) {
+      const rimProgress = (centerDist - 11) / 25;
+      const rimHeight = Math.sin(rimProgress * Math.PI) * 4.5;
+      if (Math.hypot(x, z - 13) < 12) return 1.15;
+      return 0.6 + rimHeight + Math.sin(x * 0.2 + z * 0.2) * 0.2;
+    }
+    return 0.8 + Math.cos(centerDist * 0.1) * 0.4;
+  }
+
+  if (terrainType === 'Highland Plateau') {
+    if (Math.abs(x) > 42 || Math.abs(z) > 42) {
+      const edgeDist = Math.max(Math.abs(x) - 42, Math.abs(z) - 42);
+      return Math.max(-0.5, 2.1 - edgeDist * 0.5);
+    }
+    return 1.9 + Math.sin(x * 0.08) * 0.15 + Math.cos(z * 0.08) * 0.15;
+  }
+
+  if (terrainType === 'Arid Oasis') {
+    const oasisDist = Math.hypot(x, z - 6);
+    if (oasisDist < 8.5) {
+      return -0.65 * Math.cos((oasisDist / 8.5) * (Math.PI / 2));
+    }
+    if (Math.hypot(x, z - 13) < 12) return 0.85;
+    const dunes = Math.sin(x * 0.14 + z * 0.06) * 0.75 + Math.cos(z * 0.12 - x * 0.04) * 0.45;
+    return 0.6 + dunes;
+  }
+
+  // Default: Verdant River Valley
   // 1. Highland Lake check (Northwest mountain tarn & reservoir lake at [-38, -22])
   const lakeDist = Math.hypot(x - (-38), z - (-22));
   if (lakeDist < 12.2) {
@@ -75,17 +160,14 @@ export function getTerrainHeight(x: number, z: number): number {
   if (distPerp < halfW + 4.2) {
     const yWater = -0.14;
     if (distPerp < halfW) {
-      // Submerged riverbed: parabolic cross-section dipping to deep channel
       const normD = distPerp / halfW;
       const bedDepth = 0.95 * Math.pow(1.0 - Math.pow(normD, 1.6), 0.85);
       return yWater - bedDepth;
     } else {
-      // Sloped natural riverbank: smooth S-curve transition from water edge to meadow
       const bankProgress = Math.min(1.0, (distPerp - halfW) / 4.2);
       const bankS = bankProgress * bankProgress * (3 - 2 * bankProgress);
-      // Base ground elevation surrounding this river reach
       let baseGround = 0.42;
-      if (Math.hypot(x, z - 13) < 13) baseGround = 0.85; // Raised Citadel Dais ground
+      if (Math.hypot(x, z - 13) < 13) baseGround = 0.85;
       else if (Math.hypot(x - (-28), z - (-20)) < 16) baseGround = 1.2;
       else if (Math.hypot(x - 32, z - (-16)) < 18) baseGround = 0.75;
       else if (Math.hypot(x - (-24), z - 28) < 20) baseGround = 0.42;
@@ -93,39 +175,38 @@ export function getTerrainHeight(x: number, z: number): number {
     }
   }
 
-  // 3. Central Citadel Dais & Civic Terrace (South of river, centered at [0, 13])
+  // 3. Central Citadel Dais & Civic Terrace
   const distCitadel = Math.hypot(x, z - 13);
   if (distCitadel < 12) {
     const t = 1 - distCitadel / 12;
-    return 0.82 + t * 0.35; // Majestic elevated civic terrace at ~0.82m to 1.17m
+    return 0.82 + t * 0.35;
   }
 
-  // 4. Science Ridge (Northwest, overlooking lake)
+  // 4. Science Ridge
   const distScience = Math.hypot(x - (-28), z - (-20));
   if (distScience < 16) {
     return 1.4 + (1 - distScience / 16) * 1.0;
   }
 
-  // 5. Industrial Plateau (Northeast)
+  // 5. Industrial Plateau
   const distInd = Math.hypot(x - 32, z - (-16));
   if (distInd < 18) {
     return 0.75 + (1 - distInd / 18) * 0.25;
   }
 
-  // 6. Agrisector Valley (Southwest)
+  // 6. Agrisector Valley
   const distAgri = Math.hypot(x - (-24), z - 28);
   if (distAgri < 20) {
     return 0.42 + Math.sin(x * 0.2) * 0.12;
   }
 
-  // 7. Residential Terraces (Southeast)
+  // 7. Residential Terraces
   const distRes = Math.hypot(x - 20, z - 26);
   if (distRes < 18) {
     return 0.55 + Math.cos(z * 0.15) * 0.15;
   }
 
-  // 8. Northern Alpine Background Mountains (STRICTLY on North & NW horizon, Z < -34 or X < -40)
-  // NEVER obstructs the foreground camera (Z > 16 is completely open, unobstructed meadow!)
+  // 8. Northern Alpine Background Mountains
   if (z < -34 || x < -40 || (x > 38 && z < -14)) {
     let mountainStrength = 0;
     if (z < -34) mountainStrength = Math.max(mountainStrength, (-34 - z) / 20);
@@ -133,7 +214,6 @@ export function getTerrainHeight(x: number, z: number): number {
     if (x > 38 && z < -14) mountainStrength = Math.max(mountainStrength, (x - 38) / 18);
 
     mountainStrength = Math.min(1.0, mountainStrength);
-    // Smooth natural mountain sculpting with layered ridge harmonics
     const ridgeNoise =
       Math.sin(x * 0.16 + 1.2) * 3.2 +
       Math.cos(z * 0.18 + 0.8) * 3.6 +
@@ -142,11 +222,14 @@ export function getTerrainHeight(x: number, z: number): number {
     return 0.5 + mountainStrength * (11.5 + ridgeNoise);
   }
 
-  // Default gentle, sunny meadow roll
   return 0.42 + Math.sin(x * 0.08) * 0.14 + Math.cos(z * 0.08) * 0.14;
 }
 
 function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
+  const { civilization } = useGameState();
+  const terrainType = civilization?.terrainType || 'Verdant River Valley';
+  const isPioneerOutpost = (civilization?.level ?? 1) <= 1;
+
   // Generate high quality procedural terrain geometry with vertex colors
   const { geometry } = useMemo(() => {
     const size = 136;
@@ -157,23 +240,89 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
     const positions = geo.attributes.position;
     const colors = new Float32Array(positions.count * 3);
 
-    // Natural Landscape Color Palette
-    const cLushGreen = new THREE.Color(activeLayer === 'environment' ? '#3d823b' : '#45793e');
-    const cDeepGreen = new THREE.Color('#386435');
-    const cHillOlive = new THREE.Color('#587848');
-    const cSandRiver = new THREE.Color('#786f5c');
-    const cBedSilt = new THREE.Color('#222d25');
-    const cPebbleGravel = new THREE.Color('#4c5446');
-    const cCliffStone = new THREE.Color('#5a645f');
-    const cMountainRock = new THREE.Color('#747e79');
-    const cSnowPeak = new THREE.Color('#e0ebe5');
-    const cCitadelPaved = new THREE.Color('#4d5e4f');
+    // Natural Landscape Color Palette adapted per Biome
+    let cLushGreen = new THREE.Color(activeLayer === 'environment' ? '#3d823b' : '#45793e');
+    let cDeepGreen = new THREE.Color('#386435');
+    let cHillOlive = new THREE.Color('#587848');
+    let cSandRiver = new THREE.Color('#786f5c');
+    let cBedSilt = new THREE.Color('#222d25');
+    let cPebbleGravel = new THREE.Color('#4c5446');
+    let cCliffStone = new THREE.Color('#5a645f');
+    let cMountainRock = new THREE.Color('#747e79');
+    let cSnowPeak = new THREE.Color('#e0ebe5');
+    let cCitadelPaved = new THREE.Color('#4d5e4f');
+
+    if (terrainType === 'Archipelago') {
+      cLushGreen = new THREE.Color('#387a42');
+      cDeepGreen = new THREE.Color('#285930');
+      cHillOlive = new THREE.Color('#4c8052');
+      cSandRiver = new THREE.Color('#c9b98b');
+      cBedSilt = new THREE.Color('#1c4248');
+      cPebbleGravel = new THREE.Color('#8a997d');
+      cCliffStone = new THREE.Color('#62736b');
+      cMountainRock = new THREE.Color('#748780');
+      cCitadelPaved = new THREE.Color('#3d5448');
+    } else if (terrainType === 'Crimson Canyon') {
+      cLushGreen = new THREE.Color('#8c3826');
+      cDeepGreen = new THREE.Color('#6e2d20');
+      cHillOlive = new THREE.Color('#a84a32');
+      cSandRiver = new THREE.Color('#c78d67');
+      cBedSilt = new THREE.Color('#42231c');
+      cPebbleGravel = new THREE.Color('#8f5745');
+      cCliffStone = new THREE.Color('#5e2417');
+      cMountainRock = new THREE.Color('#7a3424');
+      cSnowPeak = new THREE.Color('#d4a896');
+      cCitadelPaved = new THREE.Color('#542b24');
+    } else if (terrainType === 'Frostpeak Taiga') {
+      cLushGreen = new THREE.Color('#2f473c');
+      cDeepGreen = new THREE.Color('#243830');
+      cHillOlive = new THREE.Color('#42574e');
+      cSandRiver = new THREE.Color('#677875');
+      cBedSilt = new THREE.Color('#1b2629');
+      cPebbleGravel = new THREE.Color('#465457');
+      cCliffStone = new THREE.Color('#5c696e');
+      cMountainRock = new THREE.Color('#78878f');
+      cSnowPeak = new THREE.Color('#f0f6f8');
+      cCitadelPaved = new THREE.Color('#3b4b52');
+    } else if (terrainType === 'Obsidian Caldera') {
+      cLushGreen = new THREE.Color('#26232e');
+      cDeepGreen = new THREE.Color('#1b1921');
+      cHillOlive = new THREE.Color('#363040');
+      cSandRiver = new THREE.Color('#574a44');
+      cBedSilt = new THREE.Color('#18141c');
+      cPebbleGravel = new THREE.Color('#4a3b44');
+      cCliffStone = new THREE.Color('#382e38');
+      cMountainRock = new THREE.Color('#4d3a46');
+      cSnowPeak = new THREE.Color('#9e7565');
+      cCitadelPaved = new THREE.Color('#302836');
+    } else if (terrainType === 'Highland Plateau') {
+      cLushGreen = new THREE.Color('#5b694d');
+      cDeepGreen = new THREE.Color('#44523a');
+      cHillOlive = new THREE.Color('#6f785b');
+      cSandRiver = new THREE.Color('#7d7767');
+      cBedSilt = new THREE.Color('#2a2723');
+      cPebbleGravel = new THREE.Color('#5c564a');
+      cCliffStone = new THREE.Color('#6b655a');
+      cMountainRock = new THREE.Color('#827b6f');
+      cCitadelPaved = new THREE.Color('#4f4940');
+    } else if (terrainType === 'Arid Oasis') {
+      cLushGreen = new THREE.Color('#c29b63');
+      cDeepGreen = new THREE.Color('#ab834b');
+      cHillOlive = new THREE.Color('#dec28e');
+      cSandRiver = new THREE.Color('#d4b479');
+      cBedSilt = new THREE.Color('#3d301f');
+      cPebbleGravel = new THREE.Color('#8c7247');
+      cCliffStone = new THREE.Color('#785834');
+      cMountainRock = new THREE.Color('#947046');
+      cSnowPeak = new THREE.Color('#edd9b9');
+      cCitadelPaved = new THREE.Color('#63513b');
+    }
 
     for (let i = 0; i < positions.count; i++) {
       const vx = positions.getX(i);
       const vz = positions.getZ(i);
 
-      const vy = getTerrainHeight(vx, vz);
+      const vy = getTerrainHeight(vx, vz, terrainType);
       positions.setY(i, vy);
 
       // Vertex color blending based on elevation, slope, and water proximity
@@ -187,26 +336,20 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
 
       if (distPerp < halfW + 3.5) {
         if (distPerp < halfW * 0.55) {
-          // Deep river channel thalweg: dark river silt, sunken slate, gravel
           vertexColor = cBedSilt.clone();
         } else if (distPerp < halfW) {
-          // Submerged shallows & gravel bars: weathered river gravel, fine sand
           const t = (distPerp - halfW * 0.55) / (halfW * 0.45);
           vertexColor = cBedSilt.clone().lerp(cPebbleGravel, t);
         } else {
-          // Riverbank margin: moist sand/loam to lush emerald riverbank vegetation
           const t = (distPerp - halfW) / 3.5;
           vertexColor = cPebbleGravel.clone().lerp(cLushGreen, t);
         }
       } else if (vy < -0.8) {
-        // Lake bottom
         vertexColor = cBedSilt.clone();
       } else if (vy < 0.2) {
-        // Sandy beach / bank transition
         const t = (vy + 0.8) / 1.0;
         vertexColor = cBedSilt.clone().lerp(cSandRiver, t);
       } else if (vy < 1.8) {
-        // Valley grasslands & district foundations
         const distCitadel = Math.hypot(vx, vz - 13);
         if (distCitadel < 12) {
           vertexColor = cCitadelPaved.clone();
@@ -214,16 +357,12 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
           vertexColor = Math.sin(vx * 0.3 + vz * 0.3) > 0 ? cLushGreen : cDeepGreen;
         }
       } else if (vy < 4.5) {
-        // Foothills & ridges
         vertexColor = cHillOlive.clone();
       } else if (vy < 8.5) {
-        // Rocky mountain cliffs
         vertexColor = cCliffStone.clone();
       } else if (vy < 12.0) {
-        // High mountain granite
         vertexColor = cMountainRock.clone();
       } else {
-        // Snow capped summits
         vertexColor = cSnowPeak.clone();
       }
 
@@ -236,7 +375,7 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
     geo.computeVertexNormals();
 
     return { geometry: geo };
-  }, [activeLayer]);
+  }, [activeLayer, terrainType]);
 
   // Clean up GPU buffer on unmount or layer changes
   useEffect(() => {
@@ -259,101 +398,153 @@ function Terrain({ activeLayer }: { activeLayer: MapLayer }) {
         />
       </mesh>
 
-      {/* Elysium Grand Civic Forum & Ceremonial Plaza (Centered in front of Senate Citadel at [0, 11]) */}
-      <group position={[0, 0.82, 11]}>
-        {/* Tiered Paved Flagstone Forum Terrace */}
-        <mesh position={[0, -0.06, 0]} receiveShadow>
-          <boxGeometry args={[14.8, 0.28, 13.6]} />
-          <meshStandardMaterial color="#424c44" roughness={0.75} />
-        </mesh>
-        <mesh position={[0, 0.08, 0]} receiveShadow>
-          <boxGeometry args={[14.2, 0.10, 13.0]} />
-          <meshStandardMaterial color="#556358" roughness={0.65} />
-        </mesh>
-        {/* Central Inlaid Porphyry & Granite Plaza Medallion */}
-        <mesh position={[0, 0.14, -3.2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <ringGeometry args={[0.0, 3.4, 32]} />
-          <meshStandardMaterial color="#6a7a6e" roughness={0.5} />
-        </mesh>
+      {/* Conditionally render: Pioneer Frontier Landing Pad for Level 1, or Grand Civic Forum for Level 2+ */}
+      {isPioneerOutpost ? (
+        <group position={[0, 0.85, 11]}>
+          {/* Modular Heavy Outpost Platform */}
+          <mesh position={[0, -0.04, 0]} receiveShadow>
+            <boxGeometry args={[13.2, 0.22, 12.0]} />
+            <meshStandardMaterial color="#2d3430" roughness={0.7} metalness={0.2} />
+          </mesh>
+          <mesh position={[0, 0.08, 0]} receiveShadow>
+            <boxGeometry args={[12.6, 0.06, 11.4]} />
+            <meshStandardMaterial color="#3b4640" roughness={0.6} metalness={0.3} />
+          </mesh>
+          {/* Central Landing Inscription Medallion */}
+          <mesh position={[0, 0.12, -2.5]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+            <ringGeometry args={[0.0, 2.6, 24]} />
+            <meshStandardMaterial color="#c6a76a" roughness={0.4} metalness={0.5} />
+          </mesh>
 
-        {/* Central Cascading Monumental Civic Fountain */}
-        <group position={[0, 0.15, -3.2]}>
-          {/* Octagonal Stone Outer Basin Coping */}
-          <mesh position={[0, 0.18, 0]} castShadow receiveShadow>
-            <cylinderGeometry args={[2.2, 2.4, 0.36, 8]} />
-            <meshStandardMaterial color="#48544b" roughness={0.6} />
-          </mesh>
-          {/* Shimmering Clear Turquoise Basin Water */}
-          <mesh position={[0, 0.32, 0]}>
-            <cylinderGeometry args={[1.95, 1.95, 0.08, 16]} />
-            <meshStandardMaterial color="#388e9c" roughness={0.1} metalness={0.8} />
-          </mesh>
-          {/* Tiered Central Fountain Pedestal & Upper Water Bowl */}
-          <mesh position={[0, 0.55, 0]} castShadow>
-            <cylinderGeometry args={[0.4, 0.55, 0.5, 8]} />
-            <meshStandardMaterial color="#657569" roughness={0.5} />
-          </mesh>
-          <mesh position={[0, 0.85, 0]} castShadow>
-            <cylinderGeometry args={[0.85, 0.25, 0.25, 8]} />
-            <meshStandardMaterial color="#657569" roughness={0.5} />
-          </mesh>
-          <mesh position={[0, 0.95, 0]}>
-            <cylinderGeometry args={[0.75, 0.75, 0.05, 12]} />
-            <meshStandardMaterial color="#48a0b0" roughness={0.1} metalness={0.9} />
-          </mesh>
-        </group>
-
-        {/* Classical Stone Perimeter Balustrades & Urns along East and West Flanks */}
-        {[-6.6, 6.6].map((bx, i) => (
-          <group key={`balustrade-${i}`} position={[bx, 0.3, 0]}>
-            <mesh castShadow receiveShadow>
-              <boxGeometry args={[0.35, 0.45, 12.0]} />
-              <meshStandardMaterial color="#505e53" roughness={0.7} />
+          {/* High-Gain Orbital Telemetry Beacon Mast */}
+          <group position={[-4.5, 0.1, -4.0]}>
+            <mesh position={[0, 1.8, 0]} castShadow>
+              <cylinderGeometry args={[0.08, 0.14, 3.6, 8]} />
+              <meshStandardMaterial color="#7a8c82" metalness={0.6} roughness={0.3} />
             </mesh>
-            {/* Decorative Stone Finial Urns along Balustrade */}
-            {[-4.8, -2.4, 0, 2.4, 4.8].map((uz, k) => (
-              <mesh key={`urn-${k}`} position={[0, 0.32, uz]} castShadow>
-                <cylinderGeometry args={[0.18, 0.12, 0.28, 8]} />
-                <meshStandardMaterial color="#657569" />
-              </mesh>
-            ))}
+            <mesh position={[0, 3.65, 0]}>
+              <sphereGeometry args={[0.18, 12, 12]} />
+              <meshStandardMaterial color="#3be8b0" emissive="#3be8b0" emissiveIntensity={1.8} />
+            </mesh>
+            <mesh position={[0, 2.8, 0]} rotation={[0.4, 0.6, 0]} castShadow>
+              <cylinderGeometry args={[0.7, 0.1, 0.18, 12]} />
+              <meshStandardMaterial color="#cbd5d0" metalness={0.7} roughness={0.2} />
+            </mesh>
           </group>
-        ))}
 
-        {/* Polished Stone Seating Benches for Citizens */}
-        {[-3.6, 3.6].map((benchX, i) =>
-          [-1.2, 1.4].map((benchZ, j) => (
-            <group key={`bench-${i}-${j}`} position={[benchX, 0.26, benchZ]}>
+          {/* Modular Expedition Survival Pods & Stacked Cargo Crates */}
+          {[
+            [-3.8, 1.2, '#c6a76a', 1.4, 1.0, 1.2],
+            [-3.6, 2.8, '#4a6252', 1.2, 0.8, 1.0],
+            [4.0, 1.5, '#7a6a50', 1.3, 0.9, 1.1],
+            [4.2, -1.8, '#586a78', 1.5, 1.1, 1.3],
+            [3.5, -3.2, '#c6a76a', 1.0, 0.7, 1.0],
+          ].map(([cx, cz, col, w, h, d], idx) => (
+            <mesh key={`crate-${idx}`} position={[Number(cx), Number(h) / 2 + 0.1, Number(cz)]} castShadow receiveShadow>
+              <boxGeometry args={[Number(w), Number(h), Number(d)]} />
+              <meshStandardMaterial color={String(col)} roughness={0.6} metalness={0.2} />
+            </mesh>
+          ))}
+
+          {/* Portable Solar Survey Arrays */}
+          {[-2.0, 2.0].map((px, idx) => (
+            <group key={`solar-${idx}`} position={[px, 0.12, 3.8]} rotation={[-0.35, 0, 0]}>
               <mesh castShadow receiveShadow>
-                <boxGeometry args={[1.4, 0.22, 0.42]} />
-                <meshStandardMaterial color="#6d7d71" roughness={0.5} />
+                <boxGeometry args={[2.2, 0.08, 1.2]} />
+                <meshStandardMaterial color="#1f3b4d" roughness={0.2} metalness={0.8} />
               </mesh>
-              <mesh position={[0, -0.1, 0]}>
-                <boxGeometry args={[1.2, 0.15, 0.3]} />
-                <meshStandardMaterial color="#424c44" />
+              <mesh position={[0, -0.3, 0]}>
+                <cylinderGeometry args={[0.06, 0.08, 0.6, 6]} />
+                <meshStandardMaterial color="#4f5954" metalness={0.5} />
               </mesh>
             </group>
-          ))
-        )}
+          ))}
+        </group>
+      ) : (
+        /* Elysium Grand Civic Forum & Ceremonial Plaza (Level 2+) */
+        <group position={[0, 0.82, 11]}>
+          <mesh position={[0, -0.06, 0]} receiveShadow>
+            <boxGeometry args={[14.8, 0.28, 13.6]} />
+            <meshStandardMaterial color="#424c44" roughness={0.75} />
+          </mesh>
+          <mesh position={[0, 0.08, 0]} receiveShadow>
+            <boxGeometry args={[14.2, 0.10, 13.0]} />
+            <meshStandardMaterial color="#556358" roughness={0.65} />
+          </mesh>
+          <mesh position={[0, 0.14, -3.2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+            <ringGeometry args={[0.0, 3.4, 32]} />
+            <meshStandardMaterial color="#6a7a6e" roughness={0.5} />
+          </mesh>
 
-        {/* Manicured Civic Topiary Greenery (Conical Cypress & Round Boxwood) */}
-        {[-5.2, 5.2].map((tx, i) =>
-          [-4.5, -1.8, 1.8, 4.5].map((tz, j) => (
-            <group key={`topiary-${i}-${j}`} position={[tx, 0.15, tz]}>
-              {/* Stone Planter Urn */}
-              <mesh position={[0, 0.18, 0]} castShadow receiveShadow>
-                <cylinderGeometry args={[0.42, 0.32, 0.36, 8]} />
-                <meshStandardMaterial color="#49574c" roughness={0.7} />
+          <group position={[0, 0.15, -3.2]}>
+            <mesh position={[0, 0.18, 0]} castShadow receiveShadow>
+              <cylinderGeometry args={[2.2, 2.4, 0.36, 8]} />
+              <meshStandardMaterial color="#48544b" roughness={0.6} />
+            </mesh>
+            <mesh position={[0, 0.32, 0]}>
+              <cylinderGeometry args={[1.95, 1.95, 0.08, 16]} />
+              <meshStandardMaterial color="#388e9c" roughness={0.1} metalness={0.8} />
+            </mesh>
+            <mesh position={[0, 0.55, 0]} castShadow>
+              <cylinderGeometry args={[0.4, 0.55, 0.5, 8]} />
+              <meshStandardMaterial color="#657569" roughness={0.5} />
+            </mesh>
+            <mesh position={[0, 0.85, 0]} castShadow>
+              <cylinderGeometry args={[0.85, 0.25, 0.25, 8]} />
+              <meshStandardMaterial color="#657569" roughness={0.5} />
+            </mesh>
+            <mesh position={[0, 0.95, 0]}>
+              <cylinderGeometry args={[0.75, 0.75, 0.05, 12]} />
+              <meshStandardMaterial color="#48a0b0" roughness={0.1} metalness={0.9} />
+            </mesh>
+          </group>
+
+          {[-6.6, 6.6].map((bx, i) => (
+            <group key={`balustrade-${i}`} position={[bx, 0.3, 0]}>
+              <mesh castShadow receiveShadow>
+                <boxGeometry args={[0.35, 0.45, 12.0]} />
+                <meshStandardMaterial color="#505e53" roughness={0.7} />
               </mesh>
-              {/* Pruned Evergreen Topiary */}
-              <mesh position={[0, 0.65, 0]} castShadow>
-                <coneGeometry args={[0.38, 0.9, 8]} />
-                <meshStandardMaterial color="#2c5e32" roughness={0.8} />
-              </mesh>
+              {[-4.8, -2.4, 0, 2.4, 4.8].map((uz, k) => (
+                <mesh key={`urn-${k}`} position={[0, 0.32, uz]} castShadow>
+                  <cylinderGeometry args={[0.18, 0.12, 0.28, 8]} />
+                  <meshStandardMaterial color="#657569" />
+                </mesh>
+              ))}
             </group>
-          ))
-        )}
-      </group>
+          ))}
+
+          {[-3.6, 3.6].map((benchX, i) =>
+            [-1.2, 1.4].map((benchZ, j) => (
+              <group key={`bench-${i}-${j}`} position={[benchX, 0.26, benchZ]}>
+                <mesh castShadow receiveShadow>
+                  <boxGeometry args={[1.4, 0.22, 0.42]} />
+                  <meshStandardMaterial color="#6d7d71" roughness={0.5} />
+                </mesh>
+                <mesh position={[0, -0.1, 0]}>
+                  <boxGeometry args={[1.2, 0.15, 0.3]} />
+                  <meshStandardMaterial color="#424c44" />
+                </mesh>
+              </group>
+            ))
+          )}
+
+          {[-5.2, 5.2].map((tx, i) =>
+            [-4.5, -1.8, 1.8, 4.5].map((tz, j) => (
+              <group key={`topiary-${i}-${j}`} position={[tx, 0.15, tz]}>
+                <mesh position={[0, 0.18, 0]} castShadow receiveShadow>
+                  <cylinderGeometry args={[0.42, 0.32, 0.36, 8]} />
+                  <meshStandardMaterial color="#49574c" roughness={0.7} />
+                </mesh>
+                <mesh position={[0, 0.65, 0]} castShadow>
+                  <coneGeometry args={[0.38, 0.9, 8]} />
+                  <meshStandardMaterial color="#2c5e32" roughness={0.8} />
+                </mesh>
+              </group>
+            ))
+          )}
+        </group>
+      )}
 
       {/* Majestic Northern Alpine Horizon Backdrop Peaks (Distant background mountains ONLY, Z < -48) */}
       {[

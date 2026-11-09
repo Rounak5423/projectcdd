@@ -24,18 +24,25 @@ import {
   CivoraMission,
   ChronicleEntry,
   ResearchTransaction,
+  MapTerrainType,
 } from '../types/game';
 import {
   initialCivilization,
+  demoMetropolisCivilization,
   alternateWorlds,
   initialResources,
+  demoMetropolisResources,
   initialRates,
+  demoMetropolisRates,
   initialDistricts,
+  demoMetropolisDistricts,
   buildingCatalog,
   initialPlacedBuildings,
+  demoMetropolisBuildings,
   initialTechnologies,
   initialPolicies,
   initialCitizens,
+  demoMetropolisCitizens,
   simulationScenarios,
   initialExperiments,
   initialAchievements,
@@ -299,11 +306,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [savedWorlds, setSavedWorlds] = useState<CivilizationProfile[]>(alternateWorlds);
   const [resources, setResources] = useState<ResourceState>(initialResources);
   const [rates, setRates] = useState<ResourceRates>(initialRates);
-  const [districts] = useState<District[]>(initialDistricts);
+  const [districts, setDistricts] = useState<District[]>(initialDistricts);
   const [placedBuildings, setPlacedBuildings] = useState<PlacedBuilding[]>(initialPlacedBuildings);
   const [technologies, setTechnologies] = useState<Technology[]>(initialTechnologies);
   const [policies, setPolicies] = useState<Policy[]>(initialPolicies);
-  const [citizens] = useState<Citizen[]>(initialCitizens);
+  const [citizens, setCitizens] = useState<Citizen[]>(initialCitizens);
   const [scenarios] = useState<SimulationScenario[]>(simulationScenarios);
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [achievements, setAchievements] = useState<Achievement[]>(initialAchievements);
@@ -626,39 +633,12 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const loadMaxDemoWorld = useCallback(() => {
     soundFx.playRewardClaim();
-    setCivilization({
-      id: 'civ-kyoto-demo',
-      name: 'Kyoto Prime · Nexus Metropole',
-      planet: 'Genesis Terra-IV',
-      era: 'Synthetic / AI',
-      level: 12,
-      xp: 18400,
-      xpToNextLevel: 20000,
-      leaderTitle: 'High Strategist & Archon',
-      governanceModel: 'Techno-Democratic Federation',
-      foundingYear: 1,
-      currentYear: 142,
-      currentDay: 288,
-      terrainType: 'Verdant River Valley',
-      climateType: 'Temperate',
-    });
-    setResources({
-      food: 42500,
-      water: 58000,
-      energy: 36400,
-      materials: 28500,
-      researchPoints: 14200,
-      grc: 8450,
-      population: 2840000,
-      gdp: 148.65,
-      happiness: 94,
-      health: 96,
-      stability: 95,
-      environmentalIndex: 89,
-      educationIndex: 96,
-      politicalCapital: 1450,
-    });
-    setPlacedBuildings(initialPlacedBuildings);
+    setCivilization(demoMetropolisCivilization);
+    setResources(demoMetropolisResources);
+    setRates(demoMetropolisRates);
+    setDistricts(demoMetropolisDistricts);
+    setPlacedBuildings(demoMetropolisBuildings);
+    setCitizens(demoMetropolisCitizens);
     triggerToast({
       type: 'reward',
       title: '🌟 MAX CAPABILITIES DEMO INITIALIZED',
@@ -1919,8 +1899,8 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       level: 1,
       xp: 0,
       xpToNextLevel: 1000,
-      leaderTitle: data.leaderTitle || 'Founder',
-      governanceModel: data.governanceModel || 'Pioneer Directorate',
+      leaderTitle: data.leaderTitle || 'First Pioneer',
+      governanceModel: data.governanceModel || 'Direct Frontier Council',
       foundingYear: 1,
       currentYear: 1,
       currentDay: 1,
@@ -1929,12 +1909,37 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     };
     setCivilization(newCiv);
     setSavedWorlds((prev) => [newCiv, ...prev]);
+    setPlacedBuildings(initialPlacedBuildings);
+    setResources(initialResources);
+    setRates(initialRates);
+    setDistricts(initialDistricts);
+    setCitizens(initialCitizens);
+    setZonedTiles([]);
+    triggerToast({
+      type: 'info',
+      title: `🌱 Welcome to ${newCiv.name}!`,
+      subtitle: `Your 10 founding pioneers have landed on ${newCiv.terrainType}. Build your colony from the ground up!`,
+      icon: '🚀',
+    });
   };
 
   const loadCivilization = (civId: string) => {
     const target = savedWorlds.find((w) => w.id === civId);
     if (target) {
       setCivilization(target);
+      if (civId === 'civ-kyoto-demo' || civId === 'civ-01') {
+        setPlacedBuildings(demoMetropolisBuildings);
+        setResources(demoMetropolisResources);
+        setRates(demoMetropolisRates);
+        setDistricts(demoMetropolisDistricts);
+        setCitizens(demoMetropolisCitizens);
+      } else {
+        setPlacedBuildings(initialPlacedBuildings);
+        setResources(initialResources);
+        setRates(initialRates);
+        setDistricts(initialDistricts);
+        setCitizens(initialCitizens);
+      }
     }
   };
 

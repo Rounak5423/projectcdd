@@ -208,7 +208,7 @@ function CelestialMoon({
 
 // ================= DAY NIGHT & WEATHER PROVIDER =================
 export function DayNightProvider({ children }: { children: React.ReactNode }) {
-  const { isPlaying, speed } = useGameState();
+  const { isPlaying, speed, civilization } = useGameState();
   const [timeOfDay, setTimeOfDay] = useState<number>(14.0); // Start at 2:00 PM (bright daylight)
   const [isAutoCycle, setIsAutoCycle] = useState<boolean>(true);
   const [isTimePaused, setIsTimePaused] = useState<boolean>(false);
@@ -291,6 +291,30 @@ export function DayNightProvider({ children }: { children: React.ReactNode }) {
     fogColor = '#a8cbb8';
     fogNear = 160;
     fogFar = 360;
+
+    // Biome-adaptive atmospheric tint
+    if (civilization?.terrainType === 'Archipelago') {
+      skyColor = '#7cb8d0';
+      fogColor = '#92cde2';
+      directionalColor = '#fffaf0';
+    } else if (civilization?.terrainType === 'Crimson Canyon') {
+      skyColor = '#a88574';
+      fogColor = '#ba9582';
+      directionalColor = '#ffeed6';
+      ambientColor = '#f5e4d3';
+    } else if (civilization?.terrainType === 'Frostpeak Taiga') {
+      skyColor = '#8fa6b8';
+      fogColor = '#a1b8c9';
+      directionalColor = '#eef6fc';
+    } else if (civilization?.terrainType === 'Obsidian Caldera') {
+      skyColor = '#70606b';
+      fogColor = '#82707c';
+      directionalColor = '#ffe2d4';
+    } else if (civilization?.terrainType === 'Arid Oasis') {
+      skyColor = '#94b8ba';
+      fogColor = '#a8cbcc';
+      directionalColor = '#fff6db';
+    }
   } else if (timeOfDay > 17.0 && timeOfDay <= 20.0) {
     // Golden Hour / Sunset
     const t = (timeOfDay - 17.0) / 3.0;

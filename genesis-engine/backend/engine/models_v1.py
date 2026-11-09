@@ -20,7 +20,7 @@ class WorldCreateRequest(BaseModel):
     name: str = Field(..., json_schema_extra={"example": "Aurora Prime"})
     climate: ClimateType = "Temperate"
     technology_level: TechLevelType = "Automated"
-    initial_population: int = Field(default=100, ge=10, le=2000000)
+    initial_population: int = Field(default=10, ge=10, le=2000000)
     grid_size: int = Field(default=32, ge=16, le=128)
     initial_resources: Optional[Dict[str, float]] = None
 
