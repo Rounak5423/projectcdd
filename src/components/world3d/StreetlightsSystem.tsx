@@ -64,20 +64,36 @@ export default React.memo(function StreetlightsSystem() {
       list.push({ x: 27.4, z, rotationY: Math.PI / 2 });
     }
 
-    // 5. Elysium Grand Forum Boulevard Loop Streetlights (Outer sidewalks flanking Civic Plaza)
-    // West Avenue Sidewalk (Facing East toward avenue)
-    for (let z = 6.0; z <= 18.0; z += 4.0) {
-      list.push({ x: -11.2, z, rotationY: Math.PI / 2 });
-    }
-    // East Avenue Sidewalk (Facing West toward avenue)
-    for (let z = 6.0; z <= 18.0; z += 4.0) {
-      list.push({ x: 11.2, z, rotationY: -Math.PI / 2 });
-    }
-    // North and South Forum Transverse Crossings
-    list.push({ x: -4.5, z: 3.4, rotationY: 0 });
-    list.push({ x: 4.5, z: 3.4, rotationY: 0 });
-    list.push({ x: -4.5, z: 20.6, rotationY: Math.PI });
-    list.push({ x: 4.5, z: 20.6, rotationY: Math.PI });
+    // 5. Elysium Grand Forum Crescent Streetlights (Flanking Civic Plaza & Forum)
+    // West Crescent (Facing East toward avenue)
+    const westCrescentLamps = [
+      { x: -5.6, z: 7.2, rotationY: 0.8 },
+      { x: -8.8, z: 11.0, rotationY: Math.PI / 2 },
+      { x: -8.8, z: 15.5, rotationY: Math.PI / 2 },
+      { x: -5.6, z: 19.2, rotationY: -0.8 },
+    ];
+    list.push(...westCrescentLamps);
+
+    // East Crescent (Facing West toward avenue)
+    const eastCrescentLamps = [
+      { x: 5.6, z: 7.2, rotationY: -0.8 },
+      { x: 8.8, z: 11.0, rotationY: -Math.PI / 2 },
+      { x: 8.8, z: 15.5, rotationY: -Math.PI / 2 },
+      { x: 5.6, z: 19.2, rotationY: 0.8 },
+    ];
+    list.push(...eastCrescentLamps);
+
+    // 6. Roundabout Perimeter Beacons
+    list.push({ x: -4.8, z: 6.0, rotationY: Math.PI / 2 });
+    list.push({ x: 4.8, z: 6.0, rotationY: -Math.PI / 2 });
+    list.push({ x: -5.2, z: 24.5, rotationY: Math.PI / 2 });
+    list.push({ x: 5.2, z: 24.5, rotationY: -Math.PI / 2 });
+
+    // 7. Cul-de-Sac Luminaires
+    list.push({ x: -37.5, z: -2.0, rotationY: Math.PI / 2 });
+    list.push({ x: -26.0, z: 42.0, rotationY: 0 });
+    list.push({ x: 38.0, z: 24.5, rotationY: -Math.PI / 2 });
+    list.push({ x: 15.5, z: 42.5, rotationY: 0 });
 
     return list;
   }, []);

@@ -14,10 +14,10 @@ export interface RoadSegmentDefinition {
 }
 
 export const CITY_ROAD_CORRIDORS: RoadSegmentDefinition[] = [
-  // 1. Central Citadel Monumental Axis
+  // 1. Primary Grand Boulevard & Civic Axis
   {
     id: 'road-ns-north',
-    name: 'North Grand Arterial Parkway',
+    name: 'North Grand Boulevard (Riverfront Corridor)',
     p1: [0, -44],
     p2: [0, -10.5],
     width: 5.4,
@@ -35,97 +35,77 @@ export const CITY_ROAD_CORRIDORS: RoadSegmentDefinition[] = [
     isBridge: true,
   },
   {
-    id: 'road-ns-dais',
-    name: 'Citadel Dais Approach',
+    id: 'road-bridge-south-throat',
+    name: 'Civic Esplanade Bridge Approach',
     p1: [0, 4.5],
-    p2: [0, 5.6],
+    p2: [0, 6.0],
     width: 5.4,
     speedLimit: 50,
     zone: 'citadel',
   },
   {
-    id: 'road-forum-north',
-    name: 'Elysium Forum North Transverse',
-    p1: [-8.6, 5.6],
-    p2: [8.6, 5.6],
-    width: 4.8,
-    speedLimit: 45,
-    zone: 'citadel',
-  },
-  {
-    id: 'road-forum-west',
-    name: 'Elysium Forum West Avenue',
-    p1: [-8.6, 5.6],
-    p2: [-8.6, 18.5],
+    id: 'road-forum-west-crescent',
+    name: 'Elysium Forum West Crescent',
+    p1: [-2.0, 6.8],
+    p2: [-7.8, 13.0],
     width: 4.6,
     speedLimit: 45,
     zone: 'citadel',
   },
   {
-    id: 'road-forum-east',
-    name: 'Elysium Forum East Avenue',
-    p1: [8.6, 5.6],
-    p2: [8.6, 18.5],
+    id: 'road-forum-west-south',
+    name: 'Elysium Forum West South Sweep',
+    p1: [-7.8, 13.0],
+    p2: [-2.0, 20.0],
     width: 4.6,
     speedLimit: 45,
     zone: 'citadel',
   },
   {
-    id: 'road-forum-south',
-    name: 'Elysium Forum South Transverse',
-    p1: [-8.6, 18.5],
-    p2: [8.6, 18.5],
-    width: 4.8,
+    id: 'road-forum-east-crescent',
+    name: 'Elysium Forum East Crescent',
+    p1: [2.0, 6.8],
+    p2: [7.8, 13.0],
+    width: 4.6,
     speedLimit: 45,
     zone: 'citadel',
   },
   {
-    id: 'road-ns-citadel-to-cross',
-    name: 'Citadel South Boulevard',
-    p1: [0, 18.5],
-    p2: [0, 21.2],
+    id: 'road-forum-east-south',
+    name: 'Elysium Forum East South Sweep',
+    p1: [7.8, 13.0],
+    p2: [2.0, 20.0],
+    width: 4.6,
+    speedLimit: 45,
+    zone: 'citadel',
+  },
+  {
+    id: 'road-forum-to-hub',
+    name: 'Civic Center South Boulevard',
+    p1: [0, 20.0],
+    p2: [0, 24.5],
     width: 5.4,
-    speedLimit: 60,
+    speedLimit: 55,
     zone: 'commercial',
   },
   {
     id: 'road-ns-south',
-    name: 'Oasis Terraces Grand Arterial',
-    p1: [0, 26.8],
+    name: 'Oasis Terraces Grand Boulevard',
+    p1: [0, 24.5],
     p2: [0, 44],
     width: 5.4,
     speedLimit: 70,
     zone: 'residential',
   },
 
-  // 2. East-West Grand Arterial (Outer High-Speed Wings)
-  {
-    id: 'road-ew-west',
-    name: 'Aethel Science Highway (West Axis)',
-    p1: [-44, 0],
-    p2: [-25, 0],
-    width: 5.2,
-    speedLimit: 65,
-    zone: 'education',
-  },
-  {
-    id: 'road-ew-east',
-    name: 'Vulcan Industrial Expressway (East Axis)',
-    p1: [25, 0],
-    p2: [44, 0],
-    width: 5.2,
-    speedLimit: 60,
-    zone: 'industrial',
-  },
-
-  // 3. West Science & Agrisector Longitudinal Highway (along X = -25)
+  // 2. West Riverfront Science Highway
   {
     id: 'road-west-north',
-    name: 'Aethel Ridge Science Corridor (North)',
-    p1: [-25, -38],
+    name: 'Aethel Ridge Highway (North Mountain Pass)',
+    p1: [-25, -44],
     p2: [-25, -23.7],
     width: 4.2,
-    speedLimit: 55,
+    speedLimit: 60,
     zone: 'education',
   },
   {
@@ -139,50 +119,23 @@ export const CITY_ROAD_CORRIDORS: RoadSegmentDefinition[] = [
     isBridge: true,
   },
   {
-    id: 'road-west-mid1',
-    name: 'Aethel Science Access (South Bridge)',
+    id: 'road-west-south-bluff',
+    name: 'Aethel Ridge Scenic River Bluff Avenue',
     p1: [-25, -8.7],
-    p2: [-25, -2.8],
+    p2: [-19.5, 24.5],
     width: 4.2,
-    speedLimit: 50,
+    speedLimit: 55,
     zone: 'education',
   },
-  {
-    id: 'road-west-mid2',
-    name: 'Verdant Vale Agro-Avenue (Mid)',
-    p1: [-25, 2.8],
-    p2: [-25, 21.8],
-    width: 4.2,
-    speedLimit: 50,
-    zone: 'agriculture',
-  },
-  {
-    id: 'road-west-south',
-    name: 'Verdant Vale Agro-Avenue (South)',
-    p1: [-25, 26.2],
-    p2: [-25, 38],
-    width: 4.2,
-    speedLimit: 50,
-    zone: 'agriculture',
-  },
 
-  // 4. East Vulcan Industrial Highway (along X = 25)
+  // 3. East Riverfront Industrial Highway
   {
-    id: 'road-east-north1',
-    name: 'Vulcan Heavy Freight Corridor (Far North)',
-    p1: [25, -38],
-    p2: [25, -24.2],
-    width: 4.2,
-    speedLimit: 50,
-    zone: 'industrial',
-  },
-  {
-    id: 'road-east-north2',
-    name: 'Vulcan Smelter Access Corridor',
-    p1: [25, -19.8],
+    id: 'road-east-north',
+    name: 'Vulcan Forge Freight Highway (North)',
+    p1: [25, -44],
     p2: [25, 0.25],
     width: 4.2,
-    speedLimit: 50,
+    speedLimit: 55,
     zone: 'industrial',
   },
   {
@@ -196,84 +149,128 @@ export const CITY_ROAD_CORRIDORS: RoadSegmentDefinition[] = [
     isBridge: true,
   },
   {
-    id: 'road-east-south1',
-    name: 'Vulcan-Oasis Residential Link',
+    id: 'road-east-south-arc',
+    name: 'Vulcan Logistics Link (South Arc)',
     p1: [25, 15.75],
-    p2: [25, 21.8],
+    p2: [19.5, 24.5],
     width: 4.2,
     speedLimit: 50,
-    zone: 'residential',
-  },
-  {
-    id: 'road-east-south2',
-    name: 'Oasis Terraces East Avenue',
-    p1: [25, 26.2],
-    p2: [25, 38],
-    width: 4.2,
-    speedLimit: 45,
-    zone: 'residential',
+    zone: 'industrial',
   },
 
-  // 5. South District Cross-Arterial (along Z = 24)
+  // 4. Transverse South Parkway (Z = 24.5)
   {
-    id: 'road-cross-south-west',
-    name: 'South Aquifer Cross-Avenue (West)',
-    p1: [-22.8, 24],
-    p2: [-2.9, 24],
-    width: 3.8,
-    speedLimit: 45,
+    id: 'road-parkway-west',
+    name: 'South Aquifer Transverse Parkway (West)',
+    p1: [-19.5, 24.5],
+    p2: [0, 24.5],
+    width: 4.2,
+    speedLimit: 50,
     zone: 'infrastructure',
   },
   {
-    id: 'road-cross-south-east',
-    name: 'South Medical & Civic Parkway (East)',
-    p1: [2.9, 24],
-    p2: [22.8, 24],
-    width: 3.8,
-    speedLimit: 45,
+    id: 'road-parkway-east',
+    name: 'South Aquifer Transverse Parkway (East)',
+    p1: [0, 24.5],
+    p2: [19.5, 24.5],
+    width: 4.2,
+    speedLimit: 50,
     zone: 'healthcare',
   },
 
-  // 6. North Connectors (along Z = -22)
+  // 5. North Connectors (Z = -22.0)
   {
     id: 'road-conn-north-west',
     name: 'Aethel Academic Link (West)',
-    p1: [-22.8, -22],
-    p2: [-2.9, -22],
-    width: 3.6,
+    p1: [-25, -22],
+    p2: [0, -22],
+    width: 3.8,
     speedLimit: 45,
     zone: 'education',
   },
   {
     id: 'road-conn-north-east',
-    name: 'Vulcan Power & Substation Connector',
-    p1: [2.9, -22],
-    p2: [22.8, -22],
-    width: 3.6,
+    name: 'Vulcan Power Substation Link (East)',
+    p1: [0, -22],
+    p2: [25, -22],
+    width: 3.8,
     speedLimit: 45,
     zone: 'industrial',
   },
+
+  // 6. Local Access Roads & Cul-de-Sacs
   {
-    id: 'road-conn-north-east-sub',
-    name: 'Vulcan Outer Industrial Spur',
-    p1: [27.2, -22],
-    p2: [38, -22],
-    width: 3.6,
+    id: 'road-spur-science',
+    name: 'Quantum Telemetry Observatory Spur',
+    p1: [-24.6, -2.0],
+    p2: [-36.0, -2.0],
+    width: 3.8,
     speedLimit: 40,
+    zone: 'education',
+  },
+  {
+    id: 'road-spur-agri',
+    name: 'Verdant Vale Agrisector Farm Loop',
+    p1: [-19.5, 24.5],
+    p2: [-26.0, 40.5],
+    width: 3.8,
+    speedLimit: 40,
+    zone: 'agriculture',
+  },
+  {
+    id: 'road-spur-freight',
+    name: 'Vulcan Heavy Foundry Freight Spur',
+    p1: [19.5, 24.5],
+    p2: [36.5, 24.5],
+    width: 4.0,
+    speedLimit: 40,
+    zone: 'industrial',
+  },
+  {
+    id: 'road-spur-residential',
+    name: 'Oasis Terraces Residential Crescent',
+    p1: [12.0, 24.5],
+    p2: [14.0, 41.5],
+    width: 3.8,
+    speedLimit: 35,
+    zone: 'residential',
+  },
+
+  // 7. Regional Highway Outer Connections
+  {
+    id: 'road-ew-west-regional',
+    name: 'West Planetary Highway Wing',
+    p1: [-44, 0],
+    p2: [-24.6, -2.0],
+    width: 4.8,
+    speedLimit: 65,
+    zone: 'education',
+  },
+  {
+    id: 'road-ew-east-regional',
+    name: 'East Planetary Highway Wing',
+    p1: [25, 0.25],
+    p2: [44, 0],
+    width: 4.8,
+    speedLimit: 65,
     zone: 'industrial',
   },
 ];
 
-// Major Junction Plazas (Clearance zones where buildings must not be placed)
+// Major Junction Plazas & Roundabouts (Clearance zones where buildings must not be placed)
 export const JUNCTION_CLEARANCE_PLAZAS: [number, number, number][] = [
-  [0, 24, 4.2], // South 4-Way Crossroads
-  [-25, 0, 4.0], // West Crossroads
-  [25, 0, 4.0], // East Crossroads
-  [-25, 24, 3.8], // Agrisector T-Junction
-  [25, 24, 3.8], // Residential T-Junction
-  [0, -22, 4.2], // North Grand Arterial T-Junction
-  [25, -22, 3.8], // Northeast Industrial T-Junction
-  [-25, -22, 3.8], // Northwest Science T-Junction
+  [0, 6.0, 6.2],    // Elysium Civic Esplanade Roundabout
+  [0, 24.5, 6.6],   // Central Hub Roundabout
+  [0, 20.0, 4.6],   // Forum South Gateway
+  [-19.5, 24.5, 4.8], // West Crossroads
+  [19.5, 24.5, 4.8],  // East Crossroads
+  [0, -22.0, 5.0],  // North Grand Boulevard Connector
+  [-25.0, -22.0, 4.4], // Northwest Science T-Junction
+  [25.0, -22.0, 4.4],  // Northeast Industrial T-Junction
+  [-36.0, -2.0, 4.8],  // Science Observatory Cul-de-Sac
+  [-26.0, 40.5, 5.0],  // Agrisector Farm Cul-de-Sac
+  [36.5, 24.5, 5.4],   // Vulcan Freight Cul-de-Sac
+  [14.0, 41.5, 4.8],   // Oasis Terraces Residential Cul-de-Sac
 ];
 
 // Point to Line Segment Distance and Projection
