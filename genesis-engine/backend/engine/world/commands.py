@@ -99,6 +99,8 @@ class UnifiedCommandManager:
                     result = self._handle_set_budget(conn, world_id, cmd, user_id, user_role, new_version)
                 elif cmd.action == "set_policy":
                     result = self._handle_set_policy(conn, world_id, cmd, user_id, user_role, new_version)
+                elif cmd.action in ["causal_intervention", "enact_intervention"]:
+                    result = self._handle_causal_intervention(conn, world_id, cmd, user_id, user_role, new_version)
                 else:
                     result = CommandResult(
                         command_id=cmd.command_id,
@@ -529,6 +531,141 @@ class UnifiedCommandManager:
             state_version=version + 1
         )
 
+    def _handle_causal_intervention(self, conn, world_id, cmd, user_id, user_role, version):
+        p = cmd.payload
+        intervention_id = p.get("intervention_id") or p.get("policy_id") or p.get("type")
+
+        costs = {
+            "emergency_food": {"materials": 500.0, "grc": 200.0, "title": "Emergency Grain Reserves Release"},
+            "expand_hospital": {"materials": 1200.0, "grc": 350.0, "title": "Deploy Field Hospitals & Mobile Triage"},
+            "emergency_water": {"materials": 800.0, "grc": 150.0, "title": "Emergency Desalination & Aqueduct Surge"},
+            "civic_accord": {"materials": 0.0, "grc": 400.0, "title": "Civic De-Escalation & Citizen Accord"},
+        }
+
+        if intervention_id not in costs:
+            return CommandResult(
+                command_id=cmd.command_id,
+                action=cmd.action,
+                status="rejected",
+                reason=f"Unknown causal intervention '{intervention_id}'",
+                state_version=version
+            )
+
+        c = costs[intervention_id]
+        req_mat = c["materials"]
+        req_grc = c["grc"]
+
+        econ = conn.execute(
+            "SELECT materials, genesis_research_credits, food, water, happiness, civic_stability FROM economy_resources WHERE world_id = ?",
+            (world_id,)
+        ).fetchone()
+
+        if not econ:
+            return CommandResult(
+                command_id=cmd.command_id,
+                action=cmd.action,
+                status="rejected",
+                reason=f"World '{world_id}' resources not found",
+                state_version=version
+            )
+
+        avail_mat = float(econ["materials"] or 0.0)
+        avail_grc = float(econ["genesis_research_credits"] or 0.0)
+
+        if avail_mat < req_mat:
+            return CommandResult(
+                command_id=cmd.command_id,
+                action=cmd.action,
+                status="rejected",
+                reason=f"Insufficient materials (required: {int(req_mat)}, available: {round(avail_mat, 1)})",
+                state_version=version
+            )
+
+        if avail_grc < req_grc:
+            return CommandResult(
+                command_id=cmd.command_id,
+                action=cmd.action,
+                status="rejected",
+                reason=f"Insufficient GRC (required: {int(req_grc)}, available: {round(avail_grc, 1)})",
+                state_version=version
+            )
+
+        spawned_hospital_id = None
+        with conn:
+            conn.execute("""
+            UPDATE economy_resources
+            SET materials = MAX(0.0, materials - ?),
+                genesis_research_credits = MAX(0.0, genesis_research_credits - ?)
+            WHERE world_id = ?
+            """, (req_mat, req_grc, world_id))
+
+            if intervention_id == "emergency_food":
+                conn.execute("""
+                UPDATE economy_resources
+                SET food = food + 5000.0,
+                    happiness = MIN(1.0, happiness + 0.12)
+                WHERE world_id = ?
+                """, (world_id,))
+            elif intervention_id == "emergency_water":
+                conn.execute("""
+                UPDATE economy_resources
+                SET water = water + 6000.0,
+                    happiness = MIN(1.0, happiness + 0.08)
+                WHERE world_id = ?
+                """, (world_id,))
+            elif intervention_id == "civic_accord":
+                conn.execute("""
+                UPDATE economy_resources
+                SET civic_stability = MIN(1.0, civic_stability + 0.25),
+                    happiness = MIN(1.0, happiness + 0.10)
+                WHERE world_id = ?
+                """, (world_id,))
+            elif intervention_id == "expand_hospital":
+                spawned_hospital_id = f"bld_hosp_{uuid.uuid4().hex[:6]}"
+                conn.execute("""
+                INSERT INTO buildings (
+                    id, world_id, name, type, level, x, y, z, width, length, height,
+                    orientation, status, capacity, current_occupants, current_workers
+                ) VALUES (?, ?, 'Field Hospital Pavilion', 'Hospital', 1, 0.0, 0.6, 0.0, 16.0, 16.0, 8.0, 0.0, 'active', 2000, 0, 0)
+                """, (spawned_hospital_id, world_id))
+
+            now = datetime.now(timezone.utc).isoformat()
+            log_id = f"act_{uuid.uuid4().hex[:8]}"
+            conn.execute("""
+            INSERT INTO action_logs (id, world_id, user_id, action_type, details_json, created_at)
+            VALUES (?, ?, ?, 'causal_intervention', ?, ?)
+            """, (log_id, world_id, user_id, json.dumps({
+                "intervention_id": intervention_id,
+                "title": c["title"],
+                "cost_materials": req_mat,
+                "cost_grc": req_grc,
+                "spawned_hospital_id": spawned_hospital_id,
+            }), now))
+
+            conn.execute("""
+            INSERT INTO events (id, world_id, year, day, title, category, description, created_at)
+            SELECT 'evt_' || hex(randomblob(4)), id, year, day, 'Intervention: ' || ?, 'policy', ?, datetime('now')
+            FROM worlds WHERE id = ?
+            """, (c["title"], f"Governance council executed emergency intervention: {c['title']}.", world_id))
+
+        if world_id not in self._undo_stacks:
+            self._undo_stacks[world_id] = []
+        self._undo_stacks[world_id].append({
+            "action": "causal_intervention",
+            "intervention_id": intervention_id,
+            "cost_materials": req_mat,
+            "cost_grc": req_grc,
+            "spawned_hospital_id": spawned_hospital_id,
+            "user_id": user_id,
+        })
+
+        return CommandResult(
+            command_id=cmd.command_id,
+            action=cmd.action,
+            status="accepted",
+            state_version=version + 1
+        )
+
     # ==========================================================================
     # UNDO STACK & ACTION LOG QUERY
     # ==========================================================================
@@ -589,6 +726,20 @@ class UnifiedCommandManager:
                     from engine.demographics import sync_demographics_state
                     sync_demographics_state(conn, world_id)
                     return {"success": True, "undone_action": action_name, "restored_building_id": data["id"]}
+
+                elif action_name == "causal_intervention":
+                    req_mat = float(last_action.get("cost_materials", 0.0))
+                    req_grc = float(last_action.get("cost_grc", 0.0))
+                    hosp_id = last_action.get("spawned_hospital_id")
+                    conn.execute("""
+                    UPDATE economy_resources
+                    SET materials = materials + ?,
+                        genesis_research_credits = genesis_research_credits + ?
+                    WHERE world_id = ?
+                    """, (req_mat, req_grc, world_id))
+                    if hosp_id:
+                        conn.execute("DELETE FROM buildings WHERE id = ? AND world_id = ?", (hosp_id, world_id))
+                    return {"success": True, "undone_action": action_name, "refunded_materials": req_mat, "refunded_grc": req_grc}
 
                 return {"success": False, "message": f"Action '{action_name}' is not reversible"}
         finally:

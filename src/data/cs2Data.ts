@@ -9,6 +9,34 @@ import {
   Citizen,
 } from '../types/game';
 
+// ================= DETERMINISTIC SVG CITIZEN AVATAR =================
+
+export function generateCitizenSvgAvatar(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  const colors = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#4f46e5', '#ca8a04', '#059669', '#d97706'];
+  const bg1 = colors[Math.abs(hash) % colors.length];
+  const bg2 = colors[Math.abs(hash >> 3) % colors.length];
+  const initials = (seed.replace(/[^a-zA-Z]/g, '').slice(0, 2) || 'CI').toUpperCase();
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+    <defs>
+      <linearGradient id="g_${Math.abs(hash)}" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${bg1}" />
+        <stop offset="100%" stop-color="${bg2}" />
+      </linearGradient>
+    </defs>
+    <rect width="100" height="100" rx="28" fill="url(#g_${Math.abs(hash)})" />
+    <circle cx="50" cy="38" r="18" fill="#ffffff" opacity="0.85" />
+    <path d="M22 84 C22 62, 78 62, 78 84 Z" fill="#ffffff" opacity="0.85" />
+    <text x="50" y="44" font-family="sans-serif" font-size="14" font-weight="bold" fill="${bg1}" text-anchor="middle">${initials}</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 // ================= INITIAL CHIRPER FEED (CITIES SKYLINES 2) =================
 
 export const initialChirperMessages: ChirperMessage[] = [
@@ -16,7 +44,7 @@ export const initialChirperMessages: ChirperMessage[] = [
     id: 'chirp-1',
     author: 'Elena Rostova',
     handle: '@elena_arch',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces',
+    avatar: generateCitizenSvgAvatar('@elena_arch'),
     text: 'Just moved into the new high-rise at Oasis Terraces! Sunrise over the river is unreal. Thanks City Planning! 🌅 #NewHome #OasisLiving',
     time: '2m ago',
     district: 'Oasis Terraces',
@@ -28,7 +56,7 @@ export const initialChirperMessages: ChirperMessage[] = [
     id: 'chirp-2',
     author: 'Marcus Vance',
     handle: '@marcus_drive',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces',
+    avatar: generateCitizenSvgAvatar('@marcus_drive'),
     text: 'Central Avenue junction needs a roundabout ASAP! Traffic backed up three blocks during evening rush. 🚗🚦 #TrafficAlert #FixTheRoads',
     time: '8m ago',
     district: 'Elysium Citadel',
@@ -40,7 +68,7 @@ export const initialChirperMessages: ChirperMessage[] = [
     id: 'chirp-3',
     author: 'Dr. Aris Thorne',
     handle: '@aris_quantum',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces',
+    avatar: generateCitizenSvgAvatar('@aris_quantum'),
     text: 'Breakthrough at Aethel Ridge Science Park! Our new neural scaffolding pilot boosted student retention by 34%. 🧠✨ #QuantumFuture #ScienceRules',
     time: '15m ago',
     district: 'Aethel Ridge',
@@ -52,7 +80,7 @@ export const initialChirperMessages: ChirperMessage[] = [
     id: 'chirp-4',
     author: 'City Power Dispatch',
     handle: '@grid_operations',
-    avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&h=100&fit=crop',
+    avatar: generateCitizenSvgAvatar('@grid_operations'),
     text: 'Grid telemetry report: Solar Arrays and Fusion generators producing a healthy surplus of +280 MW. Power grid stable. ⚡🔌 #CleanEnergy',
     time: '24m ago',
     district: 'Vulcan Forge',
@@ -64,7 +92,7 @@ export const initialChirperMessages: ChirperMessage[] = [
     id: 'chirp-5',
     author: 'Maya Lin',
     handle: '@maya_retail',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=faces',
+    avatar: generateCitizenSvgAvatar('@maya_retail'),
     text: 'Sales at the Citadel Commercial Plaza are booming this weekend! We need more delivery loading zones though. 🛍️📦 #ShopLocal',
     time: '35m ago',
     district: 'Elysium Citadel',
@@ -76,7 +104,7 @@ export const initialChirperMessages: ChirperMessage[] = [
     id: 'chirp-6',
     author: 'EcoWatch Terra',
     handle: '@ecowatch_terra',
-    avatar: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=100&h=100&fit=crop',
+    avatar: generateCitizenSvgAvatar('@ecowatch_terra'),
     text: 'River water clarity is up 14% since the new purification plant came online. Keep up the green policies, Mayor! 💧🌿 #GreenCity',
     time: '1h ago',
     district: 'Verdant Vale',
@@ -306,22 +334,36 @@ export function generateRandomChirp(districtName: string, simState?: SimStateFor
   } else if (simState?.highHappiness) {
     text = `✨ #ProudCitizen The skyline in ${districtName} looks stunning tonight. Clean power, zero traffic, great schools.`;
   } else {
-    const isPos = Math.random() > 0.35;
+    let hash = 0;
+    const seedStr = `${districtName}_${Date.now()}`;
+    for (let i = 0; i < seedStr.length; i++) {
+      hash = (hash << 5) - hash + seedStr.charCodeAt(i);
+      hash |= 0;
+    }
+    const isPos = Math.abs(hash % 100) > 35;
     const pool = isPos ? positiveChirps : warningChirps;
-    text = pool[Math.floor(Math.random() * pool.length)];
+    text = pool[Math.abs(hash) % pool.length];
   }
 
-  const idx = Math.floor(Math.random() * citizenNames.length);
+  let nameHash = 0;
+  for (let i = 0; i < districtName.length; i++) {
+    nameHash = (nameHash << 5) - nameHash + districtName.charCodeAt(i);
+    nameHash |= 0;
+  }
+  const idx = Math.abs(nameHash + Date.now()) % citizenNames.length;
+  const authorName = citizenNames[idx];
+  const authorHandle = citizenHandles[idx];
+  const likesCount = (Math.abs(nameHash) % 25) + 3;
 
   return {
-    id: `chirp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    author: citizenNames[idx],
-    handle: citizenHandles[idx],
-    avatar: `https://images.unsplash.com/photo-${1530000000000 + idx * 50000}?w=100&h=100&fit=crop&crop=faces`,
+    id: `chirp-${Date.now()}-${idx}`,
+    author: authorName,
+    handle: authorHandle,
+    avatar: generateCitizenSvgAvatar(authorHandle),
     text,
     time: 'Just now',
     district: districtName,
-    likes: Math.floor(Math.random() * 25) + 3,
+    likes: likesCount,
     isLiked: false,
     tag: text.match(/#[A-Za-z0-9]+/)?.[0] || '#CityLife',
   };

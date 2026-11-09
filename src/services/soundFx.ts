@@ -11,9 +11,28 @@ class SoundFX {
   private compressor: DynamicsCompressorNode | null = null;
   private isMuted: boolean = false;
   private lastClickTime: number = 0;
+  private hasUserInteracted: boolean = false;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      const onFirstGesture = () => {
+        this.hasUserInteracted = true;
+        ['click', 'keydown', 'touchstart', 'pointerdown'].forEach((evt) => {
+          window.removeEventListener(evt, onFirstGesture);
+        });
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      };
+      ['click', 'keydown', 'touchstart', 'pointerdown'].forEach((evt) => {
+        window.addEventListener(evt, onFirstGesture, { once: true, passive: true });
+      });
+    }
+  }
 
   private initContext() {
     if (typeof window === 'undefined') return;
+    if (!this.hasUserInteracted) return;
 
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;

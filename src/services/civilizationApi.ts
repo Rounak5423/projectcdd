@@ -140,15 +140,16 @@ export const civilizationApi = {
       try {
         const response = await apiClient.get<CivilizationProfile>(`/worlds/${civId}`);
         return { success: true, data: response.data };
-      } catch {
+      } catch (err: any) {
         try {
           const altResponse = await apiClient.get<CivilizationProfile>(`/civilizations/${civId}`);
           return { success: true, data: altResponse.data };
-        } catch {
+        } catch (innerErr: any) {
+          const msg = innerErr.response?.data?.detail || err.response?.data?.detail || 'Failed to load civilization profile from server.';
+          console.error(`[civilizationApi.getCivilization] Error:`, innerErr);
           return {
-            success: true,
-            message: 'FastAPI service not reachable; running in authoritative local simulation engine mode.',
-            isFallback: true,
+            success: false,
+            message: msg,
           };
         }
       }
@@ -160,8 +161,9 @@ export const civilizationApi = {
       try {
         const response = await apiClient.get('/worlds');
         return { success: true, data: response.data };
-      } catch {
-        return { success: false, data: [] };
+      } catch (err: any) {
+        console.error(`[civilizationApi.listWorlds] Error:`, err);
+        return { success: false, data: [], message: err.response?.data?.detail || err.message };
       }
     }, 6000);
   },
@@ -170,11 +172,12 @@ export const civilizationApi = {
     try {
       const response = await apiClient.post(`/worlds/${civId}/simulation/advance`, { ticks });
       return { success: true, data: response.data };
-    } catch {
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to advance simulation ticks';
+      console.error(`[civilizationApi.advanceSimulationTicks] Error:`, err);
       return {
-        success: true,
-        data: { ticksProcessed: ticks },
-        isFallback: true,
+        success: false,
+        message: msg,
       };
     }
   },
@@ -184,11 +187,12 @@ export const civilizationApi = {
     try {
       const response = await apiClient.post<PlacedBuilding>(`/worlds/${civId}/buildings`, payload);
       return { success: true, data: response.data };
-    } catch {
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to construct facility on backend';
+      console.error(`[civilizationApi.constructFacility] Error:`, err);
       return {
-        success: true,
-        message: 'Facility queued in client simulation state.',
-        isFallback: true,
+        success: false,
+        message: msg,
       };
     }
   },
@@ -197,8 +201,10 @@ export const civilizationApi = {
     try {
       const response = await apiClient.patch(`/worlds/${civId}/buildings/${buildingId}/upgrade`);
       return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to upgrade facility';
+      console.error(`[civilizationApi.upgradeFacility] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -206,8 +212,10 @@ export const civilizationApi = {
     try {
       const response = await apiClient.delete(`/worlds/${civId}/buildings/${buildingId}`);
       return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to decommission facility';
+      console.error(`[civilizationApi.decommissionFacility] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -216,8 +224,10 @@ export const civilizationApi = {
     try {
       const response = await apiClient.get(`/worlds/${civId}/technology`);
       return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to fetch technology tree';
+      console.error(`[civilizationApi.getTechnologyTree] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -225,8 +235,10 @@ export const civilizationApi = {
     try {
       const response = await apiClient.get(`/worlds/${civId}/technology/overview`);
       return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to fetch technology overview';
+      console.error(`[civilizationApi.getTechnologyOverview] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -234,8 +246,10 @@ export const civilizationApi = {
     try {
       const response = await apiClient.post(`/worlds/${civId}/technologies/${techId}/unlock`);
       return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to queue research';
+      console.error(`[civilizationApi.queueResearch] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -243,8 +257,10 @@ export const civilizationApi = {
     try {
       const response = await apiClient.post(`/worlds/${civId}/technology/${techId}/eureka`);
       return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to trigger eureka boost';
+      console.error(`[civilizationApi.triggerEurekaBoost] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -256,8 +272,10 @@ export const civilizationApi = {
         parameters: { intensity: sliderValue },
       });
       return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to enact policy';
+      console.error(`[civilizationApi.enactPolicy] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -269,8 +287,10 @@ export const civilizationApi = {
         society_state: societyState,
       });
       return { success: true, data: response.data };
-    } catch {
-      return { success: false, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Policy deliberation failed';
+      console.error(`[civilizationApi.deliberatePolicy] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -278,8 +298,10 @@ export const civilizationApi = {
     try {
       const response = await apiClient.post<any>('/policies/custom', policyData);
       return { success: true, data: response.data };
-    } catch {
-      return { success: false, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Custom policy creation failed';
+      console.error(`[civilizationApi.createCustomPolicy] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -287,8 +309,10 @@ export const civilizationApi = {
     try {
       const response = await apiClient.post<any>('/policies/record-feedback', feedback);
       return { success: true, data: response.data };
-    } catch {
-      return { success: false, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Recording policy feedback failed';
+      console.error(`[civilizationApi.recordPolicyFeedback] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -296,8 +320,10 @@ export const civilizationApi = {
     try {
       const response = await apiClient.get<any>('/policies/learning-status');
       return { success: true, data: response.data };
-    } catch {
-      return { success: false, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to get policy learning status';
+      console.error(`[civilizationApi.getPolicyLearningStatus] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -309,8 +335,10 @@ export const civilizationApi = {
         horizon_ticks: horizon,
       });
       return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to run scenario';
+      console.error(`[civilizationApi.runQuantumScenario] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 
@@ -319,8 +347,10 @@ export const civilizationApi = {
     try {
       const response = await apiClient.post<Experiment>(`/worlds/${civId}/observatory/${experimentId}/start`);
       return { success: true, data: response.data };
-    } catch {
-      return { success: true, isFallback: true };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to submit empirical trial';
+      console.error(`[civilizationApi.submitEmpiricalTrial] Error:`, err);
+      return { success: false, message: msg };
     }
   },
 

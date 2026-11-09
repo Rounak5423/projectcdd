@@ -28,6 +28,9 @@ export default function CS2ZoningAndInfoView3D() {
     placedBuildings,
     selectBuilding,
     triggerToast,
+    resources,
+    utilityStats,
+    economyReport,
   } = useGameState();
 
   const [hoveredBuildingId, setHoveredBuildingId] = useState<string | null>(null);
@@ -183,114 +186,143 @@ export default function CS2ZoningAndInfoView3D() {
       {/* 5.1 CRIME & SECURITY OVERLAY */}
       {activeInfoView === 'crime' && (
         <group name="crime-overlay">
-          {placedBuildings.map((b) => (
-            <group key={`sec-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
-              <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[2.5, 3.2, 16]} />
-                <meshBasicMaterial color="#3b82f6" transparent opacity={0.6} side={THREE.DoubleSide} />
-              </mesh>
-              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
-                <div className="px-1.5 py-0.5 rounded bg-[#0a192f]/90 border border-[#3b82f6] text-[#93c5fd] text-[9px] font-mono font-bold">
-                  🛡️ PATROL: 98% SECURE
-                </div>
-              </Html>
-            </group>
-          ))}
+          {placedBuildings.map((b) => {
+            const policeBuildings = placedBuildings.filter(p => p.name.toLowerCase().includes('police') || p.category === 'government');
+            const nearestDist = policeBuildings.length > 0 ? Math.min(...policeBuildings.map(p => Math.hypot(b.x - p.x, b.z - p.z))) : 999;
+            const secPct = policeBuildings.length > 0 ? Math.max(15, Math.min(99, Math.round(100 - nearestDist * 2.0))) : Math.round(Math.max(10, (resources?.stability ?? 50) * 0.6));
+            return (
+              <group key={`sec-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[2.5, 3.2, 16]} />
+                  <meshBasicMaterial color="#3b82f6" transparent opacity={0.6} side={THREE.DoubleSide} />
+                </mesh>
+                <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                  <div className="px-1.5 py-0.5 rounded bg-[#0a192f]/90 border border-[#3b82f6] text-[#93c5fd] text-[9px] font-mono font-bold">
+                    🛡️ PATROL: {secPct}% SECURE
+                  </div>
+                </Html>
+              </group>
+            );
+          })}
         </group>
       )}
 
       {/* 5.2 HEALTHCARE COVERAGE OVERLAY */}
       {activeInfoView === 'health' && (
         <group name="health-overlay">
-          {placedBuildings.map((b) => (
-            <group key={`hlth-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
-              <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[2.0, 3.0, 16]} />
-                <meshBasicMaterial color="#ef4444" transparent opacity={0.65} side={THREE.DoubleSide} />
-              </mesh>
-              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
-                <div className="px-1.5 py-0.5 rounded bg-[#2b0d0e]/90 border border-[#ef4444] text-[#fca5a5] text-[9px] font-mono font-bold">
-                  ❤️ CLINIC ACCESS / 82 YR
-                </div>
-              </Html>
-            </group>
-          ))}
+          {placedBuildings.map((b) => {
+            const medicalBuildings = placedBuildings.filter(p => p.name.toLowerCase().includes('hospital') || p.name.toLowerCase().includes('clinic') || p.category === 'healthcare');
+            const nearestMedDist = medicalBuildings.length > 0 ? Math.min(...medicalBuildings.map(p => Math.hypot(b.x - p.x, b.z - p.z))) : 999;
+            const healthPct = medicalBuildings.length > 0 ? Math.max(20, Math.min(99, Math.round(100 - nearestMedDist * 1.5))) : Math.round(Math.max(15, (resources?.health ?? 50) * 0.5));
+            const lifeExp = Math.round(55 + ((resources?.health ?? 70) / 100) * 30);
+            return (
+              <group key={`hlth-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[2.0, 3.0, 16]} />
+                  <meshBasicMaterial color="#ef4444" transparent opacity={0.65} side={THREE.DoubleSide} />
+                </mesh>
+                <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                  <div className="px-1.5 py-0.5 rounded bg-[#2b0d0e]/90 border border-[#ef4444] text-[#fca5a5] text-[9px] font-mono font-bold">
+                    ❤️ CLINIC ACCESS: {healthPct}% / {lifeExp} YR
+                  </div>
+                </Html>
+              </group>
+            );
+          })}
         </group>
       )}
 
       {/* 5.3 EDUCATION COGNITIVE GRID OVERLAY */}
       {activeInfoView === 'education' && (
         <group name="education-overlay">
-          {placedBuildings.map((b) => (
-            <group key={`edu-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
-              <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[2.2, 3.4, 16]} />
-                <meshBasicMaterial color="#8b5cf6" transparent opacity={0.65} side={THREE.DoubleSide} />
-              </mesh>
-              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
-                <div className="px-1.5 py-0.5 rounded bg-[#1f1035]/90 border border-[#8b5cf6] text-[#c4b5fd] text-[9px] font-mono font-bold">
-                  🎓 ACADEMY COGNITIVE SHIELD
-                </div>
-              </Html>
-            </group>
-          ))}
+          {placedBuildings.map((b) => {
+            const eduBuildings = placedBuildings.filter(p => p.name.toLowerCase().includes('school') || p.name.toLowerCase().includes('academy') || p.name.toLowerCase().includes('lab') || p.category === 'research' || p.category === 'education');
+            const nearestEduDist = eduBuildings.length > 0 ? Math.min(...eduBuildings.map(p => Math.hypot(b.x - p.x, b.z - p.z))) : 999;
+            const eduPct = eduBuildings.length > 0 ? Math.max(20, Math.min(99, Math.round(100 - nearestEduDist * 1.8))) : Math.round(Math.max(10, (resources?.educationIndex ?? 40) * 0.5));
+            return (
+              <group key={`edu-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[2.2, 3.4, 16]} />
+                  <meshBasicMaterial color="#8b5cf6" transparent opacity={0.65} side={THREE.DoubleSide} />
+                </mesh>
+                <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                  <div className="px-1.5 py-0.5 rounded bg-[#1f1035]/90 border border-[#8b5cf6] text-[#c4b5fd] text-[9px] font-mono font-bold">
+                    🎓 ACADEMY ACCESS: {eduPct}%
+                  </div>
+                </Html>
+              </group>
+            );
+          })}
         </group>
       )}
 
       {/* 5.4 PUBLIC TRANSIT CORRIDORS OVERLAY */}
       {activeInfoView === 'transit' && (
         <group name="transit-overlay">
-          {placedBuildings.map((b) => (
-            <group key={`trans-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
-              <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[1.6, 2.4, 16]} />
-                <meshBasicMaterial color="#10b981" transparent opacity={0.7} side={THREE.DoubleSide} />
-              </mesh>
-              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
-                <div className="px-1.5 py-0.5 rounded bg-[#092618]/90 border border-[#10b981] text-[#6ee7b7] text-[9px] font-mono font-bold">
-                  🚌 TRANSIT STOP: 5 MIN
-                </div>
-              </Html>
-            </group>
-          ))}
+          {placedBuildings.map((b) => {
+            const transitBuildings = placedBuildings.filter(p => p.name.toLowerCase().includes('transit') || p.name.toLowerCase().includes('station') || p.name.toLowerCase().includes('bus') || p.name.toLowerCase().includes('metro'));
+            const nearestTransitDist = transitBuildings.length > 0 ? Math.min(...transitBuildings.map(p => Math.hypot(b.x - p.x, b.z - p.z))) : Math.hypot(b.x, b.z);
+            const walkMin = Math.max(2, Math.min(30, Math.round(nearestTransitDist / 3.5)));
+            return (
+              <group key={`trans-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[1.6, 2.4, 16]} />
+                  <meshBasicMaterial color="#10b981" transparent opacity={0.7} side={THREE.DoubleSide} />
+                </mesh>
+                <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                  <div className="px-1.5 py-0.5 rounded bg-[#092618]/90 border border-[#10b981] text-[#6ee7b7] text-[9px] font-mono font-bold">
+                    🚌 TRANSIT STOP: {walkMin} MIN
+                  </div>
+                </Html>
+              </group>
+            );
+          })}
         </group>
       )}
 
       {/* 5.5 NOISE EXPOSURE OVERLAY */}
       {activeInfoView === 'noise' && (
         <group name="noise-overlay">
-          {placedBuildings.map((b) => (
-            <group key={`noise-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
-              <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <circleGeometry args={[5.0, 16]} />
-                <meshBasicMaterial color="#e67e22" transparent opacity={0.25} side={THREE.DoubleSide} />
-              </mesh>
-              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
-                <div className="px-1.5 py-0.5 rounded bg-[#2e1806]/90 border border-[#e67e22] text-[#fdba74] text-[9px] font-mono font-bold">
-                  🔊 58 dB AMBIENT
-                </div>
-              </Html>
-            </group>
-          ))}
+          {placedBuildings.map((b) => {
+            const nearInd = placedBuildings.some(p => (p.name.toLowerCase().includes('industrial') || p.name.toLowerCase().includes('factory') || p.category === 'industrial') && Math.hypot(b.x - p.x, b.z - p.z) < 25);
+            const bNoise = b.category === 'industrial' ? 84 : nearInd ? 68 : b.category === 'commercial' ? 62 : 44;
+            return (
+              <group key={`noise-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                  <circleGeometry args={[5.0, 16]} />
+                  <meshBasicMaterial color="#e67e22" transparent opacity={0.25} side={THREE.DoubleSide} />
+                </mesh>
+                <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                  <div className="px-1.5 py-0.5 rounded bg-[#2e1806]/90 border border-[#e67e22] text-[#fdba74] text-[9px] font-mono font-bold">
+                    🔊 {bNoise} dB AMBIENT
+                  </div>
+                </Html>
+              </group>
+            );
+          })}
         </group>
       )}
 
       {/* 5.6 UNEMPLOYMENT & JOB MARKET OVERLAY */}
       {activeInfoView === 'unemployment' && (
         <group name="unemployment-overlay">
-          {placedBuildings.map((b) => (
-            <group key={`unemp-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
-              <mesh rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[1.8, 2.5, 16]} />
-                <meshBasicMaterial color="#f97316" transparent opacity={0.65} side={THREE.DoubleSide} />
-              </mesh>
-              <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
-                <div className="px-1.5 py-0.5 rounded bg-[#2a1306]/90 border border-[#f97316] text-[#fed7aa] text-[9px] font-mono font-bold">
-                  💼 JOBS: 91% SATURATED
-                </div>
-              </Html>
-            </group>
-          ))}
+          {placedBuildings.map((b) => {
+            const empRate = Math.round(economyReport?.resources?.employmentRatePercent ?? 92);
+            const occPct = b.workersNeeded > 0 ? Math.round((b.workersAssigned / b.workersNeeded) * 100) : 100;
+            return (
+              <group key={`unemp-${b.id}`} position={[b.x, b.y + 0.1, b.z]}>
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[1.8, 2.5, 16]} />
+                  <meshBasicMaterial color="#f97316" transparent opacity={0.65} side={THREE.DoubleSide} />
+                </mesh>
+                <Html position={[0, 3.8, 0]} center distanceFactor={32} pointerEvents="none">
+                  <div className="px-1.5 py-0.5 rounded bg-[#2a1306]/90 border border-[#f97316] text-[#fed7aa] text-[9px] font-mono font-bold">
+                    💼 JOBS: {empRate}% / OCC: {occPct}%
+                  </div>
+                </Html>
+              </group>
+            );
+          })}
         </group>
       )}
 

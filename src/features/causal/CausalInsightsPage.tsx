@@ -148,17 +148,51 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
   const handleExecutePolicy = async (policyType: string) => {
     setIsExecutingPolicy(true);
     try {
-      // Direct emergency intervention call
-      const res = await fetch(`/api/v1/worlds/${worldId}/simulation/advance`, {
+      const cmdId = `cmd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const cmdRes = await fetch(`/api/v1/worlds/${worldId}/commands`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticks: 2 }),
+        body: JSON.stringify({
+          commands: [
+            {
+              command_id: cmdId,
+              action: 'causal_intervention',
+              payload: { intervention_id: policyType },
+            },
+          ],
+        }),
       });
-      if (res.ok) {
-        await fetchData();
+
+      const cmdData = await cmdRes.json();
+      if (!cmdRes.ok) {
+        throw new Error(cmdData.detail || 'Intervention rejected by server.');
       }
-    } catch (err) {
+
+      const res = cmdData.results?.[0];
+      if (res && res.status === 'rejected') {
+        throw new Error(res.reason || 'Simulation rules rejected this intervention.');
+      }
+
+      // Step simulation by 1 tick so that downstream effects materialize in the causal graph
+      const advRes = await fetch(`/api/v1/worlds/${worldId}/simulation/advance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticks: 1 }),
+      });
+      if (advRes.ok) {
+        const delta = await advRes.json();
+        if (delta.vitals) {
+          setLatestVitals(delta.vitals);
+          setVitalsHistory((prev) => [...prev, delta.vitals].slice(-60));
+        }
+        if (delta.trace_graph) {
+          setTraceGraph(delta.trace_graph);
+        }
+      }
+      await fetchData();
+    } catch (err: any) {
       console.error('Policy execution error:', err);
+      throw err;
     } finally {
       setIsExecutingPolicy(false);
     }

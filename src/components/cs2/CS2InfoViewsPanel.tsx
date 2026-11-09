@@ -119,7 +119,14 @@ const infoViewsList: InfoViewMeta[] = [
 ];
 
 export default function CS2InfoViewsPanel() {
-  const { activeInfoView, setActiveInfoView, utilityStats } = useGameState();
+  const {
+    activeInfoView,
+    setActiveInfoView,
+    utilityStats,
+    resources,
+    placedBuildings,
+    economyReport,
+  } = useGameState();
   const [isOpen, setIsOpen] = useState(false);
 
   const currentView = infoViewsList.find((v) => v.id === activeInfoView) || null;
@@ -322,13 +329,112 @@ export default function CS2InfoViewsPanel() {
               <div className="p-2.5 rounded-lg bg-[#152623] border border-[#264b44] space-y-1.5">
                 <div className="flex justify-between">
                   <span className="text-[#8a8376]">Citizen Approval Rating:</span>
-                  <span className="font-bold text-[#1abc9c]">91% Blissful</span>
+                  <span className="font-bold text-[#1abc9c]">{Math.round(resources?.happiness ?? 80)}% Sat</span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 pt-1 text-[10px]">
-                  <div className="p-1 rounded bg-[#101c1a]">Healthcare: <strong className="text-[#2ecc71]">95%</strong></div>
-                  <div className="p-1 rounded bg-[#101c1a]">Education: <strong className="text-[#2ecc71]">96%</strong></div>
-                  <div className="p-1 rounded bg-[#101c1a]">Safety & Order: <strong className="text-[#2ecc71]">94%</strong></div>
-                  <div className="p-1 rounded bg-[#101c1a]">Parks & Leisure: <strong className="text-[#2ecc71]">88%</strong></div>
+                  <div className="p-1 rounded bg-[#101c1a]">Healthcare: <strong className="text-[#2ecc71]">{Math.round(resources?.health ?? 80)}%</strong></div>
+                  <div className="p-1 rounded bg-[#101c1a]">Education: <strong className="text-[#2ecc71]">{Math.round(resources?.educationIndex ?? 75)}%</strong></div>
+                  <div className="p-1 rounded bg-[#101c1a]">Safety & Order: <strong className="text-[#2ecc71]">{Math.round(resources?.stability ?? 85)}%</strong></div>
+                  <div className="p-1 rounded bg-[#101c1a]">Parks & Eco: <strong className="text-[#2ecc71]">{Math.round(resources?.environmentalIndex ?? 70)}%</strong></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeInfoView === 'crime' && (
+            <div className="space-y-2.5 text-xs font-mono">
+              <div className="p-2.5 rounded-lg bg-[#121c29] border border-[#243b56] space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Civic Security Index:</span>
+                  <span className="font-bold text-[#3b82f6]">{Math.round(resources?.stability ?? 85)}% Safe</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Active Patrol Units:</span>
+                  <span className="font-bold text-[#ede8dc]">{placedBuildings.filter(b => b.name.toLowerCase().includes('police') || b.category === 'government').length} Stations</span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-[#1d2f44]">
+                  <span className="text-[#8a8376]">Crime Incident Rate:</span>
+                  <span className="font-bold text-[#2ecc71]">{Math.max(1, Math.round((100 - (resources?.stability ?? 85)) * 0.2))}% Low</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeInfoView === 'health' && (
+            <div className="space-y-2.5 text-xs font-mono">
+              <div className="p-2.5 rounded-lg bg-[#271518] border border-[#522930] space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Healthcare Index:</span>
+                  <span className="font-bold text-[#ef4444]">{Math.round(resources?.health ?? 80)}% Capacity</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Medical Facilities:</span>
+                  <span className="font-bold text-[#ede8dc]">{placedBuildings.filter(b => b.name.toLowerCase().includes('hospital') || b.name.toLowerCase().includes('clinic') || b.category === 'healthcare').length} Pavilions</span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-[#3d1e24]">
+                  <span className="text-[#8a8376]">Average Life Expectancy:</span>
+                  <span className="font-bold text-[#2ecc71]">{Math.round(55 + ((resources?.health ?? 70) / 100) * 30)} Years</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeInfoView === 'education' && (
+            <div className="space-y-2.5 text-xs font-mono">
+              <div className="p-2.5 rounded-lg bg-[#1f162c] border border-[#3f2a5c] space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Cognitive & Education Index:</span>
+                  <span className="font-bold text-[#8b5cf6]">{Math.round(resources?.educationIndex ?? 75)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Research Facilities:</span>
+                  <span className="font-bold text-[#ede8dc]">{placedBuildings.filter(b => b.name.toLowerCase().includes('school') || b.name.toLowerCase().includes('academy') || b.name.toLowerCase().includes('lab') || b.category === 'research' || b.category === 'education').length} Academies</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeInfoView === 'transit' && (
+            <div className="space-y-2.5 text-xs font-mono">
+              <div className="p-2.5 rounded-lg bg-[#11241d] border border-[#234c3c] space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Public Transit Connectivity:</span>
+                  <span className="font-bold text-[#10b981]">{utilityStats.trafficFlowPercent}% Flow</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Transit Terminals:</span>
+                  <span className="font-bold text-[#ede8dc]">{placedBuildings.filter(b => b.name.toLowerCase().includes('transit') || b.name.toLowerCase().includes('station')).length} Stops</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeInfoView === 'noise' && (
+            <div className="space-y-2.5 text-xs font-mono">
+              <div className="p-2.5 rounded-lg bg-[#2b1b11] border border-[#523321] space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Average City Noise:</span>
+                  <span className="font-bold text-[#e67e22]">
+                    {placedBuildings.some(b => b.category === 'industrial') ? '64 dB (Moderate)' : '48 dB (Quiet)'}
+                  </span>
+                </div>
+                <p className="text-[10px] text-[#8a8376] leading-tight">
+                  Industrial machinery and high-traffic road junctions emit higher decibel loads. Keep residential zones buffered.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeInfoView === 'unemployment' && (
+            <div className="space-y-2.5 text-xs font-mono">
+              <div className="p-2.5 rounded-lg bg-[#271911] border border-[#4d3021] space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Unemployment Rate:</span>
+                  <span className="font-bold text-[#f97316]">{Math.round(economyReport?.resources?.unemploymentRatePercent ?? 5)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#8a8376]">Total Labor Utilization:</span>
+                  <span className="font-bold text-[#2ecc71]">{Math.round(economyReport?.resources?.employmentRatePercent ?? 95)}%</span>
                 </div>
               </div>
             </div>

@@ -35,6 +35,7 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
 }) => {
   const [selectedPresetId, setSelectedPresetId] = useState<string>('emergency_food');
   const [lastActionResult, setLastActionResult] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const presets: InterventionPreset[] = [
     {
@@ -98,13 +99,15 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
   const activePreset = presets.find((p) => p.id === selectedPresetId) || presets[0];
 
   const handleExecute = async () => {
-    soundFx.playSuccess();
+    soundFx.playClick();
     setLastActionResult(null);
+    setErrorMessage(null);
     try {
       await onExecutePolicy(activePreset.id);
+      soundFx.playSuccess();
       setLastActionResult(`Successfully enacted: ${activePreset.title}`);
     } catch (err: any) {
-      setLastActionResult(`Intervention enacted with downstream feedback applied.`);
+      setErrorMessage(err.message || 'Intervention execution failed.');
     }
   };
 
@@ -188,6 +191,13 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
               <div className="mb-3 p-2.5 rounded bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 text-xs flex items-center gap-2 font-mono">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>{lastActionResult}</span>
+              </div>
+            )}
+
+            {errorMessage && (
+              <div className="mb-3 p-2.5 rounded bg-rose-950/50 border border-rose-800/80 text-rose-200 text-xs flex items-center gap-2 font-mono">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{errorMessage}</span>
               </div>
             )}
 

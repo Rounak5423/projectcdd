@@ -249,14 +249,16 @@ During initial load and navigation, 15 browser console warnings are emitted:
 
 #### [BLK-03] Policy "What-If" Shortcuts Advance Simulation Without Enacting Policies
 - **Severity**: Blocker
-- **Root Cause File**: `src/features/causal/CausalInsightsPage.tsx:148-165`
-- **Exact Reproduction Steps**:
-  1. Open Causal Insights Page.
-  2. Click "Policy What-If" tab.
-  3. Select any policy (e.g. "Emergency Grain Reserves Release" claiming to cost 500 Materials + 200 GRC).
-  4. Click "Enact Selected Policy".
-  5. Check backend treasury and active policies.
-- **Forensic Detail**: `handleExecutePolicy(policyType)` completely discards the `policyType` parameter and calls `/api/v1/worlds/{worldId}/simulation/advance` with `ticks: 2`. No resources are deducted, and no policy is activated.
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 4)**
+- **Root Cause File**: `src/features/causal/CausalInsightsPage.tsx:148-165`, `src/features/causal/PolicyWhatIfShortcuts.tsx:100-110`, `genesis-engine/backend/engine/world/commands.py`
+- **Fix Implementation**: Wired Policy What-If shortcuts to dispatch real `causal_intervention` commands through `/api/v1/worlds/{id}/commands`. Backend verifies atomic affordability (materials and GRC), deducts costs, applies immediate causal vitals buffs, logs actions in `action_logs` and `events`, and supports undo reversal. Frontend displays genuine error messages upon insufficient funds and reflects counterfactual delta feedback.
+- **Behavior Test Proof (`scripts/test_frontend_honesty_behavior.py`)**:
+  ```
+  Step 2: Rejected on insufficient resources (required: 500, available: 100.0)
+  Step 3: Accepted with sufficient resources: materials 2000 -> 1500, GRC 1000 -> 800, food +5000, happiness 0.50 -> 0.62
+  Step 4: Undo successfully restored exact refunded materials and GRC!
+  Step 5: Hospital pavilion constructed and verified in database!
+  ```
 
 ---
 
@@ -273,11 +275,10 @@ During initial load and navigation, 15 browser console warnings are emitted:
 
 #### [MAJ-02] Silent API Error Masking Returning False Success
 - **Severity**: Major
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 4)**
 - **Root Cause File**: `src/services/civilizationApi.ts:143-245`
-- **Exact Reproduction Steps**:
-  1. Send invalid requests or disconnect backend.
-  2. Trigger `constructFacility` or `advanceSimulationTicks`.
-- **Forensic Detail**: 13 functions catch errors and return `{ success: true, isFallback: true }`, hiding failures from UI error boundaries and logging.
+- **Fix Implementation**: Removed all 13 instances of `{ success: true, isFallback: true }` and `{ success: false, isFallback: true }` that hid failures. All client API endpoints now bubble actual HTTP errors and server rejection messages cleanly to UI error boundaries with `success: false` and descriptive error details.
+- **Verification**: `src/services/civilizationApi.ts` inspected and verified with zero silent success fallbacks remaining.
 
 #### [MAJ-03] Budget Modal Debt and Taxes Are Local Ephemeral React State
 - **Severity**: Major
@@ -330,18 +331,15 @@ During initial load and navigation, 15 browser console warnings are emitted:
 
 #### [MIN-01] Chirper Feed Generated via Math.random() with Unsplash Avatars
 - **Severity**: Minor
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 4)**
 - **Root Cause File**: `src/data/cs2Data.ts:292-340`
-- **Exact Reproduction Steps**:
-  1. Open Chirper HUD feed.
-  2. Observe chirps appearing with arbitrary stock photos and template messages uncorrelated with backend disaster or economy state.
+- **Fix Implementation**: Replaced `Math.random()` and external Unsplash avatars with a deterministic SVG citizen avatar generator (`generateCitizenSvgAvatar`) deriving unique gradient colorways and initials from citizen IDs and handles. Rewrote `generateRandomChirp` to use deterministic string hashing from district state and tick timestamps.
 
 #### [MIN-02] 3D Overlays Render Identical Static HTML Badges Over All Buildings
 - **Severity**: Minor
-- **Root Cause File**: `src/components/world3d/CS2ZoningAndInfoView3D.tsx:183-265`
-- **Exact Reproduction Steps**:
-  1. Activate Crime, Health, Education, Transit, or Noise InfoView.
-  2. Inspect buildings in 3D scene.
-- **Forensic Detail**: Every building displays identical badges (`PATROL: 98% SECURE`, `CLINIC ACCESS / 82 YR`, `58 dB AMBIENT`) regardless of city layout.
+- **Status**: **RESOLVED / VERIFIED FIXED (Sprint 4)**
+- **Root Cause File**: `src/components/world3d/CS2ZoningAndInfoView3D.tsx:183-265`, `src/components/cs2/CS2InfoViewsPanel.tsx`
+- **Fix Implementation**: Replaced all hardcoded badges (`PATROL: 98% SECURE`, `CLINIC ACCESS / 82 YR`, `58 dB AMBIENT`) with live spatial calculations computed dynamically from Euclidean proximity to municipal service facilities (police stations, medical clinics, schools, transit terminals) and citywide metrics (stability, life expectancy, industrial noise, employment rates). Also added comprehensive live InfoView inspector drawers for all 12 view modes in `CS2InfoViewsPanel.tsx`.
 
 #### [MIN-03] Council Service Epoch Multiplier Corrupts Simulation Tick Telemetry
 - **Severity**: Minor
