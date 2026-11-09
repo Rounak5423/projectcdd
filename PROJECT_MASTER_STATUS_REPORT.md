@@ -57,21 +57,21 @@ Every markdown document in the repository has been audited and verified for accu
 
 | Document Path | Scope & Purpose | Status & Key Insights |
 | :--- | :--- | :--- |
-| [`REPORT.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/REPORT.md) | Master Project & Technical Architecture Report | **Updated to v2.4.** Full reference covering cognitive science, GRC economics, REST/WebSocket API contracts, database schema, ML calibration, causal coupling, unified world architecture, and 123 automated test gates. |
-| [`CHANGELOG.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/CHANGELOG.md) | Keep a Changelog Historical Log | **Updated to [2.4.0].** Documents all releases from v1.0 foundational backend through CS2 depth, causal vitals, unified world architecture, and full Rounak frontend integration. |
-| [`README.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/README.md) | Project Overview & Quickstart | Documents system highlights, tech stack (FastAPI, React 19, Three.js, SQLite WAL), environment setup, and CLI run commands. |
-| [`COUNCIL_INTELLIGENCE_DATA_MAP.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/COUNCIL_INTELLIGENCE_DATA_MAP.md) | Council Advisor Domain Mapping | Defines the 6 Advisor roles (Chancellor, Architect, Physician, Scholar, Treasurer, Keeper), their system prompts, simulation data feeds, and LLM reasoning models. |
-| [`tools/cs2-telemetry/README.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/tools/cs2-telemetry/README.md) | CS2 Mod Telemetry Pipeline | Documents the BepInEx 6 hook, Harmony patch configuration, and Unity ECS entity reading architecture for Cities: Skylines II telemetry export. |
-| [`genesis_v2_simulation/README.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/genesis_v2_simulation/README.md) | CS2 Depth Deliverables | Summarizes Phase 1–3 deliverables: road graphs, spatial diffusion, life-path pedestrians, weather effects, and CS2 HUD panels. |
-| [`docs/cs2_telemetry_research.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/docs/cs2_telemetry_research.md) | CS2 Modding Research & EULA | Forensic analysis of Paradox Mods / Unity DOTS ECS toolchain, Harmony hooks, and legal compliance under Paradox EULA for academic/synthetic telemetry extraction. |
-| [`docs/ui_audit.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/docs/ui_audit.md) | UI Inventory & QA Audit | Audits all 18 primary and modal views, keyboard hotkeys, and colorblind accessibility modes. |
-| [`docs/feature_audit.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/docs/feature_audit.md) | Feature Logic Audit Scorecard | Classifies all 28 gameplay features into working, semi-working, and remediated categories. |
-| [`docs/disconnect_report.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/docs/disconnect_report.md) | Unified World Disconnect Audit | Forensic evidence on the 5 original disconnect pillars (construction, metrics provenance, 3D agents, ML inputs, wire protocols). |
-| [`docs/coupling_map.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/docs/coupling_map.md) | Master Coupling & Architecture Map | System coupling flowcharts contrasting legacy siloed layers against the target unified closed-loop state machine. |
-| [`docs/feature_spec.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/docs/feature_spec.md) | User-Facing Feature Specifications | Formal contract for all user-facing interactions: inputs, prerequisites, failure modes, costs, and state modifications. |
-| [`genesis-engine/backend/ml/DATA_DICTIONARY.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/genesis-engine/backend/ml/DATA_DICTIONARY.md) | ML Telemetry Data Dictionary | Parquet schemas for citizen states, commuter trips, municipal incidents, demographic events, and city metrics with run-level splitting invariants. |
-| [`genesis-engine/backend/ml/MODEL_CARD.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/genesis-engine/backend/ml/MODEL_CARD.md) | Machine Learning Model Card | Documentation of the 5 behavioral models, architectures, hyperparameters, training datasets, and rule-based fallback safety bounds. |
-| [`genesis-engine/backend/ml/reports/data_profile.md`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/genesis-engine/backend/ml/reports/data_profile.md) | ML Data Profile Report | Statistical profile of the 500-run simulation dataset: 20,000 snapshots, distribution metrics, and feature correlations. |
+| [`REPORT.md`](REPORT.md) | Master Project & Technical Architecture Report | **Updated to v2.4.** Full reference covering cognitive science, GRC economics, REST/WebSocket API contracts, database schema, ML calibration, causal coupling, unified world architecture, and 123 automated test gates. |
+| [`CHANGELOG.md`](CHANGELOG.md) | Keep a Changelog Historical Log | **Updated to [2.4.0].** Documents all releases from v1.0 foundational backend through CS2 depth, causal vitals, unified world architecture, and full Rounak frontend integration. |
+| [`README.md`](README.md) | Project Overview & Quickstart | Documents system highlights, tech stack (FastAPI, React 19, Three.js, SQLite WAL), environment setup, and CLI run commands. |
+| [`COUNCIL_INTELLIGENCE_DATA_MAP.md`](COUNCIL_INTELLIGENCE_DATA_MAP.md) | Council Advisor Domain Mapping | Defines the 6 Advisor roles (Chancellor, Architect, Physician, Scholar, Treasurer, Keeper), their system prompts, simulation data feeds, and LLM reasoning models. |
+| [`tools/cs2-telemetry/README.md`](tools/cs2-telemetry/README.md) | CS2 Mod Telemetry Pipeline | Documents the BepInEx 6 hook, Harmony patch configuration, and Unity ECS entity reading architecture for Cities: Skylines II telemetry export. |
+| [`genesis_v2_simulation/README.md`](genesis_v2_simulation/README.md) | CS2 Depth Deliverables | Summarizes Phase 1–3 deliverables: road graphs, spatial diffusion, life-path pedestrians, weather effects, and CS2 HUD panels. |
+| [`docs/cs2_telemetry_research.md`](docs/cs2_telemetry_research.md) | CS2 Modding Research & EULA | Forensic analysis of Paradox Mods / Unity DOTS ECS toolchain, Harmony hooks, and legal compliance under Paradox EULA for academic/synthetic telemetry extraction. |
+| [`docs/ui_audit.md`](docs/ui_audit.md) | UI Inventory & QA Audit | Audits all 18 primary and modal views, keyboard hotkeys, and colorblind accessibility modes. |
+| [`docs/feature_audit.md`](docs/feature_audit.md) | Feature Logic Audit Scorecard | Classifies all 28 gameplay features into working, semi-working, and remediated categories. |
+| [`docs/disconnect_report.md`](docs/disconnect_report.md) | Unified World Disconnect Audit | Forensic evidence on the 5 original disconnect pillars (construction, metrics provenance, 3D agents, ML inputs, wire protocols). |
+| [`docs/coupling_map.md`](docs/coupling_map.md) | Master Coupling & Architecture Map | System coupling flowcharts contrasting legacy siloed layers against the target unified closed-loop state machine. |
+| [`docs/feature_spec.md`](docs/feature_spec.md) | User-Facing Feature Specifications | Formal contract for all user-facing interactions: inputs, prerequisites, failure modes, costs, and state modifications. |
+| [`genesis-engine/backend/ml/DATA_DICTIONARY.md`](genesis-engine/backend/ml/DATA_DICTIONARY.md) | ML Telemetry Data Dictionary | Parquet schemas for citizen states, commuter trips, municipal incidents, demographic events, and city metrics with run-level splitting invariants. |
+| [`genesis-engine/backend/ml/MODEL_CARD.md`](genesis-engine/backend/ml/MODEL_CARD.md) | Machine Learning Model Card | Documentation of the 5 behavioral models, architectures, hyperparameters, training datasets, and rule-based fallback safety bounds. |
+| [`genesis-engine/backend/ml/reports/data_profile.md`](genesis-engine/backend/ml/reports/data_profile.md) | ML Data Profile Report | Statistical profile of the 500-run simulation dataset: 20,000 snapshots, distribution metrics, and feature correlations. |
 
 ---
 
@@ -262,7 +262,7 @@ The user interface matches the visual standards and depth of Cities: Skylines II
 ## 8. High-Fidelity 3D Council of Advisors & Avatar Pipeline
 
 The Council Chamber feature (`src/features/council/`) provides realistic, animated historical advisors:
-- **3D Realistic Character Avatars:** Replaced placeholder geometry with 6 detailed GLB models in [`public/models/council/`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/public/models/council) (`adv_architect.glb`, `adv_chancellor.glb`, `real_carl_manfred.glb`, `real_undead_wizard.glb`, etc.).
+- **3D Realistic Character Avatars:** Replaced placeholder geometry with 6 detailed GLB models in [`public/models/council/`](public/models/council) (`adv_architect.glb`, `adv_chancellor.glb`, `real_carl_manfred.glb`, `real_undead_wizard.glb`, etc.).
 - **Domain Specialization:**
   - *Grand Chancellor:* Diplomatic consensus, governance, and civic stability.
   - *Master Architect:* Urban infrastructure, zoning, and transit design.
@@ -423,3 +423,4 @@ npm run build
 ---
 
 *Report certified and approved by Antigravity Senior Simulation Architect & Principal ML Systems Engineer on November 9, 2026.*
+

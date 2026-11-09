@@ -758,7 +758,7 @@ All city alterations pass through `POST /api/v1/worlds/{id}/commands`:
 ## 19. FULL ROUNAK FRONTEND INTEGRATION & 3D CHARACTER MODELS
 
 ### 19.1 High-Fidelity 3D Council of Advisors
-- Downloaded and registered 6 realistic 3D character avatars in [`public/models/council/`](file:///Users/rangasamudramdivyamsh/Desktop/CDD%20PROJECT/public/models/council) replacing placeholder geometry:
+- Downloaded and registered 6 realistic 3D character avatars in [`public/models/council/`](public/models/council) replacing placeholder geometry:
   - **Grand Chancellor:** `adv_chancellor.glb` & `real_carl_manfred.glb` (Governance, diplomatic charisma).
   - **Master Architect:** `adv_architect.glb` (Urban planning, zoning, infrastructure).
   - **Chief Physician:** `adv_physician.glb` (Public health, epidemiology, hospital systems).
