@@ -19,7 +19,8 @@ import {
   Sparkles,
   Hammer,
 } from 'lucide-react';
-import { useGameState } from '../../context/GameStateContext';
+import { useGameState, calculateBuildingUpgradeCost, getCitadelNameForLevel } from '../../context/GameStateContext';
+import { getCitadelTerritoryRadius } from './placementValidation';
 
 export default function BuildingInspectorPanel() {
   const {
@@ -27,6 +28,9 @@ export default function BuildingInspectorPanel() {
     selectBuilding,
     resources,
     districts,
+    placedBuildings,
+    civilization,
+    catalog,
     upgradeBuilding,
     rushConstruction,
     cancelConstruction,
@@ -42,9 +46,20 @@ export default function BuildingInspectorPanel() {
   if (!selectedBuilding) return null;
 
   const district = districts.find((d) => d.id === selectedBuilding.districtId);
-  const upgradeCost = selectedBuilding.level * 280;
+  const isCitadel = selectedBuilding.modelType === 'citadel' || selectedBuilding.catalogId === 'bld-gov-citadel';
+  const citadel = placedBuildings.find((b) => b.modelType === 'citadel' || b.catalogId === 'bld-gov-citadel');
+  const citadelLevel = citadel?.level || civilization?.level || 1;
+  const isBlockedByCitadel = !isCitadel && selectedBuilding.level >= citadelLevel;
+
+  const catalogItem = catalog.find((c) => c.id === selectedBuilding.catalogId);
+  const upgradeCost = calculateBuildingUpgradeCost(selectedBuilding, catalogItem);
+
   const canAffordUpgrade =
-    resources.materials >= upgradeCost && selectedBuilding.level < selectedBuilding.maxLevel;
+    resources.materials >= upgradeCost.materials &&
+    resources.grc >= upgradeCost.money &&
+    selectedBuilding.level < selectedBuilding.maxLevel &&
+    !isBlockedByCitadel;
+
   const isMaxLevel = selectedBuilding.level >= selectedBuilding.maxLevel;
 
   const repairCost = Math.max(15, Math.round((100 - selectedBuilding.health) * 2.5));
@@ -383,31 +398,88 @@ export default function BuildingInspectorPanel() {
 
       {/* 4. CONTEXTUAL MANAGEMENT ACTIONS */}
       <div className="p-4 pt-1 border-t border-[#2d382f] bg-[#18201a]/90 space-y-2">
+        {/* Citadel / Village Seat Special Overview Banner */}
+        {isCitadel && (
+          <div className="p-2.5 rounded-xl border border-[#c6a76a]/40 bg-[#c6a76a]/10 backdrop-blur-xs space-y-1">
+            <div className="flex items-center justify-between text-[11px] font-bold text-[#c6a76a]">
+              <span className="flex items-center gap-1.5 uppercase tracking-wider">
+                <Shield size={13} />
+                Village Heart & Sovereign Seat
+              </span>
+              <span className="text-white">Lvl {selectedBuilding.level}</span>
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-[#a0aba3]">
+              <span>Current Territory: <strong className="text-[#e8e9e3]">{getCitadelTerritoryRadius(selectedBuilding.level)}m</strong></span>
+              {!isMaxLevel && (
+                <span className="text-emerald-400 font-semibold">
+                  Next: <strong>{getCitadelTerritoryRadius(selectedBuilding.level + 1)}m</strong>
+                </span>
+              )}
+            </div>
+            {!isMaxLevel && (
+              <div className="text-[10px] text-[#c6a76a]/80 italic">
+                Elevating the Citadel expands the map territory and authorizes Level {selectedBuilding.level + 1} facilities village-wide.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Village Rule Warning: Other buildings capped by Citadel level */}
+        {isBlockedByCitadel && !isConstructing && !isUpgrading && (
+          <div className="p-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-300 text-[11px] flex items-center gap-2">
+            <AlertTriangle size={15} className="shrink-0 text-amber-400" />
+            <span>
+              Village Rule: Upgrade Village Citadel to Level {selectedBuilding.level + 1} first to authorize Tier {selectedBuilding.level + 1} facilities!
+            </span>
+          </div>
+        )}
+
         {/* Upgrade Facility Action (Only when active and not max level) */}
         {!isConstructing && !isUpgrading && (
           <button
             disabled={!canAffordUpgrade}
             onClick={() => upgradeBuilding(selectedBuilding.id)}
-            className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
+            className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
               isMaxLevel
                 ? 'bg-[#1b251d] text-[#6e7d6d] border border-[#2a382c] cursor-not-allowed'
                 : canAffordUpgrade
-                ? 'bg-[#3b4c37] hover:bg-[#4d6348] text-[#e3f2dc] border border-[#5d7756] shadow-lg cursor-pointer'
+                ? isCitadel
+                  ? 'bg-gradient-to-r from-[#8a6e35] to-[#c6a76a] hover:brightness-110 text-[#0d130e] border border-[#d4b479] shadow-lg cursor-pointer'
+                  : 'bg-[#3b4c37] hover:bg-[#4d6348] text-[#e3f2dc] border border-[#5d7756] shadow-lg cursor-pointer'
                 : 'bg-[#202921] text-[#707c6f] border border-[#2d3a2e] cursor-not-allowed'
             }`}
           >
             <div className="flex items-center gap-2">
-              <ArrowUpCircle size={16} className={canAffordUpgrade ? 'text-[#a6bd82]' : ''} />
+              <ArrowUpCircle size={16} className={canAffordUpgrade ? (isCitadel ? 'text-[#0d130e]' : 'text-[#a6bd82]') : ''} />
               <span>
                 {isMaxLevel
                   ? 'MAXIMUM LEVEL 5 REACHED'
+                  : isCitadel
+                  ? `EXPAND CITADEL TO LVL ${selectedBuilding.level + 1}`
                   : `UPGRADE FACILITY (TO LVL ${selectedBuilding.level + 1})`}
               </span>
             </div>
             {!isMaxLevel && (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#162017] border border-[#2b3a2d]">
-                {upgradeCost} Mat.
-              </span>
+              <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                <span
+                  className={`px-1.5 py-0.5 rounded border ${
+                    resources.materials >= upgradeCost.materials
+                      ? 'bg-[#162017] border-[#2b3a2d] text-[#a6bd82]'
+                      : 'bg-red-950/50 border-red-800 text-red-300 font-bold'
+                  }`}
+                >
+                  {upgradeCost.materials} Mat
+                </span>
+                <span
+                  className={`px-1.5 py-0.5 rounded border ${
+                    resources.grc >= upgradeCost.money
+                      ? 'bg-[#221c12] border-[#4a3b22] text-[#c6a76a]'
+                      : 'bg-red-950/50 border-red-800 text-red-300 font-bold'
+                  }`}
+                >
+                  {upgradeCost.money} Cr
+                </span>
+              </div>
             )}
           </button>
         )}

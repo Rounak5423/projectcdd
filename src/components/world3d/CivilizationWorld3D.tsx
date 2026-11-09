@@ -11,6 +11,7 @@ import StreetlightsSystem from './StreetlightsSystem';
 import VehiclesSystem from './VehiclesSystem';
 import PedestriansSystem from './PedestriansSystem';
 import DistrictOverlays from './DistrictOverlays';
+import TerritoryBoundaryOverlay from './TerritoryBoundaryOverlay';
 import BuildingObject from './BuildingObject';
 import CS2ZoningAndInfoView3D from './CS2ZoningAndInfoView3D';
 import PlacementSystem from './PlacementSystem';
@@ -120,7 +121,7 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
           <Canvas
             key={viewportKey}
             frameloop={isPaused ? 'never' : 'always'}
-            camera={{ position: [38, 34, 46], fov: 42, near: 0.5, far: 350 }}
+            camera={{ position: [38, 34, 46], fov: 42, near: 0.5, far: 1400 }}
             shadows={shadows}
             dpr={dpr}
             performance={{ min: 0.5 }}
@@ -173,6 +174,9 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
 
             {/* Tactical District Projection Rings & Labels */}
             <DistrictOverlays />
+
+            {/* Sovereign Territory Frontier Boundary & Beacons */}
+            <TerritoryBoundaryOverlay />
 
             {/* Interactive Architectural Buildings */}
             {placedBuildings.map((building) => (

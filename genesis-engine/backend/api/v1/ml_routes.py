@@ -18,7 +18,10 @@ from ml.inference.registry import (
     get_registered_models,
     predict_civilisation_forecast,
     evaluate_incident_risk,
-    load_calibration_params
+    load_calibration_params,
+    predict_citizen_activity,
+    predict_commute_mode,
+    calculate_gompertz_mortality_hazard,
 )
 from ml.calibration.calibrate import run_calibration_pipeline
 from ml.control.controller import generate_policy_recommendation, KillSwitchActiveError
@@ -244,4 +247,128 @@ async def recommend_policy(
         return PolicyRecommendResponse(**recommendation)
     except KillSwitchActiveError as e:
         raise HTTPException(status_code=503, detail=str(e))
+
+
+class CitizenActivityRequest(BaseModel):
+    cur_activity: str = Field(default="home", description="Current activity: home, at_work, at_school, leisure")
+    hour: int = Field(default=12, ge=0, le=23, description="Clock hour 0 to 23")
+    age: float = Field(default=35.0, ge=0.0, le=120.0, description="Citizen age in years")
+    education: float = Field(default=2.0, ge=0.0, le=5.0, description="Highest education level 0 to 5")
+    health: float = Field(default=0.85, ge=0.0, le=1.0, description="Normalized health vital score 0 to 1")
+    wealth: float = Field(default=50.0, ge=0.0, description="Accumulated personal wealth score")
+
+
+class CitizenActivityResponse(BaseModel):
+    predicted_activity: str
+    ml_enabled: bool
+    model_applied: str
+
+
+class CommuteModeRequest(BaseModel):
+    age: float = Field(default=32.0, ge=0.0, le=120.0)
+    wealth: float = Field(default=60.0, ge=0.0)
+    departure_time: float = Field(default=8.0, ge=0.0, le=24.0)
+    travel_time: float = Field(default=15.0, ge=0.0)
+    cost: float = Field(default=2.0, ge=0.0)
+
+
+class CommuteModeResponse(BaseModel):
+    predicted_mode: str
+    ml_enabled: bool
+    model_applied: str
+
+
+@router.post("/ml/citizen/predict-activity", response_model=CitizenActivityResponse)
+async def predict_citizen_activity_endpoint(req: CitizenActivityRequest):
+    """
+    Evaluates citizen diurnal behavioral state using the trained Neural MLP Classifier
+    (activity_sequence.joblib, 17,500 citizen-hours training observations).
+    """
+    pred = predict_citizen_activity(
+        cur_activity=req.cur_activity,
+        hour=req.hour,
+        age=req.age,
+        education=req.education,
+        health=req.health,
+        wealth=req.wealth,
+    )
+    return CitizenActivityResponse(
+        predicted_activity=pred,
+        ml_enabled=ML_ENABLED,
+        model_applied="Neural_MLP_Classifier" if ML_ENABLED else "Calibrated_Diurnal_Heuristic"
+    )
+
+
+@router.post("/ml/citizen/mode-choice", response_model=CommuteModeResponse)
+async def predict_commute_mode_endpoint(req: CommuteModeRequest):
+    """
+    Evaluates commuter transportation mode using the trained LightGBM Mode Choice Model
+    (mode_choice.joblib, 2,800 commuting trips across diverse zone topologies).
+    """
+    mode = predict_commute_mode(
+        age=req.age,
+        wealth=req.wealth,
+        departure_time=req.departure_time,
+        travel_time=req.travel_time,
+        cost=req.cost,
+    )
+    return CommuteModeResponse(
+        predicted_mode=mode,
+        ml_enabled=ML_ENABLED,
+        model_applied="LightGBM_ModeChoice" if ML_ENABLED else "Income_Tiered_Heuristic"
+    )
+
+
+@router.get("/ml/civilization/evolution-profile")
+async def get_civilization_evolution_profile():
+    """
+    Returns the anthropological and historical evolution dataset parameters,
+    Gompertz biological aging hazards, Hadwiger fertility distributions, and societal driver weights.
+    """
+    calib = load_calibration_params()
+    sample_mortality_40 = calculate_gompertz_mortality_hazard(40.0, 0.85)
+    sample_mortality_70 = calculate_gompertz_mortality_hazard(70.0, 0.80)
+
+    return {
+        "status": "active",
+        "evolution_stages": [
+            {
+                "tier": 1,
+                "name": "Pioneer Wilderness Survival",
+                "dominant_need": "Physiological Shelter & Campfire Cohesion",
+                "maslow_focus": {"physiological": 0.50, "safety": 0.30, "social": 0.15, "esteem": 0.05}
+            },
+            {
+                "tier": 2,
+                "name": "Agrarian River Settlement",
+                "dominant_need": "Food Security & Granary Coordination",
+                "maslow_focus": {"physiological": 0.35, "safety": 0.30, "social": 0.20, "esteem": 0.10, "actualization": 0.05}
+            },
+            {
+                "tier": 3,
+                "name": "Industrial Metallurgic Township",
+                "dominant_need": "Foundry Production, Guild Labor & Commercial Markets",
+                "maslow_focus": {"physiological": 0.22, "safety": 0.22, "social": 0.22, "esteem": 0.24, "actualization": 0.10}
+            },
+            {
+                "tier": 4,
+                "name": "Scientific & Civic Polis",
+                "dominant_need": "Polytechnic Education, Cellular Health & Democratic Assembly",
+                "maslow_focus": {"physiological": 0.15, "safety": 0.15, "social": 0.25, "esteem": 0.25, "actualization": 0.20}
+            },
+            {
+                "tier": 5,
+                "name": "Biophilic Knowledge Arcology",
+                "dominant_need": "Planetary Vision, Deep Science & Harmonic Ecology",
+                "maslow_focus": {"physiological": 0.08, "safety": 0.10, "social": 0.22, "esteem": 0.25, "actualization": 0.35}
+            }
+        ],
+        "demographic_parameters": {
+            "gompertz_mortality": calib.get("gompertz_mortality"),
+            "hadwiger_fertility": calib.get("hadwiger_fertility"),
+            "sample_annual_mortality_hazard_age_40": round(sample_mortality_40, 5),
+            "sample_annual_mortality_hazard_age_70": round(sample_mortality_70, 5)
+        }
+    }
+
 

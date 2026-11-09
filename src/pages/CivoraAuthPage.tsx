@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Loader2, Shield, User, Mail, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Shield, User, Mail, Lock, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 
 interface CivoraAuthPageProps {
   onAuthenticated: () => void;
@@ -23,7 +23,7 @@ interface FieldError {
 }
 
 export default function CivoraAuthPage({ onAuthenticated, onBackToLanding }: CivoraAuthPageProps) {
-  const { login, register, error, clearError, isAuthenticated } = useAuth();
+  const { login, register, error, clearError, isAuthenticated, user, logout } = useAuth();
   const [mode, setMode] = useState<Mode>('login');
 
   // Form state
@@ -45,11 +45,6 @@ export default function CivoraAuthPage({ onAuthenticated, onBackToLanding }: Civ
       if (authTimerRef.current) clearTimeout(authTimerRef.current);
     };
   }, []);
-
-  // If auth resolves externally (e.g. token refresh) navigate straight in
-  useEffect(() => {
-    if (isAuthenticated) onAuthenticated();
-  }, [isAuthenticated, onAuthenticated]);
 
   // Clear API error when user switches mode or types
   const handleModeSwitch = (m: Mode) => {
@@ -173,6 +168,34 @@ export default function CivoraAuthPage({ onAuthenticated, onBackToLanding }: Civ
             </p>
             <div className="mt-3 h-px w-24 bg-gradient-to-r from-transparent via-[#c5a66a]/40 to-transparent" />
           </div>
+
+          {/* Active Session Card (if user already logged in) */}
+          {isAuthenticated && user && (
+            <div className="mb-6 p-3.5 rounded-xl border border-[#c5a66a]/30 bg-[#c5a66a]/10 backdrop-blur-xs flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase tracking-widest text-[#c5a66a] font-bold">Authenticated Session</div>
+                  <div className="text-sm font-semibold text-[#eae3d2]">{user.username}</div>
+                  <div className="text-[11px] text-[#c5a66a]/70">{user.email}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => logout()}
+                  className="px-2.5 py-1 text-[11px] rounded border border-red-500/40 text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors"
+                >
+                  Sign Out
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => onAuthenticated()}
+                className="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-[#c5a66a] to-[#d4b479] text-[#0d130e] font-bold text-xs uppercase tracking-widest hover:brightness-110 active:scale-[0.99] transition shadow-md cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>Continue into CIVORA</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          )}
 
           {/* Mode Tabs */}
           <div className="flex rounded-lg overflow-hidden border border-[#c5a66a]/15 mb-7">

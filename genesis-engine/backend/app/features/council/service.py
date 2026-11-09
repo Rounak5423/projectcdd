@@ -400,10 +400,43 @@ class CouncilService:
             )
         return AdvisorIntelligenceService.generate_briefing(world_id, advisor_id)
 
+    async def run_council_deliberation_async(self, world_id: str, persist_recommendations: bool = True) -> Dict[str, Any]:
+        from app.features.council.intelligence.orchestrator import CouncilOrchestrator
+        orch = CouncilOrchestrator(self.repo)
+        report = await orch.run_council_deliberation_async(world_id=world_id, persist_recommendations=persist_recommendations)
+        rep_dict = report.to_dict()
+        try:
+            from realtime import event_bus, EventPriority, EventCategory
+            import asyncio
+            asyncio.create_task(event_bus.publish(
+                event_type="council.deliberation.completed",
+                world_id=world_id,
+                payload={
+                    "report_id": rep_dict.get("report_id"),
+                    "world_id": world_id,
+                    "consensus_reached": rep_dict.get("consensus_reached", True),
+                    "recommendations_count": len(rep_dict.get("recommendations", [])),
+                    "summary": rep_dict.get("summary", "")
+                },
+                category=EventCategory.COUNCIL,
+                priority=EventPriority.CRITICAL
+            ))
+        except Exception:
+            pass
+        return rep_dict
+
     def run_council_deliberation(self, world_id: str, persist_recommendations: bool = True) -> Dict[str, Any]:
         from app.features.council.intelligence.orchestrator import CouncilOrchestrator
         orch = CouncilOrchestrator(self.repo)
         report = orch.run_council_deliberation(world_id=world_id, persist_recommendations=persist_recommendations)
+        return report.to_dict()
+
+    async def get_latest_council_deliberation_async(self, world_id: str) -> Dict[str, Any]:
+        from app.features.council.intelligence.orchestrator import CouncilOrchestrator
+        orch = CouncilOrchestrator(self.repo)
+        report = orch.get_latest_report(world_id)
+        if not report:
+            report = await orch.run_council_deliberation_async(world_id=world_id, persist_recommendations=False)
         return report.to_dict()
 
     def get_latest_council_deliberation(self, world_id: str) -> Dict[str, Any]:
@@ -413,6 +446,12 @@ class CouncilService:
         if not report:
             report = orch.run_council_deliberation(world_id=world_id, persist_recommendations=False)
         return report.to_dict()
+
+    async def analyse_single_advisor_intelligence_async(self, world_id: str, advisor_id: str) -> Dict[str, Any]:
+        from app.features.council.intelligence.orchestrator import CouncilOrchestrator
+        orch = CouncilOrchestrator(self.repo)
+        res = await orch.analyse_single_advisor_async(world_id=world_id, advisor_id=advisor_id)
+        return res.to_dict()
 
     def analyse_single_advisor_intelligence(self, world_id: str, advisor_id: str) -> Dict[str, Any]:
         from app.features.council.intelligence.orchestrator import CouncilOrchestrator
@@ -831,6 +870,50 @@ class CouncilService:
         from app.features.council.intelligence.orchestrator import CouncilOrchestrator
         orch = CouncilOrchestrator(self.repo)
         report = orch.run_council_deliberation(world_id=world_id, persist_recommendations=True)
+        report_dict = report.to_dict()
+        rec_count = len(report_dict.get("recommendations", []))
+        tradeoff_count = len(report_dict.get("tradeoffs", []))
+
+        if session_id:
+            self.repo.record_session_event(
+                session_id=session_id,
+                event_type="convocation_completed",
+                description=f"Convocation concluded. {rec_count} directives formulated and {tradeoff_count} trade-offs identified.",
+                actor_id=user_id,
+                metadata={"recommendation_count": rec_count, "tradeoff_count": tradeoff_count}
+            )
+
+        return report_dict
+
+    async def convoke_council_advisors_async(
+        self,
+        world_id: str,
+        session_id: Optional[str] = None,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Asynchronous execution of formal convocation."""
+        if session_id:
+            session = self.repo.get_session(session_id)
+            if not session:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Council session '{session_id}' not found."
+                )
+            if session.get("world_id") != world_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Session belongs to a different civilisation world."
+                )
+            self.repo.record_session_event(
+                session_id=session_id,
+                event_type="convocation_started",
+                description="High Council convoked: Ministerial analysis underway across six domains.",
+                actor_id=user_id
+            )
+
+        from app.features.council.intelligence.orchestrator import CouncilOrchestrator
+        orch = CouncilOrchestrator(self.repo)
+        report = await orch.run_council_deliberation_async(world_id=world_id, persist_recommendations=True)
         report_dict = report.to_dict()
         rec_count = len(report_dict.get("recommendations", []))
         tradeoff_count = len(report_dict.get("tradeoffs", []))

@@ -8,6 +8,7 @@ import os
 import json
 import gzip
 import logging
+from typing import Tuple, Dict, List, Optional, Any
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
@@ -247,39 +248,46 @@ def validate_sim_to_real_gaps() -> dict:
 
 def run_calibration_pipeline():
     print("=== Running GENESIS Simulation Calibration Pipeline ===")
-    p_gompertz = fit_gompertz_mortality()
-    p_fertility = fit_fertility_curve()
-    p_accident = fit_accident_parameters()
-    p_econ = fit_economic_gini_parameters()
-    sim_to_real = validate_sim_to_real_gaps()
-    
-    calibrated_payload = {
-        "version": "1.0.0",
-        "generated_at": pd.Timestamp.now().isoformat(),
-        "random_seed": RANDOM_SEED,
-        "gompertz_mortality": p_gompertz,
-        "hadwiger_fertility": p_fertility,
-        "incident_accident_engine": p_accident,
-        "macro_inequality_bounds": p_econ,
-        "sim_to_real_validation": sim_to_real,
-        "realism_guardrails": REALISM_GUARDRAILS
-    }
-    
-    # Run historical validation backtest
-    backtest_results = run_validation_backtest(calibrated_payload)
-    calibrated_payload["validation_backtest"] = backtest_results
-    
     out_file = os.path.join(CALIBRATION_DIR, "params_v1.json")
-    with open(out_file, "w") as f:
-        json.dump(calibrated_payload, f, indent=2)
+    try:
+        p_gompertz = fit_gompertz_mortality()
+        p_fertility = fit_fertility_curve()
+        p_accident = fit_accident_parameters()
+        p_econ = fit_economic_gini_parameters()
+        sim_to_real = validate_sim_to_real_gaps()
         
-    print(f"✓ Calibration config written to {out_file}")
-    print(f"  - Gompertz Fit: a={p_gompertz['a_base_hazard']}, b={p_gompertz['b_aging_rate']}, R²={p_gompertz['empirical_r2']}")
-    print(f"  - Hadwiger Peak Maternal Age: {p_fertility['peak_maternal_age']} years (R²={p_fertility['empirical_r2']})")
-    print(f"  - Accident Severity Splits: Fatal={p_accident['severity_probabilities']['fatal']}, Serious={p_accident['severity_probabilities']['serious']}, Slight={p_accident['severity_probabilities']['slight']}")
-    print(f"  - Sim-to-Real Gaps Evaluated: {len(sim_to_real['sim_to_real_gaps'])} key indicators")
-    print(f"  - Validation Backtest 10-Yr Gini MAPE: {backtest_results.get('gini_backtest_mape_pct')}%")
-    return calibrated_payload
+        calibrated_payload = {
+            "version": "1.0.0",
+            "generated_at": pd.Timestamp.now().isoformat(),
+            "random_seed": RANDOM_SEED,
+            "gompertz_mortality": p_gompertz,
+            "hadwiger_fertility": p_fertility,
+            "incident_accident_engine": p_accident,
+            "macro_inequality_bounds": p_econ,
+            "sim_to_real_validation": sim_to_real,
+            "realism_guardrails": REALISM_GUARDRAILS
+        }
+        
+        # Run historical validation backtest
+        backtest_results = run_validation_backtest(calibrated_payload)
+        calibrated_payload["validation_backtest"] = backtest_results
+        
+        with open(out_file, "w") as f:
+            json.dump(calibrated_payload, f, indent=2)
+            
+        print(f"✓ Calibration config written to {out_file}")
+        print(f"  - Gompertz Fit: a={p_gompertz['a_base_hazard']}, b={p_gompertz['b_aging_rate']}, R²={p_gompertz['empirical_r2']}")
+        print(f"  - Hadwiger Peak Maternal Age: {p_fertility['peak_maternal_age']} years (R²={p_fertility['empirical_r2']})")
+        print(f"  - Accident Severity Splits: Fatal={p_accident['severity_probabilities']['fatal']}, Serious={p_accident['severity_probabilities']['serious']}, Slight={p_accident['severity_probabilities']['slight']}")
+        print(f"  - Sim-to-Real Gaps Evaluated: {len(sim_to_real['sim_to_real_gaps'])} key indicators")
+        print(f"  - Validation Backtest 10-Yr Gini MAPE: {backtest_results.get('gini_backtest_mape_pct')}%")
+        return calibrated_payload
+    except (FileNotFoundError, OSError) as e:
+        logger.warning(f"Raw calibration datasets not present ({e}); using existing {out_file}")
+        if os.path.exists(out_file):
+            with open(out_file, "r") as f:
+                return json.load(f)
+        raise
 
 
 if __name__ == "__main__":

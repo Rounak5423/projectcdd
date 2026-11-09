@@ -8,12 +8,17 @@ from engine.models_v1 import (
     AdminUserDetail, AdminStatsResponse
 )
 from auth.security import get_current_admin, hash_password
+from cache import data_cache
 
 router = APIRouter(prefix="/admin", tags=["Admin Management"], dependencies=[Depends(get_current_admin)])
 
 
 @router.get("/stats", response_model=AdminStatsResponse)
 async def get_admin_stats():
+    cached = data_cache.get("admin_stats")
+    if cached is not None:
+        return cached
+
     conn = get_db_connection()
     # User counts
     user_rows = conn.execute("""
@@ -36,7 +41,7 @@ async def get_admin_stats():
     """).fetchone()
     conn.close()
 
-    return AdminStatsResponse(
+    result = AdminStatsResponse(
         total_users=user_rows["total_users"] or 0,
         active_users=user_rows["active_users"] or 0,
         admin_count=user_rows["admin_count"] or 0,
@@ -45,6 +50,8 @@ async def get_admin_stats():
         total_population=int(world_rows["total_population"] or 0),
         total_gdp=float(world_rows["total_gdp"] or 0.0)
     )
+    data_cache.set("admin_stats", result, ttl=5.0)
+    return result
 
 
 @router.get("/users", response_model=List[AdminUserDetail])
@@ -56,17 +63,33 @@ async def list_users():
     ORDER BY created_at ASC
     """).fetchall()
 
+    if not users:
+        conn.close()
+        return []
+
+    # Single consolidated query mapping worlds to owner_ids (N+1 resolution - Phase 7)
+    all_worlds = conn.execute("""
+    SELECT w.id, w.name, w.owner_id, w.simulation_status, p.level, e.population, e.gdp, p.thriving_score
+    FROM worlds w
+    LEFT JOIN economy_resources e ON w.id = e.world_id
+    LEFT JOIN progression p ON w.id = p.world_id
+    WHERE w.owner_id IS NOT NULL
+    ORDER BY w.updated_at DESC
+    """).fetchall()
+    conn.close()
+
+    worlds_by_owner: Dict[str, List[Dict[str, Any]]] = {}
+    for w in all_worlds:
+        oid = w["owner_id"]
+        if oid not in worlds_by_owner:
+            worlds_by_owner[oid] = []
+        w_dict = dict(w)
+        w_dict.pop("owner_id", None)
+        worlds_by_owner[oid].append(w_dict)
+
     results = []
     for u in users:
-        worlds = conn.execute("""
-        SELECT w.id, w.name, w.simulation_status, p.level, e.population, e.gdp, p.thriving_score
-        FROM worlds w
-        LEFT JOIN economy_resources e ON w.id = e.world_id
-        LEFT JOIN progression p ON w.id = p.world_id
-        WHERE w.owner_id = ?
-        ORDER BY w.updated_at DESC
-        """, (u["id"],)).fetchall()
-
+        user_worlds = worlds_by_owner.get(u["id"], [])
         results.append(AdminUserDetail(
             id=u["id"],
             username=u["username"],
@@ -75,10 +98,9 @@ async def list_users():
             is_active=bool(u["is_active"]),
             created_at=u["created_at"],
             updated_at=u["updated_at"],
-            worlds_count=len(worlds),
-            worlds=[dict(w) for w in worlds]
+            worlds_count=len(user_worlds),
+            worlds=user_worlds
         ))
-    conn.close()
     return results
 
 

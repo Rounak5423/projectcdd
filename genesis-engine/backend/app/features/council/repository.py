@@ -186,6 +186,10 @@ def init_council_tables(conn: Optional[sqlite3.Connection] = None) -> None:
         CREATE INDEX IF NOT EXISTS idx_council_exec_world ON council_execution_records(world_id);
         """)
 
+    # Seed permanent advisor identities idempotently
+    repo = CouncilRepository(lambda: conn)
+    repo.seed_advisors_idempotent()
+
     if close_after:
         conn.close()
 
@@ -514,6 +518,64 @@ class CouncilRepository:
 
         conn.close()
         return self.get_recommendation(rec_id)
+
+    def create_recommendations_batch(self, items: List[Dict[str, Any]]) -> List[str]:
+        """Inserts multiple recommendations in a single atomic database transaction."""
+        if not items:
+            return []
+
+        conn = self.get_conn()
+        now = datetime.now(timezone.utc).isoformat()
+        created_ids = []
+
+        with conn:
+            for data in items:
+                rec_id = f"rec_{uuid.uuid4().hex[:12]}"
+                created_ids.append(rec_id)
+                conn.execute("""
+                INSERT INTO council_recommendations (
+                    id, world_id, session_id, advisor_id, title, description,
+                    justification, expected_benefits, potential_risks,
+                    estimated_cost_crc, political_capital_req, category,
+                    priority, status, proposed_at, reviewed_at, reviewed_by,
+                    decision_notes, implementation_reference, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?)
+                """, (
+                    rec_id,
+                    data["world_id"],
+                    data.get("session_id"),
+                    data["advisor_id"],
+                    data["title"],
+                    data["description"],
+                    data.get("justification", ""),
+                    json.dumps(data.get("expected_benefits", [])),
+                    json.dumps(data.get("potential_risks", [])),
+                    data.get("estimated_cost_crc", 0.0),
+                    data.get("political_capital_req", 0.0),
+                    data.get("category", "Policy"),
+                    data.get("priority", "medium").lower(),
+                    data.get("status", REC_STATUS_PROPOSED).lower(),
+                    now,
+                    now,
+                    now
+                ))
+
+                if data.get("session_id"):
+                    conn.execute("""
+                    INSERT INTO council_session_events (
+                        id, session_id, event_type, description, actor_id, metadata_json, created_at
+                    ) VALUES (?, ?, ?, ?, NULL, ?, ?)
+                    """, (
+                        f"evt_{uuid.uuid4().hex[:8]}",
+                        data["session_id"],
+                        EVENT_RECOMMENDATION_DISCUSSED,
+                        f"Advisor tabled directive proposal: '{data['title']}'",
+                        json.dumps({"recommendation_id": rec_id}),
+                        now
+                    ))
+
+        conn.close()
+        return created_ids
 
     def get_recommendation(self, rec_id: str) -> Optional[Dict[str, Any]]:
         conn = self.get_conn()

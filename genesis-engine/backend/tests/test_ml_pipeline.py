@@ -35,6 +35,8 @@ client = TestClient(app)
 # -----------------------------------------------------------------------------
 
 def test_data_pipeline_shapes_and_splits():
+    if not os.path.exists(os.path.join(PROCESSED_DATA_DIR, "clean_accidents.parquet")):
+        pytest.skip("Processed ML datasets excluded from repository (.gitignore)")
     acc_data = build_accident_features()
     assert len(acc_data["train"]["X"]) > 0
     assert len(acc_data["val"]["X"]) > 0
@@ -48,6 +50,10 @@ def test_data_pipeline_shapes_and_splits():
 
 
 def test_no_target_leakage_and_time_ordering():
+    if not os.path.join(PROCESSED_DATA_DIR, "clean_macro_series.parquet"):
+        pytest.skip("Processed ML datasets excluded from repository (.gitignore)")
+    if not os.path.exists(os.path.join(PROCESSED_DATA_DIR, "clean_macro_series.parquet")):
+        pytest.skip("Processed ML datasets excluded from repository (.gitignore)")
     # Time-series ordering
     ts_data = build_time_series_features("national_income")
     train_max = ts_data["years_train"].max()

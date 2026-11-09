@@ -16,10 +16,11 @@ import os
 import math
 import json
 import uuid
+import time
 import random
 import sqlite3
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Tuple
+from typing import List, Dict, Any, Optional, Tuple
 
 from db.database import get_db_connection
 from .models import (
@@ -30,6 +31,7 @@ from .models import (
 from .cognitive import update_citizen_cognition
 from .economy import process_economy_tick, calculate_gini_coefficient, calculate_civic_stability
 from .policies import get_default_policies, extract_policy_modifiers
+from monitoring.collector import perf_collector
 
 OCCUPATIONS: List[OccupationType] = ["Farmer", "Engineer", "Scholar", "Builder", "Merchant"]
 
@@ -786,218 +788,233 @@ def step_world(world: WorldState, ticks: int = 1, ticks_per_year: int = 10) -> W
     Advances the in-memory world simulation by N ticks.
     Default ticks_per_year=10 preserves 10 ticks = 1 year behavior for existing unit tests.
     """
+    t0 = time.perf_counter()
     year_increment = round(1.0 / float(ticks_per_year), 2)
-    for _ in range(ticks):
-        world.tick += 1
-        world.year = round(world.year + year_increment, 1)
+    try:
+        for _ in range(ticks):
+            world.tick += 1
+            world.year = round(world.year + year_increment, 1)
 
-        ai_coverage, scaffolding, ubi_amt, edu_boost, auto_tax = extract_policy_modifiers(world.policies)
+            ai_coverage, scaffolding, ubi_amt, edu_boost, auto_tax = extract_policy_modifiers(world.policies)
 
-        alive_citizens: List[Citizen] = []
-        for c in world.citizens:
-            if not c.is_alive:
-                continue
+            alive_citizens: List[Citizen] = []
+            for c in world.citizens:
+                if not c.is_alive:
+                    continue
 
-            c.demographics.age = round(c.demographics.age + year_increment, 1)
+                c.demographics.age = round(c.demographics.age + year_increment, 1)
 
-            update_citizen_cognition(
-                citizen=c,
-                ai_access_coverage=ai_coverage,
-                scaffolding_friction=scaffolding,
-                education_boost=edu_boost,
-                dt=year_increment * 10.0
-            )
-
-            dx = random.uniform(-0.5, 0.5)
-            dy = random.uniform(-0.5, 0.5)
-            c.demographics.x = max(0.0, min(float(world.grid_size), c.demographics.x + dx))
-            c.demographics.y = max(0.0, min(float(world.grid_size), c.demographics.y + dy))
-
-            # Level 3 AI Model: Calibrated Gompertz adult mortality hazard
-            try:
-                from ml.inference.registry import calculate_gompertz_mortality_hazard
-                mortality_prob = calculate_gompertz_mortality_hazard(
-                    age=c.demographics.age,
-                    health=getattr(c.needs, "wellbeing", 0.75)
-                ) * year_increment
-            except Exception:
-                mortality_prob = 0.05 if c.demographics.age > 85.0 else 0.001
-
-            if random.random() < mortality_prob:
-                c.is_alive = False
-            else:
-                alive_citizens.append(c)
-
-        if len(alive_citizens) < len(world.citizens) * 0.95:
-            new_idx = len(world.citizens)
-            c_id = f"cit_{world.id}_{new_idx:04d}"
-            occ = OCCUPATIONS[new_idx % len(OCCUPATIONS)]
-            new_c = Citizen(
-                id=c_id,
-                demographics=Demographics(
-                    id=c_id,
-                    age=18.0,
-                    occupation=occ,
-                    wealth=50.0,
-                    x=round(random.uniform(0.0, float(world.grid_size)), 2),
-                    y=round(random.uniform(0.0, float(world.grid_size)), 2)
-                ),
-                needs=NeedsVector(hunger=0.1, energy=0.9, wellbeing=0.85),
-                cognitive=CognitiveProfile(
-                    independent_reasoning=round(random.uniform(0.65, 0.78), 3),
-                    problem_solving=0.6,
-                    critical_evaluation=0.7,
-                    creativity=0.65,
-                    knowledge_retention=0.75,
-                    ai_dependency=0.1
-                ),
-                is_alive=True
-            )
-            world.citizens.append(new_c)
-            alive_citizens.append(new_c)
-
-        world.population_count = len(alive_citizens)
-
-        updated_resources, economy_stats = process_economy_tick(
-            world.citizens,
-            world.resources,
-            ubi_amount=ubi_amt,
-            automation_tax_rate=auto_tax
-        )
-        world.resources = updated_resources
-        world.economy = economy_stats
-
-        snapshot = HistorySnapshot(
-            tick=world.tick,
-            year=world.year,
-            population=world.population_count,
-            gini=economy_stats.gini,
-            civic_stability=economy_stats.civic_stability,
-            macro_innovation=economy_stats.macro_innovation_index,
-            avg_ai_dependency=economy_stats.avg_ai_dependency,
-            avg_reasoning=economy_stats.avg_reasoning,
-            food=round(world.resources.food, 1),
-            energy=round(world.resources.energy, 1),
-            materials=round(world.resources.materials, 1),
-            average_wealth=economy_stats.average_wealth
-        )
-        world.history.append(snapshot)
-        if len(world.history) > 600:
-            world.history.pop(0)
-
-        # Telemetry exporter hook (zero overhead when TELEMETRY_ENABLED=False)
-        try:
-            from ml.telemetry import get_telemetry_exporter
-            exporter = get_telemetry_exporter()
-            if exporter and exporter.enabled and (world.tick % getattr(exporter, "interval_ticks", 1) == 0):
-                cit_records = []
-                trip_records = []
-                hour = world.tick % 24
-                from ml.inference.registry import (
-                    predict_citizen_activity,
-                    predict_commute_mode,
-                    predict_incident_risk
+                update_citizen_cognition(
+                    citizen=c,
+                    ai_access_coverage=ai_coverage,
+                    scaffolding_friction=scaffolding,
+                    education_boost=edu_boost,
+                    dt=year_increment * 10.0
                 )
-                for c in world.citizens[:50]:
-                    # Level 1 AI Model: Neural MLP Activity Predictor
-                    activity = predict_citizen_activity(
-                        cur_activity="home",
-                        hour=hour,
+
+                dx = random.uniform(-0.5, 0.5)
+                dy = random.uniform(-0.5, 0.5)
+                c.demographics.x = max(0.0, min(float(world.grid_size), c.demographics.x + dx))
+                c.demographics.y = max(0.0, min(float(world.grid_size), c.demographics.y + dy))
+
+                # Level 3 AI Model: Calibrated Gompertz adult mortality hazard
+                try:
+                    from ml.inference.registry import calculate_gompertz_mortality_hazard
+                    mortality_prob = calculate_gompertz_mortality_hazard(
                         age=c.demographics.age,
-                        education=round(c.cognitive.knowledge_retention * 2.0, 1),
-                        health=round(c.needs.wellbeing, 2),
-                        wealth=round(c.demographics.wealth, 2)
+                        health=getattr(c.needs, "wellbeing", 0.75)
+                    ) * year_increment
+                except Exception:
+                    mortality_prob = 0.05 if c.demographics.age > 85.0 else 0.001
+
+                if random.random() < mortality_prob:
+                    c.is_alive = False
+                else:
+                    alive_citizens.append(c)
+
+            if len(alive_citizens) < len(world.citizens) * 0.95:
+                new_idx = len(world.citizens)
+                c_id = f"cit_{world.id}_{new_idx:04d}"
+                occ = OCCUPATIONS[new_idx % len(OCCUPATIONS)]
+                new_c = Citizen(
+                    id=c_id,
+                    demographics=Demographics(
+                        id=c_id,
+                        age=18.0,
+                        occupation=occ,
+                        wealth=50.0,
+                        x=round(random.uniform(0.0, float(world.grid_size)), 2),
+                        y=round(random.uniform(0.0, float(world.grid_size)), 2)
+                    ),
+                    needs=NeedsVector(hunger=0.1, energy=0.9, wellbeing=0.85),
+                    cognitive=CognitiveProfile(
+                        independent_reasoning=round(random.uniform(0.65, 0.78), 3),
+                        problem_solving=0.6,
+                        critical_evaluation=0.7,
+                        creativity=0.65,
+                        knowledge_retention=0.75,
+                        ai_dependency=0.1
+                    ),
+                    is_alive=True
+                )
+                world.citizens.append(new_c)
+                alive_citizens.append(new_c)
+
+            world.population_count = len(alive_citizens)
+
+            # Process macro economy
+            updated_resources, economy_stats = process_economy_tick(
+                world.citizens,
+                world.resources,
+                ubi_amount=ubi_amt,
+                automation_tax_rate=auto_tax
+            )
+            world.resources = updated_resources
+            world.economy = economy_stats
+
+            # Record history snapshot
+            snapshot = HistorySnapshot(
+                tick=world.tick,
+                year=world.year,
+                population=world.population_count,
+                gini=economy_stats.gini,
+                civic_stability=economy_stats.civic_stability,
+                macro_innovation=economy_stats.macro_innovation_index,
+                avg_ai_dependency=economy_stats.avg_ai_dependency,
+                avg_reasoning=economy_stats.avg_reasoning,
+                food=round(world.resources.food, 1),
+                energy=round(world.resources.energy, 1),
+                materials=round(world.resources.materials, 1),
+                average_wealth=economy_stats.average_wealth
+            )
+            world.history.append(snapshot)
+            if len(world.history) > 600:
+                world.history.pop(0)
+
+            # Telemetry exporter hook (zero overhead when TELEMETRY_ENABLED=False)
+            try:
+                from ml.telemetry import get_telemetry_exporter
+                exporter = get_telemetry_exporter()
+                if exporter and exporter.enabled and (world.tick % getattr(exporter, "interval_ticks", 1) == 0):
+                    cit_records = []
+                    trip_records = []
+                    hour = world.tick % 24
+                    from ml.inference.registry import (
+                        predict_citizen_activity,
+                        predict_commute_mode,
+                        predict_incident_risk
                     )
-                    cit_records.append({
-                        "id": c.id,
-                        "age": c.demographics.age,
-                        "education": round(c.cognitive.knowledge_retention * 2.0, 1),
-                        "health": round(c.needs.wellbeing, 2),
-                        "wealth": round(c.demographics.wealth, 2),
-                        "household_id": f"hh_{c.id}",
-                        "home_id": "bld_res_01",
-                        "work_id": "bld_ind_01",
-                        "school_id": "bld_edu_01",
-                        "current_activity": activity
-                    })
-                    if hour in [7, 8, 17, 18]:
-                        # Level 1 AI Model: Discrete Mode Choice Model (LightGBM)
-                        mode = predict_commute_mode(
+                    for c in world.citizens[:50]:
+                        # Level 1 AI Model: Neural MLP Activity Predictor
+                        activity = predict_citizen_activity(
+                            cur_activity="home",
+                            hour=hour,
                             age=c.demographics.age,
-                            wealth=c.demographics.wealth,
-                            departure_time=float(hour)
+                            education=round(c.cognitive.knowledge_retention * 2.0, 1),
+                            health=round(c.needs.wellbeing, 2),
+                            wealth=round(c.demographics.wealth, 2)
                         )
-                        trip_records.append({
-                            "trip_id": f"trp_{c.id}_{world.tick}",
-                            "citizen_id": c.id,
-                            "origin_id": "node_home",
-                            "destination_id": "node_work",
-                            "mode": mode,
-                            "departure_time": float(hour),
-                            "travel_time": round(random.uniform(12.0, 28.0), 1),
-                            "cost": 3.0 if mode == "car" else (1.5 if mode == "transit" else 0.0)
+                        cit_records.append({
+                            "id": c.id,
+                            "age": c.demographics.age,
+                            "education": round(c.cognitive.knowledge_retention * 2.0, 1),
+                            "health": round(c.needs.wellbeing, 2),
+                            "wealth": round(c.demographics.wealth, 2),
+                            "household_id": f"hh_{c.id}",
+                            "home_id": "bld_res_01",
+                            "work_id": "bld_ind_01",
+                            "school_id": "bld_edu_01",
+                            "current_activity": activity
+                        })
+                        if hour in [7, 8, 17, 18]:
+                            # Level 1 AI Model: Discrete Mode Choice Model (LightGBM)
+                            mode = predict_commute_mode(
+                                age=c.demographics.age,
+                                wealth=c.demographics.wealth,
+                                departure_time=float(hour)
+                            )
+                            trip_records.append({
+                                "trip_id": f"trp_{c.id}_{world.tick}",
+                                "citizen_id": c.id,
+                                "origin_id": "node_home",
+                                "destination_id": "node_work",
+                                "mode": mode,
+                                "departure_time": float(hour),
+                                "travel_time": round(random.uniform(12.0, 28.0), 1),
+                                "cost": 3.0 if mode == "car" else (1.5 if mode == "transit" else 0.0)
+                            })
+
+                    dem_events = []
+                    if len(world.citizens) > 0 and (world.tick % 10 == 0):
+                        dem_events.append({
+                            "event_id": f"dem_{world.id}_{world.tick}",
+                            "event_type": "birth",
+                            "age": 0.0,
+                            "cause": "natural"
                         })
 
-                dem_events = []
-                if len(world.citizens) > 0 and (world.tick % 10 == 0):
-                    dem_events.append({
-                        "event_id": f"dem_{world.id}_{world.tick}",
-                        "event_type": "birth",
-                        "age": 0.0,
-                        "cause": "natural"
-                    })
+                    incidents = []
+                    if random.random() < 0.15:
+                        loc_x = random.uniform(0.0, float(world.grid_size))
+                        loc_y = random.uniform(0.0, float(world.grid_size))
+                        resp_time = round(random.uniform(3.5, 9.0), 1)
+                        is_night = 1 if (hour >= 21 or hour <= 5) else 0
 
-                incidents = []
-                if random.random() < 0.15:
-                    loc_x = random.uniform(0.0, float(world.grid_size))
-                    loc_y = random.uniform(0.0, float(world.grid_size))
-                    resp_time = round(random.uniform(3.5, 9.0), 1)
-                    is_night = 1 if (hour >= 21 or hour <= 5) else 0
+                        # Level 2 AI Model: Calibrated Incident Severity & Risk Classifier
+                        inc_eval = predict_incident_risk(
+                            location_x=loc_x,
+                            location_y=loc_y,
+                            response_time=resp_time,
+                            hour=hour,
+                            is_night=is_night
+                        )
 
-                    # Level 2 AI Model: Calibrated Incident Severity & Risk Classifier
-                    inc_eval = predict_incident_risk(
-                        location_x=loc_x,
-                        location_y=loc_y,
-                        response_time=resp_time,
-                        hour=hour,
-                        is_night=is_night
+                        incidents.append({
+                            "incident_id": f"inc_{world.id}_{world.tick}",
+                            "type": "traffic",
+                            "severity": inc_eval["severity_code"],
+                            "location_x": loc_x,
+                            "location_y": loc_y,
+                            "response_time": resp_time,
+                            "casualties": 2 if inc_eval["is_severe"] else 1
+                        })
+
+                    city_stats = {
+                        "population": world.population_count,
+                        "gdp": world.resources.food * 50.0 + world.resources.energy * 80.0 + world.resources.materials * 100.0,
+                        "gini": economy_stats.gini,
+                        "happiness": round(sum(c.needs.wellbeing for c in world.citizens) / max(1, len(world.citizens)), 3),
+                        "pollution": 0.12,
+                        "civic_stability": economy_stats.civic_stability,
+                        "average_health": round(sum(c.needs.wellbeing for c in world.citizens) / max(1, len(world.citizens)), 3),
+                        "average_education": round(economy_stats.macro_innovation_index, 3),
+                        "traffic_congestion": 0.22
+                    }
+
+                    policy_dict = {p_id: p.active for p_id, p in world.policies.items()}
+                    exporter.record_snapshot(
+                        world_id=world.id,
+                        tick=world.tick,
+                        seed=getattr(world, "seed", 42),
+                        policies=policy_dict,
+                        citizens=cit_records,
+                        trips=trip_records,
+                        incidents=incidents,
+                        demographics=dem_events,
+                        city_metrics=city_stats
                     )
+            except Exception:
+                pass
 
-                    incidents.append({
-                        "incident_id": f"inc_{world.id}_{world.tick}",
-                        "type": "traffic",
-                        "severity": inc_eval["severity_code"],
-                        "location_x": loc_x,
-                        "location_y": loc_y,
-                        "response_time": resp_time,
-                        "casualties": 2 if inc_eval["is_severe"] else 1
-                    })
-
-                city_stats = {
-                    "population": world.population_count,
-                    "gdp": world.resources.food * 50.0 + world.resources.energy * 80.0 + world.resources.materials * 100.0,
-                    "gini": economy_stats.gini,
-                    "happiness": round(sum(c.needs.wellbeing for c in world.citizens) / max(1, len(world.citizens)), 3),
-                    "pollution": 0.12,
-                    "civic_stability": economy_stats.civic_stability,
-                    "average_health": round(sum(c.needs.wellbeing for c in world.citizens) / max(1, len(world.citizens)), 3),
-                    "average_education": round(economy_stats.macro_innovation_index, 3),
-                    "traffic_congestion": 0.22
-                }
-
-                policy_dict = {p_id: p.active for p_id, p in world.policies.items()}
-                exporter.record_snapshot(
-                    world_id=world.id,
-                    tick=world.tick,
-                    seed=getattr(world, "seed", 42),
-                    policies=policy_dict,
-                    citizens=cit_records,
-                    trips=trip_records,
-                    incidents=incidents,
-                    demographics=dem_events,
-                    city_metrics=city_stats
-                )
-        except Exception:
-            pass
-
-    return world
+        dt = (time.perf_counter() - t0) * 1000.0
+        perf_collector.record_simulation_tick(
+            tick_duration_ms=dt,
+            processed_agents=world.population_count,
+            state_updates=ticks,
+            events_generated=0,
+            db_writes=0
+        )
+        return world
+    except Exception as e:
+        perf_collector.record_simulation_error()
+        raise e

@@ -15,46 +15,36 @@ from engine.models import (
 )
 from engine.state import world_manager
 from engine.simulation import step_world, seed_aurora_prime_if_not_exists, advance_world_simulation
+from engine.scheduler import simulation_scheduler
 from auth.security import decode_access_token
 from db.database import get_db_connection
 from api.v1.router import api_v1_router
 from app.features.council.router import router as council_router
+from monitoring import (
+    perf_collector,
+    PerformanceMonitoringMiddleware,
+    diagnostics_router,
+)
+from config import settings
+from realtime import (
+    EventEnvelope,
+    EventPriority,
+    EventCategory,
+    sequencer,
+    delta_engine,
+    idempotency_manager,
+    rt_ws_manager,
+    event_bus,
+)
+import time
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 FRONTEND_DIR = ROOT_DIR
 
 
-class ConnectionManager:
-    """Manages active WebSocket connections subscribed to world telemetry streams."""
-
-    def __init__(self):
-        self.active_connections: Dict[str, Set[WebSocket]] = {}
-
-    async def connect(self, world_id: str, websocket: WebSocket):
-        if world_id not in self.active_connections:
-            self.active_connections[world_id] = set()
-        self.active_connections[world_id].add(websocket)
-
-    def disconnect(self, world_id: str, websocket: WebSocket):
-        if world_id in self.active_connections:
-            self.active_connections[world_id].discard(websocket)
-            if not self.active_connections[world_id]:
-                del self.active_connections[world_id]
-
-    async def broadcast(self, world_id: str, message: Dict[str, Any]):
-        if world_id in self.active_connections:
-            dead_connections = set()
-            payload = json.dumps(message)
-            for connection in list(self.active_connections[world_id]):
-                try:
-                    await connection.send_text(payload)
-                except Exception:
-                    dead_connections.add(connection)
-            for dead in dead_connections:
-                self.disconnect(world_id, dead)
-
-
-ws_manager = ConnectionManager()
+# Backward compatible alias for RealtimeConnectionManager
+ConnectionManager = type(rt_ws_manager)
+ws_manager = rt_ws_manager
 autotick_tasks: Dict[str, asyncio.Task] = {}
 
 
@@ -69,6 +59,9 @@ def serialize_world_state(world: WorldState, include_all_citizens: bool = True) 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Validate critical configuration invariants
+    settings.validate_production_invariants()
+
     # Seed persistent SQLite database with Aurora Prime
     seed_aurora_prime_if_not_exists()
 
@@ -82,9 +75,24 @@ async def lifespan(app: FastAPI):
             world_id="prime"
         )
     yield
-    # Cleanup background autotick tasks
+    # Cleanup background autotick tasks and centralized simulation scheduler
     for task in autotick_tasks.values():
         task.cancel()
+    await simulation_scheduler.shutdown()
+    try:
+        from app.features.council.intelligence.request_manager import ai_request_manager
+        await ai_request_manager.shutdown()
+    except Exception:
+        pass
+    try:
+        await rt_ws_manager.shutdown()
+    except Exception:
+        pass
+    try:
+        from db.database import db_pool
+        db_pool.close_all()
+    except Exception:
+        pass
 
 
 app = FastAPI(
@@ -94,20 +102,55 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for local development and frontend clients
+# Enable CORS (Explicit origins in production, development fallback)
+cors_origins = settings.ALLOWED_ORIGINS if settings.ALLOWED_ORIGINS else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Centralized Performance Monitoring Middleware
+app.add_middleware(PerformanceMonitoringMiddleware)
+
+# Dedicated Production Health Probes (Liveness & Readiness)
+@app.get("/health/live", tags=["Health Probes"])
+async def liveness_probe():
+    """Liveness probe: returns 200 OK if the backend event loop and process are alive."""
+    return {"status": "alive"}
+
+
+@app.get("/health/ready", tags=["Health Probes"])
+async def readiness_probe():
+    """Readiness probe: verifies persistent SQLite connectivity and scheduler state."""
+    try:
+        conn = get_db_connection()
+        row = conn.execute("SELECT 1 as ok").fetchone()
+        conn.close()
+        if not row or row["ok"] != 1:
+            raise RuntimeError("Database query failed")
+        return {
+            "status": "ready",
+            "database": "connected",
+            "active_worlds": len(world_manager.list_all())
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Service not ready: {str(e)}"
+        )
 
 # Mount /api/v1 router
 app.include_router(api_v1_router)
 
 # Mount /api/council direct alias
 app.include_router(council_router, prefix="/api")
+
+# Mount Performance Diagnostics Router
+app.include_router(diagnostics_router, prefix="/api/v1")
+app.include_router(diagnostics_router, prefix="/api")
 
 # Mount frontend built assets if available
 FRONTEND_DIST = os.path.join(FRONTEND_DIR, "dist")
@@ -382,25 +425,45 @@ async def compare_worlds(world_id: str, target_id: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-# Background continuous auto-tick runner
+# Background continuous auto-tick runner with monotonic timing and non-blocking execution (Task 2 & 5)
 async def _run_autotick(world_id: str, interval: float):
+    accumulator = 0.0
+    prev_time = time.monotonic()
     try:
         while True:
-            await asyncio.sleep(interval)
-            world = world_manager.get(world_id)
-            if not world:
-                break
-            step_world(world, ticks=1)
-            await ws_manager.broadcast(world_id, {
-                "type": "tick_update",
-                "world_id": world_id,
-                "tick": world.tick,
-                "year": world.year,
-                "economy": world.economy.model_dump(),
-                "resources": world.resources.model_dump(),
-                "population": world.population_count,
-                "sample_citizens": [c.model_dump() for i, c in enumerate(world.citizens) if i < 40]
-            })
+            now = time.monotonic()
+            elapsed = now - prev_time
+            prev_time = now
+            accumulator += elapsed
+
+            ticks_to_run = int(accumulator // interval)
+            if ticks_to_run > 0:
+                if ticks_to_run > 3:
+                    ticks_to_run = 3
+                    accumulator = 0.0
+                else:
+                    accumulator -= ticks_to_run * interval
+
+                world = world_manager.get(world_id)
+                if not world:
+                    break
+
+                # Offload simulation compute from event loop
+                await asyncio.to_thread(step_world, world, ticks_to_run)
+
+                await ws_manager.broadcast(world_id, {
+                    "type": "tick_update",
+                    "world_id": world_id,
+                    "tick": world.tick,
+                    "year": world.year,
+                    "economy": world.economy.model_dump(),
+                    "resources": world.resources.model_dump(),
+                    "population": world.population_count,
+                    "sample_citizens": [c.model_dump() for i, c in enumerate(world.citizens) if i < 40]
+                })
+
+            next_sleep = max(0.01, min(interval, interval - accumulator))
+            await asyncio.sleep(next_sleep)
     except asyncio.CancelledError:
         pass
 
@@ -431,40 +494,24 @@ async def stop_autotick(world_id: str):
 # WebSocket streaming endpoint
 @app.websocket("/ws/world/{world_id}")
 async def websocket_world_stream(websocket: WebSocket, world_id: str, token: Optional[str] = Query(None)):
-    user = None
-    if token:
-        user = decode_access_token(token)
-
-    if not user:
-        await websocket.accept()
-        try:
-            auth_msg_raw = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
-            auth_msg = json.loads(auth_msg_raw)
-            if auth_msg.get("type") == "auth" and auth_msg.get("token"):
-                user = decode_access_token(auth_msg["token"])
-        except Exception:
-            pass
-
-        if not user:
-            await websocket.send_text(json.dumps({
-                "type": "error",
-                "code": "AUTH_REQUIRED",
-                "message": "Valid authentication token required to connect to world stream."
-            }))
-            await websocket.close(code=1008)
-            return
-    else:
-        await websocket.accept()
-
-    await ws_manager.connect(world_id, websocket)
+    session = await rt_ws_manager.connect(world_id, websocket)
     try:
-        # Send initial state immediately on connection
+        # Send initial full state immediately on connection via snapshot
         world = world_manager.get(world_id)
         if world:
-            await websocket.send_text(json.dumps({
-                "type": "initial_state",
-                "world": serialize_world_state(world, include_all_citizens=False)
-            }))
+            full_st = serialize_world_state(world, include_all_citizens=True)
+            _, payload, _, new_v = delta_engine.compute_state_delta(world_id, full_st, force_snapshot=True)
+            perf_collector.record_ws_snapshot_emitted()
+            init_env = EventEnvelope(
+                event_type="initial_state",
+                category=EventCategory.WORLD_STATE,
+                world_id=world_id,
+                sequence_number=sequencer.next_sequence(world_id),
+                world_state_version=new_v,
+                priority=EventPriority.CRITICAL,
+                payload={"type": "initial_state", "world": full_st, "version": new_v}
+            )
+            await rt_ws_manager.send_to_session(session, init_env)
         else:
             conn = get_db_connection()
             db_w = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
@@ -473,8 +520,7 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str, token: Opt
                 db_prog = conn.execute("SELECT * FROM progression WHERE world_id = ?", (world_id,)).fetchone()
                 db_bld_count = conn.execute("SELECT COUNT(*) as c FROM buildings WHERE world_id = ?", (world_id,)).fetchone()["c"]
                 conn.close()
-                await websocket.send_text(json.dumps({
-                    "type": "initial_state",
+                db_state = {
                     "world_id": world_id,
                     "name": db_w["name"],
                     "tick": db_w["tick"],
@@ -485,90 +531,145 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str, token: Opt
                     "economy": dict(db_econ) if db_econ else {},
                     "progression": dict(db_prog) if db_prog else {},
                     "buildings_count": db_bld_count
-                }))
+                }
+                _, payload, _, new_v = delta_engine.compute_state_delta(world_id, db_state, force_snapshot=True)
+                perf_collector.record_ws_snapshot_emitted()
+                init_env = EventEnvelope(
+                    event_type="initial_state",
+                    category=EventCategory.WORLD_STATE,
+                    world_id=world_id,
+                    sequence_number=sequencer.next_sequence(world_id),
+                    world_state_version=new_v,
+                    priority=EventPriority.CRITICAL,
+                    payload={"type": "initial_state", **db_state, "version": new_v}
+                )
+                await rt_ws_manager.send_to_session(session, init_env)
             else:
                 conn.close()
-                await websocket.send_text(json.dumps({
-                    "type": "error",
-                    "message": f"World '{world_id}' does not exist"
-                }))
+                err_env = EventEnvelope(
+                    event_type="error",
+                    category=EventCategory.NOTIFICATION,
+                    world_id=world_id,
+                    priority=EventPriority.CRITICAL,
+                    payload={"type": "error", "message": f"World '{world_id}' does not exist"}
+                )
+                await rt_ws_manager.send_to_session(session, err_env)
 
         # Listen for client commands over WebSocket
         while True:
+            t_ws = time.perf_counter()
             data_text = await websocket.receive_text()
+            data_bytes = len(data_text.encode('utf-8'))
             try:
                 cmd = json.loads(data_text)
                 action = cmd.get("type")
+                idemp_key = cmd.get("idempotency_key")
+
                 if action == "tick":
+                    is_new, cached = idempotency_manager.register_or_check(world_id, idemp_key)
+                    if not is_new:
+                        perf_collector.record_ws_duplicate_detected()
+                        if cached:
+                            await rt_ws_manager.send_to_session(session, EventEnvelope(
+                                event_type="tick_update",
+                                world_id=world_id,
+                                sequence_number=sequencer.next_sequence(world_id),
+                                payload=cached
+                            ))
+                        continue
+
                     ticks = cmd.get("ticks", 1)
                     target_world = world_manager.get(world_id)
                     if target_world:
                         step_world(target_world, ticks=ticks)
-                        # Broadcast lightweight delta
-                        await ws_manager.broadcast(world_id, {
-                            "type": "tick_delta",
+                        curr_state = {
                             "world_id": world_id,
                             "tick": target_world.tick,
                             "year": target_world.year,
-                            "delta": {
-                                "population": target_world.population_count,
-                                "gini": target_world.economy.gini,
-                                "civic_stability": target_world.economy.civic_stability,
-                                "macro_innovation": target_world.economy.macro_innovation_index,
-                                "resources": target_world.resources.model_dump()
-                            }
-                        })
+                            "economy": target_world.economy.model_dump(),
+                            "resources": target_world.resources.model_dump(),
+                            "population": target_world.population_count,
+                            "sample_citizens": [c.model_dump() for i, c in enumerate(target_world.citizens) if i < 40]
+                        }
+                        ev_type, delta_payload, base_v, new_v = delta_engine.compute_state_delta(world_id, curr_state)
+                        if ev_type == "world.state.delta":
+                            perf_collector.record_ws_delta_emitted()
+                        else:
+                            perf_collector.record_ws_snapshot_emitted()
+
+                        delta_dict = {
+                            "population": target_world.population_count,
+                            "gini": target_world.economy.gini,
+                            "civic_stability": target_world.economy.civic_stability,
+                            "macro_innovation": target_world.economy.macro_innovation_index,
+                            "resources": target_world.resources.model_dump(),
+                            **(delta_payload if isinstance(delta_payload, dict) else {})
+                        }
+                        out_msg = {
+                            "type": "tick_update",
+                            "event_type": ev_type,
+                            "delta": delta_dict,
+                            **curr_state
+                        }
+                        idempotency_manager.complete(world_id, idemp_key, out_msg)
+                        await rt_ws_manager.broadcast(world_id, out_msg)
                     else:
                         try:
                             delta = advance_world_simulation(world_id, ticks=ticks)
-                            # Broadcast delta instead of monolithic state
-                            await ws_manager.broadcast(world_id, {
-                                "type": "tick_delta",
-                                "world_id": world_id,
-                                "tick": delta["tick"],
-                                "year": delta["year"],
-                                "day": delta["day"],
-                                "delta": {
-                                    "population": delta["population"],
-                                    "gdp": delta["gdp"],
-                                    "happiness": delta.get("happiness"),
-                                    "civic_stability": delta.get("civic_stability"),
-                                    "resources": delta["resources"],
-                                    "progression": delta["progression"],
-                                    "vitals": delta.get("vitals"),
-                                    "events": delta.get("events", [])
-                                }
-                            })
-                            # Broadcast versioned unified world delta
-                            try:
-                                from engine.world.simulation import get_unified_simulation
-                                u_sim = get_unified_simulation(world_id)
-                                w_delta, _ = u_sim.advance_tick(ticks=ticks)
-                                await ws_manager.broadcast(world_id, {
-                                    "type": "world_state_delta",
-                                    "world_id": world_id,
-                                    "version": w_delta.to_version,
-                                    "from_version": w_delta.from_version,
-                                    "tick": w_delta.tick,
-                                    "year": w_delta.year,
-                                    "day": w_delta.day,
-                                    "created_buildings": [b.model_dump() for b in w_delta.created_buildings],
-                                    "updated_buildings": [b.model_dump() for b in w_delta.updated_buildings],
-                                    "active_vehicles": [v.model_dump() for v in w_delta.active_vehicles],
-                                    "metrics": w_delta.metrics.model_dump(),
-                                    "utilities": w_delta.utilities.model_dump(),
-                                    "traffic": w_delta.traffic.model_dump(),
-                                })
-                            except Exception:
-                                pass
+                            ev_type, delta_payload, base_v, new_v = delta_engine.compute_state_delta(world_id, delta)
+                            if ev_type == "world.state.delta":
+                                perf_collector.record_ws_delta_emitted()
+                            else:
+                                perf_collector.record_ws_snapshot_emitted()
+
+                            delta_dict = {
+                                "population": delta.get("population"),
+                                "gdp": delta.get("gdp"),
+                                "happiness": delta.get("happiness"),
+                                "civic_stability": delta.get("civic_stability"),
+                                "resources": delta.get("resources"),
+                                "progression": delta.get("progression"),
+                                **(delta_payload if isinstance(delta_payload, dict) else {})
+                            }
+                            out_msg = {
+                                "type": "tick_update",
+                                "event_type": ev_type,
+                                "delta": delta_dict,
+                                **delta
+                            }
+                            idempotency_manager.complete(world_id, idemp_key, out_msg)
+                            await rt_ws_manager.broadcast(world_id, out_msg)
                         except Exception as e:
-                            await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
+                            idempotency_manager.fail(world_id, idemp_key, str(e))
+                            perf_collector.record_ws_error()
+
+                elif action == "resync":
+                    # Client requested authoritative snapshot resynchronization (Task 8)
+                    perf_collector.record_ws_snapshot_recovery()
+                    world = world_manager.get(world_id)
+                    if world:
+                        full_st = serialize_world_state(world, include_all_citizens=True)
+                    else:
+                        latest = delta_engine.get_latest_snapshot(world_id)
+                        full_st = latest.get("state", {}) if latest else {}
+                    await rt_ws_manager.resync_client(session, full_st)
                 elif action == "ping":
-                    await websocket.send_text(json.dumps({"type": "pong"}))
+                    pong_env = EventEnvelope(
+                        event_type="pong",
+                        category=EventCategory.NOTIFICATION,
+                        world_id=world_id,
+                        priority=EventPriority.LOW,
+                        payload={"type": "pong", "client_timestamp": cmd.get("timestamp")}
+                    )
+                    await rt_ws_manager.send_to_session(session, pong_env)
+
             except json.JSONDecodeError:
-                pass
+                perf_collector.record_ws_error()
+            finally:
+                proc_ms = (time.perf_counter() - t_ws) * 1000.0
+                perf_collector.record_ws_message_received(data_bytes, proc_ms)
     except WebSocketDisconnect:
-        ws_manager.disconnect(world_id, websocket)
+        await rt_ws_manager.disconnect(world_id, session)
 
 
 @app.get("/api/civilisations/{civ_id}/state")

@@ -31,11 +31,11 @@ async def create_world(
         ) VALUES (?, ?, NULL, ?, 0, 2026, 1, 'paused', '1x', ?, ?, ?, ?, ?)
         """, (world_id, req.name, owner_id, req.climate, req.technology_level, req.grid_size, now, now))
 
-        # Initial economy and resources
-        food_init = 10000.0
-        water_init = 10000.0
-        energy_init = 8000.0
-        materials_init = 5000.0
+        # Initial economy and resources (starter pioneer supplies)
+        food_init = 1200.0
+        water_init = 1500.0
+        energy_init = 800.0
+        materials_init = 2500.0
         if req.initial_resources:
             food_init = req.initial_resources.get("food", food_init)
             water_init = req.initial_resources.get("water", water_init)
@@ -50,31 +50,47 @@ async def create_world(
             materials, materials_rate, research_points, research_rate,
             genesis_research_credits, happiness, environmental_health, pollution
         ) VALUES (
-            ?, ?, 0.02, 10000000.0, 0.03, 0.90, 45000.0, 0.28, 0.77, 0.15,
-            ?, 80.0, ?, 120.0, ?, 70.0, ?, 45.0, 1000.0, 25.0,
-            1000.0, 0.75, 0.85, 0.10
+            ?, ?, 0.02, 50000.0, 0.01, 1.0, 32000.0, 0.15, 0.90, 0.10,
+            ?, 20.0, ?, 25.0, ?, 15.0, ?, 10.0, 100.0, 5.0,
+            500.0, 0.88, 0.95, 0.02
         )
         """, (world_id, req.initial_population, food_init, water_init, energy_init, materials_init))
 
         # Progression
         conn.execute("""
         INSERT INTO progression (world_id, xp, level, title, thriving_score, grc_balance)
-        VALUES (?, 0, 1, 'Level 1 Civilisation', 0.75, 1000.0)
+        VALUES (?, 0, 1, 'Pioneer Settlement', 0.85, 500.0)
         """, (world_id,))
 
-        # Initial government center
+        # Initial starter Frontier Colony Outpost
         center = req.grid_size / 2.0
         conn.execute("""
         INSERT INTO buildings (
             id, world_id, name, type, level, x, y, z, width, length, height,
             orientation, status, capacity, construction_cost, upgrade_cost, effects
-        ) VALUES (?, ?, 'Civic Center', 'Government', 1, ?, ?, 0.0, 3.0, 3.0, 4.0, 0.0, 'active', 50, '{}', '{}', '{}')
+        ) VALUES (?, ?, 'Frontier Colony Outpost', 'Government', 1, ?, ?, 0.0, 3.0, 3.0, 3.0, 0.0, 'active', 10, '{}', '{}', '{}')
         """, (f"bld_{uuid.uuid4().hex[:8]}", world_id, center, center))
+
+        # Founding pioneer citizens
+        pioneer_occupations = [
+            'Expedition Commander', 'Botanist & Agronomist', 'Civil Infrastructure Engineer',
+            'Energy Systems Technician', 'Hydrological Specialist', 'Materials Fabricator',
+            'Field Medic', 'Cartographer & Surveyor', 'Biosphere Ecologist', 'Data & Comms Specialist'
+        ]
+        for i in range(min(req.initial_population, 20)):
+            occ = pioneer_occupations[i % len(pioneer_occupations)]
+            conn.execute("""
+            INSERT INTO citizens (
+                id, world_id, age, occupation, wealth, x, y, hunger, energy, wellbeing,
+                education_level, health, independent_reasoning, problem_solving, critical_evaluation,
+                creativity, knowledge_retention, ai_dependency, is_alive
+            ) VALUES (?, ?, ?, ?, 100.0, ?, ?, 0.1, 0.9, 0.85, 0.8, 0.95, 0.8, 0.85, 0.75, 0.8, 0.85, 0.05, 1)
+            """, (f"cit_{world_id}_{i+1:02d}", world_id, 28.0 + (i % 12), occ, center + (i % 3) * 0.5, center + (i // 3) * 0.5))
 
         # Initial event
         conn.execute("""
         INSERT INTO events (id, world_id, year, day, title, category, description, created_at)
-        VALUES (?, ?, 2026, 1, 'Civilisation Founded', 'milestone', 'The foundation of the civilisation was laid.', ?)
+        VALUES (?, ?, 1, 1, 'Civilisation Founded', 'milestone', 'Your founding pioneers have arrived to establish the colony.', ?)
         """, (f"evt_{uuid.uuid4().hex[:8]}", world_id, now))
 
     row = conn.execute("""

@@ -5,10 +5,12 @@ Provides REST HTTP endpoints for Advisors, Sessions, Recommendations, and Decree
 
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from auth.security import get_current_user_optional, get_current_user
 from app.features.council.dependencies import verify_world_access, _resolve_world_id
 from app.features.council.service import CouncilService
+from app.features.council.intelligence.streaming import stream_advisor_speech
 from app.features.council.schemas import (
     CouncilEnvelope,
     CouncilAdvisorDetail,
@@ -447,7 +449,7 @@ async def run_council_intelligence(
     Evaluates domain findings, identifies risks, checks cross-domain trade-offs, and persists new recommendations.
     """
     verify_world_access(world_id, current_user)
-    report = council_service.run_council_deliberation(
+    report = await council_service.run_council_deliberation_async(
         world_id=world_id,
         persist_recommendations=persist_recommendations
     )
@@ -469,7 +471,7 @@ async def get_latest_council_intelligence(
 ):
     """Returns the most recent unified Council deliberation report for the civilisation."""
     verify_world_access(world_id, current_user)
-    report = council_service.get_latest_council_deliberation(world_id)
+    report = await council_service.get_latest_council_deliberation_async(world_id)
     return CouncilEnvelope(
         success=True,
         data=report,
@@ -489,7 +491,7 @@ async def analyse_single_advisor(
 ):
     """Runs domain analytical logic for an individual advisor on the specified world state."""
     verify_world_access(world_id, current_user)
-    res = council_service.analyse_single_advisor_intelligence(world_id=world_id, advisor_id=advisor_id)
+    res = await council_service.analyse_single_advisor_intelligence_async(world_id=world_id, advisor_id=advisor_id)
     return CouncilEnvelope(
         success=True,
         data=res,
@@ -558,7 +560,7 @@ async def convoke_session_advisors(
     verify_world_access(session["worldId"], current_user)
 
     user_id = current_user.get("id") if current_user else None
-    report = council_service.convoke_council_advisors(
+    report = await council_service.convoke_council_advisors_async(
         world_id=session["worldId"],
         session_id=session_id,
         user_id=user_id
@@ -567,6 +569,26 @@ async def convoke_session_advisors(
         success=True,
         data=report,
         message="High Council convoked and ministerial deliberation concluded."
+    )
+
+
+@router.get(
+    "/advisors/{advisor_id}/speech/stream",
+    summary="Progressive streaming of advisor formal counsel"
+)
+async def stream_advisor_speech_endpoint(
+    advisor_id: str,
+    world_id: str = Query("aurora-prime", alias="worldId"),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """
+    Streams the formal speech of an advisor progressively using chunked text.
+    Provides responsive UI delivery while isolating presentation from authoritative decisions.
+    """
+    verify_world_access(world_id, current_user)
+    return StreamingResponse(
+        stream_advisor_speech(advisor_id=advisor_id, world_id=world_id),
+        media_type="text/plain"
     )
 
 

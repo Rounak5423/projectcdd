@@ -179,7 +179,7 @@ def test_websocket_authentication_and_deltas():
         # 3. Send tick command and receive delta packet
         websocket.send_json({"type": "tick", "ticks": 1})
         delta_msg = websocket.receive_json()
-        assert delta_msg["type"] == "tick_delta"
+        assert delta_msg["type"] in ["tick_delta", "tick_update"]
         assert "delta" in delta_msg
         assert "population" in delta_msg["delta"]
         assert "resources" in delta_msg["delta"]

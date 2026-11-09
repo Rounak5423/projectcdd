@@ -272,6 +272,18 @@ export interface Technology {
   unlockedIcons?: string[];
 }
 
+export interface PolicyResearchFindings {
+  totalObservations: number;
+  measuredHappinessShift: number; // accumulated points
+  measuredProductivityShift: number; // accumulated %
+  measuredStabilityShift: number;
+  evolutionaryAdaptationScore: number; // 0 - 100%
+  breakthroughDiscovery: string;
+  isResearchSubmitted: boolean;
+  submittedAtDay?: number;
+  submittedAtYear?: number;
+}
+
 export interface Policy {
   id: string;
   name: string;
@@ -283,7 +295,14 @@ export interface Policy {
     | 'Universal Basic Income'
     | 'Environmental Protection'
     | 'Resource Equality'
-    | 'Economic Regulation';
+    | 'Economic Regulation'
+    | 'Research'
+    | 'Social'
+    | 'Economic'
+    | 'Labor'
+    | 'Environmental'
+    | 'Custom'
+    | string;
   description: string;
   costPoliticalCapital: number;
   maintenanceCostCredits: number;
@@ -302,6 +321,13 @@ export interface Policy {
     stabilityModifier: number; // points
     environmentModifier: number; // points
   };
+  // Gradual Assimilation & Longitudinal Research
+  assimilationProgress?: number; // 0 - 100%
+  daysActive?: number;
+  enactedAtDay?: number;
+  enactedAtYear?: number;
+  currentPhase?: 'Friction & Resistance' | 'Societal Assimilation' | 'Mature Equilibrium';
+  researchFindings?: PolicyResearchFindings;
 }
 
 export interface ScenarioProjectionPoint {
@@ -378,6 +404,16 @@ export interface GameEvent {
   isRead: boolean;
 }
 
+export type MapTerrainType =
+  | 'Verdant River Valley'
+  | 'Highland Plateau'
+  | 'Archipelago'
+  | 'Boreal Basin'
+  | 'Arid Oasis'
+  | 'Crimson Canyon'
+  | 'Frostpeak Taiga'
+  | 'Obsidian Caldera';
+
 export interface CivilizationProfile {
   id: string;
   name: string;
@@ -391,7 +427,7 @@ export interface CivilizationProfile {
   foundingYear: number;
   currentYear: number;
   currentDay: number;
-  terrainType: 'Verdant River Valley' | 'Highland Plateau' | 'Archipelago' | 'Boreal Basin' | 'Arid Oasis';
+  terrainType: MapTerrainType;
   climateType: 'Temperate' | 'Subtropical' | 'Subpolar' | 'Continental';
 }
 

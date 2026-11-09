@@ -32,7 +32,6 @@ const ResourcesPage = React.lazy(() => import('./pages/ResourcesPage'));
 const TechnologyPage = React.lazy(() => import('./pages/TechnologyPage'));
 const PolicyLaboratoryPage = React.lazy(() => import('./pages/PolicyLaboratoryPage'));
 const FutureSimulatorPage = React.lazy(() => import('./pages/FutureSimulatorPage'));
-const CausalInsightsPage = React.lazy(() => import('./features/causal/CausalInsightsPage').then(m => ({ default: m.CausalInsightsPage })));
 const ResearchObservatoryPage = React.lazy(() => import('./pages/ResearchObservatoryPage'));
 const ResearchWalletPage = React.lazy(() => import('./pages/ResearchWalletPage'));
 const AchievementsPage = React.lazy(() => import('./pages/AchievementsPage'));
@@ -78,11 +77,12 @@ function GameApp() {
     setIsBudgetOpen,
     isStatisticsOpen,
     setIsStatisticsOpen,
+    saveGame,
   } = useGameState();
   const { isAuthenticated, isLoading, logout, user, isAdmin } = useAuth();
 
-  // App-level navigation stage: landing → auth → app
-  const [stage, setStage] = useState<AppStage>('landing');
+  // App-level navigation stage: Always start on auth page as required
+  const [stage, setStage] = useState<AppStage>('auth');
 
   // Auto-open tactical inspector when a building is selected in 3D world
   useEffect(() => {
@@ -90,13 +90,6 @@ function GameApp() {
       setIsRightPanelOpen(true);
     }
   }, [selectedBuildingId]);
-
-  // If the user is already authenticated on mount, skip landing & auth
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      setStage('app');
-    }
-  }, [isLoading, isAuthenticated]);
 
   // Handle Navigation across Civora Empire & Shell
   const handleNavigate = (page: string) => {
@@ -263,11 +256,14 @@ function GameApp() {
           </div>
         );
       case 'Policy Laboratory':
-        return <PolicyLaboratoryPage onClose={handleClose} />;
+        return (
+          <PolicyLaboratoryPage
+            onClose={handleClose}
+            onNavigateToCouncil={() => handleNavigate('Council of Advisors')}
+          />
+        );
       case 'Future Simulator':
         return <FutureSimulatorPage onClose={handleClose} />;
-      case 'Causal Insights':
-        return <CausalInsightsPage onNavigate={handleNavigate} onClose={handleClose} />;
       case 'Research Observatory':
         return <ResearchObservatoryPage onClose={handleClose} />;
       case 'Research Wallet':
@@ -334,6 +330,7 @@ function GameApp() {
           onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
           user={user}
           onLogout={() => {
+            saveGame();
             logout();
             setStage('auth');
           }}

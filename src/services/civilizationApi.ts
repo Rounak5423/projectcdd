@@ -261,6 +261,46 @@ export const civilizationApi = {
     }
   },
 
+  async deliberatePolicy(policy: any, worldId?: string, societyState?: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post<any>('/policies/deliberate', {
+        policy,
+        world_id: worldId,
+        society_state: societyState,
+      });
+      return { success: true, data: response.data };
+    } catch {
+      return { success: false, isFallback: true };
+    }
+  },
+
+  async createCustomPolicy(policyData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post<any>('/policies/custom', policyData);
+      return { success: true, data: response.data };
+    } catch {
+      return { success: false, isFallback: true };
+    }
+  },
+
+  async recordPolicyFeedback(feedback: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post<any>('/policies/record-feedback', feedback);
+      return { success: true, data: response.data };
+    } catch {
+      return { success: false, isFallback: true };
+    }
+  },
+
+  async getPolicyLearningStatus(): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get<any>('/policies/learning-status');
+      return { success: true, data: response.data };
+    } catch {
+      return { success: false, isFallback: true };
+    }
+  },
+
   // Scenario Simulator
   async runQuantumScenario(civId: string, scenarioId: string, horizon: number): Promise<ApiResponse<SimulationScenario>> {
     try {

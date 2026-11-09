@@ -344,10 +344,12 @@ export function calculateCitySimulation(
     Math.max(0, resourceAccounting.energyNetMW * 2.5)
   );
 
-  const totalDailyRev = popIncomeTax + commTax + indRev + tradeSurplus;
+  // Early-colony exploration stipend & charter grant ensures small settlements can accumulate capital for Citadel expansion
+  const colonyStipend = pop < 35 ? Math.max(15, 42 - pop) : 0;
+  const totalDailyRev = popIncomeTax + commTax + indRev + tradeSurplus + colonyStipend;
 
-  // Expenditures
-  const infraUpkeep = 58; // municipal roads, architectural bridges, lighting grid
+  // Expenditures: Infrastructure upkeep scales reasonably with actual settlement footprint rather than bankrupting small villages
+  const infraUpkeep = Math.min(58, Math.max(4, placedBuildings.length * 3));
   const publicServices = Math.round(totalClinicCap * 0.12 + totalAcademyCap * 0.14);
   const totalDailyExp = totalMaintenance + infraUpkeep + publicServices;
 
