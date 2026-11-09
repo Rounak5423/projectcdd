@@ -8,6 +8,7 @@ from engine.models_v1 import (
     MapTerrainResponse, BuildingRecord, BuildingConstructRequest,
     BuildingUpgradeResponse
 )
+from cache import data_cache
 
 router = APIRouter(tags=["3D World & Infrastructure"])
 
@@ -62,6 +63,11 @@ BUILDING_DEFAULTS = {
 
 @router.get("/worlds/{id}/map", response_model=MapTerrainResponse)
 async def get_world_map(id: str):
+    cache_key = f"map_terrain:{id}"
+    cached = data_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     conn = get_db_connection()
     world = conn.execute("SELECT * FROM worlds WHERE id = ?", (id,)).fetchone()
     conn.close()
@@ -99,7 +105,7 @@ async def get_world_map(id: str):
         "average_temperature": 21.5 if climate == "Temperate" else 32.0 if climate == "Arid" else 2.0
     }
 
-    return MapTerrainResponse(
+    result = MapTerrainResponse(
         world_id=id,
         grid_size=grid_size,
         climate=climate,
@@ -107,6 +113,8 @@ async def get_world_map(id: str):
         elevation_grid=elevation,
         biomes=biomes
     )
+    data_cache.set(cache_key, result, ttl=180.0)
+    return result
 
 
 @router.get("/worlds/{id}/buildings", response_model=List[BuildingRecord])

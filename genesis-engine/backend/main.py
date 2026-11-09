@@ -84,6 +84,11 @@ async def lifespan(app: FastAPI):
         await rt_ws_manager.shutdown()
     except Exception:
         pass
+    try:
+        from db.database import db_pool
+        db_pool.close_all()
+    except Exception:
+        pass
 
 
 app = FastAPI(

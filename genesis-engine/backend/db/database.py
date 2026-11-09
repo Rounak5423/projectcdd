@@ -6,23 +6,41 @@ from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timezone
 
 from monitoring.db_tracer import TracedConnection
+from db.pool import SQLiteConnectionPool
 
 DB_PATH = os.environ.get("GENESIS_DB_PATH", os.path.join(os.path.dirname(__file__), "genesis.db"))
 
+# High-Performance SQLite Connection Pool (Phase 7)
+db_pool = SQLiteConnectionPool(DB_PATH, max_connections=16, timeout=10.0)
 
-def get_db_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, timeout=10.0, factory=TracedConnection)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode = WAL")
-    conn.execute("PRAGMA synchronous = NORMAL")
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA cache_size = -64000")
-    conn.execute("PRAGMA temp_store = MEMORY")
-    conn.execute("PRAGMA mmap_size = 268435456")
-    return conn
+
+def get_db_connection():
+    """Acquires a pooled, traced SQLite connection with busy timeout protection."""
+    if db_pool.db_path != DB_PATH:
+        db_pool.reset_path(DB_PATH)
+    return db_pool.get_connection()
 
 
 def init_db():
+    if db_pool.db_path != DB_PATH:
+        db_pool.reset_path(DB_PATH)
+
+    # Invalidate in-process cache on database initialization
+    try:
+        from cache.data_cache import data_cache
+        data_cache.clear()
+    except Exception:
+        pass
+
+    # Configure database-level WAL journal once
+    try:
+        raw = sqlite3.connect(DB_PATH, timeout=10.0)
+        raw.execute("PRAGMA journal_mode = WAL")
+        raw.execute("PRAGMA synchronous = NORMAL")
+        raw.close()
+    except Exception:
+        pass
+
     conn = get_db_connection()
     with conn:
         conn.executescript("""
@@ -270,6 +288,20 @@ def init_db():
             materials REAL NOT NULL,
             FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
         );
+        """)
+
+        # High-Performance Secondary Indexes (Phase 7)
+        conn.executescript("""
+        CREATE INDEX IF NOT EXISTS idx_buildings_world_id ON buildings(world_id);
+        CREATE INDEX IF NOT EXISTS idx_citizens_world_occ ON citizens(world_id, occupation);
+        CREATE INDEX IF NOT EXISTS idx_metrics_history_world_id ON metrics_history(world_id, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_events_world_year ON events(world_id, year DESC, day DESC);
+        CREATE INDEX IF NOT EXISTS idx_snapshots_world_tick ON snapshots(world_id, tick DESC);
+        CREATE INDEX IF NOT EXISTS idx_experiments_world_date ON experiments(world_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_scenarios_world_id ON scenarios(world_id);
+        CREATE INDEX IF NOT EXISTS idx_worlds_owner_id ON worlds(owner_id);
+        CREATE INDEX IF NOT EXISTS idx_policies_world_active ON policies(world_id, is_active);
+        CREATE INDEX IF NOT EXISTS idx_technologies_world_level ON technologies(world_id, level ASC);
         """)
 
         # Backward compatibility: safely add owner_id to worlds if it doesn't exist

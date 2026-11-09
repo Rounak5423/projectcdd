@@ -412,8 +412,6 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
 
     conn.close()
 
-    conn.close()
-
     result = {
         "world_id": world_id,
         "tick": new_tick,

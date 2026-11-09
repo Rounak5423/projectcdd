@@ -51,6 +51,10 @@ class PerformanceMetricsCollector:
         self._db_errors_count: int = 0
         self._db_slow_queries: Deque[Dict[str, Any]] = deque(maxlen=30)
         self.slow_query_threshold_ms: float = 50.0
+        self._db_pool_hits: int = 0
+        self._db_pool_creations: int = 0
+        self._cache_hits: int = 0
+        self._cache_misses: int = 0
 
         # Simulation Metrics
         self._sim_tick_durations: Deque[float] = deque(maxlen=200)
@@ -192,6 +196,30 @@ class PerformanceMetricsCollector:
             return
         with self._lock:
             self._db_errors_count += 1
+
+    def record_db_pool_hit(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._db_pool_hits += 1
+
+    def record_db_pool_creation(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._db_pool_creations += 1
+
+    def record_cache_hit(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._cache_hits += 1
+
+    def record_cache_miss(self) -> None:
+        if not self._enabled:
+            return
+        with self._lock:
+            self._cache_misses += 1
 
     # -------------------------------------------------------------------------
     # Simulation Recording
@@ -514,11 +542,20 @@ class PerformanceMetricsCollector:
                     "slow_queries_count": self._db_slow_queries_count,
                     "errors_count": self._db_errors_count,
                     "slow_query_threshold_ms": self.slow_query_threshold_ms,
+                    "pool_hits": self._db_pool_hits,
+                    "pool_creations": self._db_pool_creations,
                     "latency": {
                         "avg_ms": db_avg_ms,
                         "p95_ms": db_p95_ms,
                     },
                     "recent_slow_queries": list(self._db_slow_queries),
+                },
+                "cache": {
+                    "hits": self._cache_hits,
+                    "misses": self._cache_misses,
+                    "hit_ratio_pct": round(
+                        (self._cache_hits / max(self._cache_hits + self._cache_misses, 1)) * 100, 1
+                    ),
                 },
                 "simulation": {
                     "total_ticks": self._sim_total_ticks,
@@ -591,6 +628,10 @@ class PerformanceMetricsCollector:
             self._db_slow_queries_count = 0
             self._db_errors_count = 0
             self._db_slow_queries.clear()
+            self._db_pool_hits = 0
+            self._db_pool_creations = 0
+            self._cache_hits = 0
+            self._cache_misses = 0
 
             self._sim_tick_durations.clear()
             self._sim_total_ticks = 0

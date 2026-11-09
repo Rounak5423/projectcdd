@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, status
 from db.database import get_db_connection
 from engine.models_v1 import PolicyDefinition, PolicyApplyRequest
+from cache import data_cache
 
 router = APIRouter(tags=["Policies"])
 
@@ -66,7 +67,11 @@ CATALOG_POLICIES = [
 
 @router.get("/policies", response_model=List[PolicyDefinition])
 async def get_available_policies():
-    return [
+    cached = data_cache.get("catalog_policies")
+    if cached is not None:
+        return cached
+
+    result = [
         PolicyDefinition(
             id=p["id"],
             name=p["name"],
@@ -79,6 +84,8 @@ async def get_available_policies():
         )
         for p in CATALOG_POLICIES
     ]
+    data_cache.set("catalog_policies", result, ttl=3600.0)
+    return result
 
 
 @router.get("/worlds/{id}/policies", response_model=List[PolicyDefinition])
