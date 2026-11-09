@@ -1,15 +1,14 @@
 /**
  * CIVORA — AUTHORITATIVE CENTRALIZED ROAD NETWORK DATA MODEL
  * 
- * Strict Graph Topology:
- * G = (V, E)
- * Every road segment is bounded by valid NetworkNodes.
- * Zero visual overlap used as a substitute for connectivity.
- * Zero dangling rectangular cutoffs on grass.
- * Zero roads passing through the Central Landmark.
+ * Strict Graph Topology: G = (V, E)
+ * Fully Continuous Arterials, Unbroken Curvature, Zero Gaps.
+ * Zero Dangling Rectangles.
+ * Zero Landmark Forum Penetrations.
  */
 
 import { getTerrainHeight } from './Terrain';
+import { RoadCategory as BaseRoadCategory } from '../../types/road';
 
 // ================= NETWORK GRAPH TYPES =================
 
@@ -17,10 +16,11 @@ export type NodeType =
   | 'intersection_4way'
   | 'intersection_3way'
   | 'roundabout_center'
+  | 'roundabout_throat'
   | 'bridge_abutment'
   | 'cul_de_sac'
   | 'highway_portal'
-  | 'corner_bend';
+  | 'junction_plaza';
 
 export interface NetworkNode {
   id: string;
@@ -34,17 +34,13 @@ export interface NetworkNode {
   description?: string;
 }
 
-export type RoadCategory =
-  | 'grand_arterial'
-  | 'civic_boulevard'
-  | 'secondary_loop'
-  | 'district_collector'
-  | 'local_spur';
+export type RoadCategory = BaseRoadCategory;
 
 export type RoadMarkingType =
   | 'double-yellow'
-  | 'dual-dash'
   | 'single-white'
+  | 'dashed-white'
+  | 'dual-dash'
   | 'none';
 
 export interface RoadSegment {
@@ -56,13 +52,13 @@ export interface RoadSegment {
   width: number;
   lanes: number;
   speedLimitKmh: number;
-  centerline: [number, number][];
+  centerline: [number, number][]; // Full continuous spline control waypoints
   markingType: RoadMarkingType;
   hasSidewalks: boolean;
   sidewalkWidth: number;
-  zone: 'citadel' | 'commercial' | 'residential' | 'industrial' | 'education' | 'infrastructure';
   isBridge?: boolean;
-  description: string;
+  zone?: 'commercial' | 'residential' | 'industrial' | 'citadel' | 'education';
+  description?: string;
 }
 
 export interface ArchitecturalBridgeDef {
@@ -75,6 +71,8 @@ export interface ArchitecturalBridgeDef {
   width: number;
   rotationY: number;
   roadSegmentId: string;
+  style?: 'arch' | 'suspension';
+  deckElevation?: number;
 }
 
 export interface CulDeSacDef {
@@ -86,6 +84,7 @@ export interface CulDeSacDef {
   approachWidth: number;
   approachTangent: [number, number];
   hasCenterIsland: boolean;
+  turnaroundRadius?: number;
 }
 
 export interface RoundaboutDef {
@@ -139,30 +138,28 @@ function createNode(
 
 export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
   const nodes: Record<string, NetworkNode> = {
-    // 1. Map Boundary Highway Portals
+    // 1. Regional Highway Boundary Portals
     'node-portal-north': createNode('node-portal-north', 'North Highway Portal', 0, -44.0, 'highway_portal', 0.5),
     'node-portal-south': createNode('node-portal-south', 'South Highway Portal', 0, 44.0, 'highway_portal', 0.5),
     'node-portal-west-north': createNode('node-portal-west-north', 'Northwest Mountain Pass Portal', -25.0, -44.0, 'highway_portal', 0.5),
 
-    // 2. Central Primary Axis & River Crossing Nodes
+    // 2. Primary River & Crossing Axis Nodes
     'node-north-junction': createNode('node-north-junction', 'North Grand Connector Junction', 0, -22.0, 'intersection_3way', 2.8),
     'node-bridge-central-north': createNode('node-bridge-central-north', 'Central Arch Bridge North Abutment', 0, -10.5, 'bridge_abutment', 0.5),
-    'node-bridge-central-south': createNode('node-bridge-central-south', 'Central Arch Bridge South Abutment', 0, 4.5, 'bridge_abutment', 0.5),
+    'node-bridge-central-south': createNode('node-bridge-central-south', 'Central Arch Bridge South Abutment', 0, 4.5, 'junction_plaza', 2.8),
 
     // 3. Central Civic Secondary Loop Corners (Framing the Landmark Plaza)
-    'node-loop-northwest': createNode('node-loop-northwest', 'West Esplanade Corner Bend', -12.0, 4.5, 'corner_bend', 2.4),
-    'node-loop-northeast': createNode('node-loop-northeast', 'East Esplanade Corner Bend', 12.0, 4.5, 'corner_bend', 2.4),
-    'node-loop-southwest': createNode('node-loop-southwest', 'West Civic Avenue Junction', -12.0, 24.0, 'intersection_3way', 2.4),
-    'node-loop-southeast': createNode('node-loop-southeast', 'East Civic Avenue Junction', 12.0, 24.0, 'intersection_3way', 2.4),
+    'node-loop-southwest': createNode('node-loop-southwest', 'West Civic Avenue Junction', -12.0, 24.0, 'intersection_4way', 2.6),
+    'node-loop-southeast': createNode('node-loop-southeast', 'East Civic Avenue Junction', 12.0, 24.0, 'intersection_4way', 2.6),
 
-    // 4. Exactly ONE Grand Civic Roundabout at [0, 24.0]
+    // 4. Exactly ONE Grand Civic Roundabout at [0, 24.0] (R_outer = 6.0m)
     'node-roundabout-center': createNode('node-roundabout-center', 'Grand Civic Roundabout Hub', 0, 24.0, 'roundabout_center', 6.0),
-    'node-roundabout-throat-north': createNode('node-roundabout-throat-north', 'Roundabout North Gateway Throat', 0, 18.0, 'intersection_3way', 2.8),
-    'node-roundabout-throat-south': createNode('node-roundabout-throat-south', 'Roundabout South Arterial Throat', 0, 30.0, 'intersection_3way', 2.8),
-    'node-roundabout-throat-west': createNode('node-roundabout-throat-west', 'Roundabout West Parkway Throat', -6.0, 24.0, 'intersection_3way', 2.4),
-    'node-roundabout-throat-east': createNode('node-roundabout-throat-east', 'Roundabout East Parkway Throat', 6.0, 24.0, 'intersection_3way', 2.4),
+    'node-roundabout-throat-north': createNode('node-roundabout-throat-north', 'Roundabout North Gateway Throat', 0, 18.0, 'roundabout_throat', 2.8),
+    'node-roundabout-throat-south': createNode('node-roundabout-throat-south', 'Roundabout South Arterial Throat', 0, 30.0, 'roundabout_throat', 2.8),
+    'node-roundabout-throat-west': createNode('node-roundabout-throat-west', 'Roundabout West Parkway Throat', -6.0, 24.0, 'roundabout_throat', 2.4),
+    'node-roundabout-throat-east': createNode('node-roundabout-throat-east', 'Roundabout East Parkway Throat', 6.0, 24.0, 'roundabout_throat', 2.4),
 
-    // 5. West Regional Corridor Nodes (X = -25.0)
+    // 5. West Regional Science Corridor Nodes (X = -25.0)
     'node-west-north-junc': createNode('node-west-north-junc', 'West Academic Highway Junction', -25.0, -22.0, 'intersection_3way', 2.4),
     'node-bridge-west-north': createNode('node-bridge-west-north', 'West Suspension Bridge North Abutment', -25.0, -23.7, 'bridge_abutment', 0.5),
     'node-bridge-west-south': createNode('node-bridge-west-south', 'West Suspension Bridge South Abutment', -25.0, -8.7, 'bridge_abutment', 0.5),
@@ -170,8 +167,8 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
     'node-west-crossroads': createNode('node-west-crossroads', 'West Regional Crossroads', -25.0, 24.0, 'intersection_3way', 2.6),
 
     // 6. East District Corridor Nodes
-    'node-east-crossroads': createNode('node-east-crossroads', 'East Industrial Crossroads', 25.0, 24.0, 'intersection_3way', 2.6),
     'node-res-branch': createNode('node-res-branch', 'Oasis Residential Branch Junction', 14.0, 24.0, 'intersection_3way', 2.2),
+    'node-east-crossroads': createNode('node-east-crossroads', 'East Industrial Crossroads', 25.0, 24.0, 'intersection_3way', 2.6),
 
     // 7. Intentional, Vertex-Matched Cul-de-Sac Nodes
     'node-culdesac-science': createNode('node-culdesac-science', 'Quantum Observatory Cul-de-Sac', -34.0, -2.0, 'cul_de_sac', 4.2),
@@ -181,45 +178,29 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
   };
 
   const segments: Record<string, RoadSegment> = {
-    // 1. Primary North Grand Boulevard (North Portal to Central Bridge)
-    'seg-ns-north-portal': {
-      id: 'seg-ns-north-portal',
-      name: 'North Grand Boulevard (Outer Sector)',
+    // 1. Primary North Grand Boulevard (Continuous: North Portal to Central Bridge)
+    'seg-ns-north': {
+      id: 'seg-ns-north',
+      name: 'North Grand Boulevard',
       category: 'grand_arterial',
       startNodeId: 'node-portal-north',
-      endNodeId: 'node-north-junction',
-      width: 5.4,
-      lanes: 4,
-      speedLimitKmh: 70,
-      centerline: [[0, -44.0], [0, -33.0], [0, -22.0]],
-      markingType: 'double-yellow',
-      hasSidewalks: true,
-      sidewalkWidth: 0.85,
-      zone: 'commercial',
-      description: 'Primary 4-lane landscaped arterial connecting the northern map portal to the transverse connector.',
-    },
-    'seg-ns-north-approach': {
-      id: 'seg-ns-north-approach',
-      name: 'North Grand Boulevard (Bridge Approach)',
-      category: 'grand_arterial',
-      startNodeId: 'node-north-junction',
       endNodeId: 'node-bridge-central-north',
       width: 5.4,
       lanes: 4,
       speedLimitKmh: 70,
-      centerline: [[0, -22.0], [0, -16.0], [0, -10.5]],
+      centerline: [[0, -44.0], [0, -33.0], [0, -22.0], [0, -16.0], [0, -10.5]],
       markingType: 'double-yellow',
       hasSidewalks: true,
       sidewalkWidth: 0.85,
-      zone: 'citadel',
-      description: 'Monumental 4-lane boulevard leading smoothly onto the Central Arch Bridge.',
+      zone: 'commercial',
+      description: 'Primary 4-lane landscaped arterial connecting the northern territorial gateway directly to the river bridge.',
     },
 
     // 2. Central Citadel Grand Arch Bridge (Bridge Deck)
     'seg-bridge-central': {
       id: 'seg-bridge-central',
       name: 'Central Citadel Grand Arch Bridge',
-      category: 'grand_arterial',
+      category: 'architectural_bridge',
       startNodeId: 'node-bridge-central-north',
       endNodeId: 'node-bridge-central-south',
       width: 5.6,
@@ -234,155 +215,104 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       description: 'Iconic suspension arch bridge over the central river gorge.',
     },
 
-    // 3. Central Civic Secondary Loop (Encompassing the Forum without penetrating the Landmark)
-    'seg-loop-north-west': {
-      id: 'seg-loop-north-west',
-      name: 'Riverfront Esplanade (West Wing)',
+    // 3. West Civic Flank Curved Boulevard (Continuous curve framing Forum)
+    'seg-loop-west': {
+      id: 'seg-loop-west',
+      name: 'West Civic Flank Boulevard',
       category: 'secondary_loop',
       startNodeId: 'node-bridge-central-south',
-      endNodeId: 'node-loop-northwest',
-      width: 4.4,
-      lanes: 2,
-      speedLimitKmh: 50,
-      centerline: [[0, 4.5], [-6.0, 4.5], [-12.0, 4.5]],
-      markingType: 'single-white',
-      hasSidewalks: true,
-      sidewalkWidth: 0.85,
-      zone: 'citadel',
-      description: 'Riverfront promenade avenue linking Central Bridge to West Civic Avenue.',
-    },
-    'seg-loop-north-east': {
-      id: 'seg-loop-north-east',
-      name: 'Riverfront Esplanade (East Wing)',
-      category: 'secondary_loop',
-      startNodeId: 'node-bridge-central-south',
-      endNodeId: 'node-loop-northeast',
-      width: 4.4,
-      lanes: 2,
-      speedLimitKmh: 50,
-      centerline: [[0, 4.5], [6.0, 4.5], [12.0, 4.5]],
-      markingType: 'single-white',
-      hasSidewalks: true,
-      sidewalkWidth: 0.85,
-      zone: 'citadel',
-      description: 'Riverfront promenade avenue linking Central Bridge to East Civic Avenue.',
-    },
-    'seg-loop-west-avenue': {
-      id: 'seg-loop-west-avenue',
-      name: 'West Civic Flank Avenue',
-      category: 'secondary_loop',
-      startNodeId: 'node-loop-northwest',
       endNodeId: 'node-loop-southwest',
       width: 4.4,
       lanes: 2,
       speedLimitKmh: 50,
-      centerline: [[-12.0, 4.5], [-12.0, 14.0], [-12.0, 24.0]],
+      centerline: [
+        [0, 4.5],
+        [-5.0, 4.5],
+        [-10.5, 5.0],
+        [-12.0, 7.0],
+        [-12.0, 15.5],
+        [-12.0, 24.0],
+      ],
       markingType: 'single-white',
       hasSidewalks: true,
       sidewalkWidth: 0.85,
       zone: 'citadel',
-      description: 'North-south avenue running west of the Evolution Monument with wide pedestrian sidewalks.',
+      description: 'Gracefully curved scenic boulevard sweeping west of the Central Forum down to the Transverse Parkway.',
     },
-    'seg-loop-east-avenue': {
-      id: 'seg-loop-east-avenue',
-      name: 'East Civic Flank Avenue',
+
+    // 4. East Civic Flank Curved Boulevard (Continuous curve framing Forum)
+    'seg-loop-east': {
+      id: 'seg-loop-east',
+      name: 'East Civic Flank Boulevard',
       category: 'secondary_loop',
-      startNodeId: 'node-loop-northeast',
+      startNodeId: 'node-bridge-central-south',
       endNodeId: 'node-loop-southeast',
       width: 4.4,
       lanes: 2,
       speedLimitKmh: 50,
-      centerline: [[12.0, 4.5], [12.0, 14.0], [12.0, 24.0]],
+      centerline: [
+        [0, 4.5],
+        [5.0, 4.5],
+        [10.5, 5.0],
+        [12.0, 7.0],
+        [12.0, 15.5],
+        [12.0, 24.0],
+      ],
       markingType: 'single-white',
       hasSidewalks: true,
       sidewalkWidth: 0.85,
       zone: 'citadel',
-      description: 'North-south avenue running east of the High Council forum with landscaped tree buffers.',
+      description: 'Gracefully curved scenic boulevard sweeping east of the Central Forum down to the Transverse Parkway.',
     },
 
-    // 4. Civic Parkway Approaches into Grand Roundabout
-    'seg-parkway-west-outer': {
-      id: 'seg-parkway-west-outer',
-      name: 'West Civic Parkway (Regional Section)',
-      category: 'district_collector',
+    // 5. West Civic Parkway (West Crossroads -> West Civic Flank -> Roundabout West Throat)
+    'seg-parkway-west': {
+      id: 'seg-parkway-west',
+      name: 'West Civic Transverse Parkway',
+      category: 'civic_boulevard',
       startNodeId: 'node-west-crossroads',
-      endNodeId: 'node-loop-southwest',
+      endNodeId: 'node-roundabout-throat-west',
       width: 4.4,
       lanes: 2,
       speedLimitKmh: 50,
-      centerline: [[-25.0, 24.0], [-18.5, 24.0], [-12.0, 24.0]],
+      centerline: [
+        [-25.0, 24.0],
+        [-18.5, 24.0],
+        [-12.0, 24.0],
+        [-6.0, 24.0],
+      ],
       markingType: 'single-white',
       hasSidewalks: true,
       sidewalkWidth: 0.85,
       zone: 'education',
-      description: 'Direct transverse corridor connecting West Crossroads to the civic district loop.',
+      description: 'Continuous transverse boulevard connecting the western region into the Grand Civic Roundabout.',
     },
-    'seg-parkway-west-inner': {
-      id: 'seg-parkway-west-inner',
-      name: 'West Civic Parkway (Roundabout Throat)',
-      category: 'civic_boulevard',
-      startNodeId: 'node-loop-southwest',
-      endNodeId: 'node-roundabout-throat-west',
-      width: 4.4,
-      lanes: 2,
-      speedLimitKmh: 45,
-      centerline: [[-12.0, 24.0], [-9.0, 24.0], [-6.0, 24.0]],
-      markingType: 'single-white',
-      hasSidewalks: true,
-      sidewalkWidth: 0.85,
-      zone: 'citadel',
-      description: 'Civic approach feeding directly into the West throat of the Grand Civic Roundabout.',
-    },
-    'seg-parkway-east-inner': {
-      id: 'seg-parkway-east-inner',
-      name: 'East Civic Parkway (Roundabout Throat)',
+
+    // 6. East Civic Parkway & Industrial Freight Boulevard (Roundabout East Throat -> East Flank -> Freight Cul-de-Sac)
+    'seg-parkway-east': {
+      id: 'seg-parkway-east',
+      name: 'East Civic Transverse Parkway',
       category: 'civic_boulevard',
       startNodeId: 'node-roundabout-throat-east',
-      endNodeId: 'node-loop-southeast',
-      width: 4.4,
-      lanes: 2,
-      speedLimitKmh: 45,
-      centerline: [[6.0, 24.0], [9.0, 24.0], [12.0, 24.0]],
-      markingType: 'single-white',
-      hasSidewalks: true,
-      sidewalkWidth: 0.85,
-      zone: 'citadel',
-      description: 'Civic approach feeding out from the East throat of the Grand Civic Roundabout.',
-    },
-    'seg-parkway-east-mid': {
-      id: 'seg-parkway-east-mid',
-      name: 'East Civic Parkway (Residential Link)',
-      category: 'district_collector',
-      startNodeId: 'node-loop-southeast',
-      endNodeId: 'node-res-branch',
+      endNodeId: 'node-culdesac-freight',
       width: 4.4,
       lanes: 2,
       speedLimitKmh: 50,
-      centerline: [[12.0, 24.0], [13.0, 24.0], [14.0, 24.0]],
-      markingType: 'single-white',
-      hasSidewalks: true,
-      sidewalkWidth: 0.85,
-      zone: 'residential',
-      description: 'Connector linking the civic quadrangle east to the Oasis residential branch.',
-    },
-    'seg-parkway-east-outer': {
-      id: 'seg-parkway-east-outer',
-      name: 'East Civic Parkway (Industrial Section)',
-      category: 'district_collector',
-      startNodeId: 'node-res-branch',
-      endNodeId: 'node-east-crossroads',
-      width: 4.4,
-      lanes: 2,
-      speedLimitKmh: 50,
-      centerline: [[14.0, 24.0], [19.5, 24.0], [25.0, 24.0]],
+      centerline: [
+        [6.0, 24.0],
+        [12.0, 24.0],
+        [14.0, 24.0],
+        [25.0, 24.0],
+        [36.0, 24.0],
+      ],
       markingType: 'single-white',
       hasSidewalks: true,
       sidewalkWidth: 0.85,
       zone: 'industrial',
-      description: 'Heavy logistics transverse corridor connecting into East Crossroads.',
+      description: 'Continuous transverse boulevard connecting the Grand Civic Roundabout directly to eastern industrial logistics.',
     },
 
-    // 5. South Oasis Grand Boulevard (Roundabout South Throat to South Portal)
+    // 7. South Oasis Grand Boulevard (Roundabout South Throat -> South Portal)
     'seg-ns-south': {
       id: 'seg-ns-south',
       name: 'Oasis Terraces Grand Boulevard',
@@ -392,7 +322,11 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       width: 5.4,
       lanes: 4,
       speedLimitKmh: 70,
-      centerline: [[0, 30.0], [0, 37.0], [0, 44.0]],
+      centerline: [
+        [0, 30.0],
+        [0, 37.0],
+        [0, 44.0],
+      ],
       markingType: 'double-yellow',
       hasSidewalks: true,
       sidewalkWidth: 0.85,
@@ -400,49 +334,44 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       description: 'Monumental 4-lane landscaped spine heading south to the territorial gateway.',
     },
 
-    // 7. West Regional Science Highway (X = -25.0)
-    'seg-west-north-portal': {
-      id: 'seg-west-north-portal',
-      name: 'Aethel Ridge Mountain Pass (North)',
+    // 8. Northwest Mountain Pass Regional Highway (Portal -> North Abutment)
+    'seg-west-north': {
+      id: 'seg-west-north',
+      name: 'Aethel Ridge Mountain Pass',
       category: 'grand_arterial',
       startNodeId: 'node-portal-west-north',
-      endNodeId: 'node-west-north-junc',
-      width: 4.2,
-      lanes: 2,
-      speedLimitKmh: 65,
-      centerline: [[-25.0, -44.0], [-25.0, -33.0], [-25.0, -22.0]],
-      markingType: 'single-white',
-      hasSidewalks: true,
-      sidewalkWidth: 0.85,
-      zone: 'education',
-      description: 'North mountain highway descending toward the science campus.',
-    },
-    'seg-west-north-approach': {
-      id: 'seg-west-north-approach',
-      name: 'Aethel Ridge Bridge Approach',
-      category: 'grand_arterial',
-      startNodeId: 'node-west-north-junc',
       endNodeId: 'node-bridge-west-north',
       width: 4.2,
       lanes: 2,
-      speedLimitKmh: 60,
-      centerline: [[-25.0, -22.0], [-25.0, -23.0], [-25.0, -23.7]],
+      speedLimitKmh: 65,
+      centerline: [
+        [-25.0, -44.0],
+        [-25.0, -33.0],
+        [-25.0, -22.0],
+        [-25.0, -23.7],
+      ],
       markingType: 'single-white',
       hasSidewalks: true,
       sidewalkWidth: 0.85,
       zone: 'education',
-      description: 'Approach roadway leading into the West Suspension Bridge abutment.',
+      description: 'Continuous north mountain pass descending into the West Suspension Bridge.',
     },
+
+    // 9. West Aethel Ridge Suspension Bridge (Bridge Deck)
     'seg-bridge-west': {
       id: 'seg-bridge-west',
       name: 'West Aethel Ridge Suspension Bridge',
-      category: 'grand_arterial',
+      category: 'architectural_bridge',
       startNodeId: 'node-bridge-west-north',
       endNodeId: 'node-bridge-west-south',
       width: 4.5,
       lanes: 2,
       speedLimitKmh: 60,
-      centerline: [[-25.0, -23.7], [-25.0, -16.2], [-25.0, -8.7]],
+      centerline: [
+        [-25.0, -23.7],
+        [-25.0, -16.2],
+        [-25.0, -8.7],
+      ],
       markingType: 'single-white',
       hasSidewalks: true,
       sidewalkWidth: 0.85,
@@ -450,106 +379,76 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       isBridge: true,
       description: 'Graceful suspension bridge spanning the west river canyon.',
     },
-    'seg-west-south-upper': {
-      id: 'seg-west-south-upper',
-      name: 'Aethel Ridge Scenic River Bluff Avenue',
-      category: 'grand_arterial',
+
+    // 10. West River Bluff Regional Avenue (South Abutment -> Agrisector Cul-de-Sac)
+    'seg-west-south': {
+      id: 'seg-west-south',
+      name: 'Aethel Ridge River Bluff Avenue',
+      category: 'district_collector',
       startNodeId: 'node-bridge-west-south',
-      endNodeId: 'node-west-sci-branch',
+      endNodeId: 'node-culdesac-agri',
       width: 4.2,
       lanes: 2,
       speedLimitKmh: 55,
-      centerline: [[-25.0, -8.7], [-25.0, -5.0], [-25.0, -2.0]],
+      centerline: [
+        [-25.0, -8.7],
+        [-25.0, -2.0],
+        [-25.0, 11.0],
+        [-25.0, 24.0],
+        [-25.0, 38.0],
+      ],
       markingType: 'single-white',
       hasSidewalks: true,
       sidewalkWidth: 0.85,
       zone: 'education',
-      description: 'Scenic arterial following the river bluff south from the bridge.',
-    },
-    'seg-west-south-lower': {
-      id: 'seg-west-south-lower',
-      name: 'Aethel Ridge Science Corridor',
-      category: 'grand_arterial',
-      startNodeId: 'node-west-sci-branch',
-      endNodeId: 'node-west-crossroads',
-      width: 4.2,
-      lanes: 2,
-      speedLimitKmh: 55,
-      centerline: [[-25.0, -2.0], [-25.0, 11.0], [-25.0, 24.0]],
-      markingType: 'single-white',
-      hasSidewalks: true,
-      sidewalkWidth: 0.85,
-      zone: 'education',
-      description: 'Major arterial serving the quantum research laboratories down to West Crossroads.',
+      description: 'Long continuous avenue serving research facilities and agricultural biodomes down to the southern cul-de-sac.',
     },
 
-    // 8. North Transverse Connector (Along Z = -22.0)
+    // 11. North Transverse Connector (West Academic Junction -> North Grand Junction)
     'seg-conn-north-west': {
       id: 'seg-conn-north-west',
-      name: 'Aethel Academic Transverse Link',
+      name: 'Academic Transverse Parkway',
       category: 'district_collector',
       startNodeId: 'node-west-north-junc',
       endNodeId: 'node-north-junction',
       width: 3.8,
       lanes: 2,
       speedLimitKmh: 45,
-      centerline: [[-25.0, -22.0], [-12.5, -22.0], [0, -22.0]],
+      centerline: [
+        [-25.0, -22.0],
+        [-12.5, -22.0],
+        [0, -22.0],
+      ],
       markingType: 'single-white',
       hasSidewalks: true,
       sidewalkWidth: 0.8,
-      zone: 'education',
-      description: 'Cross-town connection linking the science district directly to the North Grand Boulevard.',
+      zone: 'commercial',
+      description: 'Cross-river connector linking the northern boulevard directly to the academic campus.',
     },
 
-    // 9. Local Access Roads & Engineered Cul-de-Sacs
+    // 12. Quantum Science Observatory Spur (Branch -> Observatory Cul-de-Sac)
     'seg-spur-science': {
       id: 'seg-spur-science',
-      name: 'Quantum Telemetry Observatory Spur',
+      name: 'Quantum Observatory Research Spur',
       category: 'local_spur',
       startNodeId: 'node-west-sci-branch',
       endNodeId: 'node-culdesac-science',
       width: 3.8,
       lanes: 2,
       speedLimitKmh: 40,
-      centerline: [[-25.0, -2.0], [-29.5, -2.0], [-34.0, -2.0]],
+      centerline: [
+        [-25.0, -2.0],
+        [-29.5, -2.0],
+        [-34.0, -2.0],
+      ],
       markingType: 'none',
       hasSidewalks: true,
       sidewalkWidth: 0.8,
       zone: 'education',
-      description: 'Dedicated access spur to the mountain observatory ending in a circular turnaround.',
+      description: 'Spur road leading west to the Quantum Observatory with panoramic cul-de-sac.',
     },
-    'seg-spur-agri': {
-      id: 'seg-spur-agri',
-      name: 'Verdant Vale Agrisector Farm Spur',
-      category: 'local_spur',
-      startNodeId: 'node-west-crossroads',
-      endNodeId: 'node-culdesac-agri',
-      width: 4.0,
-      lanes: 2,
-      speedLimitKmh: 40,
-      centerline: [[-25.0, 24.0], [-25.0, 31.0], [-25.0, 38.0]],
-      markingType: 'none',
-      hasSidewalks: true,
-      sidewalkWidth: 0.8,
-      zone: 'industrial', // agricultural
-      description: 'Access road serving hydroponic bio-domes ending in a wide farm machinery cul-de-sac.',
-    },
-    'seg-spur-freight': {
-      id: 'seg-spur-freight',
-      name: 'Vulcan Heavy Foundry Freight Spur',
-      category: 'local_spur',
-      startNodeId: 'node-east-crossroads',
-      endNodeId: 'node-culdesac-freight',
-      width: 4.2,
-      lanes: 2,
-      speedLimitKmh: 40,
-      centerline: [[25.0, 24.0], [30.5, 24.0], [36.0, 24.0]],
-      markingType: 'none',
-      hasSidewalks: true,
-      sidewalkWidth: 0.8,
-      zone: 'industrial',
-      description: 'Reinforced industrial logistics spur leading to automated foundries with heavy turning loop.',
-    },
+
+    // 13. Oasis Terraces Residential Spur (Branch -> Residential Cul-de-Sac)
     'seg-spur-residential': {
       id: 'seg-spur-residential',
       name: 'Oasis Terraces Residential Spur',
@@ -559,7 +458,11 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       width: 3.8,
       lanes: 2,
       speedLimitKmh: 35,
-      centerline: [[14.0, 24.0], [14.0, 31.0], [14.0, 38.0]],
+      centerline: [
+        [14.0, 24.0],
+        [14.0, 31.0],
+        [14.0, 38.0],
+      ],
       markingType: 'none',
       hasSidewalks: true,
       sidewalkWidth: 0.8,
@@ -594,6 +497,8 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       width: 5.6,
       rotationY: 0,
       roadSegmentId: 'seg-bridge-central',
+      style: 'arch',
+      deckElevation: 0.76,
     },
     {
       id: 'road-bridge-west',
@@ -605,6 +510,8 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       width: 4.5,
       rotationY: 0,
       roadSegmentId: 'seg-bridge-west',
+      style: 'suspension',
+      deckElevation: 0.76,
     },
   ];
 
@@ -619,6 +526,7 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       approachWidth: 3.8,
       approachTangent: [-1, 0],
       hasCenterIsland: true,
+      turnaroundRadius: 4.2,
     },
     {
       id: 'culdesac-agri',
@@ -626,9 +534,10 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       nodeId: 'node-culdesac-agri',
       center: [-25.0, 38.0],
       radius: 4.5,
-      approachWidth: 4.0,
+      approachWidth: 4.2,
       approachTangent: [0, 1],
       hasCenterIsland: true,
+      turnaroundRadius: 4.5,
     },
     {
       id: 'culdesac-freight',
@@ -636,9 +545,10 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       nodeId: 'node-culdesac-freight',
       center: [36.0, 24.0],
       radius: 4.8,
-      approachWidth: 4.2,
+      approachWidth: 4.4,
       approachTangent: [1, 0],
       hasCenterIsland: true,
+      turnaroundRadius: 4.8,
     },
     {
       id: 'culdesac-residential',
@@ -649,6 +559,7 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
       approachWidth: 3.8,
       approachTangent: [0, 1],
       hasCenterIsland: true,
+      turnaroundRadius: 4.4,
     },
   ];
 
@@ -679,7 +590,7 @@ export function buildAuthoritativeRiverfrontMasterplan(): RoadNetworkTopology {
   };
 }
 
-// ================= AUTOMATED TOPOLOGY VALIDATION ENGINE =================
+// ================= FORMAL TOPOLOGY AUDIT & VALIDATION =================
 
 export interface ValidationReport {
   totalSegments: number;
@@ -742,7 +653,7 @@ export function validateRoadNetworkTopology(topology: RoadNetworkTopology): Vali
       connectedEndpoints++;
     }
 
-    // Check Landmark Penetration: Central landmark is at X in [-7.4, 7.4], Z in [5.5, 17.5]
+    // Check Landmark Penetration: Central landmark is at X in [-7.4, 7.4], Z in [5.2, 17.8]
     for (const [x, z] of seg.centerline) {
       if (Math.abs(x) < 7.4 && z > 5.2 && z < 17.8 && !seg.isBridge) {
         landmarkPenetrations++;

@@ -6,6 +6,7 @@ import { useGameState } from '../../context/GameStateContext';
 import { RoadSegmentData } from '../../types/road';
 import { triggerRoadSelection } from './WorldLabelManager';
 import {
+  sampleSplinePath,
   sampleTrimmedSplinePath,
   createContinuousRoadMesh,
   createContinuousSidewalkMesh,
@@ -391,7 +392,7 @@ function RoadNetwork() {
       throughputVehiclesPerDay: Math.round(24000 * (1 + rates.gdpGrowthRate / 10)),
       connectedDistricts: ['Elysium Citadel'],
       connectedBuildings: ['Planetary Senate Citadel'],
-      description: seg.description,
+      description: seg.description || '',
     }));
   }, [topology, rates.gdpGrowthRate]);
 
@@ -400,7 +401,7 @@ function RoadNetwork() {
     triggerRoadSelection(road);
   };
 
-  // 2. Continuous, Trimmed Road Geometries (Edge-to-Edge with Zero Overlap)
+  // 2. Continuous, Gap-Free Road Geometries
   const geometries = useMemo(() => {
     const segmentMeshes: Array<{
       id: string;
@@ -414,13 +415,8 @@ function RoadNetwork() {
     for (const seg of Object.values(topology.segments)) {
       if (seg.isBridge) continue; // Rendered by ArchitecturalBridge
 
-      const startNode = topology.nodes[seg.startNodeId];
-      const endNode = topology.nodes[seg.endNodeId];
-      const startTrim = startNode?.clearanceRadius || 0;
-      const endTrim = endNode?.clearanceRadius || 0;
-
-      // Precision Trimmed Centerline
-      const nodes = sampleTrimmedSplinePath(seg.centerline, startTrim, endTrim, 1.0);
+      // Continuous, Gap-Free Unbroken Centerline (Full-length corridor ribbons)
+      const nodes = sampleSplinePath(seg.centerline, 1.0, undefined, 0.08);
       if (nodes.length < 2) continue;
 
       const asphalt = createContinuousRoadMesh(nodes, seg.width);
@@ -428,9 +424,10 @@ function RoadNetwork() {
         ? createContinuousSidewalkMesh(nodes, seg.width, seg.sidewalkWidth)
         : undefined;
 
+      const markingType = seg.markingType === 'dashed-white' ? 'single-white' : seg.markingType;
       const marking =
         seg.markingType !== 'none'
-          ? createContinuousMarkingsMesh(nodes, seg.width, seg.markingType)
+          ? createContinuousMarkingsMesh(nodes, seg.width, markingType as any)
           : undefined;
 
       const dashes =
@@ -450,7 +447,7 @@ function RoadNetwork() {
         throughputVehiclesPerDay: 20000,
         connectedDistricts: [],
         connectedBuildings: [],
-        description: seg.description,
+        description: seg.description || '',
       };
 
       segmentMeshes.push({
@@ -463,13 +460,16 @@ function RoadNetwork() {
       });
     }
 
-    // 3. Multi-branch Junction Plazas (Matching Trimmed Road Throats)
+    // 3. Multi-branch Junction Plazas & Intersection Tables (Seamless Solid Deck)
     const junctionMeshes: Array<{ id: string; geo: THREE.BufferGeometry }> = [];
     for (const node of Object.values(topology.nodes)) {
-      if (node.clearanceRadius > 0 && node.type.startsWith('intersection')) {
+      if (
+        node.clearanceRadius > 0 &&
+        (node.type.startsWith('intersection') || node.type === 'junction_plaza')
+      ) {
         junctionMeshes.push({
           id: node.id,
-          geo: createEngineeredJunctionGeometry([node.x, node.z], node.clearanceRadius),
+          geo: createEngineeredJunctionGeometry([node.x, node.z], node.clearanceRadius, 0.082),
         });
       }
     }
@@ -494,7 +494,7 @@ function RoadNetwork() {
         cds.approachWidth,
         cds.approachTangent,
         cds.hasCenterIsland,
-        0.08
+        0.082
       ),
     }));
 

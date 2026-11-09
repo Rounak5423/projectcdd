@@ -64,10 +64,10 @@ export default React.memo(function StreetlightsSystem() {
       list.push({ x: 27.4, z, rotationY: Math.PI / 2 });
     }
 
-    // 5. Senate Citadel Boulevard Lamps (Along X = 0, Z from 6 to 16)
-    for (let z = 6; z <= 16; z += 5) {
-      list.push({ x: -3.2, z, rotationY: -Math.PI / 2 }); // Faces boulevard (+X)
-      list.push({ x: 3.2, z, rotationY: Math.PI / 2 });  // Faces boulevard (-X)
+    // 5. Civic Flank Loop Promenade Lamps (Along X = -13.2 and X = +13.2, Z from 6 to 22)
+    for (let z = 6; z <= 22; z += 5) {
+      list.push({ x: -13.2, z, rotationY: -Math.PI / 2 }); // Faces road (+X)
+      list.push({ x: 13.2, z, rotationY: Math.PI / 2 });   // Faces road (-X)
     }
 
     // 6. Grand Civic Roundabout Corner Luminaires (At the 4 corner sidewalk fillets)
