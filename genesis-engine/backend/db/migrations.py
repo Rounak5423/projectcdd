@@ -184,11 +184,123 @@ def migration_v4_civilization_tech_tree(conn: sqlite3.Connection):
         seed_civilization_technologies(conn, w["id"])
 
 
+def migration_v5_citizens_single_truth(conn: sqlite3.Connection):
+    """Adds home/work building foreign keys and employment to citizens, occupants to buildings."""
+    # Add columns to citizens if not present
+    cit_cols = [c[1] for c in conn.execute("PRAGMA table_info(citizens)").fetchall()]
+    if "home_building_id" not in cit_cols:
+        conn.execute("ALTER TABLE citizens ADD COLUMN home_building_id TEXT REFERENCES buildings(id) ON DELETE SET NULL")
+    if "work_building_id" not in cit_cols:
+        conn.execute("ALTER TABLE citizens ADD COLUMN work_building_id TEXT REFERENCES buildings(id) ON DELETE SET NULL")
+    if "employed" not in cit_cols:
+        conn.execute("ALTER TABLE citizens ADD COLUMN employed INTEGER DEFAULT 0")
+
+    # Add current_occupants and current_workers to buildings if not present
+    bld_cols = [c[1] for c in conn.execute("PRAGMA table_info(buildings)").fetchall()]
+    if "current_occupants" not in bld_cols:
+        conn.execute("ALTER TABLE buildings ADD COLUMN current_occupants INTEGER DEFAULT 0")
+    if "current_workers" not in bld_cols:
+        conn.execute("ALTER TABLE buildings ADD COLUMN current_workers INTEGER DEFAULT 0")
+
+    conn.executescript("""
+    CREATE INDEX IF NOT EXISTS idx_citizens_home_bld ON citizens(world_id, home_building_id);
+    CREATE INDEX IF NOT EXISTS idx_citizens_work_bld ON citizens(world_id, work_building_id);
+    CREATE INDEX IF NOT EXISTS idx_citizens_alive ON citizens(world_id, is_alive);
+    """)
+
+
+def migration_v6_honest_economy_and_bonds(conn: sqlite3.Connection):
+    """Adds taxes, sector budgets, municipal debt, and interest tracking to economy_resources."""
+    cols = [c[1] for c in conn.execute("PRAGMA table_info(economy_resources)").fetchall()]
+    budget_cols = [
+        ("residential_tax", "REAL DEFAULT 0.14"),
+        ("commercial_tax", "REAL DEFAULT 0.12"),
+        ("industrial_tax", "REAL DEFAULT 0.15"),
+        ("office_tax", "REAL DEFAULT 0.13"),
+        ("road_budget_pct", "REAL DEFAULT 100.0"),
+        ("power_budget_pct", "REAL DEFAULT 100.0"),
+        ("water_budget_pct", "REAL DEFAULT 100.0"),
+        ("health_budget_pct", "REAL DEFAULT 100.0"),
+        ("education_budget_pct", "REAL DEFAULT 100.0"),
+        ("police_budget_pct", "REAL DEFAULT 100.0"),
+        ("municipal_debt", "REAL DEFAULT 0.0"),
+        ("total_interest_paid", "REAL DEFAULT 0.0"),
+    ]
+    for col_name, col_type in budget_cols:
+        if col_name not in cols:
+            conn.execute(f"ALTER TABLE economy_resources ADD COLUMN {col_name} {col_type}")
+
+
+def migration_v7_sewage_and_network_facilities(conn: sqlite3.Connection):
+    """Adds sewage facilities table, road congestion tracking, and tracks sewage treatment metrics."""
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS sewage_facilities (
+        id TEXT PRIMARY KEY,
+        world_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        capacity_t REAL DEFAULT 100.0,
+        current_load_t REAL DEFAULT 0.0,
+        efficiency REAL DEFAULT 1.0,
+        status TEXT DEFAULT 'active',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_sewage_world ON sewage_facilities(world_id);
+    """)
+    cols = [c[1] for c in conn.execute("PRAGMA table_info(economy_resources)").fetchall()]
+    if "sewage_treatment_ratio" not in cols:
+        conn.execute("ALTER TABLE economy_resources ADD COLUMN sewage_treatment_ratio REAL DEFAULT 1.0")
+
+    seg_cols = [c[1] for c in conn.execute("PRAGMA table_info(road_segments)").fetchall()]
+    if "congestion" not in seg_cols:
+        conn.execute("ALTER TABLE road_segments ADD COLUMN congestion REAL DEFAULT 0.0")
+
+
+def migration_v8_disasters_and_weather(conn: sqlite3.Connection):
+    """Adds authoritative backend tables for disasters, weather states, and emergency response."""
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS disasters (
+        id TEXT PRIMARY KEY,
+        world_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        intensity TEXT NOT NULL DEFAULT 'moderate',
+        stage TEXT NOT NULL DEFAULT 'active',
+        epicenter_x REAL NOT NULL DEFAULT 0.0,
+        epicenter_z REAL NOT NULL DEFAULT 0.0,
+        radius REAL NOT NULL DEFAULT 40.0,
+        duration_days INTEGER NOT NULL DEFAULT 14,
+        elapsed_days INTEGER NOT NULL DEFAULT 0,
+        containment_percent REAL NOT NULL DEFAULT 0.0,
+        casualties_count INTEGER NOT NULL DEFAULT 0,
+        economic_damage_credits REAL NOT NULL DEFAULT 0.0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_disasters_world ON disasters(world_id);
+
+    CREATE TABLE IF NOT EXISTS weather_state (
+        world_id TEXT PRIMARY KEY,
+        temperature_c REAL NOT NULL DEFAULT 22.0,
+        weather_condition TEXT NOT NULL DEFAULT 'clear',
+        wind_speed_kph REAL NOT NULL DEFAULT 12.0,
+        precipitation_pct REAL NOT NULL DEFAULT 0.0,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
+    );
+    """)
+
+
 MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (1, "baseline_init", migration_v1_baseline),
     (2, "save_slots_and_autosaves", migration_v2_save_slots),
     (3, "cs2_simulation_depth_and_infrastructure", migration_v3_cs2_simulation_depth),
     (4, "civilization_tech_tree", migration_v4_civilization_tech_tree),
+    (5, "citizens_single_truth", migration_v5_citizens_single_truth),
+    (6, "honest_economy_and_bonds", migration_v6_honest_economy_and_bonds),
+    (7, "sewage_and_network_facilities", migration_v7_sewage_and_network_facilities),
+    (8, "disasters_and_weather", migration_v8_disasters_and_weather),
 ]
 
 

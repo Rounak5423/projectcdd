@@ -64,28 +64,48 @@ async def create_world(
 
         # Initial starter Frontier Colony Outpost
         center = req.grid_size / 2.0
+        outpost_id = f"bld_{uuid.uuid4().hex[:8]}"
         conn.execute("""
         INSERT INTO buildings (
             id, world_id, name, type, level, x, y, z, width, length, height,
-            orientation, status, capacity, construction_cost, upgrade_cost, effects
-        ) VALUES (?, ?, 'Frontier Colony Outpost', 'Government', 1, ?, ?, 0.0, 3.0, 3.0, 3.0, 0.0, 'active', 10, '{}', '{}', '{}')
-        """, (f"bld_{uuid.uuid4().hex[:8]}", world_id, center, center))
+            orientation, status, capacity, current_occupants, current_workers, construction_cost, upgrade_cost, effects
+        ) VALUES (?, ?, 'Frontier Colony Outpost', 'Government', 1, ?, ?, 0.0, 3.0, 3.0, 3.0, 0.0, 'active', 50, 0, 0, '{}', '{}', '{}')
+        """, (outpost_id, world_id, center, center))
 
-        # Founding pioneer citizens
-        pioneer_occupations = [
-            'Expedition Commander', 'Botanist & Agronomist', 'Civil Infrastructure Engineer',
-            'Energy Systems Technician', 'Hydrological Specialist', 'Materials Fabricator',
-            'Field Medic', 'Cartographer & Surveyor', 'Biosphere Ecologist', 'Data & Comms Specialist'
-        ]
-        for i in range(min(req.initial_population, 20)):
-            occ = pioneer_occupations[i % len(pioneer_occupations)]
+        # Initial residential habitation blocks sized to house initial population
+        import math
+        from engine.demographics import spawn_citizens_for_world
+        
+        target_pop = max(1, req.initial_population)
+        block_capacity = 100
+        num_blocks = max(1, math.ceil(target_pop / float(block_capacity)))
+        per_block_cap = math.ceil(target_pop / float(num_blocks))
+
+        res_building_ids = []
+        for b_idx in range(num_blocks):
+            res_id = f"bld_hab_{b_idx+1}_{uuid.uuid4().hex[:6]}"
+            angle = (2.0 * math.pi * b_idx) / max(1, num_blocks)
+            bx = round(center + 3.5 * math.cos(angle), 1)
+            bz = round(center + 3.5 * math.sin(angle), 1)
+            bname = f"Pioneer Habitation Module {chr(65 + b_idx)}"
             conn.execute("""
-            INSERT INTO citizens (
-                id, world_id, age, occupation, wealth, x, y, hunger, energy, wellbeing,
-                education_level, health, independent_reasoning, problem_solving, critical_evaluation,
-                creativity, knowledge_retention, ai_dependency, is_alive
-            ) VALUES (?, ?, ?, ?, 100.0, ?, ?, 0.1, 0.9, 0.85, 0.8, 0.95, 0.8, 0.85, 0.75, 0.8, 0.85, 0.05, 1)
-            """, (f"cit_{world_id}_{i+1:02d}", world_id, 28.0 + (i % 12), occ, center + (i % 3) * 0.5, center + (i // 3) * 0.5))
+            INSERT INTO buildings (
+                id, world_id, name, type, level, x, y, z, width, length, height,
+                orientation, status, capacity, current_occupants, current_workers, construction_cost, upgrade_cost, effects
+            ) VALUES (?, ?, ?, 'Residential', 1, ?, ?, 0.0, 2.5, 2.5, 3.5, 0.0, 'active', ?, 0, 0, '{}', '{}', '{}')
+            """, (res_id, world_id, bname, bx, bz, per_block_cap))
+            res_building_ids.append(res_id)
+
+        # Spawn all initial citizens into residential buildings
+        spawn_citizens_for_world(
+            conn=conn,
+            world_id=world_id,
+            count=target_pop,
+            residential_building_ids=res_building_ids,
+            work_building_ids=[outpost_id],
+            center_x=center,
+            center_y=center
+        )
 
         # Initial event
         conn.execute("""
@@ -101,6 +121,14 @@ async def create_world(
     WHERE w.id = ?
     """, (world_id,)).fetchone()
     conn.close()
+
+    # Pre-sync with UnifiedWorldSimulation cache so state queries are immediately consistent
+    try:
+        from engine.world.simulation import get_unified_simulation
+        sim = get_unified_simulation(world_id)
+        sim.load_world_from_db()
+    except Exception:
+        pass
 
     return WorldDetail(
         id=row["id"],

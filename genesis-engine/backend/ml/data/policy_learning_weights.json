@@ -2,12 +2,20 @@
   "loss_aversion_factor": 2.25,
   "fairness_sensitivity": 0.82,
   "agency_liberty_weight": 0.74,
+<<<<<<< HEAD
   "scientific_curiosity_drive": 0.7320000000000001,
+=======
+  "scientific_curiosity_drive": 1.0960000000000003,
+>>>>>>> 511e94e5507101ace422f1b9776ff3c5526e04cc
   "biosphere_preservation_reflex": 0.6,
   "domain_multipliers": {
     "Cognitive": 1.05,
     "AI": 1.1,
+<<<<<<< HEAD
     "Research": 1.1329272583606058,
+=======
+    "Research": 1.2234180668848458,
+>>>>>>> 511e94e5507101ace422f1b9776ff3c5526e04cc
     "Social": 1.0,
     "Economic": 0.95,
     "Environment": 1.02,
@@ -41,6 +49,7 @@
       "aversion": 0.8
     }
   },
+<<<<<<< HEAD
   "total_learned_instances": 602,
   "learning_rate": 0.05,
   "model_confidence": 0.984,
@@ -48,4 +57,10 @@
   "verified_accuracy_pct": 97.78,
   "verified_r2": 0.8775,
   "verified_mae": 1.111
+=======
+  "total_learned_instances": 34,
+  "learning_rate": 0.05,
+  "model_confidence": 0.928,
+  "last_adapted_timestamp": 1794248762.476827
+>>>>>>> 511e94e5507101ace422f1b9776ff3c5526e04cc
 }

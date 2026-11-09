@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
+import { civilizationApi } from '../../services/civilizationApi';
 
 interface CS2BudgetModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface CS2BudgetModalProps {
 
 export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps) {
   const { resources, rates, taxRate, setTaxRate, civilization, triggerToast } = useGameState();
+  const worldId = civilization?.id || 'aurora-prime';
 
   useEffect(() => {
     if (!isOpen) return;
@@ -60,6 +62,31 @@ export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps)
   // Active municipal debt
   const [municipalDebt, setMunicipalDebt] = useState(15000);
 
+  // Fetch real budget from backend on modal open
+  useEffect(() => {
+    if (!isOpen) return;
+    civilizationApi.getBudget(worldId).then((res) => {
+      if (res.success && res.data) {
+        const b = res.data;
+        if (b.residential_tax !== undefined) setResTax(Math.round(b.residential_tax * 100));
+        if (b.commercial_tax !== undefined) setComTax(Math.round(b.commercial_tax * 100));
+        if (b.industrial_tax !== undefined) setIndTax(Math.round(b.industrial_tax * 100));
+        if (b.office_tax !== undefined) setOffTax(Math.round(b.office_tax * 100));
+        if (b.road_funding !== undefined) setRoadFunding(b.road_funding);
+        if (b.power_funding !== undefined) setPowerFunding(b.power_funding);
+        if (b.water_funding !== undefined) setWaterFunding(b.water_funding);
+        if (b.health_funding !== undefined) setHealthFunding(b.health_funding);
+        if (b.education_funding !== undefined) setEduFunding(b.education_funding);
+        if (b.police_funding !== undefined) setPoliceFunding(b.police_funding);
+        if (b.municipal_debt !== undefined) setMunicipalDebt(b.municipal_debt);
+      }
+    });
+  }, [isOpen, worldId]);
+
+  const syncBudgetBackend = (updates: Record<string, number>) => {
+    civilizationApi.updateBudget(worldId, updates).catch(() => {});
+  };
+
   // Computed revenues and expenses
   const popFactor = resources.population / 1000000;
   const resRevenue = Math.round(popFactor * 4200 * (resTax / 14));
@@ -79,18 +106,27 @@ export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps)
 
   const netBalance = totalTaxRevenue - totalExpenses;
 
-  const handleIssueBond = (amount: number) => {
+  const handleIssueBond = async (amount: number) => {
     soundFx.playRewardClaim();
-    setMunicipalDebt((prev) => prev + amount);
-    triggerToast({
-      type: 'reward',
-      title: `🏛️ MUNICIPAL BOND ISSUED`,
-      subtitle: `Issued +${amount.toLocaleString()} GRC bond. Monthly interest rate: 2%.`,
-      icon: '💰',
-    });
+    const res = await civilizationApi.issueBond(worldId, amount);
+    if (res.success && res.data) {
+      setMunicipalDebt(res.data.municipal_debt);
+      triggerToast({
+        type: 'reward',
+        title: `🏛️ MUNICIPAL BOND ISSUED`,
+        subtitle: `Issued +${amount.toLocaleString()} GRC bond. Monthly interest rate: 2%.`,
+        icon: '💰',
+      });
+    } else {
+      triggerToast({
+        type: 'info',
+        title: 'BOND ISSUE FAILED',
+        subtitle: res.message || 'Could not issue bond',
+      });
+    }
   };
 
-  const handleRepayBond = (amount: number) => {
+  const handleRepayBond = async (amount: number) => {
     if (resources.grc < amount) {
       soundFx.playClick();
       triggerToast({
@@ -100,14 +136,24 @@ export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps)
       });
       return;
     }
-    soundFx.playGavel();
-    setMunicipalDebt((prev) => Math.max(0, prev - amount));
-    triggerToast({
-      type: 'reward',
-      title: `DEBT REPAID`,
-      subtitle: `Retired ${amount.toLocaleString()} GRC of municipal debt obligations.`,
-      icon: '✅',
-    });
+    const res = await civilizationApi.repayBond(worldId, amount);
+    if (res.success && res.data) {
+      soundFx.playGavel();
+      setMunicipalDebt(res.data.municipal_debt);
+      triggerToast({
+        type: 'reward',
+        title: `DEBT REPAID`,
+        subtitle: `Retired ${amount.toLocaleString()} GRC of municipal debt obligations.`,
+        icon: '✅',
+      });
+    } else {
+      soundFx.playClick();
+      triggerToast({
+        type: 'info',
+        title: 'DEBT REPAYMENT FAILED',
+        subtitle: res.message || 'Could not repay debt',
+      });
+    }
   };
 
   if (!isOpen) return null;
@@ -347,6 +393,7 @@ export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps)
                       const val = Number(e.target.value);
                       setResTax(val);
                       setTaxRate(val);
+                      syncBudgetBackend({ residential_tax: val / 100.0 });
                     }}
                     className="w-full accent-[#2ecc71]"
                   />
@@ -367,7 +414,11 @@ export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps)
                     min="1"
                     max="25"
                     value={comTax}
-                    onChange={(e) => setComTax(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setComTax(val);
+                      syncBudgetBackend({ commercial_tax: val / 100.0 });
+                    }}
                     className="w-full accent-[#3498db]"
                   />
                   <div className="flex justify-between text-[10px] text-[#8f9d94]">
@@ -387,7 +438,11 @@ export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps)
                     min="1"
                     max="25"
                     value={indTax}
-                    onChange={(e) => setIndTax(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setIndTax(val);
+                      syncBudgetBackend({ industrial_tax: val / 100.0 });
+                    }}
                     className="w-full accent-[#f39c12]"
                   />
                   <div className="flex justify-between text-[10px] text-[#8f9d94]">
@@ -407,7 +462,11 @@ export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps)
                     min="1"
                     max="25"
                     value={offTax}
-                    onChange={(e) => setOffTax(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setOffTax(val);
+                      syncBudgetBackend({ office_tax: val / 100.0 });
+                    }}
                     className="w-full accent-[#9b59b6]"
                   />
                   <div className="flex justify-between text-[10px] text-[#8f9d94]">
@@ -428,12 +487,12 @@ export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps)
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
-                  { name: 'Roads & Public Transit', val: roadFunding, set: setRoadFunding, icon: Truck, cost: roadCost },
-                  { name: 'Power Grid Infrastructure', val: powerFunding, set: setPowerFunding, icon: Zap, cost: powerCost },
-                  { name: 'Water & Sewage Treatment', val: waterFunding, set: setWaterFunding, icon: Droplets, cost: waterCost },
-                  { name: 'Healthcare & Clinics', val: healthFunding, set: setHealthFunding, icon: HeartPulse, cost: healthCost },
-                  { name: 'Public Education & Universities', val: eduFunding, set: setEduFunding, icon: GraduationCap, cost: eduCost },
-                  { name: 'Police & Fire Department', val: policeFunding, set: setPoliceFunding, icon: ShieldAlert, cost: policeCost },
+                  { key: 'road_funding', name: 'Roads & Public Transit', val: roadFunding, set: setRoadFunding, icon: Truck, cost: roadCost },
+                  { key: 'power_funding', name: 'Power Grid Infrastructure', val: powerFunding, set: setPowerFunding, icon: Zap, cost: powerCost },
+                  { key: 'water_funding', name: 'Water & Sewage Treatment', val: waterFunding, set: setWaterFunding, icon: Droplets, cost: waterCost },
+                  { key: 'health_funding', name: 'Healthcare & Clinics', val: healthFunding, set: setHealthFunding, icon: HeartPulse, cost: healthCost },
+                  { key: 'education_funding', name: 'Public Education & Universities', val: eduFunding, set: setEduFunding, icon: GraduationCap, cost: eduCost },
+                  { key: 'police_funding', name: 'Police & Fire Department', val: policeFunding, set: setPoliceFunding, icon: ShieldAlert, cost: policeCost },
                 ].map((s) => {
                   const Icon = s.icon;
                   return (
@@ -450,7 +509,11 @@ export default function CS2BudgetModal({ isOpen, onClose }: CS2BudgetModalProps)
                         min="50"
                         max="150"
                         value={s.val}
-                        onChange={(e) => s.set(Number(e.target.value))}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          s.set(val);
+                          syncBudgetBackend({ [s.key]: val });
+                        }}
                         className="w-full accent-[#dfb74a]"
                       />
                       <div className="flex justify-between text-[10px] text-[#8f9d94]">

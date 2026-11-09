@@ -147,8 +147,19 @@ async def get_world_risk_scores(world_id: str):
     if not row:
         raise HTTPException(status_code=404, detail=f"World '{world_id}' not found")
 
+    try:
+        from engine.world.simulation import get_unified_simulation
+        from engine.world.features import UnifiedFeatureExtractor
+        sim = get_unified_simulation(w_id)
+        live_feats = UnifiedFeatureExtractor.extract_live_features(sim)
+        speed_lim = float(live_feats.get("average_traffic_speed_kmh", 45.0))
+        congestion = float(live_feats.get("traffic_congestion_ratio", 0.1))
+    except Exception:
+        speed_lim = 45.0
+        congestion = 0.1
+
     risk_eval = evaluate_incident_risk(
-        speed_limit=30.0,
+        speed_limit=speed_lim,
         road_type=6,
         light_conditions=1,
         weather_conditions=1,
@@ -163,8 +174,9 @@ async def get_world_risk_scores(world_id: str):
         risk_tier=risk_eval["risk_tier"],
         ml_enabled=risk_eval["ml_enabled"],
         indicators={
-            "speed_limit_mph": 30.0,
+            "speed_limit_mph": round(speed_lim * 0.621371, 1),
             "urban_area": True,
+            "congestion_ratio": congestion,
             "lighting": "Daylight"
         }
     )

@@ -7,6 +7,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.0] - 2026-11-09 (Full Rounak Frontend Integration & System Hardening)
+
+### Integrated & Preserved
+- **Frontend Integration from `origin/rounak`:**
+  - Integrated 3D Council character models (`public/models/council/` GLB assets).
+  - Integrated Civil Defense & Disaster Management dashboards (`DisasterManagementDashboard`, `DisasterVisualEffects`).
+  - Integrated Citizen Intelligence engine & demographic census tab in `PopulationPage.tsx`.
+  - Integrated CS2 Infoview overlays (Noise, Crime, Healthcare, Education, Transit, Unemployment) in `CS2ZoningAndInfoView3D.tsx` alongside live unified power/water blackout overlays.
+  - Integrated global keyboard shortcuts, tutorial onboarding modal, budget modal, and statistics modal.
+  - Integrated `CivoraErrorBoundary` and WebGL context restoration handlers.
+  - Integrated chunk-splitting rollup options in `vite.config.ts`.
+- **Preserved Core Backend & Model Architectures:**
+  - Preserved all Multi-Level ML Behavioral Models (Levels 1-5), LightGBM weights, Neural MLP models, Parquet training telemetry, and scenario runners.
+  - Preserved Unified World architecture (`engine/world/`), authoritative command layer, undo stack, and derived city metrics.
+  - Preserved Causal Simulation engine (`engine/causal/`), vitals endpoints (`/api/v1/causal/vitals`), and Causal Insights UI.
+- **Verification:**
+  - TypeScript & Vite build: 100% clean compilation.
+  - Backend pytest suite: **95 / 95 passing** (100%).
+  - Live system verification: **21 / 21 passing** (100%).
+  - Playwright E2E suite: **7 / 7 passing** (100%).
+
+## [2.3.0] - 2026-11-09 (Unified World Architecture & Complete Feature Logic Wiring)
+
+### Added
+- **Unified World State & Architecture (`engine/world/`):**
+  - Single source of truth backend state holding road networks, buildings, utility grids, zoned lots, and agent mobility.
+  - `POST /api/v1/worlds/{id}/commands`: Batch, idempotent, and RBAC-validated command engine with undo stack support.
+  - `GET /api/v1/worlds/{id}/state`: Authoritative full-snapshot state endpoint with monotonic versioning.
+  - `GET /api/v1/worlds/{id}/action-log`: Persistent chronological audit log of all player and administrator actions.
+  - `GET /api/v1/worlds/{id}/risk-overlays`: Spatial AI risk heatmaps (blackout, accident, disease, unrest).
+  - `POST /api/v1/worlds/{id}/counterfactual`: Branch copy counterfactual simulation projecting policy impact.
+- **Derived Simulation Metrics:**
+  - Population derived directly from occupied residential building capacity.
+  - Jobs derived from active commercial and industrial capacity.
+  - Utility supply & demand derived from power plants and water facilities via transmission graph solving.
+  - Traffic congestion derived from road volume-to-capacity (V/C) ratios and BPR travel times.
+- **Frontend Unified World Client (`src/world/`):**
+  - `worldStore.ts`: Synced client-side store with version gap reconciliation and optimistic updates.
+  - `useUnifiedWorld.ts`: Reactive React hook for UI components to access authoritative entities and metrics.
+- **Documentation & Verification:**
+  - `docs/disconnect_report.md`: Forensic analysis of the 5 disconnect pillars with file and code evidence.
+  - `docs/coupling_map.md`: Architecture diagrams contrasting before (siloed) vs. target unified system.
+  - `docs/feature_spec.md`: Complete specification of all user-facing features, inputs, costs, and state changes.
+  - `docs/feature_audit.md`: Classification scorecard and audit matrix.
+  - `tests/test_unified_world_and_commands.py`: 10 pytest unit & benchmark tests passing in 1.6s.
+  - `frontend/e2e/unified_world.spec.ts`: Playwright E2E suite verifying 3D HUD, command execution, and undo.
+
+### Modified Existing Frontend Files (Conflict-Safe Minimal Touch)
+- `src/context/GameStateContext.tsx`: Connected `placeBuilding`, `demolishBuilding`, `paintZoneTile`, and `setTaxRate` to `globalWorldStore.sendCommand`, synced top HUD resources with simulation metrics, and exposed `undoLastAction`.
+- `src/components/world3d/CS2ZoningAndInfoView3D.tsx`: Wired real unpowered/unwatered building blackout indicators from `useUnifiedWorld().utilities`.
+- `src/components/world3d/VehiclesSystem.tsx`: Synced global traffic flow metrics with real road network congestion from `useUnifiedWorld().traffic`.
+
+---
+
+## [2.2.0] - 2026-11-09 (Causal Simulation Coupling & Vital Signs Intelligence)
+
+### Added
+- **Causal Simulation Coupling Engine (`engine/causal/`):**
+  - Resolved zero-death anomaly where population previously scaled purely via net exponential compounding ($P_{t+1} = P_t \times (1 + r)$) without subtracting deaths.
+  - Implemented strict 10-stage causal propagation per tick:
+    1. `needs / utilities` (food, water, energy, healthcare, shelter demand vs availability)
+    2. `environment` (pollution toxicity and air quality)
+    3. `health & disease` (biological vitality decay from malnutrition, dehydration, pollution)
+    4. `incidents` (industrial and traffic accidents generating acute trauma cases)
+    5. `hospital & emergency` (patient morbidity admissions, dynamic bed occupancy, saturation overflow)
+    6. `mortality & births` (UN WPP / WHO calibrated crude birth rate ~14.5/1k, baseline Gompertz mortality ~7.8/1k, starvation, dehydration, and hospital overflow casualties)
+    7. `economy feedback` (workforce availability constrained by illness and mortality)
+    8. `citizen satisfaction` (dynamic composite happiness and grievance score)
+    9. `unrest & protest contagion` (grievance threshold activation $\ge 0.42$, persistent protest escalation and de-escalation)
+    10. `governance feedback` (policy levers and emergency response interventions)
+  - Rate rescaling: Annual demographic and Gompertz rates calibrated to daily ticks ($\Delta t = \text{days\_per\_tick} / 365.0$).
+  - ML Safety Bounding: Level 3 ML models modulate baseline hazard rates strictly within $[0.70, 1.40]$ with safe rule-based fallbacks.
+  - New database table `causal_vitals` capturing per-tick births, deaths by cause, hospital occupancy, unmet needs, and protest intensity.
+- **Additive REST Endpoints & WebSocket Payloads:**
+  - `GET /api/v1/worlds/{id}/causal-trace`: Interactive causal DAG with nodes, links, transmission strengths, and contributing factors.
+  - `GET /api/v1/worlds/{id}/vitals`: Time-series of vital statistics and casualty breakdowns over simulation history.
+  - WebSocket delta broadcast (`tick_delta`) enriched with real-time `vitals` and emergent causal `events`.
+- **Frontend "Causal Insights" Feature (`src/features/causal/`):**
+  - `VitalSignsPanel.tsx`: Live births vs deaths curve, cause-of-death breakdown (aging, starvation, dehydration, hospital overload, pollution, trauma), hospital bed capacity saturation meter, and unmet basic needs gauges.
+  - `CauseAndEffectView.tsx`: Interactive DAG flow diagram connecting shortage $\rightarrow$ health $\rightarrow$ hospital $\rightarrow$ deaths $\rightarrow$ happiness $\rightarrow$ protests with live transmission weights.
+  - `CausalEventFeed.tsx`: Real-time incident feed of starvation crises, hospital overloads, and civil protest demonstrations.
+  - `PolicyWhatIfShortcuts.tsx`: Targeted policy intervention controls (Emergency Grain Reserves, Field Hospital Expansion, Desalination Surge, Citizen Accord) displaying projected downstream impacts.
+  - `CausalInsightsPage.tsx`: Full-screen strategy dashboard with manual simulation stepper, live telemetry polling, and close controls.
+- **Diagnostics & Reports:**
+  - `docs/coupling_map.md`: Complete dependency graph and root cause autopsy of the pre-coupling failure modes.
+  - `ml/diagnostics/trace_run.py`: Multi-tick trace script validating causal propagation under normal and famine conditions.
+  - `ml/reports/trace_comparison.png`: Four-panel comparative visualization contrasting uncoupled baseline vs coupled causal equilibrium.
+  - `tests/test_sim_causal_coupling.py`: 6 automated tests validating interventions, ablations, invariants, demographic calibration, and API endpoints.
+
+### Modified Existing Frontend Files (Conflict-Safe Minimal Touch)
+- `src/App.tsx`: Mounted the lazy-loaded `CausalInsightsPage` component inside `renderOverlay` under case `'Causal Insights'`.
+- `src/components/layout/Sidebar.tsx`: Added `'Causal Insights'` navigation entry to `'THE FUTURE'` section with `Activity` icon and `'Live'` badge.
+- `src/context/GameStateContext.tsx`: Restored disaster management and citizen report interfaces from Saanavi's updates to maintain full type-safety across Rounak and Saanavi merges.
+- `frontend/e2e/interactive_ui.spec.ts`: Handled backdrop dismissal and extended timeout for heavy 3D scene traversal across all secondary overlays.
+
+---
+
 ## [2.0.0] - 2026-11-07 (Cities: Skylines II Simulation & Graphics Overhaul)
 
 ### Added

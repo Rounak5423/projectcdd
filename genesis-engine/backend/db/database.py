@@ -90,6 +90,8 @@ def init_db():
             orientation REAL DEFAULT 0.0,
             status TEXT DEFAULT 'active',
             capacity INTEGER DEFAULT 50,
+            current_occupants INTEGER DEFAULT 0,
+            current_workers INTEGER DEFAULT 0,
             construction_cost TEXT DEFAULT '{}',
             upgrade_cost TEXT DEFAULT '{}',
             effects TEXT DEFAULT '{}',
@@ -116,7 +118,12 @@ def init_db():
             knowledge_retention REAL DEFAULT 0.7,
             ai_dependency REAL DEFAULT 0.1,
             is_alive INTEGER DEFAULT 1,
-            FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
+            home_building_id TEXT,
+            work_building_id TEXT,
+            employed INTEGER DEFAULT 0,
+            FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE,
+            FOREIGN KEY (home_building_id) REFERENCES buildings(id) ON DELETE SET NULL,
+            FOREIGN KEY (work_building_id) REFERENCES buildings(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS economy_resources (
@@ -144,6 +151,18 @@ def init_db():
             happiness REAL DEFAULT 0.75,
             environmental_health REAL DEFAULT 0.80,
             pollution REAL DEFAULT 0.15,
+            residential_tax REAL DEFAULT 0.14,
+            commercial_tax REAL DEFAULT 0.12,
+            industrial_tax REAL DEFAULT 0.15,
+            office_tax REAL DEFAULT 0.13,
+            road_budget_pct REAL DEFAULT 100.0,
+            power_budget_pct REAL DEFAULT 100.0,
+            water_budget_pct REAL DEFAULT 100.0,
+            health_budget_pct REAL DEFAULT 100.0,
+            education_budget_pct REAL DEFAULT 100.0,
+            police_budget_pct REAL DEFAULT 100.0,
+            municipal_debt REAL DEFAULT 0.0,
+            total_interest_paid REAL DEFAULT 0.0,
             FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
         );
 
@@ -289,6 +308,42 @@ def init_db():
             materials REAL NOT NULL,
             FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS causal_vitals (
+            id TEXT PRIMARY KEY,
+            world_id TEXT NOT NULL,
+            tick INTEGER NOT NULL,
+            year INTEGER NOT NULL,
+            day INTEGER NOT NULL,
+            population INTEGER NOT NULL,
+            births INTEGER NOT NULL,
+            deaths INTEGER NOT NULL,
+            deaths_aging INTEGER NOT NULL,
+            deaths_starvation INTEGER NOT NULL,
+            deaths_dehydration INTEGER NOT NULL,
+            deaths_hospital_overload INTEGER NOT NULL,
+            deaths_pollution INTEGER NOT NULL,
+            deaths_trauma INTEGER NOT NULL,
+            hospital_admissions INTEGER NOT NULL,
+            bed_capacity INTEGER NOT NULL,
+            bed_occupancy_pct REAL NOT NULL,
+            overflow_patients INTEGER NOT NULL,
+            unmet_food REAL NOT NULL,
+            unmet_water REAL NOT NULL,
+            unmet_energy REAL NOT NULL,
+            unmet_healthcare REAL NOT NULL,
+            unmet_shelter REAL NOT NULL,
+            health_index REAL NOT NULL,
+            protest_intensity REAL NOT NULL,
+            protest_participants INTEGER NOT NULL,
+            grievance_score REAL NOT NULL,
+            happiness REAL NOT NULL,
+            civic_stability REAL NOT NULL,
+            environmental_health REAL NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_causal_vitals_world_tick ON causal_vitals(world_id, tick);
         """)
 
         # High-Performance Secondary Indexes (Phase 7)

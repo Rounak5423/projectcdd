@@ -4,12 +4,42 @@ CIVORA — Council of Advisors Database Models (SQLAlchemy & Declarative Schema)
 
 import json
 from datetime import datetime, timezone
-from sqlalchemy import (
-    Column, String, Integer, Float, Boolean, Text, ForeignKey, Index
-)
-from sqlalchemy.orm import declarative_base, relationship
+try:
+    from sqlalchemy import (
+        Column, String, Integer, Float, Boolean, Text, ForeignKey, Index
+    )
+    from sqlalchemy.orm import declarative_base, relationship
+    Base = declarative_base()
+except ImportError:
+    class Base:
+        pass
 
-Base = declarative_base()
+    def Column(*args, **kwargs):
+        return None
+
+    def String(*args, **kwargs):
+        return None
+
+    def Integer(*args, **kwargs):
+        return None
+
+    def Float(*args, **kwargs):
+        return None
+
+    def Boolean(*args, **kwargs):
+        return None
+
+    def Text(*args, **kwargs):
+        return None
+
+    def ForeignKey(*args, **kwargs):
+        return None
+
+    def Index(*args, **kwargs):
+        return None
+
+    def relationship(*args, **kwargs):
+        return None
 
 
 class CouncilAdvisor(Base):
