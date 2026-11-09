@@ -363,10 +363,6 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     # Check if a new simulated year has commenced
     has_year_rolled_over = new_year > cur_year
 
-    # Population growth
-    growth_multiplier = (1.0 + (econ["population_growth_rate"] * (days_per_tick / float(days_per_year)))) ** ticks
-    new_population = int(econ["population"] * growth_multiplier)
-
     # GDP growth
     gdp_multiplier = (1.0 + (econ["gdp_growth_rate"] * (days_per_tick / float(days_per_year)))) ** ticks
     new_gdp = round(econ["gdp"] * gdp_multiplier, 2)
@@ -380,9 +376,10 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     research_prod = econ["research_rate"] * time_factor * 5.0
 
     # Resource consumption
-    food_cons = (new_population / 10000.0) * time_factor * 8.0
-    water_cons = (new_population / 10000.0) * time_factor * 10.0
-    energy_cons = (new_population / 10000.0) * time_factor * 6.5
+    current_pop = econ["population"]
+    food_cons = (current_pop / 10000.0) * time_factor * 8.0
+    water_cons = (current_pop / 10000.0) * time_factor * 10.0
+    energy_cons = (current_pop / 10000.0) * time_factor * 6.5
     materials_cons = time_factor * 40.0
 
     new_food = max(0.0, econ["food"] + food_prod - food_cons)
@@ -391,24 +388,40 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     new_materials = max(0.0, econ["materials"] + materials_prod - materials_cons)
     new_research = econ["research_points"] + research_prod
 
-    # Behavioral shortages check: deficit lowers happiness & civic stability
-    shortage_deficit = 0.0
-    if new_food <= 0.0:
-        shortage_deficit += 0.03
-    if new_water <= 0.0:
-        shortage_deficit += 0.03
-    if new_energy <= 0.0:
-        shortage_deficit += 0.04
+    # Query healthcare and residential building capacities for causal coupling
+    hosp_row = conn.execute("SELECT SUM(capacity) as cap FROM buildings WHERE world_id = ? AND type = 'Healthcare'", (world_id,)).fetchone()
+    hosp_cap = hosp_row["cap"] if hosp_row and hosp_row["cap"] else 1500
 
-    base_happiness = econ["happiness"] if econ["happiness"] is not None else 0.78
-    base_stability = econ["civic_stability"] if econ["civic_stability"] is not None else 0.77
+    res_row = conn.execute("SELECT SUM(capacity) as cap FROM buildings WHERE world_id = ? AND type = 'Residential'", (world_id,)).fetchone()
+    res_cap = res_row["cap"] if res_row and res_row["cap"] else 1500000
 
-    if shortage_deficit > 0:
-        new_happiness = max(0.05, base_happiness - (shortage_deficit * ticks * 0.5))
-        new_stability = max(0.10, base_stability - (shortage_deficit * 0.4 * ticks))
-    else:
-        new_happiness = min(0.98, base_happiness + (0.0003 * ticks))
-        new_stability = min(0.98, base_stability + (0.0003 * ticks))
+    # Causal coupling: fixed update order per tick
+    from engine.causal import global_causal_engine
+
+    causal_res = global_causal_engine.step(
+        world_id=world_id,
+        current_tick=cur_tick,
+        year=new_year,
+        day=new_day,
+        population=current_pop,
+        food_stock=new_food,
+        food_production=food_prod,
+        water_stock=new_water,
+        water_production=water_prod,
+        energy_stock=new_energy,
+        energy_production=energy_prod,
+        pollution_level=econ["pollution"] if "pollution" in econ.keys() and econ["pollution"] is not None else 0.15,
+        civic_stability=econ["civic_stability"] if econ["civic_stability"] is not None else 0.77,
+        happiness=econ["happiness"] if econ["happiness"] is not None else 0.78,
+        hospital_capacity=hosp_cap,
+        residential_capacity=res_cap,
+        unemployment_rate=1.0 - (econ["employment_rate"] if econ["employment_rate"] is not None else 0.95),
+        ticks_passed=ticks,
+    )
+
+    new_population = causal_res["new_population"]
+    new_happiness = causal_res["happiness"]
+    new_stability = causal_res["civic_stability"]
 
     # Single batched transaction for entire simulation step
     with conn:
@@ -508,6 +521,54 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
             0.18, 0.79, new_food, new_energy, new_materials
         ))
 
+        # Record new causal events to database
+        for evt in causal_res.get("events", []):
+            conn.execute("""
+            INSERT OR IGNORE INTO events (id, world_id, year, day, title, category, description, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                evt["id"],
+                world_id,
+                new_year,
+                new_day,
+                evt["title"],
+                evt["category"],
+                evt["description"],
+                now_str
+            ))
+
+        # Record vitals to causal_vitals table
+        v = causal_res["vitals"]
+        dbc = v["deaths_by_cause"]
+        un = v["unmet_needs"]
+        conn.execute("""
+        INSERT OR REPLACE INTO causal_vitals (
+            id, world_id, tick, year, day, population, births, deaths,
+            deaths_aging, deaths_starvation, deaths_dehydration, deaths_hospital_overload,
+            deaths_pollution, deaths_trauma, hospital_admissions, bed_capacity,
+            bed_occupancy_pct, overflow_patients, unmet_food, unmet_water, unmet_energy,
+            unmet_healthcare, unmet_shelter, health_index, protest_intensity,
+            protest_participants, grievance_score, happiness, civic_stability,
+            environmental_health, created_at
+        ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?
+        )
+        """, (
+            f"cv_{world_id}_{new_tick}", world_id, new_tick, new_year, new_day, new_population, v["births"], v["deaths"],
+            dbc["aging"], dbc["starvation"], dbc["dehydration"], dbc["hospital_overload"],
+            dbc["pollution"], dbc["trauma"], v["hospital_admissions"], v["bed_capacity"],
+            v["bed_occupancy_pct"], v["overflow_patients"], un["food"], un["water"], un["energy"],
+            un["healthcare"], un["shelter"], v["health_index"], v["protest_intensity"],
+            v["protest_participants"], v["grievance_score"], new_happiness, new_stability,
+            v["environmental_health"], now_str
+        ))
+
         # Autosave snapshot trigger
         autosave_interval = int(os.environ.get("AUTOSAVE_INTERVAL_TICKS", "50"))
         if new_tick % autosave_interval == 0:
@@ -537,7 +598,14 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
             "level": new_level,
             "xp": new_xp,
             "thriving_score": round(thriving, 2)
-        }
+        },
+        "vitals": causal_res["vitals"],
+        "events": causal_res["events"],
+        "deaths": causal_res["deaths"],
+        "births": causal_res["births"],
+        "deaths_by_cause": causal_res["deaths_by_cause"],
+        "protest_intensity": causal_res["protest_intensity"],
+        "trace_graph": causal_res["trace_graph"],
     }
 
 

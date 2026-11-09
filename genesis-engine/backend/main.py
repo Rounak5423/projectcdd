@@ -534,7 +534,9 @@ async def websocket_world_stream(websocket: WebSocket, world_id: str, token: Opt
                                     "happiness": delta.get("happiness"),
                                     "civic_stability": delta.get("civic_stability"),
                                     "resources": delta["resources"],
-                                    "progression": delta["progression"]
+                                    "progression": delta["progression"],
+                                    "vitals": delta.get("vitals"),
+                                    "events": delta.get("events", [])
                                 }
                             })
                         except Exception as e:

@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] - 2026-11-09 (Causal Simulation Coupling & Vital Signs Intelligence)
+
+### Added
+- **Causal Simulation Coupling Engine (`engine/causal/`):**
+  - Resolved zero-death anomaly where population previously scaled purely via net exponential compounding ($P_{t+1} = P_t \times (1 + r)$) without subtracting deaths.
+  - Implemented strict 10-stage causal propagation per tick:
+    1. `needs / utilities` (food, water, energy, healthcare, shelter demand vs availability)
+    2. `environment` (pollution toxicity and air quality)
+    3. `health & disease` (biological vitality decay from malnutrition, dehydration, pollution)
+    4. `incidents` (industrial and traffic accidents generating acute trauma cases)
+    5. `hospital & emergency` (patient morbidity admissions, dynamic bed occupancy, saturation overflow)
+    6. `mortality & births` (UN WPP / WHO calibrated crude birth rate ~14.5/1k, baseline Gompertz mortality ~7.8/1k, starvation, dehydration, and hospital overflow casualties)
+    7. `economy feedback` (workforce availability constrained by illness and mortality)
+    8. `citizen satisfaction` (dynamic composite happiness and grievance score)
+    9. `unrest & protest contagion` (grievance threshold activation $\ge 0.42$, persistent protest escalation and de-escalation)
+    10. `governance feedback` (policy levers and emergency response interventions)
+  - Rate rescaling: Annual demographic and Gompertz rates calibrated to daily ticks ($\Delta t = \text{days\_per\_tick} / 365.0$).
+  - ML Safety Bounding: Level 3 ML models modulate baseline hazard rates strictly within $[0.70, 1.40]$ with safe rule-based fallbacks.
+  - New database table `causal_vitals` capturing per-tick births, deaths by cause, hospital occupancy, unmet needs, and protest intensity.
+- **Additive REST Endpoints & WebSocket Payloads:**
+  - `GET /api/v1/worlds/{id}/causal-trace`: Interactive causal DAG with nodes, links, transmission strengths, and contributing factors.
+  - `GET /api/v1/worlds/{id}/vitals`: Time-series of vital statistics and casualty breakdowns over simulation history.
+  - WebSocket delta broadcast (`tick_delta`) enriched with real-time `vitals` and emergent causal `events`.
+- **Frontend "Causal Insights" Feature (`src/features/causal/`):**
+  - `VitalSignsPanel.tsx`: Live births vs deaths curve, cause-of-death breakdown (aging, starvation, dehydration, hospital overload, pollution, trauma), hospital bed capacity saturation meter, and unmet basic needs gauges.
+  - `CauseAndEffectView.tsx`: Interactive DAG flow diagram connecting shortage $\rightarrow$ health $\rightarrow$ hospital $\rightarrow$ deaths $\rightarrow$ happiness $\rightarrow$ protests with live transmission weights.
+  - `CausalEventFeed.tsx`: Real-time incident feed of starvation crises, hospital overloads, and civil protest demonstrations.
+  - `PolicyWhatIfShortcuts.tsx`: Targeted policy intervention controls (Emergency Grain Reserves, Field Hospital Expansion, Desalination Surge, Citizen Accord) displaying projected downstream impacts.
+  - `CausalInsightsPage.tsx`: Full-screen strategy dashboard with manual simulation stepper, live telemetry polling, and close controls.
+- **Diagnostics & Reports:**
+  - `docs/coupling_map.md`: Complete dependency graph and root cause autopsy of the pre-coupling failure modes.
+  - `ml/diagnostics/trace_run.py`: Multi-tick trace script validating causal propagation under normal and famine conditions.
+  - `ml/reports/trace_comparison.png`: Four-panel comparative visualization contrasting uncoupled baseline vs coupled causal equilibrium.
+  - `tests/test_sim_causal_coupling.py`: 6 automated tests validating interventions, ablations, invariants, demographic calibration, and API endpoints.
+
+### Modified Existing Frontend Files (Conflict-Safe Minimal Touch)
+- `src/App.tsx`: Mounted the lazy-loaded `CausalInsightsPage` component inside `renderOverlay` under case `'Causal Insights'`.
+- `src/components/layout/Sidebar.tsx`: Added `'Causal Insights'` navigation entry to `'THE FUTURE'` section with `Activity` icon and `'Live'` badge.
+- `src/context/GameStateContext.tsx`: Restored disaster management and citizen report interfaces from Saanavi's updates to maintain full type-safety across Rounak and Saanavi merges.
+- `frontend/e2e/interactive_ui.spec.ts`: Handled backdrop dismissal and extended timeout for heavy 3D scene traversal across all secondary overlays.
+
+---
+
 ## [2.0.0] - 2026-11-07 (Cities: Skylines II Simulation & Graphics Overhaul)
 
 ### Added

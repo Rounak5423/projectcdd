@@ -264,6 +264,42 @@ def init_db():
             materials REAL NOT NULL,
             FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS causal_vitals (
+            id TEXT PRIMARY KEY,
+            world_id TEXT NOT NULL,
+            tick INTEGER NOT NULL,
+            year INTEGER NOT NULL,
+            day INTEGER NOT NULL,
+            population INTEGER NOT NULL,
+            births INTEGER NOT NULL,
+            deaths INTEGER NOT NULL,
+            deaths_aging INTEGER NOT NULL,
+            deaths_starvation INTEGER NOT NULL,
+            deaths_dehydration INTEGER NOT NULL,
+            deaths_hospital_overload INTEGER NOT NULL,
+            deaths_pollution INTEGER NOT NULL,
+            deaths_trauma INTEGER NOT NULL,
+            hospital_admissions INTEGER NOT NULL,
+            bed_capacity INTEGER NOT NULL,
+            bed_occupancy_pct REAL NOT NULL,
+            overflow_patients INTEGER NOT NULL,
+            unmet_food REAL NOT NULL,
+            unmet_water REAL NOT NULL,
+            unmet_energy REAL NOT NULL,
+            unmet_healthcare REAL NOT NULL,
+            unmet_shelter REAL NOT NULL,
+            health_index REAL NOT NULL,
+            protest_intensity REAL NOT NULL,
+            protest_participants INTEGER NOT NULL,
+            grievance_score REAL NOT NULL,
+            happiness REAL NOT NULL,
+            civic_stability REAL NOT NULL,
+            environmental_health REAL NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_causal_vitals_world_tick ON causal_vitals(world_id, tick);
         """)
 
         # Backward compatibility: safely add owner_id to worlds if it doesn't exist

@@ -19,6 +19,7 @@ import {
   Target,
   ChevronDown,
   Crown,
+  Activity,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { useAuth } from '../../context/AuthContext';
@@ -67,6 +68,7 @@ const baseNavigation: NavSection[] = [
     title: 'THE FUTURE',
     items: [
       { name: 'Future Simulator', icon: Microscope },
+      { name: 'Causal Insights', icon: Activity, badge: 'Live' },
       { name: 'Research Observatory', icon: Compass },
     ],
   },

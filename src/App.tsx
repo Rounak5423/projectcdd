@@ -27,6 +27,7 @@ const ResourcesPage = React.lazy(() => import('./pages/ResourcesPage'));
 const TechnologyPage = React.lazy(() => import('./pages/TechnologyPage'));
 const PolicyLaboratoryPage = React.lazy(() => import('./pages/PolicyLaboratoryPage'));
 const FutureSimulatorPage = React.lazy(() => import('./pages/FutureSimulatorPage'));
+const CausalInsightsPage = React.lazy(() => import('./features/causal/CausalInsightsPage').then(m => ({ default: m.CausalInsightsPage })));
 const ResearchObservatoryPage = React.lazy(() => import('./pages/ResearchObservatoryPage'));
 const ResearchWalletPage = React.lazy(() => import('./pages/ResearchWalletPage'));
 const AchievementsPage = React.lazy(() => import('./pages/AchievementsPage'));
@@ -153,6 +154,8 @@ function GameApp() {
         return <PolicyLaboratoryPage onClose={handleClose} />;
       case 'Future Simulator':
         return <FutureSimulatorPage onClose={handleClose} />;
+      case 'Causal Insights':
+        return <CausalInsightsPage onNavigate={handleNavigate} onClose={handleClose} />;
       case 'Research Observatory':
         return <ResearchObservatoryPage onClose={handleClose} />;
       case 'Research Wallet':
