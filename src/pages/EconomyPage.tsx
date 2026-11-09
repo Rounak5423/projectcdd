@@ -71,7 +71,7 @@ const initialTradeRoutes: TradeRoute[] = [
   },
 ];
 
-export default function EconomyPage() {
+export default function EconomyPage({ onClose }: { onClose?: () => void } = {}) {
   const { resources, rates, taxRate, setTaxRate, districts, economyReport } = useGameState();
   const { economy, resources: resFlow, districts: distMetrics, alerts } = economyReport;
 
@@ -113,16 +113,27 @@ export default function EconomyPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 bg-[#182119] p-3 rounded-xl border border-[#2e3c2f] text-xs font-mono">
-          <div>
-            <span className="text-[#9da99b] block text-[10px]">ANNUAL GROSS OUTPUT</span>
-            <span className="text-sm font-bold text-[#c6a76a]">{resources.gdp} B Credits</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 bg-[#182119] p-3 rounded-xl border border-[#2e3c2f] text-xs font-mono">
+            <div>
+              <span className="text-[#9da99b] block text-[10px]">ANNUAL GROSS OUTPUT</span>
+              <span className="text-sm font-bold text-[#c6a76a]">{resources.gdp} B Credits</span>
+            </div>
+            <div className="w-px h-6 bg-[#2c392d]" />
+            <div>
+              <span className="text-[#9da99b] block text-[10px]">TOTAL FISCAL INFLOW</span>
+              <span className="text-sm font-bold text-[#a6bd82]">+{totalTaxYield}M Cr/yr</span>
+            </div>
           </div>
-          <div className="w-px h-6 bg-[#2c392d]" />
-          <div>
-            <span className="text-[#9da99b] block text-[10px]">TOTAL FISCAL INFLOW</span>
-            <span className="text-sm font-bold text-[#a6bd82]">+{totalTaxYield}M Cr/yr</span>
-          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg bg-[#182119] hover:bg-[#253226] text-[#9da99b] hover:text-[#f3f5ef] border border-[#2e3c2f] transition-colors"
+              title="Return to World"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
       </div>
 

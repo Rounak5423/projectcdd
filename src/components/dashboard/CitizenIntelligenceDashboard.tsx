@@ -48,14 +48,14 @@ export default function CitizenIntelligenceDashboard({ onClose }: CitizenDashboa
   const [selectedAgent, setSelectedAgent] = useState<DetailedCitizenAgent | null>(null);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
 
-  const needsList = Object.values(citizenReport.needs);
+  const needsList: CitizenNeedItem[] = (citizenReport?.needs ? Object.values(citizenReport.needs) : []) as CitizenNeedItem[];
 
-  const filteredNeeds = needsList.filter((n) => {
+  const filteredNeeds = needsList.filter((n: CitizenNeedItem) => {
     if (selectedCategoryFilter === 'all') return true;
     return n.category === selectedCategoryFilter;
   });
 
-  const filteredAgents = citizenReport.citizenAgents.filter((a) => {
+  const filteredAgents = (citizenReport?.citizenAgents || []).filter((a: DetailedCitizenAgent) => {
     const q = search.toLowerCase();
     return (
       a.name.toLowerCase().includes(q) ||
@@ -272,7 +272,7 @@ export default function CitizenIntelligenceDashboard({ onClose }: CitizenDashboa
 
             {/* Needs Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {filteredNeeds.map((need) => {
+              {filteredNeeds.map((need: CitizenNeedItem) => {
                 const Icon = getNeedIcon(need.id);
                 const isOptimal = need.status === 'optimal';
                 const isAdequate = need.status === 'adequate';
@@ -379,8 +379,8 @@ export default function CitizenIntelligenceDashboard({ onClose }: CitizenDashboa
 
             {/* Citizen Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {filteredAgents.map((agent) => {
-                const ActivityIcon = activityIcons[agent.currentActivity] || User;
+              {filteredAgents.map((agent: DetailedCitizenAgent) => {
+                const ActivityIcon = (activityIcons as Record<string, React.ElementType>)[agent.currentActivity] || User;
 
                 return (
                   <div
@@ -465,7 +465,7 @@ export default function CitizenIntelligenceDashboard({ onClose }: CitizenDashboa
             </div>
 
             <div className="space-y-3">
-              {citizenReport.districts.map((d) => (
+              {(citizenReport?.districts || []).map((d: any) => (
                 <div
                   key={d.districtId}
                   className="p-4 rounded-xl bg-[#18211a] border border-[#2b372d] hover:border-[#3d5340] transition-all space-y-3 shadow-md"
@@ -553,7 +553,7 @@ export default function CitizenIntelligenceDashboard({ onClose }: CitizenDashboa
                 </p>
               </div>
             ) : (
-              citizenReport.activeProblems.map((prob) => (
+              (citizenReport?.activeProblems || []).map((prob: any) => (
                 <div
                   key={prob.id}
                   className="p-4 rounded-xl bg-[#241717] border-2 border-[#662828] shadow-lg space-y-2.5"

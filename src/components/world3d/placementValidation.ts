@@ -19,6 +19,24 @@ export interface ValidationResult {
   recommendedRotation?: number;
 }
 
+// Unlocked sovereign territory radius based on Citadel / Village Center level
+export function getCitadelTerritoryRadius(citadelLevel: number): number {
+  switch (Math.max(1, Math.min(5, Math.round(citadelLevel)))) {
+    case 1:
+      return 28.0; // Pioneer Outpost settlement: ~2,460 m²
+    case 2:
+      return 46.0; // Frontier Township / Forum: ~6,650 m² (+170% area expansion)
+    case 3:
+      return 68.0; // Sovereign Citadel / River crossings: ~14,500 m² (+118% area expansion)
+    case 4:
+      return 95.0; // Imperial Metropolis: ~28,350 m² (+95% area expansion)
+    case 5:
+      return 135.0; // Sovereign Imperial Capital: ~57,250 m² (+102% area expansion)
+    default:
+      return 28.0;
+  }
+}
+
 export function validateBuildingPlacement({
   x,
   z,
@@ -37,12 +55,20 @@ export function validateBuildingPlacement({
   const terrainY = getTerrainHeight(x, z);
   const footprintRadius = 2.2;
 
-  // 1. Check World Buildable Perimeter
-  const distFromOrigin = Math.hypot(x, z);
-  if (distFromOrigin > 51.5 || Math.abs(x) > 48 || Math.abs(z) > 48) {
+  // 1. Check Sovereign Territory Unlocked by Citadel / Village Center Level
+  const citadel = placedBuildings.find(
+    (b) => b.modelType === 'citadel' || b.catalogId === 'bld-gov-citadel'
+  );
+  const citadelLevel = citadel?.level || 1;
+  const citadelX = citadel?.x ?? 0;
+  const citadelZ = citadel?.z ?? 11;
+  const maxTerritoryRadius = getCitadelTerritoryRadius(citadelLevel);
+
+  const distFromCitadel = Math.hypot(x - citadelX, z - citadelZ);
+  if (distFromCitadel > maxTerritoryRadius) {
     return {
       isValid: false,
-      reason: 'Beyond surveyed civilization perimeter',
+      reason: `Beyond Citadel sovereign territory (${distFromCitadel.toFixed(0)}m / limit ${maxTerritoryRadius}m). Upgrade Citadel to expand territory!`,
       distToRoad: 99,
       slope: 0,
       terrainElevation: terrainY,

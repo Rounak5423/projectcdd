@@ -15,10 +15,20 @@ import {
   Cpu,
   Trees,
   Grid,
+  Compass,
 } from 'lucide-react';
 import CivilizationWorld3D from '../components/world3d/CivilizationWorld3D';
 import BuildingInspectorPanel from '../components/world3d/BuildingInspectorPanel';
+import CivRegionsDrawer from '../components/game/CivRegionsDrawer';
+import AnnoCitizenCard from '../components/game/AnnoCitizenCard';
+import CS2InfoViewsPanel from '../components/cs2/CS2InfoViewsPanel';
+import CS2ZoningToolDock from '../components/cs2/CS2ZoningToolDock';
+import CS2BulldozerTool from '../components/cs2/CS2BulldozerTool';
+import CS2CitizenLifepathModal from '../components/cs2/CS2CitizenLifepathModal';
+import CS2MilestonesModal from '../components/cs2/CS2MilestonesModal';
 import { useGameState, MapLayer } from '../context/GameStateContext';
+import { Citizen } from '../types/game';
+import { soundFx } from '../services/soundFx';
 
 const layers: { id: MapLayer; label: string; desc: string }[] = [
   { id: 'all', label: 'Composite', desc: 'All civilisational structures and terrain' },
@@ -40,11 +50,23 @@ const PRIMARY_CATEGORIES: { id: string; label: string; icon: React.ElementType }
   { id: 'environment', label: 'Environmental', icon: Trees },
 ];
 
-export default function WorldExplorerPage() {
+export interface WorldExplorerPageProps {
+  onOpenTech?: () => void;
+  onOpenEconomy?: () => void;
+  isPaused?: boolean;
+}
+
+function WorldExplorerPageComponent({
+  onOpenTech,
+  onOpenEconomy,
+  isPaused = false,
+}: WorldExplorerPageProps = {}) {
   const {
     activeLayer,
     setActiveLayer,
     catalog,
+    districts,
+    citizens,
     isConstructionMode,
     selectedCatalogItem,
     relocatingBuildingId,
@@ -52,13 +74,29 @@ export default function WorldExplorerPage() {
     cancelRelocation,
     resources,
     placedBuildings,
+    activeZoneTool,
+    setActiveZoneTool,
+    isBulldozerActive,
+    setIsBulldozerActive,
+    isMilestonesModalOpen,
+    setIsMilestonesModalOpen,
+    inspectedCitizen,
+    setInspectedCitizen,
   } = useGameState();
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showLayerMenu, setShowLayerMenu] = useState(false);
+
+  const handleSelectDistrict = (districtId: string) => {
+    const citizen =
+      citizens.find((c) => c.district.toLowerCase().includes(districtId.replace('dist-', ''))) ||
+      citizens[0];
+    setInspectedCitizen(citizen);
+  };
 
   const filteredCatalog = useMemo(() => {
-    return catalog.filter((item) => {
+    return (catalog || []).filter((item) => {
       if (selectedCategory === 'all') return true;
       if (selectedCategory === 'residential') return item.category === 'residential';
       if (selectedCategory === 'commercial') return item.category === 'commercial';
@@ -76,41 +114,92 @@ export default function WorldExplorerPage() {
   }, [catalog, selectedCategory]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-[#151916] select-none flex flex-col">
+    <div className="relative w-full h-full overflow-hidden bg-[#121619] select-none flex flex-col font-sans">
       {/* 3D React Three Fiber Viewport */}
       <div className="flex-1 w-full h-full relative">
-        <CivilizationWorld3D />
+        <CivilizationWorld3D isPaused={isPaused} />
 
-        {/* 1. TOP STRATEGIC LAYER TOGGLES */}
+        {/* COMPACT LAYER TOGGLE (Non-intrusive lens button) */}
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-4 left-4 z-10 flex items-center gap-1.5 bg-[#171d18]/90 backdrop-blur-md p-1.5 rounded-xl border border-[#39443a] shadow-xl max-w-[calc(100vw-360px)] overflow-x-auto"
+          className="absolute top-4 left-4 z-10"
         >
-          <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-[#c6a76a] font-semibold border-r border-[#2d372e] shrink-0">
-            <Layers size={14} />
-            <span className="hidden sm:inline">DATA LAYER:</span>
-          </div>
-          {layers.map((layer) => (
+          <div className="relative">
             <button
-              key={layer.id}
-              onClick={() => setActiveLayer(layer.id)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all shrink-0 ${
-                activeLayer === layer.id
-                  ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#617c5b] shadow-sm font-semibold'
-                  : 'text-[#9da99b] hover:text-white hover:bg-[#222a22]'
-              }`}
-              title={layer.desc}
+              onClick={() => setShowLayerMenu(!showLayerMenu)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#141916]/90 hover:bg-[#1b231d] text-[#c6a76a] border border-[#344033] shadow-lg backdrop-blur-md text-xs font-mono transition-all cursor-pointer"
+              title="Toggle Strategic Map Lens"
             >
-              {layer.label}
+              <Layers size={14} />
+              <span className="uppercase text-[11px] font-semibold tracking-wider">
+                Lens: {layers.find((l) => l.id === activeLayer)?.label || 'Composite'}
+              </span>
+              <ChevronDown size={12} className={`transition-transform ${showLayerMenu ? 'rotate-180' : ''}`} />
             </button>
-          ))}
+
+            {showLayerMenu && (
+              <div className="absolute top-full left-0 mt-1.5 w-56 bg-[#161d18]/95 border border-[#3b493a] rounded-xl shadow-2xl backdrop-blur-xl p-1.5 flex flex-col gap-1 z-30 animate-in fade-in slide-in-from-top-2">
+                {layers.map((layer) => (
+                  <button
+                    key={layer.id}
+                    onClick={() => {
+                      setActiveLayer(layer.id);
+                      setShowLayerMenu(false);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-left text-xs transition-colors flex flex-col ${
+                      activeLayer === layer.id
+                        ? 'bg-[#3b4c37] text-[#e3f7de] font-bold border border-[#5c7756]'
+                        : 'text-[#9da99b] hover:text-[#f0f4ea] hover:bg-[#222a21]'
+                    }`}
+                  >
+                    <span className="font-semibold">{layer.label}</span>
+                    <span className="text-[10px] text-[#7a8878] opacity-80">{layer.desc}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* 2. ACTIVE PLACEMENT / RELOCATION BANNER */}
+        {/* TOP-RIGHT CIV REGIONS DRAWER */}
+        <CivRegionsDrawer onSelectDistrict={handleSelectDistrict} />
+
+        {/* CITIES: SKYLINES II - FLOATING INFO VIEWS HEATMAP CONTROLS */}
+        <CS2InfoViewsPanel />
+
+        {/* CITIES: SKYLINES II - ACTIVE BULLDOZER DEMOLITION BANNER */}
+        <CS2BulldozerTool />
+
+        {/* CITIES: SKYLINES II - DEEP CITIZEN LIFEPATH INSPECTOR MODAL */}
+        <CS2CitizenLifepathModal
+          citizen={inspectedCitizen}
+          onClose={() => setInspectedCitizen(null)}
+        />
+
+        {/* CITIES: SKYLINES II - CITY MILESTONES & PROGRESSION ROAD */}
+        <CS2MilestonesModal
+          isOpen={isMilestonesModalOpen}
+          onClose={() => setIsMilestonesModalOpen(false)}
+        />
+
+        {/* CITIES: SKYLINES II - DYNAMIC ZONING TOOL DOCK */}
+        <CS2ZoningToolDock />
+
+        {/* ANNO CITIZEN INSPECTOR CARD (Floats Contextually) */}
+        {inspectedCitizen && (
+          <div className="absolute top-16 right-[290px] z-20 animate-in fade-in duration-150">
+            <AnnoCitizenCard
+              citizen={inspectedCitizen}
+              onClose={() => setInspectedCitizen(null)}
+            />
+          </div>
+        )}
+
+        {/* ACTIVE PLACEMENT / RELOCATION BANNER */}
         {isConstructionMode && selectedCatalogItem && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex flex-col sm:flex-row items-center gap-2.5 sm:gap-4 bg-[#1a251b]/95 border-2 border-[#2ecc71] px-5 py-2.5 rounded-2xl shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-4"
+            className="absolute top-16 left-1/2 -translate-x-1/2 z-30 flex flex-col sm:flex-row items-center gap-2.5 sm:gap-4 bg-[#1a251b]/95 border-2 border-[#2ecc71] px-5 py-2.5 rounded-2xl shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-4"
           >
             <div className="flex items-center gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#2ecc71] animate-ping" />
@@ -136,6 +225,7 @@ export default function WorldExplorerPage() {
 
               <button
                 onClick={() => {
+                  soundFx.playClick();
                   if (relocatingBuildingId) {
                     cancelRelocation();
                   } else {
@@ -144,22 +234,50 @@ export default function WorldExplorerPage() {
                 }}
                 className="px-3 py-1 rounded-lg bg-[#381f1c] text-[#fcdad7] hover:bg-[#4d2824] text-xs font-semibold flex items-center gap-1.5 border border-[#6b352e] transition-colors cursor-pointer"
               >
-                <X size={13} /> Cancel
+                <X size={13} /> Cancel [ESC]
               </button>
             </div>
           </div>
         )}
 
-        {/* 3. DEDICATED CENTRALIZED BUILDING INSPECTOR OVERLAY */}
+        {/* DEDICATED CENTRALIZED BUILDING INSPECTOR OVERLAY */}
         <BuildingInspectorPanel />
 
-        {/* 4. BOTTOM DOCK: CONSTRUCTION DRAWER TRIGGER */}
+        {/* BOTTOM-LEFT SETTLEMENT COMPASS RADAR */}
+        <div className="absolute bottom-4 left-4 z-20 flex flex-col items-center gap-1 p-1.5 rounded-xl border border-[#2b353c] bg-[#14181b]/90 backdrop-blur-md shadow-md">
+          <div className="w-14 h-14 rounded-full border border-[#3d4b55] relative overflow-hidden bg-[#0e1214] shadow-inner flex items-center justify-center">
+            <div className="absolute inset-0 border border-[#232c32] rounded-full" />
+            <div className="absolute w-full h-px bg-[#232c32]" />
+            <div className="absolute h-full w-px bg-[#232c32]" />
+            {districts.map((d) => (
+              <div
+                key={d.id}
+                className="absolute w-1.5 h-1.5 rounded-full"
+                style={{
+                  backgroundColor: d.color,
+                  left: `${50 + (d.x / 55) * 36}%`,
+                  top: `${50 + (d.z / 55) * 36}%`,
+                }}
+                title={d.name}
+              />
+            ))}
+            <Compass size={14} className="text-[#8f7742] opacity-40 pointer-events-none" />
+          </div>
+          <span className="text-[8px] font-mono font-bold text-[#8a8376] tracking-wider uppercase">
+            Radar
+          </span>
+        </div>
+
+        {/* BOTTOM DOCK: CONSTRUCTION DRAWER TRIGGER */}
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute bottom-4 left-4 z-10 flex items-center gap-2"
+          className="absolute bottom-4 left-24 z-10 flex items-center gap-2"
         >
           <button
-            onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+            onClick={() => {
+              soundFx.playClick();
+              setIsDrawerOpen(!isDrawerOpen);
+            }}
             className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-2xl backdrop-blur-md transition-all cursor-pointer ${
               isDrawerOpen
                 ? 'bg-[#c6a76a] text-[#151916] ring-2 ring-[#c6a76a]/50'
@@ -171,12 +289,12 @@ export default function WorldExplorerPage() {
             {isDrawerOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
           </button>
 
-          <span className="hidden sm:inline-block text-[11px] font-mono text-[#9da99b] bg-[#161c17]/85 px-3 py-1.5 rounded-lg border border-[#2d372e]">
-            {placedBuildings.length} Operational Facilities Deployed · {resources.materials} Materials Available
+          <span className="hidden md:inline-block text-[11px] font-mono text-[#9da99b] bg-[#161c17]/85 px-3 py-1.5 rounded-lg border border-[#2d372e]">
+            {placedBuildings.length} Facilities · {resources.materials} Materials Available
           </span>
         </div>
 
-        {/* 5. EXPANDABLE 7-CATEGORY CONSTRUCTION REPERTOIRE DRAWER */}
+        {/* EXPANDABLE 7-CATEGORY CONSTRUCTION REPERTOIRE DRAWER */}
         {isDrawerOpen && (
           <div
             onClick={(e) => e.stopPropagation()}
@@ -198,7 +316,7 @@ export default function WorldExplorerPage() {
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
-                className="p-1.5 rounded-lg text-[#9da99b] hover:text-white hover:bg-[#252f26] transition-colors"
+                className="p-1.5 rounded-lg text-[#9da99b] hover:text-white hover:bg-[#252f26] transition-colors cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -212,7 +330,10 @@ export default function WorldExplorerPage() {
                 return (
                   <button
                     key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
+                    onClick={() => {
+                      soundFx.playClick();
+                      setSelectedCategory(cat.id);
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
                       isActive
                         ? 'bg-[#3b4c37] text-[#e3f7de] border border-[#5c7756] shadow-md font-bold'
@@ -270,6 +391,7 @@ export default function WorldExplorerPage() {
                       <button
                         disabled={!canAfford}
                         onClick={() => {
+                          soundFx.playClick();
                           setConstructionMode(true, item);
                           setIsDrawerOpen(false);
                         }}
@@ -292,3 +414,5 @@ export default function WorldExplorerPage() {
     </div>
   );
 }
+
+export default React.memo(WorldExplorerPageComponent);

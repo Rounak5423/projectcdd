@@ -154,7 +154,7 @@ export default function DisasterManagementDashboard({ onClose }: DisasterDashboa
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#4d2222]">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-[#3d1818] border border-[#6b2222]">
-                  {React.createElement(disasterIcons[activeDisaster.type], {
+                  {React.createElement(disasterIcons[activeDisaster.type as DisasterType] || ShieldAlert, {
                     size: 24,
                     className: 'text-[#ff5252] animate-pulse',
                   })}

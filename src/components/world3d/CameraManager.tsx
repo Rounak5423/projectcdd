@@ -24,25 +24,11 @@ export function triggerCameraFocus(x: number, y: number, z: number, dist: number
 
 export default function CameraManager() {
   const controlsRef = useRef<any>(null);
-  const { selectedBuilding, disasterState } = useGameState();
+  const { selectedBuilding } = useGameState();
 
   const targetVec = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.8, 10.0));
   const camVec = useRef<THREE.Vector3>(new THREE.Vector3(32, 28, 38));
   const isTransitioning = useRef<boolean>(false);
-
-  // Real-time camera tremor during earthquakes
-  const activeDisaster = disasterState?.activeDisaster;
-  const isEarthquake =
-    activeDisaster?.type === 'earthquake' &&
-    (activeDisaster.stage === 'warning' || activeDisaster.stage === 'active');
-  const quakeIntensity =
-    activeDisaster?.intensity === 'critical'
-      ? 0.04
-      : activeDisaster?.intensity === 'high'
-      ? 0.025
-      : activeDisaster?.intensity === 'medium'
-      ? 0.015
-      : 0.008;
 
   // Smoothly center camera when building is selected in game state
   useEffect(() => {
@@ -73,16 +59,16 @@ export default function CameraManager() {
           case 'topDown':
             // Orthogonal city-planning top-down overview centered on civilization core
             targetVec.current.set(0, 1.0, 10.0);
-            camVec.current.set(0.01, 82, 10.05);
+            camVec.current.set(0.01, 120, 10.05);
             break;
           case 'panoramic':
             targetVec.current.set(0, 2.5, 12.0);
-            camVec.current.set(45, 14, 35);
+            camVec.current.set(58, 20, 42);
             break;
           case 'reset':
           default:
             targetVec.current.set(0, 1.8, 10.0);
-            camVec.current.set(32, 28, 38);
+            camVec.current.set(38, 34, 46);
             break;
         }
         isTransitioning.current = true;
@@ -98,8 +84,8 @@ export default function CameraManager() {
     return () => window.removeEventListener('civilization-camera-command', handleCommand);
   }, []);
 
-  // Smooth lerp during camera transition & seismic tremor during earthquakes
-  useFrame(({ clock }, delta) => {
+  // Smooth lerp during camera transition
+  useFrame((_, delta) => {
     if (isTransitioning.current && controlsRef.current) {
       const controls = controlsRef.current;
       const cam = controls.object as THREE.PerspectiveCamera;
@@ -114,24 +100,16 @@ export default function CameraManager() {
       ) {
         isTransitioning.current = false;
       }
-    } else if (isEarthquake && controlsRef.current) {
-      // Subtle seismic tremor on camera position
-      const t = clock.getElapsedTime() * 32;
-      const cam = controlsRef.current.object as THREE.PerspectiveCamera;
-      cam.position.x += Math.sin(t * 1.8) * quakeIntensity;
-      cam.position.y += Math.cos(t * 2.3) * (quakeIntensity * 0.7);
-      cam.position.z += Math.sin(t * 1.4 + 1.0) * quakeIntensity;
-      controlsRef.current.update();
     }
   });
 
   return (
     <OrbitControls
       ref={controlsRef}
-      maxPolarAngle={Math.PI / 2.15}
+      maxPolarAngle={Math.PI / 2.06}
       minPolarAngle={0.06}
-      minDistance={12}
-      maxDistance={115}
+      minDistance={6}
+      maxDistance={260}
       dampingFactor={0.08}
       enableDamping
     />

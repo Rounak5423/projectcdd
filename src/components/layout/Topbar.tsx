@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Users,
   Wheat,
@@ -10,20 +10,38 @@ import {
   Bell,
   PanelRightClose,
   PanelRightOpen,
-  Calendar,
-  Sparkles,
-  BookOpen,
-  DollarSign,
+  Crown,
+  Gift,
+  LogOut,
+  AlertTriangle,
+  Activity,
   ShieldAlert,
+  CheckCircle2,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
+import { soundFx } from '../../services/soundFx';
+import { CivoraIcon } from '../brand/CivoraLogo';
+import { AuthUser } from '../../services/authApi';
+import CS2ChirperWidget from '../cs2/CS2ChirperWidget';
+import ResourceDetailModal, { SelectedResourceKey } from './ResourceDetailModal';
+import NotificationCenter from './NotificationCenter';
 
-export default function Topbar({
+function TopbarComponent({
   isRightPanelOpen,
   onToggleRightPanel,
+  user,
+  onLogout,
+  onNavigate,
+  onOpenDiagnostics,
 }: {
   isRightPanelOpen: boolean;
   onToggleRightPanel: () => void;
+  user?: AuthUser | null;
+  onLogout?: () => void;
+  onNavigate?: (page: string) => void;
+  onOpenDiagnostics?: () => void;
 }) {
   const {
     resources,
@@ -34,236 +52,388 @@ export default function Topbar({
     disasterState,
     economyReport,
     evolutionReport,
+    quests,
+    claimQuest,
+    activeProtest,
+    setIsProtestModalOpen,
+    setIsDemoModalOpen,
+    saveGame,
+    isSaving,
+    lastSavedTimestamp,
   } = useGameState();
-  const unreadCount = events.filter((e) => !e.isRead).length;
 
-  const resourceItems = [
+  const [selectedResource, setSelectedResource] = useState<SelectedResourceKey | null>(null);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+
+  const unreadCount = events.filter((e) => !e.isRead).length;
+  const activeUnclaimedQuest = quests?.find((q) => q.isCompleted && !q.isClaimed);
+
+  const { resources: resFlow, economy } = economyReport;
+
+  const resourcePills: {
+    key: SelectedResourceKey;
+    label: string;
+    val: string;
+    rate: string;
+    isNegative: boolean;
+    isCritical?: boolean;
+    icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
+    color: string;
+    isTreasury?: boolean;
+    tooltip: string;
+  }[] = [
     {
-      label: 'POPULATION',
+      key: 'population',
+      label: 'Citizens',
       val: `${(resources.population / 1000000).toFixed(2)}M`,
       rate: `+${rates.populationGrowthRate}%`,
+      isNegative: false,
       icon: Users,
-      color: '#a6bd82',
+      color: '#8FA879',
+      tooltip: 'Demographic Workforce: Fuels civic and industrial throughput.',
     },
     {
-      label: 'FOOD',
-      val: resources.food.toLocaleString(),
-      rate: `+${rates.foodRate}/d`,
+      key: 'food',
+      label: 'Food Rations',
+      val: `${(resources.food / 1000).toFixed(1)}k`,
+      rate: resFlow.foodNet >= 0 ? `+${resFlow.foodNet}` : `${resFlow.foodNet}`,
+      isNegative: resFlow.foodNet < 0,
+      isCritical: resFlow.foodNet < 0 && resources.food < 500,
       icon: Wheat,
-      color: '#c4d49d',
+      color: '#C5A66A',
+      tooltip: 'Nutritional Security: Essential sustenance for civil health.',
     },
     {
-      label: 'WATER',
-      val: resources.water.toLocaleString(),
-      rate: `+${rates.waterRate}/d`,
+      key: 'water',
+      label: 'Fresh Water',
+      val: `${(resources.water / 1000).toFixed(1)}k`,
+      rate: resFlow.waterNet >= 0 ? `+${resFlow.waterNet}` : `${resFlow.waterNet}`,
+      isNegative: resFlow.waterNet < 0,
+      isCritical: resFlow.waterNet < 0 && resources.water < 500,
       icon: Droplets,
-      color: '#82a6bd',
+      color: '#6e98b3',
+      tooltip: 'Hydrological Grid: Fresh drinking water & industrial cooling.',
     },
     {
-      label: 'ENERGY',
-      val: `${resources.energy.toLocaleString()} MW`,
-      rate: `+${rates.energyRate}/d`,
+      key: 'energy',
+      label: 'Power Grid',
+      val: `${resources.energy} MW`,
+      rate: resFlow.energyNetMW >= 0 ? `+${resFlow.energyNetMW}` : `${resFlow.energyNetMW}`,
+      isNegative: resFlow.energyNetMW < 0,
+      isCritical: resFlow.energyNetMW < 0,
       icon: Zap,
-      color: '#e5c97b',
+      color: '#D6A75E',
+      tooltip: 'Power Capacity: Clean kinetic & solar generation grid.',
     },
     {
-      label: 'MATERIALS',
-      val: resources.materials.toLocaleString(),
-      rate: `+${rates.materialsRate}/d`,
+      key: 'materials',
+      label: 'Building Materials',
+      val: `${(resources.materials / 1000).toFixed(1)}k`,
+      rate: resFlow.materialsNet >= 0 ? `+${resFlow.materialsNet}` : `${resFlow.materialsNet}`,
+      isNegative: resFlow.materialsNet < 0,
       icon: Package,
-      color: '#bd9fa6',
+      color: '#9F8859',
+      tooltip: 'Structural Fabrication: Materials needed for construction & upgrades.',
     },
     {
-      label: 'RESEARCH',
+      key: 'research',
+      label: 'Research Points',
       val: resources.researchPoints.toLocaleString(),
-      rate: `+${rates.researchRate}/d`,
+      rate: `+${rates.researchRate}`,
+      isNegative: false,
       icon: FlaskConical,
-      color: '#82bd8e',
+      color: '#8FA879',
+      tooltip: 'Scientific Output: Fuels Technology Tree discoveries.',
     },
     {
-      label: 'GRC CREDITS',
+      key: 'crc',
+      label: 'Treasury (CRC)',
       val: resources.grc.toLocaleString(),
-      rate: `+${rates.grcEarnRate}/d`,
+      rate: economy.netDailyCashFlow >= 0 ? `+${economy.netDailyCashFlow}` : `${economy.netDailyCashFlow}`,
+      isNegative: economy.netDailyCashFlow < 0,
       icon: Coins,
-      color: '#c6a76a',
-      highlight: true,
+      color: '#C5A66A',
+      isTreasury: true,
+      tooltip: 'Civora Research Credits (CRC): Authoritative milestone grants.',
     },
   ];
 
   return (
-    <header className="h-[74px] shrink-0 bg-[#171d18] border-b border-[#39443a] flex items-center justify-between px-4 lg:px-6 gap-3 select-none text-[#e8e9e3] shadow-md z-30">
-      {/* Civilisation & Date Banner */}
-      <div
-        className="flex items-center gap-3 cursor-pointer group"
-        onClick={() => setActiveDrawer('codex')}
-        title="View Civilisation Codex & Archives"
-      >
-        <div className="w-10 h-10 rounded-lg bg-[#273328] border border-[#4a5f4b] flex items-center justify-center font-bold text-sm text-[#c6a76a] group-hover:border-[#c6a76a] transition-colors">
-          {civilization.name.slice(0, 2).toUpperCase()}
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm lg:text-base font-bold text-[#f3f5ef] group-hover:text-[#c6a76a] transition-colors">
-              {civilization.name}
-            </h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#2a2416] text-[#c6a76a] border border-[#524424] font-semibold">
-              LVL {civilization.level}
-            </span>
-            {evolutionReport && (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveDrawer('evolution');
-                }}
-                className="flex items-center gap-1.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#233124] hover:bg-[#2d402e] text-[#a6bd82] hover:text-[#c6d8a8] border border-[#3e563f] hover:border-[#6b8563] transition-all cursor-pointer shadow-sm"
-                title="Civilization Evolution Stage — Click to view progression matrix"
-              >
-                <Sparkles size={11} className="text-[#c6a76a]" />
-                <span>{evolutionReport.currentStage.name}</span>
-                <span className="text-[#c6a76a]">
-                  ({Math.round(evolutionReport.stageProgressPercent)}%)
+    <>
+      <header className="h-[56px] shrink-0 bg-[#171D18] border-b border-[#2B372C] flex items-center justify-between px-3.5 lg:px-5 select-none text-[#EAE3D2] shadow-md z-30">
+        {/* Civilisation Identity */}
+        <div
+          className="flex items-center gap-2.5 cursor-pointer group shrink-0"
+          onClick={() => setActiveDrawer('codex')}
+          title="Inspect Civilisation Codex & Status"
+        >
+          <CivoraIcon size={32} />
+
+          <div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="text-xs font-bold text-[#EAE3D2] tracking-wide font-cinzel group-hover:text-[#C5A66A] transition-colors truncate max-w-[130px] lg:max-w-[170px]">
+                {civilization.name}
+              </h2>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#202820] text-[#C5A66A] border border-[#3D4F3F]">
+                L{civilization.level}
+              </span>
+              {evolutionReport && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    soundFx.playClick();
+                    setActiveDrawer('evolution');
+                  }}
+                  className="flex items-center gap-1 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#202820] hover:bg-[#283228] text-[#8FA879] hover:text-[#C5A66A] border border-[#3D4F3F] transition-all cursor-pointer shadow-xs"
+                  title="Civilization Evolution Stage — Click to view progression matrix"
+                >
+                  <Sparkles size={10} className="text-[#C5A66A]" />
+                  <span>{evolutionReport.currentStage.name}</span>
+                  <span className="text-[#C5A66A]">
+                    ({Math.round(evolutionReport.stageProgressPercent)}%)
+                  </span>
                 </span>
+              )}
+            </div>
+            <div className="text-[9px] font-mono text-[#A5AD9D] leading-none mt-0.5">
+              <span>{civilization.era}</span>
+              <span className="mx-1 text-[#7A8473]">·</span>
+              <span>Yr {civilization.currentYear.toString().padStart(3, '0')}, D{civilization.currentDay}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Center Strategic Resource Ribbon */}
+        <div className="hidden md:flex items-center gap-1 bg-[#121713] px-2 py-1 rounded border border-[#2B372C] overflow-x-auto max-w-[48vw]">
+          {resourcePills.map((res) => {
+            const Icon = res.icon;
+            return (
+              <button
+                key={res.key}
+                onClick={() => {
+                  soundFx.playClick();
+                  setSelectedResource(res.key);
+                }}
+                title={res.tooltip}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all relative shrink-0 ${
+                  res.isTreasury
+                    ? 'bg-[#202820] border border-[#C5A66A]/40 text-[#C5A66A] hover:bg-[#283228]'
+                    : res.isCritical
+                    ? 'bg-[#C87569]/15 border border-[#C87569]/40 text-[#C87569] hover:bg-[#C87569]/25 animate-pulse'
+                    : 'hover:bg-[#202820] text-[#EAE3D2]'
+                }`}
+              >
+                <Icon size={13} style={{ color: res.color }} className="shrink-0" />
+                <span className="font-mono font-bold text-[11px]">{res.val}</span>
+                <span
+                  className={`font-mono text-[9px] flex items-center ${
+                    res.isNegative ? 'text-[#C87569]' : 'text-[#8FA879]'
+                  }`}
+                >
+                  {res.rate}
+                </span>
+
+                {res.isCritical && (
+                  <AlertTriangle size={10} className="text-[#C87569] shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right Controls: Notifications, Protest, Demo & Profile */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Active Historical Twin Civil Protest Pill */}
+          {activeProtest && (
+            <button
+              onClick={() => {
+                soundFx.playCrowdChant();
+                setIsProtestModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#C87569]/15 hover:bg-[#C87569]/25 border border-[#C87569] text-[11px] font-bold text-[#EAE3D2] transition-all shadow-xs animate-pulse"
+              title={`Active Civil Protest: ${activeProtest.title} (Click to resolve)`}
+            >
+              <span className="text-xs">📢</span>
+              <span className="hidden sm:inline">Protest in {activeProtest.districtName.split(' ')[0]}</span>
+              <span className="text-[10px] font-mono text-[#C5A66A] uppercase bg-[#171D18] px-1 py-0.2 rounded border border-[#C87569]/40">
+                Resolve
+              </span>
+            </button>
+          )}
+
+          {/* Small claimable reward indicator if quest ready */}
+          {activeUnclaimedQuest && (
+            <button
+              onClick={() => claimQuest(activeUnclaimedQuest.id)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#C5A66A] text-[11px] font-bold text-[#C5A66A] transition-all shadow-xs"
+              title={`Claim Completed Quest: ${activeUnclaimedQuest.title} (+${activeUnclaimedQuest.rewardGrc} CRC)`}
+            >
+              <Gift size={12} className="text-[#C5A66A]" />
+              <span className="hidden sm:inline">Reward Available</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#C5A66A] animate-ping" />
+            </button>
+          )}
+
+          {/* High Council Chamber Direct Shortcut */}
+          {onNavigate && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onNavigate('Council of Advisors');
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#C5A66A]/20 border border-[#C5A66A]/60 text-[#C5A66A] font-serif text-xs font-bold transition-all shadow-sm"
+              title="Open Royal Council Chamber (3D)"
+            >
+              <Crown size={13} className="text-[#C5A66A]" />
+              <span className="hidden sm:inline">The Council</span>
+              <span className="px-1 py-0.2 rounded bg-[#C5A66A]/20 text-[8px] font-mono font-bold text-[#EAE3D2]">
+                3D
+              </span>
+            </button>
+          )}
+
+          {/* Notifications Center Bell */}
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setIsNotificationOpen(true);
+            }}
+            className="relative p-1.5 rounded bg-[#202820] hover:bg-[#283228] border border-[#2B372C] text-[#A5AD9D] hover:text-[#C5A66A] transition-colors"
+            title="Open High Council Event Notifications"
+          >
+            <Bell size={15} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 px-1 py-0.2 rounded-full bg-[#C5A66A] text-[#121713] text-[9px] font-mono font-bold leading-none">
+                {unreadCount}
               </span>
             )}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-[#9da99b] mt-0.5">
-            <span className="text-[#a6bd82] font-medium">{civilization.era} Era</span>
-            <span>·</span>
-            <span className="font-mono text-[11px] text-[#c6a76a]">
-              Year {civilization.currentYear.toString().padStart(3, '0')} · Day {civilization.currentDay.toString().padStart(3, '0')}
-            </span>
-          </div>
-        </div>
-      </div>
+          </button>
 
-      {/* Resource HUD Bar */}
-      <div className="hidden xl:flex items-center gap-3.5 bg-[#141914] px-4 py-2 rounded-xl border border-[#2b352c] shrink">
-        {resourceItems.map((res) => {
-          const Icon = res.icon;
-          const isPop = res.label === 'POPULATION';
-          return (
-            <div
-              key={res.label}
-              onClick={isPop ? () => setActiveDrawer('citizens') : undefined}
-              className={`flex items-center gap-2 px-2 py-1 rounded transition-colors ${
-                res.highlight ? 'bg-[#262215] border border-[#4d3f23]' : ''
-              } ${isPop ? 'cursor-pointer hover:bg-[#202921] border border-transparent hover:border-[#3d503f]' : ''}`}
-              title={isPop ? 'Open Citizen Intelligence & Social Behaviour Dashboard' : undefined}
-            >
-              <div
-                className="w-6 h-6 rounded flex items-center justify-center shrink-0"
-                style={{ backgroundColor: `${res.color}22` }}
-              >
-                <Icon size={14} style={{ color: res.color }} />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-mono tracking-wider text-[#9da99b]">
-                    {res.label}
-                  </span>
-                  <span className="text-[9px] font-mono text-[#a6bd82]">{res.rate}</span>
-                </div>
-                <p className="text-xs font-mono font-bold text-[#f0f3eb] leading-tight">
-                  {res.val}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+          {/* Chirper Network Widget (Cities: Skylines II Citizen Voices) */}
+          <CS2ChirperWidget />
 
-      {/* Right Quick Controls & Modals */}
-      <div className="flex items-center gap-2.5 shrink-0">
-        {/* City Economy Quick Drawer Trigger */}
-        <button
-          onClick={() => setActiveDrawer('economy')}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#202921] hover:bg-[#283529] border border-[#344435] hover:border-[#4e644f] transition-all text-xs font-mono shadow-sm"
-          title="Open City Economy & Financial Treasury Dashboard"
-        >
-          <div className="flex items-center gap-1.5 text-[#c6a76a] font-bold">
-            <DollarSign size={14} />
-            <span className="hidden md:inline">ECONOMY</span>
-          </div>
-          <span
-            className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
-              economyReport.economy.fiscalHealth === 'Surplus'
-                ? 'bg-[#1b3823] text-[#2ecc71] border border-[#2b5936]'
-                : economyReport.economy.fiscalHealth === 'Balanced'
-                ? 'bg-[#332b17] text-[#f1c40f] border border-[#524424]'
-                : 'bg-[#3b1c1c] text-[#e74c3c] border border-[#5e2e2e]'
-            }`}
+          {/* Presenter Suite / Capabilities Showcase */}
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setIsDemoModalOpen(true);
+            }}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#C5A66A]/40 text-[11px] font-bold text-[#C5A66A] transition-all shadow-xs font-cinzel"
+            title="Open Presenter Suite: Showcase All Potential Capabilities"
           >
-            {economyReport.economy.netDailyCashFlow >= 0 ? `+${economyReport.economy.netDailyCashFlow}` : economyReport.economy.netDailyCashFlow} Cr
-          </span>
-        </button>
+            <span>Presenter</span>
+          </button>
 
-        {/* Civil Defense & Disaster Command Center */}
-        <button
-          onClick={() => setActiveDrawer('disaster')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-mono shadow-sm ${
-            disasterState?.activeDisaster
-              ? 'bg-[#4d1616] hover:bg-[#5e1c1c] border-[#e74c3c] text-[#ff8e8e] animate-pulse shadow-[0_0_15px_rgba(231,76,60,0.4)]'
-              : 'bg-[#202921] hover:bg-[#283529] border-[#344435] hover:border-[#4e644f] text-[#a6bd82]'
-          }`}
-          title="Open Civil Defense & Emergency Response Command Center"
-        >
-          <div className="flex items-center gap-1.5 font-bold">
-            <ShieldAlert size={14} className={disasterState?.activeDisaster ? 'text-[#e74c3c]' : 'text-[#a6bd82]'} />
-            <span className="hidden md:inline">DEFENSE</span>
-          </div>
-          <span
-            className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+          {/* Civil Defense & Disaster Command Center */}
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setActiveDrawer('disaster');
+            }}
+            className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded border transition-all text-[11px] font-bold shadow-xs ${
               disasterState?.activeDisaster
-                ? 'bg-[#661e1e] text-[#ff8e8e] border border-[#992d2d]'
-                : 'bg-[#1b3823] text-[#2ecc71] border border-[#2b5936]'
+                ? 'bg-[#4d1616] hover:bg-[#5e1c1c] border-[#e74c3c] text-[#ff8e8e] animate-pulse'
+                : 'bg-[#202820] hover:bg-[#283228] border-[#344435] hover:border-[#4e644f] text-[#a6bd82]'
             }`}
+            title="Open Civil Defense & Emergency Response Command Center"
           >
-            {disasterState?.activeDisaster ? disasterState.activeDisaster.type.toUpperCase() : 'SECURE'}
-          </span>
-        </button>
+            <ShieldAlert size={13} className={disasterState?.activeDisaster ? 'text-[#e74c3c]' : 'text-[#a6bd82]'} />
+            <span>Defense</span>
+          </button>
 
-        {/* Compact GRC Display for smaller screens */}
-        <div className="xl:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#262215] border border-[#4d3f23]">
-          <Coins size={14} className="text-[#c6a76a]" />
-          <span className="text-xs font-mono font-bold text-[#c6a76a]">{resources.grc} GRC</span>
-        </div>
+          {/* Persistent Auto-Save Status & Manual Save Trigger */}
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              saveGame();
+            }}
+            disabled={isSaving}
+            className={`hidden sm:flex items-center gap-1.5 px-2 py-1 rounded border text-[11px] font-mono transition-all ${
+              isSaving
+                ? 'bg-[#1e2a22] border-[#2ecc71] text-[#2ecc71]'
+                : 'bg-[#18211b] border-[#2B372C] hover:border-[#3d503e] text-[#a5ad9d] hover:text-[#ede8dc]'
+            }`}
+            title={
+              lastSavedTimestamp
+                ? `Progress saved at ${new Date(lastSavedTimestamp).toLocaleTimeString()}. Click to force save now.`
+                : 'Click to save your progress now.'
+            }
+          >
+            {isSaving ? (
+              <RefreshCw size={12} className="animate-spin text-[#2ecc71]" />
+            ) : (
+              <CheckCircle2 size={12} className="text-[#2ecc71]" />
+            )}
+            <span className="hidden lg:inline">{isSaving ? 'Saving...' : 'Saved'}</span>
+          </button>
 
-        {/* Codex Archive Button */}
-        <button
-          onClick={() => setActiveDrawer('codex')}
-          className="p-2 rounded-lg bg-[#202921] border border-[#344435] text-[#9da99b] hover:text-[#e8e9e3] hover:border-[#617c63] transition-colors"
-          title="Open Civilisation Archives & Codex"
-        >
-          <BookOpen size={17} />
-        </button>
-
-        {/* Notifications Bell */}
-        <button
-          onClick={() => setActiveDrawer('notifications')}
-          className="relative p-2 rounded-lg bg-[#202921] border border-[#344435] text-[#9da99b] hover:text-[#e8e9e3] hover:border-[#617c63] transition-colors"
-          title="Civilisation Alerts & Chronicle"
-        >
-          <Bell size={17} />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#c6a76a] text-[#151916] text-[10px] font-mono font-bold flex items-center justify-center">
-              {unreadCount}
-            </span>
+          {/* User Profile Badge & Logout */}
+          {user && (
+            <div className="flex items-center gap-1.5 pl-1.5 border-l border-[#2B372C]">
+              <div className="flex items-center gap-1.5 text-xs font-mono text-[#A5AD9D]">
+                <Crown size={13} className="text-[#C5A66A]" />
+                <span className="font-semibold text-[#EAE3D2] hidden lg:inline">{user.username}</span>
+              </div>
+              {onLogout && (
+                <button
+                  onClick={() => {
+                    soundFx.playClick();
+                    onLogout();
+                  }}
+                  className="p-1 rounded text-[#7A8473] hover:text-[#C87569] hover:bg-[#202820] transition-colors"
+                  title="Sign out of Civora session"
+                >
+                  <LogOut size={14} />
+                </button>
+              )}
+            </div>
           )}
-        </button>
 
-        {/* Right Info Panel Toggle */}
-        <button
-          onClick={onToggleRightPanel}
-          className={`p-2 rounded-lg border transition-colors ${
-            isRightPanelOpen
-              ? 'bg-[#394b35] text-[#dce9ca] border-[#6b8563]'
-              : 'bg-[#202921] text-[#9da99b] border-[#344435] hover:text-[#e8e9e3]'
-          }`}
-          title={isRightPanelOpen ? 'Collapse Tactical HUD' : 'Expand Tactical HUD'}
-        >
-          {isRightPanelOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
-        </button>
-      </div>
-    </header>
+          {/* Developer Performance Telemetry Dashboard Toggle */}
+          {onOpenDiagnostics && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onOpenDiagnostics();
+              }}
+              className="p-1.5 rounded bg-[#202820] hover:bg-[#283228] border border-[#2B372C] hover:border-[#C5A66A]/40 text-[#A5AD9D] hover:text-[#C5A66A] transition-colors"
+              title="Open Performance Telemetry & Diagnostics (F2 / Ctrl+Shift+P)"
+            >
+              <Activity size={15} />
+            </button>
+          )}
+
+          {/* Tactical 3D Inspector Panel Toggle */}
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              onToggleRightPanel();
+            }}
+            className={`p-1.5 rounded border transition-colors ${
+              isRightPanelOpen
+                ? 'bg-[#283228] border-[#C5A66A] text-[#C5A66A]'
+                : 'bg-[#202820] border-[#2B372C] text-[#A5AD9D] hover:text-[#EAE3D2]'
+            }`}
+            title={isRightPanelOpen ? 'Close Tactical Inspector' : 'Open Tactical Inspector'}
+          >
+            {isRightPanelOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
+          </button>
+        </div>
+      </header>
+
+      {/* Resource Detail Information Drawer / Modal */}
+      <ResourceDetailModal
+        resourceKey={selectedResource}
+        onClose={() => setSelectedResource(null)}
+      />
+
+      {/* Centralized Notification Center */}
+      <NotificationCenter
+        isOpen={isNotificationOpen}
+        onClose={() => setIsNotificationOpen(false)}
+      />
+    </>
   );
 }
+
+export default React.memo(TopbarComponent);

@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Globe2,
   LayoutDashboard,
   Users,
   ChartNoAxesCombined,
   Building2,
-  Boxes,
   GitBranch,
   FlaskConical,
   Microscope,
@@ -13,142 +12,253 @@ import {
   Coins,
   Trophy,
   Settings,
-  Home,
-  PlusCircle,
-  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+  BookOpen,
+  Target,
+  ChevronDown,
+  Crown,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
+import { useAuth } from '../../context/AuthContext';
+import { CivoraIcon } from '../brand/CivoraLogo';
 
 type SidebarProps = {
   activePage: string;
   onNavigate: (page: string) => void;
 };
 
-const navigation = [
+interface NavSection {
+  title: string;
+  items: {
+    name: string;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
+    badge?: string;
+  }[];
+}
+
+const baseNavigation: NavSection[] = [
   {
-    title: 'CIVILISATION',
+    title: 'THE EMPIRE',
     items: [
       { name: 'Overview', icon: LayoutDashboard },
       { name: 'World Explorer', icon: Globe2, badge: '3D' },
       { name: 'Population', icon: Users },
-      { name: 'Economy', icon: ChartNoAxesCombined },
       { name: 'Infrastructure', icon: Building2 },
-      { name: 'Resources', icon: Boxes },
+      { name: 'Economy & Resources', icon: ChartNoAxesCombined },
     ],
   },
   {
-    title: 'DEVELOPMENT & SCIENCE',
+    title: 'THE COUNCIL',
     items: [
-      { name: 'Technology', icon: GitBranch },
+      { name: 'Council of Advisors', icon: Crown, badge: '6' },
+    ],
+  },
+  {
+    title: 'DEVELOPMENT',
+    items: [
+      { name: 'Technology Tree', icon: GitBranch },
+      { name: 'Research Wallet', icon: Coins, badge: 'CRC' },
       { name: 'Policy Laboratory', icon: FlaskConical },
+    ],
+  },
+  {
+    title: 'THE FUTURE',
+    items: [
       { name: 'Future Simulator', icon: Microscope },
       { name: 'Research Observatory', icon: Compass },
     ],
   },
   {
-    title: 'PROGRESSION & EXPEDITION',
+    title: 'LEGACY',
     items: [
-      { name: 'Research Wallet', icon: Coins },
+      { name: 'Civilisation Chronicle', icon: BookOpen },
       { name: 'Achievements', icon: Trophy },
-      { name: 'Genesis Portal', icon: Home },
-      { name: 'World Creation Studio', icon: PlusCircle },
+      { name: 'Missions & Challenges', icon: Target },
     ],
   },
 ];
 
-export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
+function SidebarComponent({ activePage, onNavigate }: SidebarProps) {
   const { civilization } = useGameState();
+  const { isAdmin } = useAuth();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (title: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [title]: !prev[title],
+    }));
+  };
+
+  const sections = useMemo(() => {
+    if (!isAdmin) return baseNavigation;
+    return [
+      ...baseNavigation,
+      {
+        title: 'SYSTEM',
+        items: [
+          { name: 'Settings', icon: Settings },
+          { name: 'Admin Console', icon: ShieldCheck, badge: 'RBAC' },
+        ],
+      },
+    ];
+  }, [isAdmin]);
 
   return (
-    <aside className="w-[245px] shrink-0 bg-[#171d18] border-r border-[#39443a] flex flex-col h-screen select-none text-[#e8e9e3] z-40">
+    <aside
+      className={`shrink-0 bg-[#171D18] border-r border-[#2B372C] flex flex-col h-screen select-none text-[#EAE3D2] z-40 shadow-2xl relative transition-all duration-200 ease-out ${
+        isCollapsed ? 'w-[64px]' : 'w-[230px]'
+      }`}
+    >
       {/* Brand Header */}
-      <div className="px-5 py-5 border-b border-[#39443a] bg-[#141914]">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#405439] to-[#253323] border border-[#5d7754] flex items-center justify-center shadow-lg">
-            <Globe2 size={22} className="text-[#dce9ca]" />
-          </div>
+      <div className="px-3 py-3.5 border-b border-[#2B372C] bg-[#121713] flex items-center justify-between">
+        <div
+          onClick={() => onNavigate('Overview')}
+          className="flex items-center gap-2.5 overflow-hidden cursor-pointer group"
+          title="CIVORA — Civilisation Simulation Engine"
+        >
+          <CivoraIcon size={34} />
 
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-base font-black tracking-[3px] text-[#f3f5ef]">GENESIS</h1>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#c6a76a]" />
+          {!isCollapsed && (
+            <div className="min-w-0">
+              <h1
+                className="text-xs font-serif font-bold tracking-[0.22em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-[#EAE3D2] via-[#C5A66A] to-[#9F8859] truncate leading-none font-cinzel"
+              >
+                CIVORA
+              </h1>
+              <p className="text-[8px] font-mono text-[#A5AD9D] tracking-wider mt-1 truncate uppercase">
+                SIMULATION ENGINE
+              </p>
             </div>
-            <p className="text-[9px] font-mono tracking-[1.8px] text-[#9da99b]">
-              CIVILISATION ENGINE
-            </p>
-          </div>
+          )}
         </div>
 
-        {/* Civilisation Quick Bar */}
-        <div className="mt-3 pt-3 border-t border-[#2a362b] flex items-center justify-between text-xs">
-          <div>
-            <p className="text-[10px] text-[#9da99b] uppercase font-mono">ACTIVE ENTITY</p>
-            <p className="font-semibold text-[#f0f3eb] truncate max-w-[120px]">{civilization.name}</p>
-          </div>
-          <span className="text-[10px] font-mono font-bold text-[#c6a76a] px-2 py-0.5 rounded bg-[#272317] border border-[#4d3e20]">
-            LVL {civilization.level}
-          </span>
-        </div>
+        {/* Collapse Button */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-1 rounded text-[#A5AD9D] hover:text-[#C5A66A] hover:bg-[#202820] transition-colors"
+          title={isCollapsed ? 'Expand Navigation Sidebar' : 'Collapse Sidebar'}
+        >
+          {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+        </button>
       </div>
 
       {/* Nav List */}
-      <div className="px-3 py-4 flex-1 overflow-y-auto custom-scrollbar space-y-6">
-        {navigation.map((section) => (
-          <div key={section.title}>
-            <p className="text-[10px] font-mono tracking-widest text-[#7f8f7c] px-3 mb-2 uppercase">
-              {section.title}
-            </p>
+      <div className="px-2 py-3 flex-1 overflow-y-auto custom-scrollbar space-y-4">
+        {sections.map((section) => {
+          const isSectionClosed = !isCollapsed && !!collapsedSections[section.title];
 
-            <div className="space-y-0.5">
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const active = activePage === item.name;
-
-                return (
-                  <button
-                    key={item.name}
-                    onClick={() => onNavigate(item.name)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                      active
-                        ? 'bg-[#334230] text-[#dce9ca] border border-[#5a7251] shadow-md'
-                        : 'text-[#a2aca0] hover:bg-[#202920] hover:text-white'
+          return (
+            <div key={section.title} className="space-y-1">
+              {!isCollapsed ? (
+                <button
+                  onClick={() => toggleSection(section.title)}
+                  className="w-full flex items-center justify-between px-2 py-1 text-[9px] font-mono font-bold tracking-[0.14em] text-[#7A8473] hover:text-[#C5A66A] uppercase truncate transition-colors"
+                >
+                  <span>{section.title}</span>
+                  <ChevronDown
+                    size={11}
+                    className={`transition-transform duration-150 ${
+                      isSectionClosed ? '-rotate-90 text-[#7A8473]' : 'text-[#A5AD9D]'
                     }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Icon
-                        size={16}
-                        className={active ? 'text-[#c6a76a]' : 'text-[#7e8e7c]'}
-                      />
-                      <span>{item.name}</span>
-                    </div>
+                  />
+                </button>
+              ) : (
+                <div className="h-px bg-[#2B372C] my-2 mx-1" />
+              )}
 
-                    {item.badge && (
-                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#293628] text-[#a6bd82] border border-[#445b42]">
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              {!isSectionClosed && (
+                <div className="space-y-0.5">
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = activePage === item.name;
+
+                    return (
+                      <button
+                        key={item.name}
+                        onClick={() => onNavigate(item.name)}
+                        title={isCollapsed ? item.name : undefined}
+                        className={`w-full flex items-center ${
+                          isCollapsed ? 'justify-center px-0' : 'justify-between px-2.5'
+                        } py-1.5 rounded text-xs font-medium transition-all relative ${
+                          active
+                            ? 'bg-[#202820] text-[#FFFFFF] font-semibold border-l-2 border-[#C5A66A] shadow-sm'
+                            : 'text-[#A5AD9D] hover:bg-[#1C231E] hover:text-[#EAE3D2]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Icon
+                            size={16}
+                            className={active ? 'text-[#C5A66A]' : 'text-[#7A8473] group-hover:text-[#A5AD9D]'}
+                          />
+                          {!isCollapsed && (
+                            <span className="truncate text-[12px] tracking-wide font-medium">
+                              {item.name}
+                            </span>
+                          )}
+                        </div>
+
+                        {!isCollapsed && item.badge && (
+                          <span className={`text-[8px] font-mono px-1 py-0.5 rounded border ${
+                            item.badge === '3D'
+                              ? 'bg-[#17231B] text-[#8FA879] border-[#3D4F3F]'
+                              : item.badge === 'CRC'
+                              ? 'bg-[#202820] text-[#C5A66A] border-[#9F8859]/40'
+                              : 'bg-[#1C231E] text-[#D6A75E] border-[#3D4F3F]'
+                          }`}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Footer Settings */}
-      <div className="p-3 border-t border-[#39443a] bg-[#141914]">
-        <button
-          onClick={() => onNavigate('Settings')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
-            activePage === 'Settings'
-              ? 'bg-[#334230] text-[#dce9ca] border border-[#5a7251]'
-              : 'text-[#9da99b] hover:bg-[#202920] hover:text-white'
-          }`}
-        >
-          <Settings size={16} />
-          <span>System Settings</span>
-        </button>
-      </div>
+      {/* Civilisation Status Badge */}
+      {!isCollapsed && (
+        <div className="p-2.5 mx-2 mb-2 rounded bg-[#1C231E] border border-[#2B372C]">
+          <div className="flex items-center justify-between text-[10px] font-mono mb-1">
+            <span className="text-[#A5AD9D] uppercase tracking-wider">{civilization.era}</span>
+            <span className="text-[#C5A66A] font-bold">LVL {civilization.level}</span>
+          </div>
+          <div className="h-1 rounded-full bg-[#121713] overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-[#8FA879] to-[#C5A66A] rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, (civilization.xp / civilization.xpToNextLevel) * 100)}%` }}
+            />
+          </div>
+          <div className="flex justify-between items-center text-[9px] font-mono text-[#7A8473] mt-1">
+            <span>Progress to Next Age</span>
+            <span>{Math.round((civilization.xp / civilization.xpToNextLevel) * 100)}%</span>
+          </div>
+        </div>
+      )}
+
+      {/* Footer Settings Row */}
+      {!isAdmin && (
+        <div className="p-2 border-t border-[#2B372C] bg-[#121713]">
+          <button
+            onClick={() => onNavigate('Settings')}
+            className={`w-full flex items-center ${
+              isCollapsed ? 'justify-center' : 'gap-2 px-2.5'
+            } py-1.5 rounded text-xs text-[#A5AD9D] hover:text-[#EAE3D2] hover:bg-[#202820] transition-colors`}
+            title="System Preferences & Audio"
+          >
+            <Settings size={15} />
+            {!isCollapsed && <span className="text-[11px]">System Settings</span>}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
+
+export default React.memo(SidebarComponent);

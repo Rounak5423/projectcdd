@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+env/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pytest_cache/
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & DB
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.db-wal
+*.db-shm
+genesis-engine/backend/db/backups/
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+
+# Large datasets and raw ML files
+datasets/
+genesis-engine/backend/ml/data/raw/
+genesis-engine/backend/ml/data/processed/
+genesis-engine/backend/ml/data/generated/
+*.parquet
+*.gz
+*.pbf
+*.xlsx
+*.xls
+test-results/
+playwright-report/
+
+

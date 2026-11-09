@@ -16,13 +16,13 @@ import {
   Layers,
 } from 'lucide-react';
 import { useGameState } from '../context/GameStateContext';
-import { TechEra } from '../types/game';
+import { TechEra, MapTerrainType } from '../types/game';
 
 interface WorldForm {
   name: string;
   planet: string;
   leaderTitle: string;
-  terrainType: 'Verdant River Valley' | 'Highland Plateau' | 'Archipelago' | 'Boreal Basin' | 'Arid Oasis';
+  terrainType: MapTerrainType;
   climateType: 'Temperate' | 'Subtropical' | 'Subpolar' | 'Continental';
   waterAvailability: 'Abundant' | 'Moderate' | 'Scarce';
   resourceRichness: 'Bountiful' | 'Standard' | 'Challenging';
@@ -43,17 +43,17 @@ export default function WorldCreationStudioPage({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [form, setForm] = useState<WorldForm>({
-    name: 'Neo Arcadia',
+    name: 'New Dawn Outpost',
     planet: 'Terra Nova II',
-    leaderTitle: 'High Strategist',
+    leaderTitle: 'Expedition Commander',
     terrainType: 'Verdant River Valley',
     climateType: 'Temperate',
     waterAvailability: 'Abundant',
     resourceRichness: 'Bountiful',
-    startingPopulation: 250000,
-    initialWealth: 15000,
+    startingPopulation: 10,
+    initialWealth: 500,
     techEra: 'Foundational',
-    governanceModel: 'Techno-Democratic Federation',
+    governanceModel: 'Direct Frontier Council',
     environmentalProtectionLevel: 'Balanced Stewardship',
   });
 
@@ -71,49 +71,149 @@ export default function WorldCreationStudioPage({
     let baseColor = '#243224';
     let hillColor = '#3a4e37';
     let waterColor = '#30545c';
+    let accentColor = '#658a5c';
 
-    if (form.terrainType === 'Highland Plateau') {
-      baseColor = '#36342e';
-      hillColor = '#575246';
-      waterColor = '#3a5054';
-    } else if (form.terrainType === 'Arid Oasis') {
-      baseColor = '#423725';
-      hillColor = '#5e4f35';
-      waterColor = '#355f69';
-    } else if (form.terrainType === 'Boreal Basin') {
-      baseColor = '#202b28';
-      hillColor = '#35453f';
-      waterColor = '#2d454a';
+    switch (form.terrainType) {
+      case 'Archipelago':
+        baseColor = '#1a3c40';
+        hillColor = '#c2b280';
+        waterColor = '#1e758a';
+        accentColor = '#2d6a4f';
+        break;
+      case 'Crimson Canyon':
+        baseColor = '#4a231d';
+        hillColor = '#7a382a';
+        waterColor = '#326670';
+        accentColor = '#b85d43';
+        break;
+      case 'Frostpeak Taiga':
+        baseColor = '#202930';
+        hillColor = '#3d4d59';
+        waterColor = '#4a6d82';
+        accentColor = '#d9e7ed';
+        break;
+      case 'Obsidian Caldera':
+        baseColor = '#1e1c24';
+        hillColor = '#3b323c';
+        waterColor = '#803429';
+        accentColor = '#d46533';
+        break;
+      case 'Highland Plateau':
+        baseColor = '#36342e';
+        hillColor = '#575246';
+        waterColor = '#3a5054';
+        accentColor = '#7a7362';
+        break;
+      case 'Arid Oasis':
+        baseColor = '#4d3b25';
+        hillColor = '#6e5436';
+        waterColor = '#25707a';
+        accentColor = '#c49a58';
+        break;
+      case 'Boreal Basin':
+        baseColor = '#202b28';
+        hillColor = '#35453f';
+        waterColor = '#2d454a';
+        accentColor = '#526e63';
+        break;
+      case 'Verdant River Valley':
+      default:
+        baseColor = '#243224';
+        hillColor = '#3a4e37';
+        waterColor = '#30545c';
+        accentColor = '#658a5c';
+        break;
     }
 
     // Background terrain fill
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, w, h);
 
-    // Contour rings
-    ctx.strokeStyle = hillColor;
-    ctx.lineWidth = 1.5;
-    for (let r = 20; r < 140; r += 18) {
+    if (form.terrainType === 'Archipelago') {
+      // Draw ocean backdrop
+      ctx.fillStyle = waterColor;
+      ctx.fillRect(0, 0, w, h);
+      // Draw 4 distinct island landmasses
+      const islands = [
+        { x: w * 0.35, y: h * 0.45, rx: 55, ry: 40 },
+        { x: w * 0.72, y: h * 0.32, rx: 42, ry: 32 },
+        { x: w * 0.22, y: h * 0.78, rx: 34, ry: 24 },
+        { x: w * 0.78, y: h * 0.75, rx: 40, ry: 28 },
+      ];
+      islands.forEach((isl) => {
+        // Sand beaches
+        ctx.fillStyle = hillColor;
+        ctx.beginPath();
+        ctx.ellipse(isl.x, isl.y, isl.rx, isl.ry, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        // Lush interior core
+        ctx.fillStyle = accentColor;
+        ctx.beginPath();
+        ctx.ellipse(isl.x, isl.y, isl.rx * 0.7, isl.ry * 0.7, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    } else if (form.terrainType === 'Obsidian Caldera') {
+      // Draw outer volcanic flanks
+      ctx.strokeStyle = hillColor;
+      ctx.lineWidth = 2.5;
+      for (let r = 35; r < 140; r += 16) {
+        ctx.beginPath();
+        ctx.ellipse(w * 0.5, h * 0.5, r * 1.2, r * 0.9, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Caldera crater rim
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.ellipse(w * 0.4, h * 0.45, r * 1.3, r, 0.2, 0, Math.PI * 2);
+      ctx.ellipse(w * 0.5, h * 0.5, 42, 34, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // Center geothermal magma lake
+      ctx.fillStyle = waterColor;
+      ctx.beginPath();
+      ctx.ellipse(w * 0.5, h * 0.5, 28, 22, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (form.terrainType === 'Crimson Canyon') {
+      // Stepped canyon terraces
+      ctx.strokeStyle = hillColor;
+      ctx.lineWidth = 2;
+      for (let r = 25; r < 130; r += 20) {
+        ctx.beginPath();
+        ctx.rect(w * 0.5 - r, h * 0.5 - r * 0.6, r * 2, r * 1.2);
+        ctx.stroke();
+      }
+      // Canyon rift river running through
+      ctx.strokeStyle = waterColor;
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.1, 0);
+      ctx.bezierCurveTo(w * 0.35, h * 0.35, w * 0.65, h * 0.65, w * 0.9, h);
+      ctx.stroke();
+    } else {
+      // Standard contour rings for valleys and plateaus
+      ctx.strokeStyle = hillColor;
+      ctx.lineWidth = 1.5;
+      for (let r = 20; r < 140; r += 18) {
+        ctx.beginPath();
+        ctx.ellipse(w * 0.4, h * 0.45, r * 1.3, r, 0.2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Mountain peak hatching
+      ctx.fillStyle = hillColor;
+      ctx.beginPath();
+      ctx.arc(w * 0.75, h * 0.3, 35, 0, Math.PI * 2);
+      ctx.fill();
+
+      // River curve
+      ctx.strokeStyle = waterColor;
+      ctx.lineWidth = form.waterAvailability === 'Abundant' ? 14 : 7;
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.85);
+      ctx.bezierCurveTo(w * 0.3, h * 0.8, w * 0.5, h * 0.3, w, h * 0.15);
       ctx.stroke();
     }
 
-    // Mountain peak hatching
-    ctx.fillStyle = hillColor;
-    ctx.beginPath();
-    ctx.arc(w * 0.75, h * 0.3, 35, 0, Math.PI * 2);
-    ctx.fill();
-
-    // River curve
-    ctx.strokeStyle = waterColor;
-    ctx.lineWidth = form.waterAvailability === 'Abundant' ? 14 : 7;
-    ctx.beginPath();
-    ctx.moveTo(0, h * 0.85);
-    ctx.bezierCurveTo(w * 0.3, h * 0.8, w * 0.5, h * 0.3, w, h * 0.15);
-    ctx.stroke();
-
-    // Grid coordinates
+    // Grid coordinates overlay
     ctx.strokeStyle = '#ffffff0f';
     ctx.lineWidth = 1;
     for (let x = 0; x < w; x += 30) {
@@ -241,32 +341,97 @@ export default function WorldCreationStudioPage({
             <div className="space-y-4">
               <h2 className="text-lg font-bold text-[#f3f5ee] flex items-center gap-2">
                 <Mountain size={18} className="text-[#c6a76a]" />
-                Step 2: Biogeography & Planetary Terrain
+                Step 2: Biogeography & Planetary Map Selection
               </h2>
+              <p className="text-xs text-[#9da99b]">
+                Select the geological biome for your civilization. The terrain topology, river networks, climate, and foliage will generate according to your choice.
+              </p>
 
               <div className="space-y-3">
                 <label className="text-xs font-mono text-[#9da99b] uppercase block">
-                  Topographical Biome
+                  Topographical Map Biome ({[
+                    'Verdant River Valley',
+                    'Archipelago',
+                    'Crimson Canyon',
+                    'Frostpeak Taiga',
+                    'Obsidian Caldera',
+                    'Highland Plateau',
+                    'Arid Oasis',
+                    'Boreal Basin',
+                  ].length} Available Maps)
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {[
-                    { id: 'Verdant River Valley', desc: 'High fertility, abundant water, ideal for agrisector' },
-                    { id: 'Highland Plateau', desc: 'Rich in heavy minerals, high wind kinetic potential' },
-                    { id: 'Archipelago', desc: 'Pristine ocean currents, high trade potential' },
-                    { id: 'Boreal Basin', desc: 'Cold climate, stable geology, superior computing thermal sinks' },
-                    { id: 'Arid Oasis', desc: 'Intense solar radiation, high geothermal output' },
+                    {
+                      id: 'Verdant River Valley',
+                      tag: 'Emerald Basin',
+                      desc: 'Lush fertile meadows, winding freshwater river, and north mountain lake. Perfect for agrarian development.',
+                      badge: 'High Food & Water',
+                    },
+                    {
+                      id: 'Archipelago',
+                      tag: 'Sapphire Atoll',
+                      desc: 'Tropical sandbar islands surrounded by crystal turquoise lagoons. High maritime trade and wind kinetic power.',
+                      badge: 'Ocean & Maritime Trade',
+                    },
+                    {
+                      id: 'Crimson Canyon',
+                      tag: 'Sun-Scorched Mesa',
+                      desc: 'Stepped red-sandstone mesas, dramatic canyon gorges, and deep wadi aquifers. Rich in rare minerals and solar energy.',
+                      badge: 'Rich Mineral Seams',
+                    },
+                    {
+                      id: 'Frostpeak Taiga',
+                      tag: 'Glacial Frontier',
+                      desc: 'Sub-zero snow-capped peaks, frosted conifer forests, and icy lakes. Superior thermal sink efficiency.',
+                      badge: 'Quantum Thermal Sink',
+                    },
+                    {
+                      id: 'Obsidian Caldera',
+                      tag: 'Volcanic Rift',
+                      desc: 'Towering volcanic crater rim, dark basalt terraces, and steaming geothermal springs. Massive natural energy.',
+                      badge: 'Geothermal Power',
+                    },
+                    {
+                      id: 'Highland Plateau',
+                      tag: 'Alpine Mesa',
+                      desc: 'Elevated mountain tabletop plateau, wind-swept mineral crags, and alpine streams. High wind kinetic potential.',
+                      badge: 'High Altitude Defense',
+                    },
+                    {
+                      id: 'Arid Oasis',
+                      tag: 'Desert Spring',
+                      desc: 'Sweeping desert dunes with a vital subterranean turquoise oasis pool. Extreme solar yield and clear skies.',
+                      badge: 'Solar Abundance',
+                    },
+                    {
+                      id: 'Boreal Basin',
+                      tag: 'Conifer Tundra',
+                      desc: 'Cold northern pine basin flanked by slate stone ridges and a wide glacial river.',
+                      badge: 'Stable Tectonic Plate',
+                    },
                   ].map((biome) => (
                     <div
                       key={biome.id}
-                      onClick={() => setForm({ ...form, terrainType: biome.id as any })}
+                      onClick={() => setForm({ ...form, terrainType: biome.id as MapTerrainType })}
                       className={`p-3 rounded-lg border cursor-pointer transition-all ${
                         form.terrainType === biome.id
-                          ? 'bg-[#2a382c] border-[#a6bd82]'
+                          ? 'bg-[#2a382c] border-[#a6bd82] ring-1 ring-[#a6bd82]'
                           : 'bg-[#151c16] border-[#2c392d] hover:bg-[#1d261e]'
                       }`}
                     >
-                      <span className="font-semibold text-xs text-[#f0f3eb]">{biome.id}</span>
-                      <p className="text-[10px] text-[#9da99b] mt-0.5">{biome.desc}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-xs text-[#f0f3eb]">{biome.id}</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#1c271d] text-[#c6a76a] border border-[#3b4b3c]">
+                          {biome.tag}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-[#9da99b] mt-1 leading-snug">{biome.desc}</p>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <span className="text-[9px] font-mono text-[#a6bd82] bg-[#121813] px-1.5 py-0.5 rounded border border-[#2b3a2d]">
+                          {biome.badge}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -312,8 +477,18 @@ export default function WorldCreationStudioPage({
             <div className="space-y-4">
               <h2 className="text-lg font-bold text-[#f3f5ee] flex items-center gap-2">
                 <Zap size={18} className="text-[#e5c97b]" />
-                Step 3: Initial Wealth & Natural Mineral Richness
+                Step 3: Initial Wealth & Pioneer Landing Roster
               </h2>
+
+              <div className="p-3 rounded-lg bg-[#202921] border border-[#384939] flex items-start gap-3">
+                <Sparkles size={20} className="text-[#c6a76a] shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <span className="font-bold text-[#f3f5ef] block mb-0.5">True Ground-Up Colony Genesis</span>
+                  <p className="text-[#a4b3a2] leading-relaxed">
+                    You start on Day 1 with an unblemished frontier, 1 single starter Pioneer Colony Outpost, and a tight-knit squad of named founding citizens. Every home, water plant, farm, and power grid must be designed and built by you.
+                  </p>
+                </div>
+              </div>
 
               <div className="space-y-4">
                 <div>
@@ -339,20 +514,32 @@ export default function WorldCreationStudioPage({
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-[#9da99b]">Starting Pioneer Population</span>
+                    <span className="text-[#9da99b]">Founding Pioneer Crew</span>
                     <span className="font-mono text-[#c6a76a] font-bold">
-                      {(form.startingPopulation / 1000).toLocaleString()}k Citizens
+                      {form.startingPopulation} Pioneers (Named Colonists)
                     </span>
                   </div>
-                  <input
-                    type="range"
-                    min="50000"
-                    max="1000000"
-                    step="50000"
-                    value={form.startingPopulation}
-                    onChange={(e) => setForm({ ...form, startingPopulation: Number(e.target.value) })}
-                    className="w-full accent-[#a6bd82]"
-                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { count: 10, label: '10 Pioneers', sub: 'Standard Founding Cohort' },
+                      { count: 15, label: '15 Pioneers', sub: 'Extended Expedition' },
+                      { count: 20, label: '20 Pioneers', sub: 'Frontier Vanguard' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.count}
+                        type="button"
+                        onClick={() => setForm({ ...form, startingPopulation: opt.count })}
+                        className={`p-2.5 rounded-lg border text-left transition-all ${
+                          form.startingPopulation === opt.count
+                            ? 'bg-[#2b392d] border-[#a6bd82] ring-1 ring-[#a6bd82]'
+                            : 'bg-[#151c16] border-[#2c392d] hover:bg-[#1c251d]'
+                        }`}
+                      >
+                        <div className="font-bold text-xs text-[#f0f3eb]">{opt.label}</div>
+                        <div className="text-[10px] text-[#9da99b] mt-0.5">{opt.sub}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
@@ -393,16 +580,20 @@ export default function WorldCreationStudioPage({
                   <span className="text-[#e8e9e3]">{form.planet}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-[#252f26]">
-                  <span className="text-[#9da99b]">Ecosystem Biome:</span>
-                  <span className="text-[#e8e9e3]">{form.climateType} {form.terrainType}</span>
+                  <span className="text-[#9da99b]">Ecosystem Map Biome:</span>
+                  <span className="text-[#c6a76a] font-semibold">{form.terrainType} ({form.climateType})</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-[#252f26]">
                   <span className="text-[#9da99b]">Governance System:</span>
                   <span className="text-[#a6bd82]">{form.governanceModel}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-[#252f26]">
-                  <span className="text-[#9da99b]">Pioneer Population:</span>
-                  <span className="font-mono text-[#c6a76a]">{(form.startingPopulation / 1000).toLocaleString()}k</span>
+                  <span className="text-[#9da99b]">Founding Pioneer Crew:</span>
+                  <span className="font-mono text-[#c6a76a]">{form.startingPopulation} Named Colonists</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-[#252f26]">
+                  <span className="text-[#9da99b]">Starting Structure:</span>
+                  <span className="text-[#a6bd82]">1x Frontier Colony Outpost</span>
                 </div>
                 <div className="flex justify-between py-1">
                   <span className="text-[#9da99b]">Ecological Mandate:</span>

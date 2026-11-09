@@ -1,0 +1,108 @@
+{
+  "timestamp": "20261108_173105",
+  "random_seed": 42,
+  "results": {
+    "timeseries_income": {
+      "baseline": {
+        "model": "Ridge_AR",
+        "test_mae": 182049632688.30914,
+        "test_rmse": 222557555614.34055,
+        "test_smape": 7.387336034614705,
+        "test_r2": -0.4412718682166117
+      },
+      "stronger": {
+        "model": "LightGBM_Quantile",
+        "test_mae": 1761500460900.9858,
+        "test_rmse": 1771375071743.832,
+        "test_smape": 126.39375056486206,
+        "test_r2": -90.30241848887204,
+        "interval_coverage_pct": 0.0
+      },
+      "champion": "Ridge_AR_Baseline"
+    },
+    "timeseries_gini": {
+      "baseline": {
+        "model": "Ridge_AR",
+        "test_mae": 0.014709373485695091,
+        "test_rmse": 0.022206413567615275,
+        "test_smape": 4.049494085786813,
+        "test_r2": -0.01415134107557714
+      },
+      "stronger": {
+        "model": "LightGBM_Quantile",
+        "test_mae": 0.011409150380011153,
+        "test_rmse": 0.01910232651691909,
+        "test_smape": 3.1332381473993474,
+        "test_r2": 0.24955572262600256,
+        "interval_coverage_pct": 72.72727272727273
+      },
+      "champion": "LightGBM_Quantile"
+    },
+    "accident_severity": {
+      "baseline": {
+        "model": "Logistic_Regression",
+        "test_roc_auc": 0.6020827422936579,
+        "test_pr_auc": 0.18548420332905616,
+        "test_f1": 0.25333333333333335,
+        "brier_score": 0.2321196050188132
+      },
+      "stronger": {
+        "model": "XGBoost",
+        "test_roc_auc": 0.6007669656919811,
+        "test_pr_auc": 0.17555382573154982,
+        "test_f1": 0.24528301886792453,
+        "brier_score": 0.22896893322467804,
+        "top_features": [
+          [
+            "Urban_or_Rural_Area",
+            0.21758006513118744
+          ],
+          [
+            "Speed_limit",
+            0.1850736290216446
+          ],
+          [
+            "Light_Conditions",
+            0.13440702855587006
+          ],
+          [
+            "Number_of_Vehicles",
+            0.10037878900766373
+          ],
+          [
+            "Junction_Detail",
+            0.0840803012251854
+          ]
+        ]
+      },
+      "champion": "Logistic_Regression_Baseline"
+    },
+    "casualty_count": {
+      "baseline": {
+        "model": "Poisson_GLM",
+        "test_mae": 0.34820589137843916,
+        "test_rmse": 0.5783855972510824
+      },
+      "stronger": {
+        "model": "LightGBM_Poisson",
+        "test_mae": 0.33003977482560215,
+        "test_rmse": 0.5708129298397825
+      },
+      "champion": "LightGBM_Poisson"
+    },
+    "simulation_surrogate": {
+      "baseline": {
+        "model": "Linear_Regression",
+        "test_r2": 0.8371758197503619,
+        "test_mae": 0.30699254557343797
+      },
+      "stronger": {
+        "model": "MLP_Surrogate",
+        "test_r2": 0.8619789345444703,
+        "test_mae": 0.06362644274729884,
+        "latency_ms": 0.03434374999415013
+      },
+      "champion": "MLP_Surrogate"
+    }
+  }
+}

@@ -1,325 +1,455 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useGameState } from '../context/GameStateContext';
+import { buildingCatalog } from '../data/initialGameData';
+import { BuildingCatalogItem, BuildingCategory, PlacedBuilding } from '../types/game';
+import { soundFx } from '../services/soundFx';
 import {
   Building2,
-  Hammer,
+  Home,
+  Wheat,
+  ShoppingBag,
+  Factory,
+  GraduationCap,
+  HeartPulse,
   Zap,
-  Droplets,
-  Users,
+  Landmark,
+  Leaf,
+  Navigation,
+  Compass,
+  Hammer,
   Clock,
-  ArrowUpRight,
-  Shield,
-  Layers,
-  Search,
-  Filter,
-  CheckCircle2,
+  Users,
+  Box,
+  Coins,
+  ShieldCheck,
   AlertTriangle,
-  Trash2,
-  X,
-  MapPin,
+  ChevronRight,
+  Filter,
+  Search,
+  CheckCircle2,
+  Wrench,
+  TrendingUp,
+  Cpu,
+  Layers,
+  ArrowUpRight,
+  Sparkles,
+  Info,
+  X
 } from 'lucide-react';
-import { useGameState } from '../context/GameStateContext';
-import { BuildingCategory, BuildingCatalogItem, PlacedBuilding } from '../types/game';
 
-const categories: { id: BuildingCategory | 'all'; label: string }[] = [
-  { id: 'all', label: 'All Architectures' },
-  { id: 'residential', label: 'Residential' },
-  { id: 'agriculture', label: 'Agriculture' },
-  { id: 'commercial', label: 'Commercial' },
-  { id: 'industrial', label: 'Industrial' },
-  { id: 'energy', label: 'Energy' },
-  { id: 'research', label: 'Research' },
-  { id: 'healthcare', label: 'Healthcare' },
-  { id: 'education', label: 'Education' },
-  { id: 'government', label: 'Government' },
-  { id: 'environment', label: 'Environment' },
+interface InfrastructurePageProps {
+  onNavigate?: (page: string) => void;
+  onClose?: () => void;
+}
+
+const CATEGORIES: { id: BuildingCategory | 'all'; label: string; icon: any }[] = [
+  { id: 'all', label: 'All Catalogues', icon: Layers },
+  { id: 'residential', label: 'Residential', icon: Home },
+  { id: 'agriculture', label: 'Agriculture', icon: Wheat },
+  { id: 'commercial', label: 'Commercial', icon: ShoppingBag },
+  { id: 'industrial', label: 'Industrial', icon: Factory },
+  { id: 'research', label: 'Research', icon: Cpu },
+  { id: 'education', label: 'Education', icon: GraduationCap },
+  { id: 'healthcare', label: 'Healthcare', icon: HeartPulse },
+  { id: 'energy', label: 'Energy Grid', icon: Zap },
+  { id: 'government', label: 'Government', icon: Landmark },
+  { id: 'environment', label: 'Environment', icon: Leaf },
+  { id: 'transportation', label: 'Transportation', icon: Navigation },
 ];
 
-export default function InfrastructurePage({
-  onNavigate,
-}: {
-  onNavigate: (page: string) => void;
-}) {
+export const InfrastructurePage: React.FC<InfrastructurePageProps> = ({ onNavigate, onClose }) => {
   const {
-    catalog,
-    placedBuildings,
     resources,
-    districts,
+    placedBuildings,
     setConstructionMode,
-    placeBuilding,
-    upgradeBuilding,
-    demolishBuilding,
-    selectBuilding,
+    civilization,
   } = useGameState();
 
-  const [activeTab, setActiveTab] = useState<'catalog' | 'active'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'active_assets'>('catalog');
   const [selectedCategory, setSelectedCategory] = useState<BuildingCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCatalogItem, setSelectedCatalogItem] = useState<BuildingCatalogItem | null>(null);
-  const [targetDistrictId, setTargetDistrictId] = useState<string>('dist-citadel');
+  const [selectedEra, setSelectedEra] = useState<string>('all');
+  const [detailItem, setDetailItem] = useState<BuildingCatalogItem | null>(null);
+  const [selectedPlacedBuilding, setSelectedPlacedBuilding] = useState<PlacedBuilding | null>(null);
 
-  const filteredCatalog = catalog.filter((item) => {
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  // Derived metrics
+  const metrics = useMemo(() => {
+    const totalPlaced = placedBuildings.length;
+    const operational = placedBuildings.filter(b => b.status === 'active').length;
+    const underConstruction = placedBuildings.filter(b => b.status === 'constructing').length;
+    const damaged = placedBuildings.filter(b => b.status === 'offline').length;
 
-  const filteredPlaced = placedBuildings.filter((item) => {
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+    // Housing capacity
+    const totalHousing = 1450000;
+    const housingUtilisation = Math.min(100, Math.round((resources.population / totalHousing) * 100));
 
-  const handleConfirmDirectConstruction = () => {
-    if (!selectedCatalogItem) return;
-    const dist = districts.find((d) => d.id === targetDistrictId);
-    const offsetX = (Math.random() - 0.5) * (dist ? dist.radius * 0.8 : 10);
-    const offsetZ = (Math.random() - 0.5) * (dist ? dist.radius * 0.8 : 10);
-    const targetX = (dist ? dist.x : 0) + offsetX;
-    const targetZ = (dist ? dist.z : 0) + offsetZ;
+    return {
+      totalPlaced,
+      operational,
+      underConstruction,
+      damaged,
+      conditionIndex: totalPlaced > 0 ? Math.round((operational / totalPlaced) * 100) : 98,
+      housingUtilisation,
+      gridEfficiency: 96,
+      transitConnectivity: 88,
+    };
+  }, [placedBuildings, resources.population]);
 
-    placeBuilding(selectedCatalogItem.id, targetX, targetZ, targetDistrictId);
-    setSelectedCatalogItem(null);
+  // Filtered catalogue items
+  const filteredCatalog = useMemo(() => {
+    return buildingCatalog.filter((item: BuildingCatalogItem) => {
+      const matchCat = selectedCategory === 'all' || item.category === selectedCategory;
+      const matchSearch =
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchEra = selectedEra === 'all' || (item.minTechLevel <= (selectedEra === 'Settlement' ? 1 : selectedEra === 'Agricultural' ? 2 : selectedEra === 'Industrial' ? 3 : 5));
+      return matchCat && matchSearch && matchEra;
+    });
+  }, [selectedCategory, searchQuery, selectedEra]);
+
+  const handleStartConstruction = (item: BuildingCatalogItem) => {
+    soundFx.playClick();
+    setConstructionMode(true, item);
+    if (onNavigate) {
+      onNavigate('World Explorer');
+    }
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 overflow-y-auto custom-scrollbar text-[#e8e9e3] max-w-7xl mx-auto">
-      {/* Header & Infrastructure Network Vitals */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[#39443a] gap-4">
-        <div>
-          <span className="eyebrow text-[#c6a76a]">CIVILISATIONAL WORKS & URBAN MATRIX</span>
-          <h1 className="text-2xl font-bold text-[#f3f5ef] mt-0.5">Construction & Infrastructure</h1>
-          <p className="text-xs text-[#9da99b] mt-1">
-            Manage heavy civil assets, power grids, arcologies, and deploy new technological structures across 10 architectural disciplines.
-          </p>
+    <div className="relative w-full h-full flex flex-col bg-[#171D18]/95 backdrop-blur-md text-[#EAE3D2] overflow-hidden select-none">
+      {/* Top Header */}
+      <div className="flex-shrink-0 px-8 py-5 border-b border-[#C5A66A]/20 bg-gradient-to-r from-[#171D18] via-[#202820] to-[#171D18] flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-sm border border-[#C5A66A]/40 bg-[#17231B] flex items-center justify-center text-[#C5A66A] shadow-inner">
+            <Building2 className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="font-serif text-2xl text-[#EAE3D2] tracking-wider font-semibold">
+                INFRASTRUCTURE & CONSTRUCTION
+              </h1>
+              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded border border-[#C5A66A]/40 text-[#C5A66A] bg-[#C5A66A]/10">
+                Imperial Works Ministry
+              </span>
+            </div>
+            <p className="text-xs text-[#A5AD9D] font-sans mt-0.5">
+              Architectural blueprints, zoning expansion, civic works and resource installations for {civilization.name}.
+            </p>
+          </div>
         </div>
 
-        {/* Global Grid Metrics */}
-        <div className="flex items-center gap-4 bg-[#182119] p-3 rounded-xl border border-[#2e3c2f] text-xs font-mono">
-          <div>
-            <span className="text-[#9da99b] block text-[10px]">POWER GRID</span>
-            <span className="text-[#e5c97b] font-bold">11,200 MW (+85)</span>
+        <div className="flex items-center gap-4">
+          {/* Catalog / Assets toggle */}
+          <div className="flex items-center p-1 bg-[#171D18] border border-[#C5A66A]/30 rounded">
+            <button
+              onClick={() => { soundFx.playClick(); setActiveTab('catalog'); }}
+              className={`px-4 py-1.5 rounded text-xs font-serif tracking-wider uppercase transition-all ${
+                activeTab === 'catalog'
+                  ? 'bg-[#C5A66A] text-[#171D18] font-bold shadow'
+                  : 'text-[#A5AD9D] hover:text-[#EAE3D2]'
+              }`}
+            >
+              Building Catalog
+            </button>
+            <button
+              onClick={() => { soundFx.playClick(); setActiveTab('active_assets'); }}
+              className={`px-4 py-1.5 rounded text-xs font-serif tracking-wider uppercase transition-all ${
+                activeTab === 'active_assets'
+                  ? 'bg-[#C5A66A] text-[#171D18] font-bold shadow'
+                  : 'text-[#A5AD9D] hover:text-[#EAE3D2]'
+              }`}
+            >
+              Active Structures ({placedBuildings.length})
+            </button>
           </div>
-          <div className="w-px h-6 bg-[#2c392d]" />
-          <div>
-            <span className="text-[#9da99b] block text-[10px]">FACILITIES</span>
-            <span className="text-[#f3f5ee] font-bold">{placedBuildings.length} Operational</span>
-          </div>
-          <div className="w-px h-6 bg-[#2c392d]" />
-          <div>
-            <span className="text-[#9da99b] block text-[10px]">GRID STABILITY</span>
-            <span className="text-[#a6bd82] font-bold">98.4%</span>
-          </div>
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-2 border border-[#C5A66A]/30 rounded hover:bg-[#C5A66A]/10 text-[#A5AD9D] hover:text-[#EAE3D2] transition-colors"
+              title="Return to World View"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Mode Switcher Tabs */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center bg-[#151c16] p-1 rounded-xl border border-[#2d3a2e]">
-          <button
-            onClick={() => setActiveTab('catalog')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
-              activeTab === 'catalog'
-                ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#5d7756] shadow-sm'
-                : 'text-[#9da99b] hover:text-white'
-            }`}
-          >
-            <Hammer size={14} />
-            Architectural Catalog ({catalog.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('active')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
-              activeTab === 'active'
-                ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#5d7756] shadow-sm'
-                : 'text-[#9da99b] hover:text-white'
-            }`}
-          >
-            <Building2 size={14} />
-            Commissioned Facilities ({placedBuildings.length})
-          </button>
+      {/* Metrics Banner */}
+      <div className="flex-shrink-0 grid grid-cols-2 md:grid-cols-6 gap-3 px-8 py-3.5 bg-[#17231B]/60 border-b border-[#C5A66A]/15 font-sans">
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase tracking-wider text-[#A5AD9D]">Total Structures</span>
+          <span className="text-lg font-serif font-bold text-[#EAE3D2] mt-0.5">
+            {metrics.totalPlaced} <span className="text-xs font-normal text-[#8FA879]">({metrics.operational} Active)</span>
+          </span>
         </div>
-
-        {/* Search Input */}
-        <div className="relative w-full sm:w-64">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#798877]" />
-          <input
-            type="text"
-            placeholder="Search architectures..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#161d17] border border-[#2f3d30] rounded-lg pl-9 pr-3 py-1.5 text-xs text-[#e8e9e3] placeholder-[#798877] outline-none focus:border-[#a6bd82]"
-          />
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase tracking-wider text-[#A5AD9D]">Structural Integrity</span>
+          <span className="text-lg font-serif font-bold text-[#8FA879] mt-0.5">
+            {metrics.conditionIndex}% <span className="text-xs text-[#A5AD9D]">Operational</span>
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase tracking-wider text-[#A5AD9D]">Housing Utilisation</span>
+          <span className="text-lg font-serif font-bold text-[#C5A66A] mt-0.5">
+            {metrics.housingUtilisation}% <span className="text-xs text-[#A5AD9D]">Capacity</span>
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase tracking-wider text-[#A5AD9D]">Power Grid Status</span>
+          <span className="text-lg font-serif font-bold text-[#EAE3D2] mt-0.5">
+            {metrics.gridEfficiency}% <span className="text-xs text-[#8FA879]">Stable</span>
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase tracking-wider text-[#A5AD9D]">Transit Density</span>
+          <span className="text-lg font-serif font-bold text-[#EAE3D2] mt-0.5">
+            {metrics.transitConnectivity}% <span className="text-xs text-[#A5AD9D]">Flow</span>
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] uppercase tracking-wider text-[#A5AD9D]">Under Erection</span>
+          <span className="text-lg font-serif font-bold text-[#D6A75E] mt-0.5">
+            {metrics.underConstruction} <span className="text-xs text-[#A5AD9D]">Sites</span>
+          </span>
         </div>
       </div>
 
-      {/* Category Filter Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setSelectedCategory(cat.id)}
-            className={`px-3 py-1 rounded-lg text-xs font-mono font-medium whitespace-nowrap transition-colors ${
-              selectedCategory === cat.id
-                ? 'bg-[#354332] text-[#dce9ca] border border-[#587052] font-semibold'
-                : 'bg-[#182019] text-[#8e9c8c] hover:bg-[#202920]'
-            }`}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </div>
+      {/* Main Body */}
+      {activeTab === 'catalog' ? (
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+          {/* Left Category Column */}
+          <div className="w-64 flex-shrink-0 border-r border-[#C5A66A]/20 bg-[#171D18]/80 flex flex-col p-4 gap-1 overflow-y-auto">
+            <span className="text-[10px] font-mono tracking-widest uppercase text-[#C5A66A] px-2 mb-2">
+              SECTORS & DOMAINS
+            </span>
+            {CATEGORIES.map(cat => {
+              const Icon = cat.icon;
+              const isSelected = selectedCategory === cat.id;
+              const count = cat.id === 'all'
+                ? buildingCatalog.length
+                : buildingCatalog.filter((b: BuildingCatalogItem) => b.category === cat.id).length;
 
-      {/* TAB 1: ARCHITECTURAL CATALOG */}
-      {activeTab === 'catalog' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredCatalog.map((item) => {
-            const canAfford = resources.materials >= item.costMaterials;
-
-            return (
-              <div
-                key={item.id}
-                className="panel p-5 bg-[#182119] border-[#313f32] flex flex-col justify-between hover:border-[#4d614e] transition-all"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-[#a6bd82] font-semibold">
-                        {item.category}
-                      </span>
-                      <h3 className="text-base font-bold text-[#f3f5ee] mt-0.5">{item.name}</h3>
-                    </div>
-                    <span className="text-xs font-mono font-bold text-[#c6a76a] px-2 py-0.5 rounded bg-[#272216] border border-[#4d3f23]">
-                      Lvl {item.minTechLevel}+
-                    </span>
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => { soundFx.playClick(); setSelectedCategory(cat.id); }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded text-left transition-all text-xs font-sans ${
+                    isSelected
+                      ? 'bg-[#C5A66A]/15 border border-[#C5A66A]/60 text-[#C5A66A] font-semibold'
+                      : 'border border-transparent text-[#A5AD9D] hover:bg-[#202820] hover:text-[#EAE3D2]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Icon className="w-4 h-4" />
+                    <span>{cat.label}</span>
                   </div>
-
-                  <p className="text-xs text-[#9da99b] mt-2 leading-relaxed">{item.description}</p>
-
-                  {/* Spec Sheet */}
-                  <div className="mt-4 pt-3 border-t border-[#29342a] grid grid-cols-2 gap-2 text-xs font-mono">
-                    <div className="p-2 rounded bg-[#131914] border border-[#242f25]">
-                      <span className="text-[#8e9b8b] text-[10px] block">MATERIAL COST</span>
-                      <span className="font-bold text-[#c6a76a]">{item.costMaterials} Units</span>
-                    </div>
-                    <div className="p-2 rounded bg-[#131914] border border-[#242f25]">
-                      <span className="text-[#8e9b8b] text-[10px] block">ENERGY IMPACT</span>
-                      <span className="font-bold text-[#e5c97b]">
-                        {item.energyReq > 0 ? `-${item.energyReq} MW` : `+${Math.abs(item.energyReq)} MW`}
-                      </span>
-                    </div>
-                    <div className="p-2 rounded bg-[#131914] border border-[#242f25]">
-                      <span className="text-[#8e9b8b] text-[10px] block">CREW REQ.</span>
-                      <span className="font-bold text-[#f0f3eb]">{item.workerReq} Specialists</span>
-                    </div>
-                    <div className="p-2 rounded bg-[#131914] border border-[#242f25]">
-                      <span className="text-[#8e9b8b] text-[10px] block">CONSTRUCT TIME</span>
-                      <span className="font-bold text-[#82a6bd]">{item.constructionDurationDays} Days</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-5 pt-3 border-t border-[#29342a] flex items-center justify-between">
-                  <span className="text-xs text-[#9da99b]">
-                    Maint: <span className="font-mono text-[#f3f5ef]">{item.maintenanceCost}/d</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${isSelected ? 'bg-[#C5A66A] text-[#171D18]' : 'bg-[#202820] text-[#A5AD9D]'}`}>
+                    {count}
                   </span>
+                </button>
+              );
+            })}
+          </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setSelectedCatalogItem(item)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#263327] hover:bg-[#324434] text-[#dce9ca] border border-[#445b46]"
-                    >
-                      Commission
-                    </button>
-                    <button
-                      disabled={!canAfford}
-                      onClick={() => {
-                        setConstructionMode(true, item);
-                        onNavigate('World Explorer');
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
-                        canAfford
-                          ? 'bg-[#3b4c37] hover:bg-[#4d6348] text-[#dce9ca] border border-[#5d7756] shadow-md'
-                          : 'bg-[#212721] text-[#697268] border border-[#2f3830] cursor-not-allowed'
-                      }`}
-                    >
-                      <Hammer size={13} />
-                      <span>Place in 3D</span>
-                    </button>
-                  </div>
-                </div>
+          {/* Catalog Grid View */}
+          <div className="flex-1 min-w-0 flex flex-col p-6 overflow-hidden">
+            {/* Filter / Search Bar */}
+            <div className="flex-shrink-0 flex items-center justify-between gap-4 mb-6">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#A5AD9D]" />
+                <input
+                  type="text"
+                  placeholder="Search blueprints by name, category, or specifications..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-[#202820] border border-[#C5A66A]/30 rounded text-xs text-[#EAE3D2] placeholder-[#A5AD9D]/60 focus:outline-none focus:border-[#C5A66A]"
+                />
               </div>
-            );
-          })}
-        </div>
-      )}
 
-      {/* TAB 2: ACTIVE COMMISSIONED FACILITIES */}
-      {activeTab === 'active' && (
-        <div className="panel overflow-hidden bg-[#182119] border-[#313f32]">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#141a15] border-b border-[#2d3a2e] text-[#9da99b] font-mono text-[11px] uppercase">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-[#A5AD9D]">Filter by Era:</span>
+                <select
+                  value={selectedEra}
+                  onChange={e => setSelectedEra(e.target.value)}
+                  className="bg-[#202820] border border-[#C5A66A]/30 rounded text-xs text-[#EAE3D2] px-3 py-1.5 focus:outline-none focus:border-[#C5A66A]"
+                >
+                  <option value="all">All Technological Eras</option>
+                  <option value="Settlement">Settlement Age</option>
+                  <option value="Agricultural">Agricultural Age</option>
+                  <option value="Industrial">Industrial Age</option>
+                  <option value="Digital">Digital / Modern</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Grid of Buildings */}
+            <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredCatalog.map((item: BuildingCatalogItem) => {
+                const canAfford =
+                  resources.materials >= item.costMaterials &&
+                  resources.grc >= item.costCredits;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="group relative bg-[#202820]/90 border border-[#C5A66A]/25 hover:border-[#C5A66A]/80 rounded p-5 flex flex-col justify-between transition-all duration-200 hover:shadow-lg hover:shadow-[#C5A66A]/5"
+                  >
+                    <div>
+                      {/* Category tag & Min Tech */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded bg-[#171D18] border border-[#C5A66A]/30 text-[#C5A66A]">
+                          {item.category}
+                        </span>
+                        <span className="text-[10px] font-mono text-[#A5AD9D]">
+                          Tech Tier {item.minTechLevel}
+                        </span>
+                      </div>
+
+                      {/* Title & Lore */}
+                      <h3 className="font-serif text-lg font-semibold text-[#EAE3D2] group-hover:text-[#C5A66A] transition-colors">
+                        {item.name}
+                      </h3>
+                      <p className="text-xs text-[#A5AD9D] font-sans mt-1 line-clamp-2 leading-relaxed">
+                        {item.description}
+                      </p>
+
+                      {/* Vital Specs Grid */}
+                      <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-[#C5A66A]/15 text-xs font-sans">
+                        <div className="flex items-center gap-1.5 text-[#EAE3D2]">
+                          <Box className="w-3.5 h-3.5 text-[#C5A66A]" />
+                          <span>Cost: <strong>{item.costMaterials}</strong> Mat</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[#EAE3D2]">
+                          <Coins className="w-3.5 h-3.5 text-[#C5A66A]" />
+                          <span>CRC: <strong>{item.costCredits}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[#EAE3D2]">
+                          <Zap className="w-3.5 h-3.5 text-[#D6A75E]" />
+                          <span>Energy: {item.energyReq > 0 ? `-${item.energyReq}` : `+${Math.abs(item.energyReq)}`} MW</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[#EAE3D2]">
+                          <Clock className="w-3.5 h-3.5 text-[#A5AD9D]" />
+                          <span>Build: {item.constructionDurationDays} Days</span>
+                        </div>
+                      </div>
+
+                      {/* Production / Population Bonus Pill */}
+                      {item.productionAmount > 0 && (
+                        <div className="mt-3 px-2 py-1 bg-[#17231B] border border-[#8FA879]/30 rounded text-[11px] text-[#8FA879] flex items-center justify-between">
+                          <span>Yield: +{item.productionAmount} {item.productionType || 'Output'} / day</span>
+                          <TrendingUp className="w-3 h-3" />
+                        </div>
+                      )}
+                      {item.populationCapacity > 0 && (
+                        <div className="mt-3 px-2 py-1 bg-[#17231B] border border-[#C5A66A]/30 rounded text-[11px] text-[#C5A66A] flex items-center justify-between">
+                          <span>Shelter: +{item.populationCapacity.toLocaleString()} Citizens</span>
+                          <Users className="w-3 h-3" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Deck */}
+                    <div className="mt-5 pt-3 border-t border-[#C5A66A]/20 flex items-center gap-2">
+                      <button
+                        onClick={() => { soundFx.playClick(); setDetailItem(item); }}
+                        className="px-3 py-1.5 border border-[#C5A66A]/40 text-[#C5A66A] hover:bg-[#C5A66A]/10 rounded text-xs font-serif transition-colors"
+                      >
+                        Details
+                      </button>
+                      <button
+                        onClick={() => handleStartConstruction(item)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-serif font-bold tracking-wider uppercase transition-all shadow ${
+                          canAfford
+                            ? 'bg-[#C5A66A] text-[#171D18] hover:bg-[#D8CBAA]'
+                            : 'bg-[#283228] text-[#A5AD9D] border border-[#C5A66A]/20 hover:border-[#C5A66A]/50'
+                        }`}
+                      >
+                        <Hammer className="w-3.5 h-3.5" />
+                        <span>Deploy Blueprint</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Active Assets & Structures Table */
+        <div className="flex-1 min-h-0 p-8 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-serif text-lg text-[#EAE3D2] tracking-wide">
+                INSTALLED CIVIC & INDUSTRIAL ASSETS
+              </h2>
+              <p className="text-xs text-[#A5AD9D]">
+                Operational registry of all standing structures across municipal sectors.
+              </p>
+            </div>
+            <div className="text-xs font-mono text-[#C5A66A]">
+              Total Operational Units: {placedBuildings.length}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto border border-[#C5A66A]/20 rounded bg-[#202820]/60">
+            <table className="w-full text-left text-xs font-sans">
+              <thead className="bg-[#171D18] text-[#A5AD9D] font-mono text-[10px] uppercase tracking-wider border-b border-[#C5A66A]/20">
                 <tr>
-                  <th className="p-4">Facility Name</th>
-                  <th className="p-4">Category</th>
-                  <th className="p-4">District</th>
-                  <th className="p-4">Level</th>
-                  <th className="p-4">Efficiency</th>
-                  <th className="p-4">Workforce</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="py-3 px-4">Structure Name</th>
+                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4">District / Coordinates</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Workers</th>
+                  <th className="py-3 px-4">Condition</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#263127]">
-                {filteredPlaced.map((b) => (
-                  <tr key={b.id} className="hover:bg-[#1e271f] transition-colors">
-                    <td className="p-4 font-semibold text-[#f0f3eb] flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[#a6bd82]" />
+              <tbody className="divide-y divide-[#C5A66A]/10 text-[#EAE3D2]">
+                {placedBuildings.map(b => (
+                  <tr key={b.id} className="hover:bg-[#283228]/50 transition-colors">
+                    <td className="py-3 px-4 font-serif font-semibold text-[#EAE3D2] flex items-center gap-2">
+                      <Building2 className="w-3.5 h-3.5 text-[#C5A66A]" />
                       <span>{b.name}</span>
                     </td>
-                    <td className="p-4">
-                      <span className="px-2 py-0.5 rounded text-[10px] uppercase font-mono bg-[#232c24] text-[#a6bd82] border border-[#394a3a]">
-                        {b.category}
+                    <td className="py-3 px-4 uppercase text-[10px] font-mono text-[#A5AD9D]">
+                      {b.category}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-[11px] text-[#A5AD9D]">
+                      {b.districtId || 'Central Grid'} ({Math.round(b.x)}, {Math.round(b.z)})
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase border ${
+                        b.status === 'active'
+                          ? 'border-[#8FA879]/40 bg-[#8FA879]/10 text-[#8FA879]'
+                          : b.status === 'constructing'
+                          ? 'border-[#D6A75E]/40 bg-[#D6A75E]/10 text-[#D6A75E]'
+                          : 'border-[#C87569]/40 bg-[#C87569]/10 text-[#C87569]'
+                      }`}>
+                        {b.status}
                       </span>
                     </td>
-                    <td className="p-4 text-[#c4cebf]">{b.districtId}</td>
-                    <td className="p-4 font-mono font-bold text-[#c6a76a]">Lvl {b.level}</td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 rounded-full bg-[#131914] overflow-hidden">
-                          <div
-                            className="h-full bg-[#a6bd82] rounded-full"
-                            style={{ width: `${b.efficiency}%` }}
-                          />
-                        </div>
-                        <span className="font-mono text-[11px]">{b.efficiency}%</span>
-                      </div>
-                    </td>
-                    <td className="p-4 font-mono">
+                    <td className="py-3 px-4 font-mono text-[11px]">
                       {b.workersAssigned} / {b.workersNeeded}
                     </td>
-                    <td className="p-4 text-right space-x-2">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 bg-[#171D18] rounded-full overflow-hidden border border-[#C5A66A]/20">
+                          <div
+                            className="h-full bg-[#8FA879]"
+                            style={{ width: `${b.health || 100}%` }}
+                          />
+                        </div>
+                        <span className="font-mono text-[10px] text-[#8FA879]">{b.health || 100}%</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-right">
                       <button
-                        onClick={() => {
-                          selectBuilding(b.id);
-                          onNavigate('World Explorer');
-                        }}
-                        className="px-2.5 py-1 rounded bg-[#273428] hover:bg-[#344435] text-[#dce9ca] text-[11px] font-medium border border-[#445b46]"
+                        onClick={() => { soundFx.playClick(); setSelectedPlacedBuilding(b); }}
+                        className="px-2.5 py-1 text-[11px] font-serif border border-[#C5A66A]/30 rounded hover:bg-[#C5A66A]/10 text-[#C5A66A]"
                       >
-                        Inspect 3D
-                      </button>
-                      <button
-                        disabled={b.level >= b.maxLevel || resources.materials < b.level * 280}
-                        onClick={() => upgradeBuilding(b.id)}
-                        className="px-2.5 py-1 rounded bg-[#354332] hover:bg-[#475b43] text-[#c6a76a] text-[11px] font-medium border border-[#52634d] disabled:opacity-40"
-                      >
-                        Upgrade
-                      </button>
-                      <button
-                        onClick={() => demolishBuilding(b.id)}
-                        className="p-1 rounded text-[#d47e69] hover:bg-[#382320] transition-colors"
-                        title="Demolish Facility"
-                      >
-                        <Trash2 size={13} />
+                        Inspect
                       </button>
                     </td>
                   </tr>
@@ -330,91 +460,111 @@ export default function InfrastructurePage({
         </div>
       )}
 
-      {/* CONSTRUCTION CONFIRMATION MODAL */}
-      {selectedCatalogItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg bg-[#19221a] border border-[#39443a] rounded-xl shadow-2xl p-6 text-[#e8e9e3]">
-            <div className="flex items-start justify-between pb-3 border-b border-[#2d3a2e]">
-              <div>
-                <span className="text-[10px] font-mono text-[#c6a76a] font-bold uppercase">
-                  CONSTRUCTION AUTHORIZATION ORDER
-                </span>
-                <h3 className="text-lg font-bold text-[#f3f5ef] mt-0.5">
-                  {selectedCatalogItem.name}
-                </h3>
+      {/* Blueprint Detail Modal */}
+      {detailItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-xl bg-[#202820] border border-[#C5A66A]/40 rounded-sm shadow-2xl overflow-hidden font-sans">
+            <div className="px-6 py-4 border-b border-[#C5A66A]/20 flex items-center justify-between bg-[#171D18]">
+              <div className="flex items-center gap-3">
+                <Building2 className="w-5 h-5 text-[#C5A66A]" />
+                <h3 className="font-serif text-lg font-bold text-[#EAE3D2]">{detailItem.name}</h3>
               </div>
               <button
-                onClick={() => setSelectedCatalogItem(null)}
-                className="p-1 rounded text-[#9da99b] hover:text-white"
+                onClick={() => setDetailItem(null)}
+                className="text-[#A5AD9D] hover:text-[#EAE3D2]"
               >
-                <X size={16} />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="py-4 space-y-4 text-xs">
-              <p className="text-xs text-[#adb8a9] leading-relaxed">
-                {selectedCatalogItem.description}
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-[#A5AD9D] leading-relaxed">
+                {detailItem.description}
               </p>
 
-              {/* District Allocation Selector */}
-              <div>
-                <label className="text-[10px] font-mono text-[#9da99b] uppercase block mb-1">
-                  Target Municipal District
-                </label>
-                <select
-                  value={targetDistrictId}
-                  onChange={(e) => setTargetDistrictId(e.target.value)}
-                  className="w-full bg-[#131914] border border-[#2b392d] rounded-lg px-3 py-2 text-xs text-[#f3f5ee] outline-none"
-                >
-                  {districts.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} ({d.specialization})
-                    </option>
-                  ))}
-                </select>
+              <div className="p-4 bg-[#171D18] border border-[#C5A66A]/20 rounded space-y-2 text-xs">
+                <span className="text-[10px] uppercase font-mono text-[#C5A66A] tracking-wider">
+                  Operational Parameters & Directives
+                </span>
+                <div className="grid grid-cols-2 gap-3 pt-2 text-[#EAE3D2]">
+                  <div>Material Foundation: <strong>{detailItem.costMaterials} units</strong></div>
+                  <div>Fiscal Allocation: <strong>{detailItem.costCredits} CRC</strong></div>
+                  <div>Power Consumption: <strong>{detailItem.energyReq} MW</strong></div>
+                  <div>Water Allocation: <strong>{detailItem.waterReq} kL/cycle</strong></div>
+                  <div>Workforce Requirement: <strong>{detailItem.workerReq} Specialists</strong></div>
+                  <div>Civilian Shelter: <strong>{detailItem.populationCapacity.toLocaleString()} Citizens</strong></div>
+                  <div>Erection Timeframe: <strong>{detailItem.constructionDurationDays} Solar Days</strong></div>
+                  <div>Daily Maintenance: <strong>{detailItem.maintenanceCost} Mat/day</strong></div>
+                </div>
               </div>
 
-              {/* Resource Requirements Breakdown */}
-              <div className="p-3.5 rounded-lg bg-[#131914] border border-[#253026] space-y-2 font-mono">
-                <div className="flex justify-between">
-                  <span className="text-[#9da99b]">Structural Materials Required:</span>
-                  <span className="text-[#c6a76a] font-bold">
-                    {selectedCatalogItem.costMaterials} Units
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#9da99b]">Energy Grid Impact:</span>
-                  <span className="text-[#e5c97b]">
-                    {selectedCatalogItem.energyReq > 0
-                      ? `-${selectedCatalogItem.energyReq} MW`
-                      : `+${Math.abs(selectedCatalogItem.energyReq)} MW`}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#9da99b]">Workforce Quota:</span>
-                  <span className="text-[#f0f3eb]">{selectedCatalogItem.workerReq} Specialists</span>
-                </div>
+              <div className="text-xs text-[#D8CBAA] bg-[#C5A66A]/10 border border-[#C5A66A]/30 p-3 rounded">
+                <strong>Deployment Protocol:</strong> Selecting "Issue Construction Directive" will transition to the 3D World Explorer. Left-click any valid terrain tile to place the architectural foundation grid.
               </div>
             </div>
 
-            <div className="pt-3 border-t border-[#2d3a2e] flex items-center justify-between">
+            <div className="px-6 py-4 bg-[#171D18] border-t border-[#C5A66A]/20 flex justify-end gap-3">
+              <button
+                onClick={() => setDetailItem(null)}
+                className="px-4 py-2 border border-[#C5A66A]/30 text-xs font-serif text-[#A5AD9D] hover:text-[#EAE3D2] rounded"
+              >
+                Dismiss
+              </button>
               <button
                 onClick={() => {
-                  setConstructionMode(true, selectedCatalogItem);
-                  setSelectedCatalogItem(null);
-                  onNavigate('World Explorer');
+                  const item = detailItem;
+                  setDetailItem(null);
+                  handleStartConstruction(item);
                 }}
-                className="text-xs text-[#a6bd82] hover:underline flex items-center gap-1"
+                className="px-5 py-2 bg-[#C5A66A] text-[#171D18] font-serif font-bold text-xs uppercase tracking-wider rounded hover:bg-[#D8CBAA] transition-colors flex items-center gap-2"
               >
-                <MapPin size={13} /> Switch to Manual 3D Terrain Placement
+                <Hammer className="w-4 h-4" />
+                <span>Issue Construction Directive</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* Asset Inspector Modal */}
+      {selectedPlacedBuilding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-lg bg-[#202820] border border-[#C5A66A]/40 rounded-sm shadow-2xl p-6 font-sans">
+            <div className="flex items-center justify-between pb-3 border-b border-[#C5A66A]/20">
+              <div className="flex items-center gap-2.5">
+                <Building2 className="w-5 h-5 text-[#C5A66A]" />
+                <h3 className="font-serif text-lg font-bold text-[#EAE3D2]">{selectedPlacedBuilding.name}</h3>
+              </div>
+              <button onClick={() => setSelectedPlacedBuilding(null)} className="text-[#A5AD9D] hover:text-[#EAE3D2]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="py-4 space-y-3 text-xs">
+              <div className="flex justify-between py-1 border-b border-[#C5A66A]/10">
+                <span className="text-[#A5AD9D]">Asset ID</span>
+                <span className="font-mono text-[#EAE3D2]">{selectedPlacedBuilding.id}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[#C5A66A]/10">
+                <span className="text-[#A5AD9D]">Operational State</span>
+                <span className="font-mono uppercase text-[#8FA879]">{selectedPlacedBuilding.status}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[#C5A66A]/10">
+                <span className="text-[#A5AD9D]">Structural Health</span>
+                <span className="font-mono text-[#8FA879]">{selectedPlacedBuilding.health || 100}% Integrity</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[#C5A66A]/10">
+                <span className="text-[#A5AD9D]">Assigned Labor Force</span>
+                <span className="font-mono text-[#EAE3D2]">{selectedPlacedBuilding.workersAssigned} / {selectedPlacedBuilding.workersNeeded}</span>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-[#C5A66A]/20 flex justify-end gap-2">
               <button
-                disabled={resources.materials < selectedCatalogItem.costMaterials}
-                onClick={handleConfirmDirectConstruction}
-                className="px-5 py-2 rounded-lg text-xs font-bold bg-[#405439] hover:bg-[#526b48] text-[#dce9ca] border border-[#6b8563] shadow-md"
+                onClick={() => setSelectedPlacedBuilding(null)}
+                className="px-4 py-2 border border-[#C5A66A]/30 text-xs font-serif text-[#A5AD9D] hover:text-[#EAE3D2] rounded"
               >
-                Ratify & Construct
+                Close
               </button>
             </div>
           </div>
@@ -422,4 +572,6 @@ export default function InfrastructurePage({
       )}
     </div>
   );
-}
+};
+
+export default InfrastructurePage;

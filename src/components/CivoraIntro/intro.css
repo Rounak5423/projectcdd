@@ -1,0 +1,102 @@
+/* CIVORA — THE AWAKENING: Cinematic Intro Styles */
+
+.civora-intro-viewport {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+/* 3D Monumental Roman Stone Doors */
+.monumental-gate-left {
+  transform-origin: left center;
+  box-shadow: inset -10px 0 30px rgba(0, 0, 0, 0.9), 20px 0 50px rgba(0, 0, 0, 0.95);
+}
+
+.monumental-gate-right {
+  transform-origin: right center;
+  box-shadow: inset 10px 0 30px rgba(0, 0, 0, 0.9), -20px 0 50px rgba(0, 0, 0, 0.95);
+}
+
+/* Engraved Roman Door Panel Texture */
+.roman-door-texture {
+  background: radial-gradient(circle at 50% 50%, #151d18 0%, #0d1410 70%, #060a08 100%);
+  border: 2px solid rgba(197, 166, 106, 0.35);
+}
+
+/* Volumetric Golden God Rays */
+@keyframes introGodRays {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-intro-god-rays {
+  animation: introGodRays 140s linear infinite;
+}
+
+/* Ethereal Golden Shimmer */
+@keyframes emblemGoldShine {
+  0% {
+    filter: drop-shadow(0 0 15px rgba(223, 183, 74, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 35px rgba(223, 183, 74, 0.9)) drop-shadow(0 0 65px rgba(250, 236, 208, 0.5));
+  }
+  100% {
+    filter: drop-shadow(0 0 15px rgba(223, 183, 74, 0.4));
+  }
+}
+
+.animate-emblem-shine {
+  animation: emblemGoldShine 4s ease-in-out infinite;
+}
+
+/* Golden Light Sweep Across Wordmark */
+@keyframes goldLightTravel {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.animate-light-travel {
+  background: linear-gradient(
+    90deg,
+    #faecd0 0%,
+    #dfb74a 30%,
+    #ffffff 50%,
+    #dfb74a 70%,
+    #faecd0 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: goldLightTravel 4.5s ease-in-out infinite;
+}
+
+/* Subtle Temple Cavern Dust */
+@keyframes cavernDustDrift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  80% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate3d(40px, -90px, 0) scale(1.1);
+    opacity: 0;
+  }
+}
+
+.animate-cavern-dust {
+  animation: cavernDustDrift 8s ease-in-out infinite;
+}
+

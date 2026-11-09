@@ -1,3 +1,90 @@
+// ================= CITIES: SKYLINES II SIMULATION EXTENSIONS =================
+
+export type ZoneType =
+  | 'none'
+  | 'residential_low'
+  | 'residential_high'
+  | 'commercial_low'
+  | 'commercial_high'
+  | 'industrial'
+  | 'office';
+
+export type InfoViewType =
+  | 'none'
+  | 'electricity'
+  | 'water'
+  | 'traffic'
+  | 'land_value'
+  | 'pollution'
+  | 'happiness'
+  | 'noise'
+  | 'crime'
+  | 'health'
+  | 'education'
+  | 'transit'
+  | 'unemployment';
+
+export interface RciDemand {
+  residentialLow: number; // 0 - 100
+  residentialHigh: number; // 0 - 100
+  commercial: number; // 0 - 100
+  industrial: number; // 0 - 100
+  office: number; // 0 - 100
+}
+
+export interface ChirperMessage {
+  id: string;
+  author: string;
+  handle: string;
+  avatar: string;
+  text: string;
+  time: string;
+  district: string;
+  likes: number;
+  isLiked?: boolean;
+  tag: string;
+}
+
+export interface CityMilestone {
+  level: number;
+  name: string;
+  popRequired: number;
+  rewardCredits: number;
+  rewardGrc: number;
+  unlockedFeatures: string[];
+  isReached: boolean;
+}
+
+export interface CitizenLifepathEvent {
+  year: number;
+  day: number;
+  title: string;
+  description: string;
+  category: 'birth' | 'education' | 'career' | 'relocation' | 'achievement' | 'mortality';
+}
+
+export interface ZonedTile {
+  id: string;
+  x: number;
+  z: number;
+  zoneType: ZoneType;
+  buildingLevel: number; // 1 - 5
+  landValue: number;
+  isOccupied: boolean;
+}
+
+export interface UtilityStats {
+  powerCapacityMW: number;
+  powerConsumptionMW: number;
+  powerSurplusMW: number;
+  waterCapacityM3: number;
+  waterConsumptionM3: number;
+  sewageTreatmentPercent: number;
+  trafficFlowPercent: number; // 0 - 100%
+  averageLandValue: number; // credits/m²
+  pollutionIndex: number; // 0 - 100
+}
+
 export type ResourceType =
   | 'food'
   | 'water'
@@ -44,7 +131,8 @@ export type BuildingCategory =
   | 'healthcare'
   | 'energy'
   | 'government'
-  | 'environment';
+  | 'environment'
+  | 'transportation';
 
 export interface BuildingCatalogItem {
   id: string;
@@ -73,6 +161,7 @@ export interface BuildingCatalogItem {
     | 'hydroponic'
     | 'hospital'
     | 'academy'
+    | 'windmill'
     | 'power_plant'
     | 'water_treatment'
     | 'warehouse'
@@ -114,6 +203,10 @@ export interface District {
   population: number;
   efficiency: number;
   specialization: string;
+  defenseRating?: number;
+  currentProduction?: string;
+  productionTurnsLeft?: number;
+  loyalty?: number;
 }
 
 export interface Citizen {
@@ -124,23 +217,40 @@ export interface Citizen {
   occupation: string;
   district: string;
   educationLevel: 'Basic' | 'Secondary' | 'Higher' | 'Specialist' | 'Quantum/AI';
+  lifeStage?: 'Child' | 'Teen' | 'Adult' | 'Senior';
+  wealthTier?: 'Penniless' | 'Poor' | 'Modest' | 'Comfortable' | 'Wealthy';
+  homeAddress?: string;
+  workplaceAddress?: string;
+  commuteTimeMin?: number;
   happiness: number; // 0 - 100
   health: number; // 0 - 100
   income: number; // annual
   aiAssistanceUsage: number; // 0 - 100 %
   status: 'Optimal' | 'Content' | 'Stressed' | 'Critical';
+  avatarUrl?: string;
+  needs?: {
+    food: number;
+    water: number;
+    energy: number;
+    luxury: number;
+    order: number;
+  };
+  taxContribution?: number;
+  lifepathEvents?: CitizenLifepathEvent[];
 }
 
 export type TechEra = 'Foundational' | 'Industrial' | 'Digital' | 'Synthetic / AI';
 export type TechCategory =
   | 'Agriculture'
   | 'Medicine'
+  | 'Engineering'
   | 'Artificial Intelligence'
   | 'Robotics'
   | 'Energy'
   | 'Transportation'
   | 'Education'
-  | 'Environmental Science';
+  | 'Environmental Science'
+  | 'Governance';
 
 export interface Technology {
   id: string;
@@ -156,6 +266,10 @@ export interface Technology {
   prerequisites: string[]; // tech IDs
   unlocks: string[]; // tech IDs
   iconName: string;
+  eurekaCondition?: string;
+  isEurekaBoosted?: boolean;
+  turnsToComplete?: number;
+  unlockedIcons?: string[];
 }
 
 export interface Policy {
@@ -169,7 +283,14 @@ export interface Policy {
     | 'Universal Basic Income'
     | 'Environmental Protection'
     | 'Resource Equality'
-    | 'Economic Regulation';
+    | 'Economic Regulation'
+    | 'Research'
+    | 'Social'
+    | 'Economic'
+    | 'Labor'
+    | 'Environmental'
+    | 'Custom'
+    | string;
   description: string;
   costPoliticalCapital: number;
   maintenanceCostCredits: number;
@@ -264,6 +385,16 @@ export interface GameEvent {
   isRead: boolean;
 }
 
+export type MapTerrainType =
+  | 'Verdant River Valley'
+  | 'Highland Plateau'
+  | 'Archipelago'
+  | 'Boreal Basin'
+  | 'Arid Oasis'
+  | 'Crimson Canyon'
+  | 'Frostpeak Taiga'
+  | 'Obsidian Caldera';
+
 export interface CivilizationProfile {
   id: string;
   name: string;
@@ -277,7 +408,108 @@ export interface CivilizationProfile {
   foundingYear: number;
   currentYear: number;
   currentDay: number;
-  terrainType: 'Verdant River Valley' | 'Highland Plateau' | 'Archipelago' | 'Boreal Basin' | 'Arid Oasis';
+  terrainType: MapTerrainType;
   climateType: 'Temperate' | 'Subtropical' | 'Subpolar' | 'Continental';
 }
+
+export interface ProtestOption {
+  id: string;
+  label: string;
+  flavorQuote: string;
+  costGrc?: number;
+  effectDescription: string;
+  outcomeType: 'carnival' | 'reform' | 'bribe' | 'speech';
+  happinessDelta: number;
+  stabilityDelta: number;
+}
+
+export interface ProtestEvent {
+  id: string;
+  title: string;
+  historicalTwin: string;
+  historicalContext: string;
+  faction: string;
+  leaderName: string;
+  leaderTitle: string;
+  leaderAvatar: string;
+  demands: string;
+  slogans: string[];
+  districtId: string;
+  districtName: string;
+  options: ProtestOption[];
+}
+
+// ================= AAA PROGRESSION, CHRONICLE & RESEARCH WALLET =================
+
+export type HistoricalEra =
+  | 'Settlement Age'
+  | 'Agricultural Age'
+  | 'Industrial Age'
+  | 'Knowledge Age'
+  | 'Digital Age'
+  | 'Advanced Civilisation';
+
+export type MissionCategory =
+  | 'Founding'
+  | 'Population'
+  | 'Infrastructure'
+  | 'Economic'
+  | 'Research'
+  | 'Environmental'
+  | 'Technology'
+  | 'Long-term';
+
+export type MissionStatus = 'Available' | 'In Progress' | 'Completed' | 'Claimed' | 'Expired';
+
+export interface CivoraMission {
+  id: string;
+  title: string;
+  category: MissionCategory;
+  description: string;
+  requirements: string;
+  progress: number;
+  maxProgress: number;
+  rewardCrc: number;
+  rewardXp: number;
+  status: MissionStatus;
+  expiresInDays?: number;
+}
+
+export type ChronicleCategory =
+  | 'Founding'
+  | 'Milestone'
+  | 'Breakthrough'
+  | 'Policy'
+  | 'Economic'
+  | 'Environmental'
+  | 'Crisis'
+  | 'Ascension';
+
+export interface ChronicleEntry {
+  id: string;
+  year: number;
+  day: number;
+  era: string;
+  title: string;
+  category: ChronicleCategory;
+  description: string;
+  sealUrl?: string;
+  relatedDistrict?: string;
+  relatedPolicy?: string;
+  relatedTech?: string;
+  impactSummary: string;
+}
+
+export interface ResearchTransaction {
+  id: string;
+  timestamp: string;
+  simYear: number;
+  simDay: number;
+  type: 'Reward' | 'Experiment' | 'Scenario' | 'Grant' | 'Facility Upgrade';
+  description: string;
+  amount: number; // positive = credit, negative = debit
+  balanceAfter: number;
+  status: 'Confirmed' | 'Pending' | 'Settled';
+}
+
 

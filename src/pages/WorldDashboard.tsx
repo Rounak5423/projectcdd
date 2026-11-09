@@ -1,332 +1,487 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Users,
   TrendingUp,
   Leaf,
   ShieldCheck,
-  MapPin,
   Target,
-  AlertTriangle,
-  ArrowUpRight,
+  ArrowRight,
   Hammer,
   GitBranch,
-  Sliders,
-  Play,
+  FlaskConical,
+  Coins,
+  Crown,
+  Trophy,
+  X,
+  Droplets,
+  Wheat,
+  Zap,
+  GraduationCap,
+  HeartPulse,
+  Flame,
+  Clock,
   Sparkles,
-  Building2,
-  Calendar,
+  BookOpen,
 } from 'lucide-react';
 import { useGameState } from '../context/GameStateContext';
-import ResourcePanel from '../components/dashboard/ResourcePanel';
-import ObjectivePanel from '../components/dashboard/ObjectivePanel';
+import { soundFx } from '../services/soundFx';
 
-export default function WorldDashboard({
+function WorldDashboardComponent({
   onNavigate,
+  onClose,
 }: {
   onNavigate: (page: string) => void;
+  onClose?: () => void;
 }) {
   const {
     civilization,
     resources,
     rates,
-    placedBuildings,
-    districts,
-    achievements,
-    events,
+    missions,
+    claimMission,
+    chronicle,
+    economyReport,
+    eras,
     evolutionReport,
     setActiveDrawer,
   } = useGameState();
 
-  const stats = [
+  const [timelineFilter, setTimelineFilter] = useState<string>('all');
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  const { resources: resFlow, economy } = economyReport;
+
+  // 10 Civilisation Health Indicators as specified in Part 4
+  const healthIndicators = useMemo(() => [
     {
-      label: 'POPULATION',
-      value: `${(resources.population / 1000000).toFixed(3)}M`,
-      change: `+${rates.populationGrowthRate}%/yr`,
-      icon: Users,
-      color: '#a6bd82',
+      id: 'pop_growth',
+      name: 'Population Growth',
+      val: `+${rates.populationGrowthRate}%/yr`,
+      pct: 78,
+      status: 'Optimal',
+      color: '#8FA879',
+      desc: 'Steady demographic expansion sustained by housing availability.',
     },
     {
-      label: 'GROSS OUTPUT',
-      value: `${resources.gdp}B Cr`,
-      change: `+${rates.gdpGrowthRate}%/yr`,
-      icon: TrendingUp,
-      color: '#c6a76a',
+      id: 'food_sec',
+      name: 'Food Security',
+      val: resFlow.foodNet >= 0 ? `+${resFlow.foodNet} /day` : `${resFlow.foodNet} /day`,
+      pct: resFlow.foodNet >= 0 ? 88 : 34,
+      status: resFlow.foodNet >= 0 ? 'Surplus' : 'Deficit',
+      color: resFlow.foodNet >= 0 ? '#C5A66A' : '#C87569',
+      desc: 'Nutritional yields from Bio-Domes and agrarian basin terraces.',
     },
     {
-      label: 'PUBLIC HAPPINESS',
-      value: `${resources.happiness}/100`,
-      change: 'Optimal Trajectory',
-      icon: Leaf,
-      color: '#82bd8e',
+      id: 'water_sec',
+      name: 'Water Security',
+      val: resFlow.waterNet >= 0 ? `+${resFlow.waterNet} kL/day` : `${resFlow.waterNet} kL/day`,
+      pct: resFlow.waterNet >= 0 ? 92 : 28,
+      status: resFlow.waterNet >= 0 ? 'Optimal' : 'Shortage',
+      color: resFlow.waterNet >= 0 ? '#6e98b3' : '#C87569',
+      desc: 'Aqueduct networks carrying filtered mountain basin water.',
     },
     {
-      label: 'STABILITY INDEX',
-      value: `${resources.stability}/100`,
-      change: 'High Civic Order',
-      icon: ShieldCheck,
-      color: '#82a6bd',
+      id: 'energy_sec',
+      name: 'Energy Security',
+      val: resFlow.energyNetMW >= 0 ? `+${resFlow.energyNetMW} MW` : `${resFlow.energyNetMW} MW`,
+      pct: resFlow.energyNetMW >= 0 ? 84 : 40,
+      status: resFlow.energyNetMW >= 0 ? 'Stable' : 'Strain',
+      color: resFlow.energyNetMW >= 0 ? '#D6A75E' : '#C87569',
+      desc: 'Solar concentrators and kinetic wind turbines grid balance.',
     },
-  ];
+    {
+      id: 'employment',
+      name: 'Workforce Participation',
+      val: `${resFlow.employmentRatePercent}%`,
+      pct: resFlow.employmentRatePercent,
+      status: resFlow.employmentRatePercent > 90 ? 'High' : 'Moderate',
+      color: '#8FA879',
+      desc: 'Active employment across civic, agrarian, and industrial sectors.',
+    },
+    {
+      id: 'education',
+      name: 'Education Index',
+      val: `${resources.educationIndex}%`,
+      pct: resources.educationIndex,
+      status: 'Advanced',
+      color: '#8FA879',
+      desc: 'Academy literacy and specialized cognitive research training.',
+    },
+    {
+      id: 'healthcare',
+      name: 'Public Health Index',
+      val: `${resources.health}%`,
+      pct: resources.health,
+      status: resources.health > 80 ? 'Optimal' : 'Distressed',
+      color: resources.health > 80 ? '#8FA879' : '#D6A75E',
+      desc: 'Hospital clinical access, sanitation, and longevity metrics.',
+    },
+    {
+      id: 'environment',
+      name: 'Biosphere Purity',
+      val: `${resources.environmentalIndex}%`,
+      pct: resources.environmentalIndex,
+      status: resources.environmentalIndex > 80 ? 'Pristine' : 'Caution',
+      color: '#8FA879',
+      desc: 'River clarity, air filtration, and ecological sanctuary balance.',
+    },
+    {
+      id: 'stability',
+      name: 'Civic & Social Order',
+      val: `${resources.stability}/100`,
+      pct: resources.stability,
+      status: resources.stability > 85 ? 'Harmonious' : 'Tense',
+      color: '#8FA879',
+      desc: 'Trust in High Council decrees and low civil discontent.',
+    },
+    {
+      id: 'economy_perf',
+      name: 'Economic Output',
+      val: `${resources.gdp}B Cr`,
+      pct: 82,
+      status: 'Prosperous',
+      color: '#C5A66A',
+      desc: 'Aggregate gross product generated by trade corridors and industry.',
+    },
+  ], [
+    rates.populationGrowthRate,
+    resFlow.foodNet,
+    resFlow.waterNet,
+    resFlow.energyNetMW,
+    resFlow.employmentRatePercent,
+    resources.educationIndex,
+    resources.health,
+    resources.environmentalIndex,
+    resources.stability,
+    resources.gdp,
+  ]);
+
+  const filteredChronicle = useMemo(() => {
+    return chronicle.filter((item) => {
+      if (timelineFilter === 'all') return true;
+      return item.category.toLowerCase() === timelineFilter.toLowerCase();
+    });
+  }, [chronicle, timelineFilter]);
+
+  const selectedEvent = chronicle.find((e) => e.id === selectedEventId);
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 overflow-y-auto custom-scrollbar text-[#e8e9e3] max-w-7xl mx-auto">
-      {/* Civilisation Command Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-[#39443a]">
-        <div>
-          <span className="eyebrow text-[#c6a76a]">CIVILISATION OVERVIEW & TELEMETRY</span>
-          <h1 className="text-2xl lg:text-3xl font-black text-[#f3f5ef] mt-1">
-            {civilization.name} Command Deck
-          </h1>
-          <p className="text-xs text-[#9da99b] mt-1">
-            {civilization.governanceModel} · {civilization.climateType} {civilization.terrainType} on {civilization.planet}
-          </p>
+    <div className="p-5 lg:p-7 space-y-6 overflow-y-auto custom-scrollbar text-[#EAE3D2] max-w-7xl mx-auto">
+      {/* ================= TOP CIVILISATION BANNER ================= */}
+      <div className="p-5 rounded-lg bg-[#202820] border border-[#2B372C] shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-[#C5A66A]" />
+
+        <div className="flex items-center gap-4">
+          {/* Imperial Crest */}
+          <div className="w-14 h-14 rounded bg-[#171D18] border border-[#C5A66A] flex items-center justify-center text-[#C5A66A] shadow-md shrink-0">
+            <Crown size={28} />
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl lg:text-2xl font-bold font-cinzel text-[#EAE3D2] tracking-wider">
+                {civilization.name}
+              </h1>
+              <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[#171D18] text-[#C5A66A] border border-[#C5A66A]/40 uppercase tracking-wider">
+                {civilization.era}
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#17231B] text-[#8FA879] border border-[#3D4F3F]">
+                Level {civilization.level} Imperial Core
+              </span>
+            </div>
+            <p className="text-xs text-[#A5AD9D] mt-1 font-garamond italic text-sm">
+              Reigning Title: <span className="text-[#EAE3D2] font-semibold not-italic font-sans text-xs">{civilization.leaderTitle}</span> · Sovereign {civilization.governanceModel} founded Year {civilization.foundingYear.toString().padStart(3, '0')}
+            </p>
+          </div>
         </div>
 
-        <div className="sm:text-right">
-          <p className="text-[10px] font-mono tracking-wider text-[#9da99b] uppercase">DEVELOPMENT ERA</p>
-          <p className="text-base font-bold text-[#c6a76a]">
-            Level {civilization.level.toString().padStart(2, '0')} · {civilization.era} Era
-          </p>
-          <p className="text-xs font-mono text-[#a6bd82] mt-0.5">
-            Year {civilization.currentYear.toString().padStart(3, '0')} · Day {civilization.currentDay.toString().padStart(3, '0')}
-          </p>
-        </div>
-      </div>
-
-      {/* Core KPI Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-
-          return (
-            <div key={stat.label} className="panel p-4 bg-[#182119] border-[#313f32] hover:border-[#4d614e] transition-all">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-mono tracking-wider text-[#9da99b]">{stat.label}</span>
-                <Icon size={17} style={{ color: stat.color }} />
-              </div>
-
-              <p className="text-2xl font-bold font-mono text-[#f3f5ef] mt-3">{stat.value}</p>
-
-              <p className="text-xs text-[#a6bd82] mt-1 font-mono">{stat.change}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Civilization Evolution & Stage Progression Hero Banner */}
-      {evolutionReport && (
-        <section
-          onClick={() => setActiveDrawer('evolution')}
-          className="p-4 rounded-xl bg-gradient-to-r from-[#1c271e] via-[#222e23] to-[#182119] border border-[#3b4c3c] hover:border-[#6b8563] transition-all cursor-pointer shadow-lg group"
-        >
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-xl bg-[#2a382c] border border-[#506952] flex items-center justify-center text-[#c6a76a] group-hover:scale-105 transition-transform shrink-0">
-                <Sparkles size={24} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono tracking-wider text-[#a6bd82] uppercase font-bold">
-                    CIVILIZATION STAGE {evolutionReport.currentStage.order} / 6
-                  </span>
-                  <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-[#2e3e2b] text-[#c6a76a] border border-[#526a4d]">
-                    {evolutionReport.currentStage.name}
-                  </span>
-                </div>
-                <h3 className="text-base font-bold text-[#f3f5ee] mt-0.5">
-                  {evolutionReport.currentStage.subtitle}
-                </h3>
-                <p className="text-xs text-[#9da99b] mt-0.5">
-                  {evolutionReport.nextStage
-                    ? `Advancing toward ${evolutionReport.nextStage.name} (${Math.round(evolutionReport.stageProgressPercent)}% requirements fulfilled)`
-                    : 'Maximum civilization pinnacle reached.'}
-                </p>
-              </div>
+        {/* Command XP & Progression Gauge */}
+        <div className="flex items-center gap-4">
+          <div className="bg-[#171D18] p-3.5 rounded border border-[#2B372C] lg:w-80 space-y-2">
+            <div className="flex justify-between text-xs font-mono">
+              <span className="text-[#A5AD9D] text-[11px] uppercase tracking-wider">Civilisation XP</span>
+              <span className="text-[#C5A66A] font-bold text-[11px]">
+                {civilization.xp} / {civilization.xpToNextLevel} XP
+              </span>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="w-48 hidden sm:block">
-                <div className="flex justify-between text-[10px] font-mono mb-1 text-[#9da99b]">
-                  <span>PROGRESS</span>
-                  <span className="font-bold text-[#c6a76a]">
-                    {Math.round(evolutionReport.stageProgressPercent)}%
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-[#121813] overflow-hidden border border-[#2d3a2e]">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#7a9d60] to-[#c6a76a] transition-all duration-500 rounded-full"
-                    style={{ width: `${Math.min(100, evolutionReport.stageProgressPercent)}%` }}
-                  />
-                </div>
-              </div>
+            <div className="h-2 rounded-full bg-[#121713] overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#8FA879] via-[#C5A66A] to-[#E4C88A] rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(100, (civilization.xp / civilization.xpToNextLevel) * 100)}%`,
+                }}
+              />
+            </div>
 
-              <button className="px-4 py-2 rounded-lg bg-[#314232] group-hover:bg-[#3d523e] text-[#dce9ca] text-xs font-semibold border border-[#526b53] inline-flex items-center gap-1.5 transition-colors whitespace-nowrap">
-                <span>Inspect Evolution</span>
-                <ArrowUpRight size={14} />
-              </button>
+            <div className="flex justify-between items-center text-[10px] font-mono text-[#8FA879]">
+              <span>★ Next Unlock: Tier {civilization.level + 1} Arcology Architecture</span>
+              <span className="text-[#C5A66A] font-bold">
+                {Math.round((civilization.xp / civilization.xpToNextLevel) * 100)}%
+              </span>
             </div>
           </div>
-        </section>
-      )}
 
-      {/* Strategic Commodity Stockpiles & Reserve Runway */}
-      <ResourcePanel />
-
-      {/* Main Center Grid: 3D Viewport Launcher + Tactical Aside */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
-        <div className="space-y-6">
-          {/* 3D World Gateway Banner */}
-          <section className="panel overflow-hidden bg-[#182119] border-[#313f32] relative group">
-            <div className="p-4 border-b border-[#29342a] flex justify-between items-center bg-[#141914]">
-              <div>
-                <p className="eyebrow text-[#c6a76a]">WORLD EXPLORATION</p>
-                <h2 className="text-sm font-bold text-[#f3f5ef] mt-0.5">Living Civilisation 3D Viewport</h2>
-              </div>
-
-              <button
-                onClick={() => onNavigate('World Explorer')}
-                className="text-xs text-[#c6d5b4] hover:text-white flex items-center gap-1 font-semibold transition-colors"
-              >
-                Launch Fullscreen Viewport <ArrowUpRight size={14} />
-              </button>
-            </div>
-
-            {/* Viewport Preview Gateway */}
-            <div
-              onClick={() => onNavigate('World Explorer')}
-              className="world-placeholder relative min-h-[340px] flex items-center justify-center cursor-pointer overflow-hidden p-6 text-center"
+          {onClose && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onClose();
+              }}
+              className="p-2.5 rounded bg-[#171D18] hover:bg-[#283228] border border-[#2B372C] text-[#A5AD9D] hover:text-[#C87569] transition-colors"
+              title="Return to 3D World Viewport (ESC)"
             >
-              <div className="absolute inset-0 world-grid opacity-25" />
+              <X size={20} />
+            </button>
+          )}
+        </div>
+      </div>
 
-              <div className="relative z-10 max-w-md px-6 py-8 rounded-2xl bg-[#151b16]/90 border border-[#3f5240] backdrop-blur-md shadow-2xl group-hover:border-[#a6bd82] transition-all">
-                <div className="w-12 h-12 rounded-xl bg-[#2a382c] border border-[#526b54] flex items-center justify-center mx-auto mb-3 text-[#dce9ca]">
-                  <MapPin size={24} />
-                </div>
-                <h3 className="text-lg font-bold text-[#f3f5ef]">
-                  Enter Interactive 3D World
-                </h3>
-                <p className="text-xs text-[#adb8a9] mt-2 leading-relaxed">
-                  Real-time React Three Fiber simulation with {placedBuildings.length} deployed facilities across 5 specialized districts. Click to enter orbit camera and placement mode.
-                </p>
-                <button className="mt-4 px-5 py-2 rounded-xl bg-[#405439] hover:bg-[#526b48] text-[#dce9ca] text-xs font-bold border border-[#6b8563] inline-flex items-center gap-2 shadow-lg">
-                  <Play size={13} className="fill-current" />
-                  <span>Launch 3D Explorer</span>
-                </button>
+      {/* ================= SECTION 1: CIVILISATION HEALTH MATRIX ================= */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold font-cinzel text-[#EAE3D2] uppercase tracking-wider">
+              Civilisation Health Matrix
+            </h2>
+            <p className="text-xs text-[#A5AD9D]">
+              Real-time multi-dimensional assessment of social welfare, ecological purity, and economic security.
+            </p>
+          </div>
+          <span className="text-[10px] font-mono text-[#C5A66A] bg-[#202820] px-2.5 py-1 rounded border border-[#2B372C] uppercase font-bold">
+            10 Authoritative Sectors
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {healthIndicators.map((ind) => (
+            <div
+              key={ind.id}
+              className="p-3 rounded bg-[#202820] border border-[#2B372C] hover:border-[#3D4F3F] transition-all space-y-2 group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-[#A5AD9D] truncate font-medium">
+                  {ind.name}
+                </span>
+                <span
+                  className="text-[9px] font-mono px-1.5 py-0.2 rounded font-bold uppercase"
+                  style={{ backgroundColor: `${ind.color}15`, color: ind.color, border: `1px solid ${ind.color}35` }}
+                >
+                  {ind.status}
+                </span>
+              </div>
+
+              <div className="text-sm font-bold font-mono text-[#EAE3D2]">
+                {ind.val}
+              </div>
+
+              <div className="h-1 rounded-full bg-[#171D18] overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{ width: `${ind.pct}%`, backgroundColor: ind.color }}
+                />
+              </div>
+
+              <p className="text-[10px] text-[#7A8473] leading-snug line-clamp-2">
+                {ind.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ================= SECTION 2: HORIZONTAL HISTORICAL TIMELINE ================= */}
+      <div className="p-4 rounded-lg bg-[#202820] border border-[#2B372C] space-y-3 shadow-md">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <BookOpen size={16} className="text-[#C5A66A]" />
+            <h3 className="text-xs font-bold font-cinzel text-[#EAE3D2] uppercase tracking-wider">
+              Chronicles of Aurora: Historical Timeline
+            </h3>
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar text-[10px] font-mono">
+            {['all', 'founding', 'milestone', 'economic', 'environmental', 'policy'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setTimelineFilter(cat)}
+                className={`px-2 py-0.5 rounded capitalize transition-colors ${
+                  timelineFilter === cat
+                    ? 'bg-[#C5A66A] text-[#121713] font-bold'
+                    : 'bg-[#171D18] text-[#A5AD9D] hover:text-[#EAE3D2] border border-[#2B372C]'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Timeline Horizontal Ribbon */}
+        <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-2 pt-1">
+          {filteredChronicle.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => setSelectedEventId(item.id === selectedEventId ? null : item.id)}
+              className={`p-3 rounded border shrink-0 w-64 transition-all cursor-pointer relative ${
+                selectedEventId === item.id
+                  ? 'bg-[#1C231E] border-[#C5A66A] shadow-md ring-1 ring-[#C5A66A]/30'
+                  : 'bg-[#171D18] border-[#2B372C] hover:border-[#3D4F3F]'
+              }`}
+            >
+              <div className="flex items-center justify-between text-[10px] font-mono text-[#7A8473] mb-1">
+                <span>Yr {item.year.toString().padStart(3, '0')}, D{item.day}</span>
+                <span className="text-[#C5A66A] font-bold uppercase">{item.category}</span>
+              </div>
+              <h4 className="text-xs font-bold font-cinzel text-[#EAE3D2] line-clamp-1 mb-1">
+                {item.title}
+              </h4>
+              <p className="text-[11px] text-[#A5AD9D] line-clamp-2 leading-relaxed">
+                {item.description}
+              </p>
+              <div className="mt-2 pt-1.5 border-t border-[#2B372C] text-[10px] text-[#8FA879] truncate">
+                ✓ {item.impactSummary}
               </div>
             </div>
-          </section>
+          ))}
+        </div>
 
-          {/* Quick Action Dock */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Event Detail Inspector if selected */}
+        {selectedEvent && (
+          <div className="p-3 rounded bg-[#171D18] border border-[#C5A66A]/40 flex items-start justify-between gap-3 animate-in fade-in duration-150">
+            <div className="text-xs space-y-1">
+              <span className="text-[10px] font-mono text-[#C5A66A] uppercase font-bold">
+                Detailed Historical Event Record · Year {selectedEvent.year}, Day {selectedEvent.day} ({selectedEvent.era})
+              </span>
+              <h4 className="text-sm font-bold font-cinzel text-[#EAE3D2]">{selectedEvent.title}</h4>
+              <p className="text-[#A5AD9D] leading-relaxed">{selectedEvent.description}</p>
+              <p className="text-[#8FA879] font-mono text-[11px]">Impact: {selectedEvent.impactSummary}</p>
+            </div>
+            <button
+              onClick={() => setSelectedEventId(null)}
+              className="p-1 rounded text-[#7A8473] hover:text-[#EAE3D2]"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ================= SECTION 3: MISSIONS, PROGRESSION & COMMAND DECK ================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Active Mandates & Missions */}
+        <div className="lg:col-span-2 p-4 rounded-lg bg-[#202820] border border-[#2B372C] space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Target size={16} className="text-[#C5A66A]" />
+              <h3 className="text-xs font-bold font-cinzel text-[#EAE3D2] uppercase tracking-wider">
+                Active Civil Directives & Missions
+              </h3>
+            </div>
+            <button
+              onClick={() => onNavigate('Missions & Challenges')}
+              className="text-xs text-[#C5A66A] hover:text-[#EAE3D2] flex items-center gap-1 font-mono transition-colors"
+            >
+              <span>All Missions</span>
+              <ArrowRight size={12} />
+            </button>
+          </div>
+
+          <div className="space-y-2.5">
+            {missions.slice(0, 3).map((msn) => (
+              <div
+                key={msn.id}
+                className="p-3 rounded bg-[#171D18] border border-[#2B372C] flex items-center justify-between gap-3"
+              >
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#202820] text-[#C5A66A] border border-[#2B372C] uppercase font-bold">
+                      {msn.category}
+                    </span>
+                    <h4 className="text-xs font-bold font-cinzel text-[#EAE3D2] truncate">
+                      {msn.title}
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-[#A5AD9D] truncate">
+                    {msn.description}
+                  </p>
+                  <div className="flex items-center gap-3 text-[10px] font-mono text-[#7A8473]">
+                    <span>Criteria: {msn.requirements}</span>
+                    <span className="text-[#C5A66A]">+{msn.rewardCrc} CRC</span>
+                    <span className="text-[#8FA879]">+{msn.rewardXp} XP</span>
+                  </div>
+                </div>
+
+                <div className="shrink-0">
+                  {msn.status === 'Completed' ? (
+                    <button
+                      onClick={() => claimMission(msn.id)}
+                      className="btn-civ-gold px-3 py-1 rounded text-xs animate-pulse"
+                    >
+                      Claim
+                    </button>
+                  ) : msn.status === 'Claimed' ? (
+                    <span className="text-[10px] font-mono text-[#8FA879] font-bold px-2 py-1 rounded bg-[#17231B] border border-[#3D4F3F]">
+                      Ratified
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono text-[#A5AD9D] px-2 py-1 rounded bg-[#202820] border border-[#2B372C]">
+                      In Progress
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Strategic Command Deck Shortcuts */}
+        <div className="p-4 rounded-lg bg-[#202820] border border-[#2B372C] space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-[#C5A66A]" />
+            <h3 className="text-xs font-bold font-cinzel text-[#EAE3D2] uppercase tracking-wider">
+              Imperial Command Deck
+            </h3>
+          </div>
+
+          <div className="space-y-2">
             {[
-              { label: 'Erect Facility', icon: Hammer, target: 'Infrastructure', color: '#c6a76a' },
-              { label: 'Research Tech', icon: GitBranch, target: 'Technology', color: '#82bd8e' },
-              { label: 'Enact Policy', icon: Sliders, target: 'Policy Laboratory', color: '#82a6bd' },
-              { label: 'Future Simulator', icon: Sparkles, target: 'Future Simulator', color: '#bd9fa6' },
+              { label: 'Population Intelligence', page: 'Population', icon: Users, desc: 'Inspect citizen registry and demographic health' },
+              { label: 'Infrastructure Catalogue', page: 'Infrastructure', icon: Hammer, desc: 'Commission new buildings and expand the civic grid' },
+              { label: 'Technology Tree', page: 'Technology Tree', icon: GitBranch, desc: 'Direct RP research toward epochal breakthroughs' },
+              { label: 'Policy Laboratory', page: 'Policy Laboratory', icon: FlaskConical, desc: 'Draft legislative decrees and test civic covenants' },
+              { label: 'Civilisation Chronicle', page: 'Civilisation Chronicle', icon: BookOpen, desc: 'Consult the historical archive of Aurora Prime' },
             ].map((btn) => {
               const Icon = btn.icon;
               return (
                 <button
-                  key={btn.label}
-                  onClick={() => onNavigate(btn.target)}
-                  className="p-3.5 rounded-xl bg-[#182119] hover:bg-[#202920] border border-[#2f3d30] hover:border-[#4d614e] text-left transition-all flex flex-col justify-between"
+                  key={btn.page}
+                  onClick={() => {
+                    soundFx.playClick();
+                    onNavigate(btn.page);
+                  }}
+                  className="w-full p-2.5 rounded bg-[#171D18] hover:bg-[#283228] border border-[#2B372C] hover:border-[#C5A66A]/40 text-left transition-all group flex items-center justify-between"
                 >
-                  <Icon size={18} style={{ color: btn.color }} />
-                  <span className="text-xs font-bold text-[#f0f3eb] mt-3 block">{btn.label}</span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon size={16} className="text-[#C5A66A] shrink-0" />
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-[#EAE3D2] group-hover:text-[#C5A66A] transition-colors block font-cinzel truncate">
+                        {btn.label}
+                      </span>
+                      <span className="text-[10px] text-[#7A8473] truncate block">
+                        {btn.desc}
+                      </span>
+                    </div>
+                  </div>
+                  <ArrowRight size={13} className="text-[#7A8473] group-hover:text-[#C5A66A] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
                 </button>
               );
             })}
           </div>
         </div>
-
-        {/* Right Tactical Summary Column */}
-        <aside className="space-y-6">
-          {/* Active Objectives */}
-          <section className="panel p-4 bg-[#182119] border-[#313f32]">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-[#29342a]">
-              <Target size={16} className="text-[#c6a76a]" />
-              <h3 className="font-bold text-xs uppercase tracking-wider text-[#f3f5ef]">
-                Active Civil Mandates
-              </h3>
-            </div>
-
-            <div className="space-y-3.5">
-              {achievements.slice(0, 3).map((ach) => (
-                <div key={ach.id}>
-                  <div className="flex justify-between text-xs gap-2 mb-1">
-                    <span className="text-[#e8e9e3] font-medium text-[11px] truncate">{ach.title}</span>
-                    <span className="text-[#c6a76a] font-mono font-bold text-[11px]">
-                      {ach.isUnlocked ? 'COMPLETE' : `${Math.round((ach.progress / ach.maxProgress) * 100)}%`}
-                    </span>
-                  </div>
-
-                  <div className="h-1.5 rounded-full bg-[#121612] overflow-hidden">
-                    <div
-                      className="h-full bg-[#9eb77a] rounded-full transition-all duration-300"
-                      style={{
-                        width: ach.isUnlocked
-                          ? '100%'
-                          : `${Math.min(100, (ach.progress / ach.maxProgress) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Regional District Health Grid */}
-          <section className="panel p-4 bg-[#182119] border-[#313f32]">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#29342a]">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#c6a76a]">
-                District Vitals
-              </span>
-              <span className="text-[10px] font-mono text-[#9da99b]">5 REGIONS</span>
-            </div>
-
-            <div className="space-y-2">
-              {districts.map((d) => (
-                <div
-                  key={d.id}
-                  className="p-2.5 rounded-lg bg-[#141914] border border-[#263127] flex items-center justify-between text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
-                    <span className="font-semibold text-[#f0f3eb] text-[11px]">{d.name}</span>
-                  </div>
-                  <span className="font-mono text-[#a6bd82] text-[11px]">{d.efficiency}%</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Chronicle Alerts */}
-          <section className="panel p-4 bg-[#182119] border-[#313f32]">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-[#29342a]">
-              <AlertTriangle size={16} className="text-[#c6a76a]" />
-              <h3 className="font-bold text-xs uppercase tracking-wider text-[#f3f5ef]">
-                Chronicle Log
-              </h3>
-            </div>
-
-            <div className="space-y-2.5">
-              {events.slice(0, 2).map((ev) => (
-                <div
-                  key={ev.id}
-                  className={`p-2.5 rounded bg-[#141914] border-l-2 text-xs ${
-                    ev.severity === 'success' ? 'border-[#a6bd82]' : 'border-[#c6a76a]'
-                  }`}
-                >
-                  <span className="text-[10px] font-mono text-[#9da99b]">
-                    Y{ev.year} · D{ev.day}
-                  </span>
-                  <p className="font-semibold text-[#f0f3eb] text-[11px] mt-0.5">{ev.title}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        </aside>
       </div>
     </div>
   );
 }
+
+export default React.memo(WorldDashboardComponent);

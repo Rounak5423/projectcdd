@@ -41,8 +41,8 @@ export default function PlacementSystem() {
 
   // Terrain-conforming raycast surface for parallax-free cursor projection on hills and slopes
   const collisionGeo = useMemo(() => {
-    const size = 136;
-    const segs = 48;
+    const size = 320;
+    const segs = 64;
     const geo = new THREE.PlaneGeometry(size, size, segs, segs);
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position;

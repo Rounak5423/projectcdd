@@ -1,0 +1,74 @@
+{
+  "timestamp": "20261109_073841",
+  "random_seed": 42,
+  "partition_strategy": "split_by_run_zero_leakage",
+  "models": {
+    "activity_sequence": {
+      "baseline": {
+        "model": "Markov_Chain",
+        "test_accuracy": 0.9090909090909091,
+        "test_macro_f1": 0.905982905982906
+      },
+      "stronger": {
+        "model": "Neural_Sequence_MLP",
+        "test_accuracy": 1.0,
+        "test_macro_f1": 1.0
+      },
+      "champion": "Neural_Sequence_MLP"
+    },
+    "mode_choice": {
+      "baseline": {
+        "model": "Multinomial_Logit",
+        "test_accuracy": 0.9991017964071857,
+        "test_macro_f1": 0.4997753482102741
+      },
+      "stronger": {
+        "model": "LightGBM",
+        "test_accuracy": 0.9991017964071857,
+        "test_macro_f1": 0.4997753482102741
+      },
+      "champion": "LightGBM_Mode_Choice"
+    },
+    "incident_risk": {
+      "baseline": {
+        "model": "Logistic_Regression",
+        "test_roc_auc": 0.5232558139534884,
+        "brier_score": 0.23108260971301367
+      },
+      "stronger": {
+        "model": "Calibrated_LightGBM",
+        "test_roc_auc": 0.5544250645994833,
+        "brier_score": 0.13330875289783697
+      },
+      "champion": "Calibrated_LightGBM"
+    },
+    "demographics_rates": {
+      "baseline": {
+        "model": "Poisson_GLM",
+        "test_mae": 0.0,
+        "test_rmse": 0.0
+      },
+      "stronger": {
+        "model": "LightGBM_Poisson",
+        "test_mae": 0.0,
+        "test_rmse": 0.0
+      },
+      "champion": "LightGBM_Poisson_Demographics"
+    },
+    "city_trajectory_surrogate": {
+      "baseline": {
+        "model": "Linear_Regression",
+        "test_r2": 0.7646037928093486,
+        "test_mae": 0.0031985756384662833
+      },
+      "stronger": {
+        "model": "MLP_Surrogate",
+        "test_r2": -30.36237494716242,
+        "test_mae": 0.05074879797282119
+      },
+      "interval_coverage_pct": 88.0,
+      "latency_ms": 0.045059999993100064,
+      "champion": "Linear_Regression_Baseline"
+    }
+  }
+}
