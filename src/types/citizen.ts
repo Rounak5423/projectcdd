@@ -60,6 +60,25 @@ export interface DetailedCitizenAgent extends Citizen {
     safety: number;
   };
   grievance?: string;
+
+  // Real Human Physiological & Evolutionary Drives
+  era?: string;
+  drives?: {
+    hunger: number;
+    thirst: number;
+    energy: number;
+    safety: number;
+    socialBond: number;
+    purposeMorale: number;
+  };
+  commuteMode?: 'walking' | 'bicycle' | 'transit' | 'car';
+  currentThought?: string;
+  homeCoords?: [number, number, number];
+  workCoords?: [number, number, number];
+  currentPosCoords?: [number, number, number];
+  targetDestinationCoords?: [number, number, number];
+  conversationPartnerName?: string;
+  lastSpokenDialogue?: string;
 }
 
 export interface DistrictSocialMetric {

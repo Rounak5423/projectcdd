@@ -259,6 +259,8 @@ interface GameStateContextType {
   speed: '1x' | '2x' | '5x' | '10x';
   selectedBuildingId: string | null;
   selectedBuilding: PlacedBuilding | null;
+  selectedCitizenId: string | null;
+  selectedCitizen: DetailedCitizenAgent | null;
   activeLayer: MapLayer;
   isConstructionMode: boolean;
   selectedCatalogItem: BuildingCatalogItem | null;
@@ -273,6 +275,7 @@ interface GameStateContextType {
   advanceTick: () => void;
   advanceYear: () => void;
   selectBuilding: (id: string | null) => void;
+  selectCitizen: (id: string | null) => void;
   setActiveLayer: (layer: MapLayer) => void;
   setConstructionMode: (active: boolean, item?: BuildingCatalogItem | null) => void;
   placeBuilding: (catalogId: string, x: number, z: number, districtId?: string, rotation?: number) => boolean;
@@ -486,6 +489,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [speed, setSpeed] = useState<'1x' | '2x' | '5x' | '10x'>('1x');
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [selectedCitizenId, setSelectedCitizenId] = useState<string | null>(null);
   const [activeLayer, setActiveLayer] = useState<MapLayer>('all');
   const [isConstructionMode, setIsConstructionMode] = useState<boolean>(false);
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<BuildingCatalogItem | null>(null);
@@ -1174,9 +1178,28 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const selectBuilding = (id: string | null) => {
     setSelectedBuildingId(id);
     if (id) {
+      setSelectedCitizenId(null);
+      setInspectedCitizen(null);
       setActiveDrawer('buildingInspector');
     }
   };
+
+  const selectCitizen = useCallback((id: string | null) => {
+    setSelectedCitizenId(id);
+    if (id) {
+      setSelectedBuildingId(null);
+      setActiveDrawer('none');
+      const targetCit = citizens.find((c) => c.id === id);
+      if (targetCit) setInspectedCitizen(targetCit);
+    } else {
+      setInspectedCitizen(null);
+    }
+  }, [citizens]);
+
+  const selectedCitizen = useMemo(() => {
+    if (!selectedCitizenId) return null;
+    return citizenReport.citizenAgents.find((c) => c.id === selectedCitizenId) || null;
+  }, [selectedCitizenId, citizenReport.citizenAgents]);
 
   const setConstructionMode = (active: boolean, item?: BuildingCatalogItem | null) => {
     setIsConstructionMode(active);
@@ -2168,6 +2191,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       speed,
       selectedBuildingId,
       selectedBuilding,
+      selectedCitizenId,
+      selectedCitizen,
+      selectCitizen,
       activeLayer,
       isConstructionMode,
       selectedCatalogItem,
@@ -2293,6 +2319,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       speed,
       selectedBuildingId,
       selectedBuilding,
+      selectedCitizenId,
+      selectedCitizen,
+      selectCitizen,
       activeLayer,
       isConstructionMode,
       selectedCatalogItem,

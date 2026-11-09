@@ -21,6 +21,15 @@ import {
   CitizenSimulationReport,
   DailyActivity,
 } from '../types/citizen';
+import {
+  getCivilizationEra,
+  ERA_PROFILES,
+  evaluateTrainedActivitySequence,
+  evaluateTrainedModeChoice,
+  updateHumanMetabolicDrives,
+  generateCitizenThought,
+  DetailedHumanCitizen,
+} from './humanEvolutionLogic';
 
 // Helper to clamp values between min and max
 function clamp(val: number, min: number = 0, max: number = 100): number {
@@ -360,57 +369,139 @@ export function calculateDistrictSocialMetrics(
 }
 
 /**
- * 4. Updates Representative Citizen Agents with Diurnal Routines
+ * 4. Updates Representative Citizen Agents with Diurnal Routines and Trained ML Inference
  */
 export function updateCitizenRoutines(
   agents: DetailedCitizenAgent[],
   timeOfDay: number,
   activeDisaster: DisasterSimulationState['activeDisaster'],
-  needs: CitizenNeedsBreakdown
+  needs: CitizenNeedsBreakdown,
+  citadelLevel: number = 1,
+  resources?: ResourceState,
+  placedBuildings?: PlacedBuilding[]
 ): DetailedCitizenAgent[] {
-  return agents.map((agent) => {
-    const isDisasterInDistrict = activeDisaster && activeDisaster.districtId.includes(agent.district.toLowerCase().slice(0, 5));
-    let activity: DailyActivity = 'working';
-    let destination = agent.workplaceName || 'Municipal Complex';
+  const era = getCivilizationEra(citadelLevel);
+  const eraProfile = ERA_PROFILES[era];
+  const safeResources: ResourceState = resources || {
+    energy: 500,
+    materials: 500,
+    food: 500,
+    water: 500,
+    population: 10,
+    grc: 25000,
+    happiness: 90,
+    health: 95,
+    stability: 95,
+    environmentalIndex: 85,
+    educationIndex: 75,
+    politicalCapital: 100,
+    gdp: 1.0,
+    researchPoints: 50,
+  };
+  const safeBuildings = placedBuildings || [];
 
-    if (isDisasterInDistrict) {
-      activity = 'evacuating_shelter';
-      destination = 'Hardened Subterranean Shelter';
-    } else if (timeOfDay >= 22.5 || timeOfDay < 6.0) {
-      activity = 'sleeping';
-      destination = agent.residenceName || 'Residential Habitat';
-    } else if (timeOfDay >= 6.0 && timeOfDay < 8.5) {
-      activity = 'morning_commute';
-      destination = agent.workplaceName || 'District Workplace';
-    } else if (timeOfDay >= 8.5 && timeOfDay < 12.0) {
-      activity = agent.ageGroup === 'youth' ? 'studying' : 'working';
-      destination = agent.workplaceName || 'Workplace Station';
-    } else if (timeOfDay >= 12.0 && timeOfDay < 13.5) {
-      activity = 'lunch_break';
-      destination = 'Commercial Dining Plaza / Biosphere Park';
-    } else if (timeOfDay >= 13.5 && timeOfDay < 17.5) {
-      activity = agent.ageGroup === 'youth' ? 'studying' : 'working';
-      destination = agent.workplaceName || 'Workplace Station';
-    } else if (timeOfDay >= 17.5 && timeOfDay < 20.0) {
-      activity = agent.ageGroup === 'elder' ? 'recreation_park' : 'evening_commute';
-      destination = 'Forum Cultural Plaza / Transit Pods';
-    } else {
-      activity = 'home_leisure';
-      destination = agent.residenceName || 'Residential Habitat';
+  return agents.map((agent, idx) => {
+    // Current metabolic drives or initialize defaults
+    const currentDrives = agent.drives || {
+      hunger: 20 + (idx * 5) % 30,
+      thirst: 15 + (idx * 7) % 25,
+      energy: 85 - (idx * 3) % 20,
+      safety: 90,
+      socialBond: 80,
+      purposeMorale: 88,
+      fatigueAccumulated: 10,
+    };
+
+    const mockHuman: DetailedHumanCitizen = {
+      ...agent,
+      era,
+      drives: { ...currentDrives, fatigueAccumulated: 10 },
+      commuteMode: agent.commuteMode || 'walking',
+      currentLogicalIntent: agent.currentDestinationName || 'Active duty',
+      thoughtStream: [],
+      homeCoords: agent.homeCoords || [-7.5 + (idx % 5) * 2, 0, 11 + Math.floor(idx / 5) * 3],
+      workCoords: agent.workCoords || [0, 0, 8],
+      currentPosCoords: agent.currentPosCoords || [-7.5 + (idx % 5) * 2, 0, 11 + Math.floor(idx / 5) * 3],
+      targetDestinationCoords: agent.targetDestinationCoords || [0, 0, 8],
+      assignedActivity: agent.currentActivity,
+    };
+
+    // 1. Advance metabolic drives
+    const updatedDrives = updateHumanMetabolicDrives(
+      mockHuman,
+      timeOfDay,
+      0.25, // simulation step delta
+      safeResources,
+      safeBuildings,
+      eraProfile
+    );
+
+    mockHuman.drives = updatedDrives;
+
+    // 2. Evaluate Trained ML Activity Sequence Model
+    const isDisasterActive = Boolean(activeDisaster);
+    const { activity, intent } = evaluateTrainedActivitySequence(
+      mockHuman,
+      timeOfDay,
+      isDisasterActive,
+      era
+    );
+
+    // 3. Resolve Destination Coordinates & Name
+    let destinationName = agent.workplaceName || 'Municipal Complex';
+    let targetCoords = mockHuman.workCoords;
+
+    if (activity === 'sleeping' || activity === 'home_leisure') {
+      destinationName = agent.residenceName || 'Residential Habitat';
+      targetCoords = mockHuman.homeCoords;
+    } else if (activity === 'lunch_break') {
+      destinationName = era === 'pioneer_survival' ? 'Citadel Communal Hearth' : 'Dining Plaza & Biosphere Park';
+      targetCoords = [0, 0, 12];
+    } else if (activity === 'recreation_park') {
+      destinationName = era === 'pioneer_survival' ? 'Citadel Assembly Ground' : 'Elysium Civic Forum';
+      targetCoords = [0, 0, 14];
+    } else if (activity === 'seeking_medical_care') {
+      destinationName = 'Cellular Care Clinic';
+      targetCoords = [14, 0, 20];
+    } else if (activity === 'evacuating_shelter') {
+      destinationName = 'Citadel Subterranean Bunker';
+      targetCoords = [0, 0, 8];
     }
 
-    // Dynamic Personal Needs calculation
+    // 4. Evaluate Mode Choice
+    const distToTarget = Math.hypot(
+      targetCoords[0] - mockHuman.currentPosCoords[0],
+      targetCoords[2] - mockHuman.currentPosCoords[2]
+    );
+    const mode = evaluateTrainedModeChoice(agent.age, agent.wealthTier || 'Comfortable', distToTarget, era);
+
+    // 5. Dynamic Human Thought Stream
+    const currentThought = generateCitizenThought(mockHuman, eraProfile, citadelLevel, timeOfDay);
+
+    // 6. Dynamic Personal Needs composite
     const personalHousing = clamp(needs.housing.satisfactionPercent + (agent.income > 100000 ? 5 : -5));
     const personalHealth = clamp(needs.healthcare.satisfactionPercent + (agent.health > 85 ? 5 : -10));
-    const personalRec = clamp(needs.recreation.satisfactionPercent + (agent.ageGroup === 'youth' ? 10 : 0));
-    const personalSafety = isDisasterInDistrict ? 25 : clamp(needs.safety.satisfactionPercent);
+    const personalRec = clamp(needs.recreation.satisfactionPercent + (updatedDrives.socialBond > 70 ? 8 : -8));
+    const personalSafety = isDisasterActive ? 25 : clamp(updatedDrives.safety);
 
     const personalAvg = Math.round((personalHousing + personalHealth + personalRec + personalSafety) / 4);
 
     return {
       ...agent,
+      era,
+      drives: {
+        hunger: Math.round(updatedDrives.hunger),
+        thirst: Math.round(updatedDrives.thirst),
+        energy: Math.round(updatedDrives.energy),
+        safety: Math.round(updatedDrives.safety),
+        socialBond: Math.round(updatedDrives.socialBond),
+        purposeMorale: Math.round(updatedDrives.purposeMorale),
+      },
+      commuteMode: mode,
+      currentThought,
       currentActivity: activity,
-      currentDestinationName: destination,
+      currentDestinationName: destinationName,
+      targetDestinationCoords: targetCoords,
       happiness: clamp(personalAvg),
       commuteSatisfaction: needs.transportation.satisfactionPercent,
       personalNeeds: {
@@ -519,7 +610,8 @@ export function runCitizenSimulationTick(
   economyReport: CitySimulationReport,
   disasterState: DisasterSimulationState,
   existingAgents: DetailedCitizenAgent[],
-  timeOfDay: number
+  timeOfDay: number,
+  citadelLevel: number = 1
 ): CitizenSimulationReport {
   const pop = resources.population;
   const workingAge = Math.round(pop * 0.62);
@@ -543,7 +635,15 @@ export function runCitizenSimulationTick(
     disasterState?.activeDisaster
   );
 
-  const updatedAgents = updateCitizenRoutines(existingAgents, timeOfDay, disasterState?.activeDisaster, needs);
+  const updatedAgents = updateCitizenRoutines(
+    existingAgents,
+    timeOfDay,
+    disasterState?.activeDisaster,
+    needs,
+    citadelLevel,
+    resources,
+    placedBuildings
+  );
   const activeProblems = generateCitizenProblems(needs, districtMetrics, disasterState, pop);
 
   return {
@@ -567,46 +667,85 @@ export function runCitizenSimulationTick(
 }
 
 /**
- * 7. Factory to initialize detailed citizen agent cohorts
+ * 7. Factory to initialize detailed citizen agent cohorts with authentic locations and drives
  */
-export function createInitialDetailedAgents(baseCitizens: any[]): DetailedCitizenAgent[] {
-  return baseCitizens.map((c) => {
+export function createInitialDetailedAgents(
+  baseCitizens: any[],
+  citadelLevel: number = 1
+): DetailedCitizenAgent[] {
+  const era = getCivilizationEra(citadelLevel);
+
+  return baseCitizens.map((c, idx) => {
     let ageGroup: 'youth' | 'adult' | 'elder' = 'adult';
     if (c.age < 22) ageGroup = 'youth';
     else if (c.age >= 60) ageGroup = 'elder';
 
-    const residenceMap: Record<string, string> = {
-      'Oasis Terraces': 'Arcology Spire Alpha',
-      'Elysium Citadel': 'Citadel Senates Quarters',
-      'Verdant Vale Agrisector': 'Agrisector Bio-Habitats',
-      'Vulcan Forge Basin': 'Foundry Operator Housing',
-      'Aethel Ridge Science Park': 'Polytechnic Scholar Towers',
-    };
+    // Pioneer vs Metropolis Residence
+    const isPioneer = era === 'pioneer_survival';
+    const homeName = isPioneer
+      ? `Frontier Colony Outpost Quarters ${idx + 1}`
+      : (c.district === 'Oasis Terraces' ? 'Arcology Spire Alpha' : 'Citadel High Quarters');
 
-    const workplaceMap: Record<string, string> = {
-      'Aethel Ridge Science Park': 'Quantum AI Laboratory',
-      'Vulcan Forge Basin': 'Vulcan Smelter Hub A',
-      'Verdant Vale Agrisector': 'Bio-Dome Prime',
-      'Elysium Citadel': 'Elysium High Senate',
-      'Oasis Terraces': 'Oasis Cellular Care Clinic',
+    const homeCoords: [number, number, number] = isPioneer
+      ? [-8.5 + (idx % 5) * 3.0, 0, 11.5 + Math.floor(idx / 5) * 3.5]
+      : (c.district === 'Oasis Terraces' ? [-3.2, 0, 30.0] : [-5.5, 0, 10.0]);
+
+    // Workplace
+    let workplaceName = 'Citadel Command Deck';
+    let workCoords: [number, number, number] = [0, 0, 8];
+
+    const occ = (c.occupation || '').toLowerCase();
+    if (occ.includes('botanist') || occ.includes('agr')) {
+      workplaceName = isPioneer ? 'Pioneer Greenhouse Plot' : 'Bio-Dome Prime';
+      workCoords = isPioneer ? [-12, 0, 14] : [-27.2, 0, 30.0];
+    } else if (occ.includes('architect') || occ.includes('survey')) {
+      workplaceName = isPioneer ? 'Surveyor Engineering Bench' : 'Civic Planning Bureau';
+      workCoords = isPioneer ? [8.5, 0, 12] : [5.5, 0, 9.5];
+    } else if (occ.includes('doctor') || occ.includes('medic')) {
+      workplaceName = isPioneer ? 'Frontier Triage Tent' : 'Oasis Cellular Care Clinic';
+      workCoords = [14.0, 0, 20.0];
+    } else if (occ.includes('foundry') || occ.includes('tech') || occ.includes('worker')) {
+      workplaceName = isPioneer ? 'Refinery Kiln' : 'Vulcan Smelter Hub A';
+      workCoords = [27.2, 0, -17.0];
+    } else if (occ.includes('student') || occ.includes('scholar')) {
+      workplaceName = 'Polytechnic Institute';
+      workCoords = [-16.0, 0, -19.5];
+    }
+
+    const drives = {
+      hunger: 12 + (idx * 4) % 20,
+      thirst: 10 + (idx * 6) % 20,
+      energy: 92 - (idx * 3) % 15,
+      safety: 95,
+      socialBond: 85,
+      purposeMorale: 92,
     };
 
     return {
       ...c,
       ageGroup,
-      residenceBuildingId: 'bld-arcology-01',
-      residenceName: residenceMap[c.district] || 'Arcology Spire Habitat',
-      workplaceBuildingId: 'bld-foundry-01',
-      workplaceName: workplaceMap[c.district] || 'Municipal Workstation',
-      currentActivity: 'working',
-      currentDestinationName: workplaceMap[c.district] || 'District Station',
-      commuteSatisfaction: 88,
+      era,
+      residenceBuildingId: isPioneer ? 'bld-pioneer-quarters' : 'bld-arcology-01',
+      residenceName: homeName,
+      workplaceBuildingId: isPioneer ? 'bld-citadel-01' : 'bld-foundry-01',
+      workplaceName,
+      currentActivity: 'working' as DailyActivity,
+      currentDestinationName: workplaceName,
+      commuteSatisfaction: 94,
+      commuteMode: 'walking' as const,
+      homeCoords,
+      workCoords,
+      currentPosCoords: homeCoords,
+      targetDestinationCoords: workCoords,
+      drives,
+      currentThought: `Pioneering the frontier as ${c.occupation}. Every foundation stone builds our legacy.`,
       personalNeeds: {
         housing: 92,
         healthcare: 86,
         recreation: 80,
         safety: 90,
       },
+      status: 'Optimal',
     };
   });
 }

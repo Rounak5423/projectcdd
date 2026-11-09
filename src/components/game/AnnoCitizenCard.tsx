@@ -8,8 +8,12 @@ import {
   Shield,
   Coins,
   TrendingUp,
+  Brain,
+  Activity,
+  Compass,
 } from 'lucide-react';
 import { Citizen } from '../../types/game';
+import { useGameState } from '../../context/GameStateContext';
 
 interface AnnoCitizenCardProps {
   citizen: Citizen | null;
@@ -17,16 +21,28 @@ interface AnnoCitizenCardProps {
 }
 
 export default function AnnoCitizenCard({ citizen, onClose }: AnnoCitizenCardProps) {
-  const [activeTab, setActiveTab] = useState<'needs' | 'satisfaction'>('needs');
+  const [activeTab, setActiveTab] = useState<'needs' | 'satisfaction' | 'psychology'>('psychology');
+  const { citizenReport } = useGameState();
 
   if (!citizen) return null;
 
+  const detailed = citizenReport.citizenAgents.find((a) => a.id === citizen.id);
+
+  const drives = detailed?.drives || {
+    hunger: 20,
+    thirst: 15,
+    energy: 88,
+    safety: 90,
+    socialBond: 85,
+    purposeMorale: 90,
+  };
+
   const needsList = [
-    { label: 'Basic Food Rations', icon: Wheat, current: 95, color: '#c4b37d' },
-    { label: 'Clean Water', icon: Droplets, current: 98, color: '#6e98b3' },
-    { label: 'Grid Power Allocation', icon: Zap, current: 88, color: '#d9a941' },
-    { label: 'Cognitive Coprocessor', icon: Sparkles, current: citizen.aiAssistanceUsage, color: '#78a689' },
-    { label: 'Civic Security', icon: Shield, current: 92, color: '#aa9b8d' },
+    { label: 'Sustenance & Food', icon: Wheat, current: 100 - drives.hunger, color: '#c4b37d' },
+    { label: 'Clean Water', icon: Droplets, current: 100 - drives.thirst, color: '#6e98b3' },
+    { label: 'Physiological Rest', icon: Zap, current: drives.energy, color: '#d9a941' },
+    { label: 'Social & Kinship Bond', icon: Sparkles, current: drives.socialBond, color: '#78a689' },
+    { label: 'Civic Security & Safety', icon: Shield, current: drives.safety, color: '#aa9b8d' },
   ];
 
   return (
@@ -73,32 +89,84 @@ export default function AnnoCitizenCard({ citizen, onClose }: AnnoCitizenCardPro
           </div>
         </div>
 
-        {/* Tab Buttons (Needs / Satisfaction) */}
+        {/* Live Thought Stream & Current Action */}
+        <div className="p-2 rounded bg-[#0d1216] border border-[#1e2a35] space-y-1">
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="flex items-center gap-1 text-[#00e5ff] font-bold">
+              <Brain size={11} /> LIVE REASONING
+            </span>
+            <span className="text-[#a0c4d8] font-mono capitalize">
+              {detailed?.currentActivity ? detailed.currentActivity.replace('_', ' ') : 'Active duty'}
+            </span>
+          </div>
+          <p className="text-[11px] italic text-[#d4e4ec] leading-relaxed">
+            "{detailed?.currentThought || 'Working to ensure our settlement survives and grows.'}"
+          </p>
+          <div className="flex items-center gap-1.5 text-[9px] text-[#8a9ba8] pt-0.5">
+            <Compass size={10} className="text-[#c29b38]" />
+            <span className="truncate">Bound for: {detailed?.currentDestinationName || citizen.workplaceAddress}</span>
+          </div>
+        </div>
+
+        {/* Tab Buttons (Psychology / Needs / Satisfaction) */}
         <div className="flex items-center bg-[#0f1214] p-0.5 rounded-md border border-[#232b30]">
           <button
+            onClick={() => setActiveTab('psychology')}
+            className={`flex-1 py-1 rounded text-[10px] font-semibold transition-all ${
+              activeTab === 'psychology'
+                ? 'bg-[#27323b] text-[#ffffff] shadow-xs'
+                : 'text-[#8a8376] hover:text-[#ede8dc]'
+            }`}
+          >
+            Psychology
+          </button>
+          <button
             onClick={() => setActiveTab('needs')}
-            className={`flex-1 py-1 rounded text-[11px] font-semibold transition-all ${
+            className={`flex-1 py-1 rounded text-[10px] font-semibold transition-all ${
               activeTab === 'needs'
                 ? 'bg-[#27323b] text-[#ffffff] shadow-xs'
                 : 'text-[#8a8376] hover:text-[#ede8dc]'
             }`}
           >
-            Needs (Bedürfnisse)
+            Maslow Needs
           </button>
           <button
             onClick={() => setActiveTab('satisfaction')}
-            className={`flex-1 py-1 rounded text-[11px] font-semibold transition-all ${
+            className={`flex-1 py-1 rounded text-[10px] font-semibold transition-all ${
               activeTab === 'satisfaction'
                 ? 'bg-[#27323b] text-[#ffffff] shadow-xs'
                 : 'text-[#8a8376] hover:text-[#ede8dc]'
             }`}
           >
-            Satisfaction
+            Vitals
           </button>
         </div>
 
-        {/* Tab Content: Needs Fulfillment Grid */}
-        {activeTab === 'needs' ? (
+        {/* Tab Content */}
+        {activeTab === 'psychology' ? (
+          <div className="space-y-1.5 text-xs">
+            <div className="p-2 rounded bg-[#101416] border border-[#22292f] space-y-1.5">
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-[#8a9ba8]">Civilization Era:</span>
+                <span className="font-mono font-bold text-[#c29b38] capitalize">
+                  {detailed?.era ? detailed.era.replace('_', ' ') : 'Pioneer Survival'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-[#8a9ba8]">Commute Mode:</span>
+                <span className="font-mono text-[#00e5ff] capitalize">{detailed?.commuteMode || 'Walking'}</span>
+              </div>
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-[#8a9ba8]">Purpose & Morale:</span>
+                <span className="font-mono font-bold text-[#7ea376]">{drives.purposeMorale}%</span>
+              </div>
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-[#8a9ba8]">Cognitive Scaffolding:</span>
+                <span className="font-mono text-[#6e98b3]">{citizen.aiAssistanceUsage}%</span>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === 'needs' ? (
           <div className="space-y-2">
             {needsList.map((need) => {
               const Icon = need.icon;

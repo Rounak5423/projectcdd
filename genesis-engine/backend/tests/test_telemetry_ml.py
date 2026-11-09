@@ -314,3 +314,42 @@ def test_recommend_endpoint_admin_success():
     assert "predicted_effects" in data
     assert "safety_audit" in data
     assert data["safety_audit"]["requires_human_approval"] is True
+
+
+def test_citizen_activity_prediction_endpoint():
+    res = client.post("/api/v1/ml/citizen/predict-activity", json={
+        "cur_activity": "home",
+        "hour": 10,
+        "age": 30.0,
+        "education": 3.0,
+        "health": 0.9,
+        "wealth": 55.0
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert "predicted_activity" in data
+    assert data["predicted_activity"] in ["home", "at_work", "at_school", "leisure"]
+
+
+def test_commute_mode_prediction_endpoint():
+    res = client.post("/api/v1/ml/citizen/mode-choice", json={
+        "age": 28.0,
+        "wealth": 45.0,
+        "departure_time": 8.0,
+        "travel_time": 25.0,
+        "cost": 2.5
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert "predicted_mode" in data
+    assert data["predicted_mode"] in ["walking", "transit", "car", "bicycle"]
+
+
+def test_civilization_evolution_profile_endpoint():
+    res = client.get("/api/v1/ml/civilization/evolution-profile")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "active"
+    assert len(data["evolution_stages"]) == 5
+    assert "gompertz_mortality" in data["demographic_parameters"]
+
