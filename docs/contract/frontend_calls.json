@@ -1,0 +1,422 @@
+{
+  "api_calls": [
+    {
+      "file": "src/features/causal/CausalInsightsPage.tsx",
+      "client": "fetch",
+      "method": "GET",
+      "url": "/api/v1/worlds/${worldId}/vitals?limit=60",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    },
+    {
+      "file": "src/features/causal/CausalInsightsPage.tsx",
+      "client": "fetch",
+      "method": "GET",
+      "url": "/api/v1/worlds/${worldId}/causal-trace",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    },
+    {
+      "file": "src/features/causal/CausalInsightsPage.tsx",
+      "client": "fetch",
+      "method": "POST",
+      "url": "/api/v1/worlds/${worldId}/simulation/advance",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    },
+    {
+      "file": "src/features/causal/CausalInsightsPage.tsx",
+      "client": "fetch",
+      "method": "GET",
+      "url": "/api/v1/worlds/${worldId}/events",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    },
+    {
+      "file": "src/features/causal/CausalInsightsPage.tsx",
+      "client": "fetch",
+      "method": "POST",
+      "url": "/api/v1/worlds/${worldId}/simulation/advance",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    },
+    {
+      "file": "src/features/causal/CausalInsightsPage.tsx",
+      "client": "fetch",
+      "method": "POST",
+      "url": "/api/v1/worlds/${worldId}/commands",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    },
+    {
+      "file": "src/features/causal/CausalInsightsPage.tsx",
+      "client": "fetch",
+      "method": "POST",
+      "url": "/api/v1/worlds/${worldId}/simulation/advance",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    },
+    {
+      "file": "src/world/worldStore.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/worlds/${this.worldId}/state",
+      "expected_type": "WorldStateSnapshot",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/world/worldStore.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${this.worldId}/commands",
+      "expected_type": "CommandBatchResponse",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/world/worldStore.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${this.worldId}/undo",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/components/diagnostics/PerformanceDashboardModal.tsx",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/diagnostics/metrics",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/components/diagnostics/PerformanceDashboardModal.tsx",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/diagnostics/toggle",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/components/diagnostics/PerformanceDashboardModal.tsx",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/diagnostics/reset",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/worlds/${civId}",
+      "expected_type": "CivilizationProfile",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/civilizations/${civId}",
+      "expected_type": "CivilizationProfile",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/worlds",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${civId}/simulation/advance",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${civId}/buildings",
+      "expected_type": "PlacedBuilding",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "PATCH",
+      "url": "/worlds/${civId}/buildings/${buildingId}/upgrade",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "DELETE",
+      "url": "/worlds/${civId}/buildings/${buildingId}",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/worlds/${civId}/technology",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/worlds/${civId}/technology/overview",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${civId}/technologies/${techId}/unlock",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${civId}/technology/${techId}/eureka",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${civId}/technology/${techId}/complete",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${civId}/policies/${policyId}/toggle",
+      "expected_type": "Policy",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/policies/deliberate",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/policies/custom",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/policies/record-feedback",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/policies/learning-status",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/policies/model-accuracy",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/policies/train-benchmark",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${civId}/scenarios",
+      "expected_type": "SimulationScenario",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${civId}/observatory/${experimentId}/start",
+      "expected_type": "Experiment",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/auth/login",
+      "expected_type": "AuthResponse",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/auth/register",
+      "expected_type": "AuthResponse",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/auth/me",
+      "expected_type": "AuthResponse['user']",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/auth/logout",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/admin/stats",
+      "expected_type": "AdminStats",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/admin/users",
+      "expected_type": "AdminUser[]",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/admin/users",
+      "expected_type": "AdminUser",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "PUT",
+      "url": "/admin/users/${userId}",
+      "expected_type": "AdminUser",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "DELETE",
+      "url": "/admin/users/${userId}",
+      "expected_type": "{ status: string; user_id: string }",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "GET",
+      "url": "/worlds/${worldId}/budget",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${worldId}/budget",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${worldId}/bonds/issue",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/civilizationApi.ts",
+      "client": "apiClient",
+      "method": "POST",
+      "url": "/worlds/${worldId}/bonds/repay",
+      "expected_type": "any",
+      "auth": "Bearer civora_token/genesis_token"
+    },
+    {
+      "file": "src/services/authApi.ts",
+      "client": "fetch",
+      "method": "POST",
+      "url": "${baseUrl}/register",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    },
+    {
+      "file": "src/services/authApi.ts",
+      "client": "fetch",
+      "method": "POST",
+      "url": "${baseUrl}/login",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    },
+    {
+      "file": "src/services/authApi.ts",
+      "client": "fetch",
+      "method": "GET",
+      "url": "${baseUrl}/me",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    },
+    {
+      "file": "src/services/authApi.ts",
+      "client": "fetch",
+      "method": "POST",
+      "url": "${baseUrl}/logout",
+      "expected_type": "any",
+      "auth": "Bearer token if specified"
+    }
+  ],
+  "websocket_calls": [
+    {
+      "file": "src/world/worldStore.ts",
+      "url_expression": "wsUrl"
+    },
+    {
+      "file": "src/services/realtime/CivoraEventClient.ts",
+      "url_expression": "wsUrl"
+    }
+  ]
+}

@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, field_validator
 
 SimulationStatusType = Literal["running", "paused", "stopped"]
 SimulationSpeedType = Literal["1x", "2x", "5x", "10x"]
-BuildingStatusType = Literal["active", "constructing", "upgrading"]
+BuildingStatusType = Literal["active", "constructing", "upgrading", "abandoned", "damaged", "derelict", "decommissioned", "operational"]
 BuildingCategoryType = Literal[
     "Residential", "Agriculture", "Industry", "Research",
     "Education", "Healthcare", "Energy", "Government", "Environment"

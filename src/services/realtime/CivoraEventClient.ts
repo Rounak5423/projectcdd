@@ -53,10 +53,14 @@ function deepMerge(target: any, source: any): any {
   return output;
 }
 
+export type WsConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'idle';
+
 export class CivoraEventClient {
   private socket: WebSocket | null = null;
   private currentWorldId: string | null = null;
   private listeners: Map<string, Set<EventCallback>> = new Map();
+  private statusListeners: Set<(status: WsConnectionStatus) => void> = new Set();
+  private status: WsConnectionStatus = 'idle';
   private lastSequenceNumber = 0;
   private lastStateVersion = 0;
   private authoritativeState: Record<string, any> = {};
@@ -74,6 +78,28 @@ export class CivoraEventClient {
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', this.handleVisibilityChange);
     }
+  }
+
+  public getStatus(): WsConnectionStatus {
+    return this.status;
+  }
+
+  public onStatusChange(callback: (status: WsConnectionStatus) => void): () => void {
+    this.statusListeners.add(callback);
+    callback(this.status);
+    return () => this.statusListeners.delete(callback);
+  }
+
+  private setStatus(newStatus: WsConnectionStatus): void {
+    this.status = newStatus;
+    performanceMonitor.setWebSocketStatus(newStatus);
+    this.statusListeners.forEach((cb) => {
+      try {
+        cb(newStatus);
+      } catch (e) {
+        console.error('[CivoraEventClient] status listener error', e);
+      }
+    });
   }
 
   private handleVisibilityChange() {
@@ -98,7 +124,7 @@ export class CivoraEventClient {
     this.currentWorldId = worldId;
     this.shouldReconnect = true;
     this.isConnecting = true;
-    performanceMonitor.setWebSocketStatus('connecting');
+    this.setStatus('connecting');
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let wsUrl: string;
@@ -123,7 +149,7 @@ export class CivoraEventClient {
       this.socket.onopen = () => {
         this.isConnecting = false;
         this.reconnectAttempts = 0;
-        performanceMonitor.setWebSocketStatus('connected');
+        this.setStatus('connected');
       };
 
       this.socket.onmessage = (event: MessageEvent) => {
@@ -137,7 +163,7 @@ export class CivoraEventClient {
 
       this.socket.onclose = (event) => {
         this.isConnecting = false;
-        performanceMonitor.setWebSocketStatus('disconnected');
+        this.setStatus('disconnected');
         if (this.shouldReconnect && event.code !== 1000) {
           this.scheduleReconnect();
         }
@@ -344,10 +370,20 @@ export class CivoraEventClient {
     this.authoritativeState = {}; // Phase 8: Release world state memory
     this.lastSequenceNumber = 0;
     this.lastStateVersion = 0;
-    performanceMonitor.setWebSocketStatus('idle');
+    this.setStatus('idle');
   }
 }
 
 // Global Singleton Client
 export const civoraEventClient = new CivoraEventClient();
+
+import { useState, useEffect } from 'react';
+
+export function useCivoraWsStatus(): WsConnectionStatus {
+  const [status, setStatus] = useState<WsConnectionStatus>(civoraEventClient.getStatus());
+  useEffect(() => {
+    return civoraEventClient.onStatusChange(setStatus);
+  }, []);
+  return status;
+}
 

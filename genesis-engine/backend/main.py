@@ -170,6 +170,7 @@ async def serve_frontend():
     return {"message": "GENESIS Frontend not found at " + dist_index}
 
 
+@app.get("/health")
 @app.get("/api/health")
 @app.get("/api/v1/health")
 async def health_check():
