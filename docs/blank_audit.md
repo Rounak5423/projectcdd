@@ -22,3 +22,4 @@
 - **Automated Spec:** `frontend/e2e/blanks/find-blanks.spec.ts`
 - **Zero Forbidden Strings:** No occurrences of `undefined`, `NaN`, `[object Object]`, or `Invalid Date` across tested views.
 - **Visual Artifacts:** Captured full-fidelity screenshots in `docs/blank_audit_screenshots/`.
+

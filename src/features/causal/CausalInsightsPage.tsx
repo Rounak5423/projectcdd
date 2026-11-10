@@ -18,6 +18,7 @@ import { CauseAndEffectView } from './CauseAndEffectView';
 import { CausalEventFeed } from './CausalEventFeed';
 import { PolicyWhatIfShortcuts } from './PolicyWhatIfShortcuts';
 import { CausalVitalsSnapshot, CausalTraceGraph, CausalEvent } from './types';
+import { apiClient } from '../../services/civilizationApi';
 
 interface CausalInsightsPageProps {
   onNavigate?: (page: string) => void;
@@ -29,7 +30,11 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
   onClose,
 }) => {
   const { civilization, advanceTick, isPlaying } = useGameState();
-  const worldId = civilization?.id || 'aurora-prime';
+  // Fall back to persistent backend world 'aurora-prime' if using the default client id
+  const worldId =
+    civilization?.id && civilization.id !== 'civ-new-frontier'
+      ? civilization.id
+      : 'aurora-prime';
   const year = civilization?.currentYear || 2026;
   const day = civilization?.currentDay || 1;
 
@@ -48,57 +53,52 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
   const fetchData = useCallback(async () => {
     try {
       const [vitalsRes, traceRes] = await Promise.all([
-        fetch(`/api/v1/worlds/${worldId}/vitals?limit=60`),
-        fetch(`/api/v1/worlds/${worldId}/causal-trace`),
+        apiClient.get(`/worlds/${worldId}/vitals?limit=60`).catch(() => null),
+        apiClient.get(`/worlds/${worldId}/causal-trace`).catch(() => null),
       ]);
 
-      if (vitalsRes.ok) {
-        const vitalsData = await vitalsRes.json();
+      if (vitalsRes && vitalsRes.data) {
+        const vitalsData = vitalsRes.data;
         if (vitalsData.data && vitalsData.data.length > 0) {
           setVitalsHistory(vitalsData.data);
           setLatestVitals(vitalsData.data[vitalsData.data.length - 1]);
         } else {
           // Auto-bootstrap vitals with 1 tick
-          const stepRes = await fetch(`/api/v1/worlds/${worldId}/simulation/advance`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ticks: 1 }),
-          });
-          if (stepRes.ok) {
-            const stepDelta = await stepRes.json();
-            if (stepDelta.vitals) {
-              setLatestVitals(stepDelta.vitals);
-              setVitalsHistory([stepDelta.vitals]);
+          try {
+            const stepRes = await apiClient.post(`/worlds/${worldId}/simulation/advance`, { ticks: 1 });
+            if (stepRes.data && stepRes.data.vitals) {
+              setLatestVitals(stepRes.data.vitals);
+              setVitalsHistory([stepRes.data.vitals]);
             }
-          }
+          } catch {}
         }
       }
 
-      if (traceRes.ok) {
-        const traceData = await traceRes.json();
-        setTraceGraph(traceData);
+      if (traceRes && traceRes.data) {
+        setTraceGraph(traceRes.data);
       }
 
       // Also query recent events
-      const eventsRes = await fetch(`/api/v1/worlds/${worldId}/events`);
-      if (eventsRes.ok) {
-        const evts = await eventsRes.json();
-        const causalEvts: CausalEvent[] = evts.slice(0, 30).map((e: any) => ({
-          id: e.id,
-          world_id: e.world_id,
-          year: e.year,
-          day: e.day,
-          tick: e.tick || tick,
-          category: e.category,
-          title: e.title,
-          severity: (['critical', 'emergency', 'warning'].includes(e.category) || e.title.includes('Crisis') || e.title.includes('Protest'))
-            ? (e.title.includes('Unrest') ? 'critical' : e.title.includes('Hospital') ? 'emergency' : 'warning')
-            : 'info',
-          description: e.description,
-          metadata: e.metadata || {},
-        }));
-        setEvents(causalEvts);
-      }
+      try {
+        const eventsRes = await apiClient.get(`/worlds/${worldId}/events`);
+        if (eventsRes && Array.isArray(eventsRes.data)) {
+          const causalEvts: CausalEvent[] = eventsRes.data.slice(0, 30).map((e: any) => ({
+            id: e.id,
+            world_id: e.world_id,
+            year: e.year,
+            day: e.day,
+            tick: e.tick || tick,
+            category: e.category,
+            title: e.title,
+            severity: (['critical', 'emergency', 'warning'].includes(e.category) || e.title.includes('Crisis') || e.title.includes('Protest'))
+              ? (e.title.includes('Unrest') ? 'critical' : e.title.includes('Hospital') ? 'emergency' : 'warning')
+              : 'info',
+            description: e.description,
+            metadata: e.metadata || {},
+          }));
+          setEvents(causalEvts);
+        }
+      } catch {}
     } catch (err) {
       console.error('Error fetching causal telemetry:', err);
     } finally {
@@ -122,13 +122,9 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
     soundFx.playClick();
     setIsAdvancing(true);
     try {
-      const res = await fetch(`/api/v1/worlds/${worldId}/simulation/advance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticks: 1 }),
-      });
-      if (res.ok) {
-        const delta = await res.json();
+      const res = await apiClient.post(`/worlds/${worldId}/simulation/advance`, { ticks: 1 });
+      if (res.data) {
+        const delta = res.data;
         if (delta.vitals) {
           setLatestVitals(delta.vitals);
           setVitalsHistory((prev) => [...prev, delta.vitals].slice(-60));
@@ -149,38 +145,26 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
     setIsExecutingPolicy(true);
     try {
       const cmdId = `cmd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      const cmdRes = await fetch(`/api/v1/worlds/${worldId}/commands`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          commands: [
-            {
-              command_id: cmdId,
-              action: 'causal_intervention',
-              payload: { intervention_id: policyType },
-            },
-          ],
-        }),
+      const cmdRes = await apiClient.post(`/worlds/${worldId}/commands`, {
+        commands: [
+          {
+            command_id: cmdId,
+            action: 'causal_intervention',
+            payload: { intervention_id: policyType },
+          },
+        ],
       });
 
-      const cmdData = await cmdRes.json();
-      if (!cmdRes.ok) {
-        throw new Error(cmdData.detail || 'Intervention rejected by server.');
-      }
-
+      const cmdData = cmdRes.data;
       const res = cmdData.results?.[0];
       if (res && res.status === 'rejected') {
         throw new Error(res.reason || 'Simulation rules rejected this intervention.');
       }
 
       // Step simulation by 1 tick so that downstream effects materialize in the causal graph
-      const advRes = await fetch(`/api/v1/worlds/${worldId}/simulation/advance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticks: 1 }),
-      });
-      if (advRes.ok) {
-        const delta = await advRes.json();
+      const advRes = await apiClient.post(`/worlds/${worldId}/simulation/advance`, { ticks: 1 });
+      if (advRes.data) {
+        const delta = advRes.data;
         if (delta.vitals) {
           setLatestVitals(delta.vitals);
           setVitalsHistory((prev) => [...prev, delta.vitals].slice(-60));
@@ -343,3 +327,5 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
     </div>
   );
 };
+
+export default CausalInsightsPage;

@@ -54,3 +54,4 @@ export const ConnectionStatusBadge: React.FC<{ className?: string; worldId?: str
     </button>
   );
 };
+

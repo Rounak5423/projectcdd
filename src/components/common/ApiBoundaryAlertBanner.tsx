@@ -42,3 +42,4 @@ export const ApiBoundaryAlertBanner: React.FC = () => {
     </div>
   );
 };
+

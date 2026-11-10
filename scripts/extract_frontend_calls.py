@@ -58,3 +58,4 @@ with open('docs/contract/frontend_calls.json', 'w') as out:
     json.dump({'api_calls': api_calls, 'websocket_calls': ws_calls}, out, indent=2)
 
 print(f'Extracted {len(api_calls)} frontend API calls and {len(ws_calls)} WebSocket connections!')
+

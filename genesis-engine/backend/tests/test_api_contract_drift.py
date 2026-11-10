@@ -43,3 +43,4 @@ def test_replay_frontend_endpoints_against_backend():
             res = client.post(path)
         assert res.status_code < 400, f"Endpoint {method} {path} returned error {res.status_code}: {res.text}"
         assert res.json() is not None, f"Endpoint {method} {path} returned empty body"
+

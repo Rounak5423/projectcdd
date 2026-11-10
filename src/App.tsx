@@ -39,6 +39,7 @@ const GenesisPortalPage = React.lazy(() => import('./pages/GenesisPortalPage'));
 const WorldCreationStudioPage = React.lazy(() => import('./pages/WorldCreationStudioPage'));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 const AdminConsolePage = React.lazy(() => import('./pages/AdminConsolePage'));
+const CausalInsightsPage = React.lazy(() => import('./features/causal/CausalInsightsPage'));
 import PerformanceDashboardModal from './components/diagnostics/PerformanceDashboardModal';
 import { soundFx } from './services/soundFx';
 
@@ -262,6 +263,10 @@ function GameApp() {
             onNavigateToCouncil={() => handleNavigate('Council of Advisors')}
           />
         );
+      case 'Causal Insights':
+      case 'Causal':
+      case 'Insights':
+        return <CausalInsightsPage onNavigate={handleNavigate} onClose={handleClose} />;
       case 'Future Simulator':
         return <FutureSimulatorPage onClose={handleClose} />;
       case 'Research Observatory':

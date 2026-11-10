@@ -47,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documented root causes and resolutions in `docs/blank_audit.md`.
 
 ### Touched Existing Files
+- `src/features/causal/CausalInsightsPage.tsx`: Wired Causal Insights page to use `apiClient` with proper auth headers, fixed worldId fallback to backend `aurora-prime`, added default export.
+- `src/App.tsx`: Mounted CausalInsightsPage in `renderOverlay()` and router switch for sidebar navigation.
+- `vite.config.ts`: Configured reverse proxy for `/api` and `/ws` to forward seamlessly to backend port 8000.
 - `genesis-engine/backend/api/v1/ml_routes.py`: Added `MLHealthResponse` schema and `GET /api/v1/ml/health` endpoint.
 - `genesis-engine/backend/engine/models_v1.py`: Added missing building statuses (`"abandoned"`, `"damaged"`, `"derelict"`, `"decommissioned"`, `"operational"`) to `BuildingStatusType`.
 - `genesis-engine/backend/main.py`: Added additive alias `@app.get("/health")`.

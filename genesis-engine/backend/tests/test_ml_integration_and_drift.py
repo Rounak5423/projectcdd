@@ -119,3 +119,4 @@ def test_ml_health_endpoint():
     assert data["latency_p95_ms"] < 50.0, "p95 latency must be within sub-50ms budget"
     assert data["drift_score"] >= 0.0
     assert len(data["active_models"]) > 0
+
