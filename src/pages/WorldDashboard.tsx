@@ -42,6 +42,8 @@ function WorldDashboardComponent({
     chronicle,
     economyReport,
     eras,
+    evolutionReport,
+    setActiveDrawer,
   } = useGameState();
 
   const [timelineFilter, setTimelineFilter] = useState<string>('all');

@@ -154,6 +154,24 @@ import {
   calculateCitizenNeeds,
   updateCitizenRoutines,
 } from '../simulation/citizenSimulationEngine';
+import {
+  CivilizationStageId,
+  CivilizationStageConfig,
+  StageRequirementCriterion,
+  HistoricalYearSnapshot,
+  DevelopmentRecommendation,
+  CivilizationEvolutionReport,
+} from '../types/evolution';
+import {
+  CIVILIZATION_STAGES,
+  evaluateCivilizationStage,
+  generateDevelopmentRecommendations,
+  findOptimalExpansionSlot,
+  generateInitialHistory,
+  runEvolutionSimulationTick,
+} from '../simulation/civilizationEvolutionEngine';
+import { getTerrainHeight } from '../components/world3d/Terrain';
+
 
 export type MapLayer = 'all' | 'infrastructure' | 'population' | 'resources' | 'environment' | 'economy';
 export type ActiveDrawer =
@@ -165,7 +183,8 @@ export type ActiveDrawer =
   | 'buildingInspector'
   | 'economy'
   | 'disaster'
-  | 'citizens';
+  | 'citizens'
+  | 'evolution';
 
 export interface GameToast {
   id: string;
@@ -245,6 +264,14 @@ interface GameStateContextType {
   economyReport: CitySimulationReport;
   disasterState: DisasterSimulationState;
   citizenReport: CitizenSimulationReport;
+  evolutionReport: CivilizationEvolutionReport;
+  executeDevelopmentRecommendation: (recommendationId: string) => boolean;
+  saveGameToStorage: () => void;
+  loadGameFromStorage: () => boolean;
+  exportGameStateJSON: () => string;
+  importGameStateJSON: (jsonStr: string) => boolean;
+  resetGameToInitial: () => void;
+
   triggerDisaster: (type: DisasterType, intensity: DisasterIntensity, districtId?: string) => void;
   dispatchEmergencyResponse: () => void;
   restoreAllDisasters: () => void;
@@ -796,6 +823,147 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       citadelLevel
     );
   }, [resources, placedBuildings, districts, economyReport, disasterState, detailedAgents, civilization.currentDay, civilization.level]);
+
+  const [historicalTimeline, setHistoricalTimeline] = useState<HistoricalYearSnapshot[]>(() =>
+    generateInitialHistory(
+      civilization.currentYear,
+      resources.population,
+      resources.gdp,
+      resources.happiness
+    )
+  );
+  const previousStageIdRef = useRef<CivilizationStageId>('metropolis');
+
+  // Centralized Civilization Evolution Engine
+  const evolutionReport = useMemo<CivilizationEvolutionReport>(() => {
+    return runEvolutionSimulationTick(
+      civilization,
+      resources,
+      placedBuildings,
+      districts,
+      economyReport,
+      citizenReport,
+      historicalTimeline,
+      disasterState
+    );
+  }, [civilization, resources, placedBuildings, districts, economyReport, citizenReport, historicalTimeline, disasterState]);
+
+  // Stage Advancement Promotion Milestone Detection
+  useEffect(() => {
+    if (evolutionReport.currentStage.id !== previousStageIdRef.current) {
+      const oldStageId = previousStageIdRef.current;
+      const newStage = evolutionReport.currentStage;
+      previousStageIdRef.current = newStage.id;
+
+      if (oldStageId) {
+        soundFx.playHeroicFanfare();
+        setEvents((prev) => [
+          {
+            id: `evt-stage-${Date.now()}`,
+            year: civilization.currentYear,
+            day: civilization.currentDay,
+            title: `CIVILIZATION ELEVATION: ${newStage.name.toUpperCase()} STAGE REACHED!`,
+            description: `Genesis has officially ascended from ${oldStageId} to ${newStage.name} (${newStage.subtitle}). Unlocked capabilities: ${newStage.unlockedOpportunities.join(', ')}.`,
+            category: 'breakthrough',
+            severity: 'success',
+            isRead: false,
+          },
+          ...prev,
+        ]);
+      }
+    }
+  }, [evolutionReport.currentStage, civilization.currentYear, civilization.currentDay]);
+
+  const executeDevelopmentRecommendation = useCallback(
+    (recommendationId: string): boolean => {
+      const rec = evolutionReport.recommendations.find((r) => r.id === recommendationId);
+      if (!rec) return false;
+
+      const matCost = rec.materialsCost || 0;
+      const credCost = rec.creditsCost || 0;
+
+      if (resources.materials < matCost || resources.grc < credCost) {
+        const errEvent: GameEvent = {
+          id: `ev-rec-err-${Date.now()}`,
+          year: civilization.currentYear,
+          day: civilization.currentDay,
+          title: `Strategic Project Suspended: ${rec.title}`,
+          description: `Insufficient resources to execute project. Required: ${matCost} materials, ${credCost} credits. Available: ${resources.materials} materials, ${resources.grc} credits.`,
+          category: 'economic',
+          severity: 'warning',
+          isRead: false,
+        };
+        setEvents((prev) => [errEvent, ...prev]);
+        return false;
+      }
+
+      setResources((prev) => ({
+        ...prev,
+        materials: Math.max(0, prev.materials - matCost),
+        grc: Math.max(0, prev.grc - credCost),
+      }));
+
+      if (rec.suggestedCatalogId) {
+        const catalogItem = buildingCatalog.find((b) => b.id === rec.suggestedCatalogId);
+        const slot = findOptimalExpansionSlot(rec.targetDistrictId, placedBuildings) || {
+          x: 0,
+          y: 0.6,
+          z: 0,
+          rotation: 0,
+        };
+        const terrainY = getTerrainHeight(slot.x, slot.z);
+
+        const newBuilding: PlacedBuilding = {
+          id: `inst-${rec.suggestedCatalogId}-${Date.now().toString().slice(-4)}`,
+          catalogId: rec.suggestedCatalogId,
+          name: `${catalogItem?.name || 'Expansion Project'} #${placedBuildings.length + 1}`,
+          category: catalogItem?.category || (rec.category as any),
+          level: 1,
+          maxLevel: 5,
+          x: Math.round(slot.x * 10) / 10,
+          z: Math.round(slot.z * 10) / 10,
+          y: terrainY + 0.05,
+          rotation: slot.rotation,
+          districtId: rec.targetDistrictId,
+          status: 'constructing',
+          health: 100,
+          efficiency: 95,
+          workersAssigned: 0,
+          workersNeeded: catalogItem?.workerReq || 30,
+          modelType: catalogItem?.modelType || 'tower',
+          constructionProgress: 0,
+          upgradeProgress: 0,
+        };
+
+        setPlacedBuildings((prev) => [...prev, newBuilding]);
+      }
+
+      soundFx.playHammerBuild();
+
+      const projectEvent: GameEvent = {
+        id: `ev-rec-ok-${Date.now()}`,
+        year: civilization.currentYear,
+        day: civilization.currentDay,
+        title: `Civic Project Executed: ${rec.title}`,
+        description: `Directive initiated: ${rec.recommendedAction}. Projected outcome: ${rec.expectedOutcome}.`,
+        category: 'economic',
+        severity: 'success',
+        isRead: false,
+      };
+      setEvents((prev) => [projectEvent, ...prev]);
+
+      return true;
+    },
+    [
+      evolutionReport.recommendations,
+      resources.materials,
+      resources.grc,
+      civilization.currentYear,
+      civilization.currentDay,
+      placedBuildings,
+    ]
+  );
+
 
   // Persistent Progress Management (Zero Progress Loss on page exit, reload, or tab switch)
   const [lastSavedTimestamp, setLastSavedTimestamp] = useState<number | null>(() => initialSaved?.timestamp || null);
@@ -2619,6 +2787,8 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       economyReport,
       disasterState,
       citizenReport,
+      evolutionReport,
+      executeDevelopmentRecommendation,
       triggerDisaster,
       dispatchEmergencyResponse,
       restoreAllDisasters,
@@ -2638,6 +2808,73 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       citadelTerritoryRadius,
       calculateUpgradeCost,
       saveGame,
+      saveGameToStorage: () => {
+        saveGame();
+      },
+      loadGameFromStorage: () => {
+        const saved = loadActiveGameStateFromStorage();
+        if (!saved) return false;
+        setCivilization(saved.civilization);
+        setPlacedBuildings(saved.placedBuildings);
+        setResources(saved.resources);
+        if (saved.rates) setRates(saved.rates);
+        if (saved.districts) setDistricts(saved.districts);
+        if (saved.citizens) setCitizens(saved.citizens);
+        if (saved.detailedAgents) setDetailedAgents(saved.detailedAgents);
+        if (saved.technologies) setTechnologies(saved.technologies);
+        if (saved.policies) setPolicies(saved.policies);
+        if (saved.zonedTiles) setZonedTiles(saved.zonedTiles);
+        if (saved.taxRate !== undefined) setTaxRate(saved.taxRate);
+        if (saved.quests) setQuests(saved.quests);
+        if (saved.missions) setMissions(saved.missions);
+        if (saved.chronicle) setChronicle(saved.chronicle);
+        return true;
+      },
+      exportGameStateJSON: (): string => {
+        const payload = {
+          ...latestStateRef.current,
+          historicalTimeline,
+          evolutionReport: {
+            currentStage: evolutionReport.currentStage,
+            overallCivilizationScore: evolutionReport.overallCivilizationScore,
+          },
+          exportedAt: new Date().toISOString(),
+        };
+        return JSON.stringify(payload, null, 2);
+      },
+      importGameStateJSON: (jsonStr: string): boolean => {
+        try {
+          const parsed = JSON.parse(jsonStr);
+          if (!parsed || !parsed.civilization || !Array.isArray(parsed.placedBuildings)) {
+            return false;
+          }
+          setCivilization(parsed.civilization);
+          setPlacedBuildings(parsed.placedBuildings);
+          setResources(parsed.resources);
+          if (parsed.rates) setRates(parsed.rates);
+          if (parsed.districts) setDistricts(parsed.districts);
+          if (parsed.citizens) setCitizens(parsed.citizens);
+          if (parsed.detailedAgents) setDetailedAgents(parsed.detailedAgents);
+          if (parsed.historicalTimeline && Array.isArray(parsed.historicalTimeline)) {
+            setHistoricalTimeline(parsed.historicalTimeline);
+          }
+          if (parsed.technologies) setTechnologies(parsed.technologies);
+          if (parsed.policies) setPolicies(parsed.policies);
+          if (parsed.zonedTiles) setZonedTiles(parsed.zonedTiles);
+          if (parsed.taxRate !== undefined) setTaxRate(parsed.taxRate);
+          saveGameStateToStorage(parsed);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      resetGameToInitial: () => {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.removeItem('civora_saved_game_state_active');
+          localStorage.removeItem('civora_active_world_id');
+        }
+        window.location.reload();
+      },
       lastSavedTimestamp,
       isSaving,
       togglePlay,

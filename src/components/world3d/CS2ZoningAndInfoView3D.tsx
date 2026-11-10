@@ -50,44 +50,45 @@ export default function CS2ZoningAndInfoView3D() {
 
   return (
     <group name="cs2-simulation-layer">
-      {/* 1. CITIES SKYLINES II ZONING CELL OVERLAYS */}
-      {zoneCells.map((cell) => (
-        <group key={cell.id} position={[cell.x, cell.y, cell.z]}>
-          {/* Base Zoned Lot Square */}
-          <mesh
-            rotation={[-Math.PI / 2, 0, 0]}
-            onClick={(e) => {
-              if (activeZoneTool) {
-                e.stopPropagation();
-                paintZoneTile(cell.x, cell.z, activeZoneTool);
-              }
-            }}
-          >
-            <planeGeometry args={[3.6, 3.6]} />
-            <meshBasicMaterial
-              color={cell.color}
-              transparent
-              opacity={activeZoneTool ? 0.65 : 0.35}
-              depthWrite={false}
-            />
-          </mesh>
+      {/* 1. CITIES SKYLINES II ZONING CELL OVERLAYS (Visible only when zoning tool or zoning/land value info view is active) */}
+      {(Boolean(activeZoneTool) || activeInfoView === 'land_value') &&
+        zoneCells.map((cell) => (
+          <group key={cell.id} position={[cell.x, cell.y, cell.z]}>
+            {/* Base Zoned Lot Square */}
+            <mesh
+              rotation={[-Math.PI / 2, 0, 0]}
+              onClick={(e) => {
+                if (activeZoneTool) {
+                  e.stopPropagation();
+                  paintZoneTile(cell.x, cell.z, activeZoneTool);
+                }
+              }}
+            >
+              <planeGeometry args={[3.6, 3.6]} />
+              <meshBasicMaterial
+                color={cell.color}
+                transparent
+                opacity={activeZoneTool ? 0.65 : 0.35}
+                depthWrite={false}
+              />
+            </mesh>
 
-          {/* Border Wireframe for authentic CS2 cell look */}
-          <lineSegments rotation={[-Math.PI / 2, 0, 0]}>
-            <edgesGeometry args={[new THREE.PlaneGeometry(3.6, 3.6)]} />
-            <lineBasicMaterial color={cell.color} linewidth={2} />
-          </lineSegments>
+            {/* Border Wireframe for authentic CS2 cell look */}
+            <lineSegments rotation={[-Math.PI / 2, 0, 0]}>
+              <edgesGeometry args={[new THREE.PlaneGeometry(3.6, 3.6)]} />
+              <lineBasicMaterial color={cell.color} linewidth={2} />
+            </lineSegments>
 
-          {/* Dynamic Building Level Badge (Level 1–5 in CS2) */}
-          {cell.isOccupied && activeInfoView === 'land_value' && (
-            <Html position={[0, 1.2, 0]} center distanceFactor={28} pointerEvents="none">
-              <div className="px-1.5 py-0.5 rounded bg-black/80 border border-[#2ecc71] text-[#2ecc71] font-mono text-[9px] font-bold shadow-md">
-                LVL {cell.buildingLevel}
-              </div>
-            </Html>
-          )}
-        </group>
-      ))}
+            {/* Dynamic Building Level Badge (Level 1–5 in CS2) */}
+            {cell.isOccupied && activeInfoView === 'land_value' && (
+              <Html position={[0, 1.2, 0]} center distanceFactor={28} pointerEvents="none">
+                <div className="px-1.5 py-0.5 rounded bg-black/80 border border-[#2ecc71] text-[#2ecc71] font-mono text-[9px] font-bold shadow-md">
+                  LVL {cell.buildingLevel}
+                </div>
+              </Html>
+            )}
+          </group>
+        ))}
 
       {/* 2. ELECTRICITY INFO VIEW OVERLAY */}
       {activeInfoView === 'electricity' && (

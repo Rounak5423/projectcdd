@@ -13,14 +13,12 @@ import {
   Crown,
   Gift,
   LogOut,
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
   Activity,
   ShieldAlert,
-  Save,
   CheckCircle2,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
 import { soundFx } from '../../services/soundFx';
@@ -51,12 +49,14 @@ function TopbarComponent({
     civilization,
     events,
     setActiveDrawer,
+    disasterState,
+    economyReport,
+    evolutionReport,
     quests,
     claimQuest,
     activeProtest,
     setIsProtestModalOpen,
     setIsDemoModalOpen,
-    economyReport,
     saveGame,
     isSaving,
     lastSavedTimestamp,
@@ -160,23 +160,40 @@ function TopbarComponent({
 
   return (
     <>
-      <header className="h-[52px] shrink-0 bg-[#171D18] border-b border-[#2B372C] flex items-center justify-between px-3.5 lg:px-5 select-none text-[#EAE3D2] shadow-md z-30">
+      <header className="h-[56px] shrink-0 bg-[#171D18] border-b border-[#2B372C] flex items-center justify-between px-3.5 lg:px-5 select-none text-[#EAE3D2] shadow-md z-30">
         {/* Civilisation Identity */}
         <div
-          className="flex items-center gap-2.5 cursor-pointer group"
+          className="flex items-center gap-2.5 cursor-pointer group shrink-0"
           onClick={() => setActiveDrawer('codex')}
           title="Inspect Civilisation Codex & Status"
         >
           <CivoraIcon size={32} />
 
           <div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <h2 className="text-xs font-bold text-[#EAE3D2] tracking-wide font-cinzel group-hover:text-[#C5A66A] transition-colors truncate max-w-[130px] lg:max-w-[170px]">
                 {civilization.name}
               </h2>
               <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#202820] text-[#C5A66A] border border-[#3D4F3F]">
                 L{civilization.level}
               </span>
+              {evolutionReport && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    soundFx.playClick();
+                    setActiveDrawer('evolution');
+                  }}
+                  className="flex items-center gap-1 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#202820] hover:bg-[#283228] text-[#8FA879] hover:text-[#C5A66A] border border-[#3D4F3F] transition-all cursor-pointer shadow-xs"
+                  title="Civilization Evolution Stage — Click to view progression matrix"
+                >
+                  <Sparkles size={10} className="text-[#C5A66A]" />
+                  <span>{evolutionReport.currentStage.name}</span>
+                  <span className="text-[#C5A66A]">
+                    ({Math.round(evolutionReport.stageProgressPercent)}%)
+                  </span>
+                </span>
+              )}
             </div>
             <div className="text-[9px] font-mono text-[#A5AD9D] leading-none mt-0.5">
               <span>{civilization.era}</span>
@@ -187,7 +204,7 @@ function TopbarComponent({
         </div>
 
         {/* Center Strategic Resource Ribbon */}
-        <div className="hidden md:flex items-center gap-1 bg-[#121713] px-2 py-1 rounded border border-[#2B372C]">
+        <div className="hidden md:flex items-center gap-1 bg-[#121713] px-2 py-1 rounded border border-[#2B372C] overflow-x-auto max-w-[48vw]">
           {resourcePills.map((res) => {
             const Icon = res.icon;
             return (
@@ -198,7 +215,7 @@ function TopbarComponent({
                   setSelectedResource(res.key);
                 }}
                 title={res.tooltip}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all relative ${
+                className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all relative shrink-0 ${
                   res.isTreasury
                     ? 'bg-[#202820] border border-[#C5A66A]/40 text-[#C5A66A] hover:bg-[#283228]'
                     : res.isCritical
@@ -225,7 +242,7 @@ function TopbarComponent({
         </div>
 
         {/* Right Controls: Notifications, Protest, Demo & Profile */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Active Historical Twin Civil Protest Pill */}
           {activeProtest && (
             <button
@@ -313,10 +330,14 @@ function TopbarComponent({
               soundFx.playClick();
               setActiveDrawer('disaster');
             }}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#344435] hover:border-[#4e644f] text-[11px] font-bold text-[#a6bd82] transition-all shadow-xs"
+            className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded border transition-all text-[11px] font-bold shadow-xs ${
+              disasterState?.activeDisaster
+                ? 'bg-[#4d1616] hover:bg-[#5e1c1c] border-[#e74c3c] text-[#ff8e8e] animate-pulse'
+                : 'bg-[#202820] hover:bg-[#283228] border-[#344435] hover:border-[#4e644f] text-[#a6bd82]'
+            }`}
             title="Open Civil Defense & Emergency Response Command Center"
           >
-            <ShieldAlert size={13} className="text-[#a6bd82]" />
+            <ShieldAlert size={13} className={disasterState?.activeDisaster ? 'text-[#e74c3c]' : 'text-[#a6bd82]'} />
             <span>Defense</span>
           </button>
 

@@ -64,20 +64,23 @@ export default React.memo(function StreetlightsSystem() {
       list.push({ x: 27.4, z, rotationY: Math.PI / 2 });
     }
 
-    // 5. Elysium Grand Forum Boulevard Loop Streetlights (Outer sidewalks flanking Civic Plaza)
-    // West Avenue Sidewalk (Facing East toward avenue)
-    for (let z = 6.0; z <= 18.0; z += 4.0) {
-      list.push({ x: -11.2, z, rotationY: Math.PI / 2 });
+    // 5. Civic Flank Loop Promenade Lamps (Along X = -13.2 and X = +13.2, Z from 6 to 22)
+    for (let z = 6; z <= 22; z += 5) {
+      list.push({ x: -13.2, z, rotationY: -Math.PI / 2 }); // Faces road (+X)
+      list.push({ x: 13.2, z, rotationY: Math.PI / 2 });   // Faces road (-X)
     }
-    // East Avenue Sidewalk (Facing West toward avenue)
-    for (let z = 6.0; z <= 18.0; z += 4.0) {
-      list.push({ x: 11.2, z, rotationY: -Math.PI / 2 });
-    }
-    // North and South Forum Transverse Crossings
-    list.push({ x: -4.5, z: 3.4, rotationY: 0 });
-    list.push({ x: 4.5, z: 3.4, rotationY: 0 });
-    list.push({ x: -4.5, z: 20.6, rotationY: Math.PI });
-    list.push({ x: 4.5, z: 20.6, rotationY: Math.PI });
+
+    // 6. Grand Civic Roundabout Corner Luminaires (At the 4 corner sidewalk fillets)
+    list.push({ x: -5.0, z: 19.0, rotationY: Math.PI / 4 });
+    list.push({ x: 5.0, z: 19.0, rotationY: -Math.PI / 4 });
+    list.push({ x: -5.0, z: 29.0, rotationY: (3 * Math.PI) / 4 });
+    list.push({ x: 5.0, z: 29.0, rotationY: -(3 * Math.PI) / 4 });
+
+    // 7. Cul-de-Sac Luminaires
+    list.push({ x: -35.2, z: -2.0, rotationY: Math.PI / 2 });
+    list.push({ x: -25.0, z: 39.5, rotationY: Math.PI });
+    list.push({ x: 37.2, z: 24.0, rotationY: -Math.PI / 2 });
+    list.push({ x: 14.0, z: 39.5, rotationY: Math.PI });
 
     return list;
   }, []);
