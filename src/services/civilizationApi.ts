@@ -338,6 +338,24 @@ export const civilizationApi = {
     }
   },
 
+  async getPolicyModelAccuracy(): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get<any>('/policies/model-accuracy');
+      return { success: true, data: response.data };
+    } catch {
+      return { success: false, isFallback: true };
+    }
+  },
+
+  async runPolicyModelBenchmark(): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post<any>('/policies/train-benchmark', {});
+      return { success: true, data: response.data };
+    } catch {
+      return { success: false, isFallback: true };
+    }
+  },
+
   // Scenario Simulator
   async runQuantumScenario(civId: string, scenarioId: string, horizon: number): Promise<ApiResponse<SimulationScenario>> {
     try {

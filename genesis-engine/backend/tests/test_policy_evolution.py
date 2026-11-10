@@ -124,3 +124,12 @@ def test_api_policy_endpoints():
     assert learn_data["status"] == "learned"
     assert "updated_learning_status" in learn_data
 
+    # 5. Model Accuracy & Benchmark Verification Endpoint
+    acc_resp = client.get("/api/v1/policies/model-accuracy")
+    assert acc_resp.status_code == 200
+    acc_data = acc_resp.json()
+    assert acc_data["status"] == "verified_top_notch"
+    assert acc_data["evaluation_metrics"]["verified_accuracy_pct"] >= 90.0
+    assert acc_data["evaluation_metrics"]["mean_absolute_error_mae"] <= 3.0
+    assert len(acc_data["fold_cross_validation_results"]) == 5
+
