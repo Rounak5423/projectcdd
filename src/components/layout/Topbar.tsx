@@ -27,6 +27,9 @@ import { AuthUser } from '../../services/authApi';
 import CS2ChirperWidget from '../cs2/CS2ChirperWidget';
 import ResourceDetailModal, { SelectedResourceKey } from './ResourceDetailModal';
 import NotificationCenter from './NotificationCenter';
+import { ConnectionStatusBadge } from '../common/ConnectionStatusBadge';
+import { MLModelStatusBadge } from '../common/MLModelStatusBadge';
+import { ApiBoundaryAlertBanner } from '../common/ApiBoundaryAlertBanner';
 
 function TopbarComponent({
   isRightPanelOpen,
@@ -341,6 +344,12 @@ function TopbarComponent({
             <span>Defense</span>
           </button>
 
+          {/* Real-time WebSocket Connection Status Indicator */}
+          <ConnectionStatusBadge worldId={civilization?.id || 'aurora-prime'} />
+
+          {/* ML Cluster Health & Drift Telemetry Badge */}
+          <MLModelStatusBadge />
+
           {/* Persistent Auto-Save Status & Manual Save Trigger */}
           <button
             onClick={() => {
@@ -432,6 +441,9 @@ function TopbarComponent({
         isOpen={isNotificationOpen}
         onClose={() => setIsNotificationOpen(false)}
       />
+
+      {/* Runtime API Boundary Validation Error Alerts */}
+      <ApiBoundaryAlertBanner />
     </>
   );
 }
