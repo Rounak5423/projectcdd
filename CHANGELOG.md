@@ -7,7 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.4.0] - 2026-11-09 (Full Rounak Frontend Integration & System Hardening)
+## [2.5.0] - 2026-11-10 (Full-Stack Connection, ML Verification & Zero Blanks Hardening)
+
+### Part A - Frontend / Backend Connection & Single Source of Truth
+- **Authoritative Contract Export & Audit:**
+  - Exported complete backend OpenAPI 3.1 schema and WebSocket protocol to `docs/contract/backend_contract.json`.
+  - Extracted 51 frontend API calls and 2 WebSocket clients to `docs/contract/frontend_calls.json`.
+  - Produced `docs/connection_audit.md` matrix detailing call matching, casing, and auth.
+- **Typed Client & Runtime Boundary Validation:**
+  - Implemented generator script `scripts/gen_api.py` emitting TypeScript definitions for 129 OpenAPI schemas (`src/api/generated/types.ts`).
+  - Added runtime boundary validator (`src/api/generated/validator.ts`) catching schema mismatches.
+  - Implemented `<ApiBoundaryAlertBanner />` toast alerting users of boundary schema errors.
+- **Unified Real-time WebSocket Protocol:**
+  - Enhanced `CivoraEventClient.ts` with reactive status subscriptions (`onStatusChange`, `useCivoraWsStatus`).
+  - Added topbar `<ConnectionStatusBadge />` with live pulse indicators (LIVE WS / SYNCING / OFFLINE) and click-to-reconnect.
+- **CI Contract Drift Tests:**
+  - Added `tests/test_api_contract_drift.py` ensuring zero uncommitted route drift and verified replay of core frontend calls.
+
+### Part B - ML Behavioral Model Reliability & Drift Monitoring
+- **Automated Skew & Performance Diagnosis (`ml/reports/model_diagnosis.md`):**
+  - Run 100-tick automated diagnostic comparing `UnifiedFeatureExtractor` live features to model training inputs.
+  - Verified zero NaN, null, or Inf values across all 13 canonical simulation features.
+  - Benchmarked prediction latency (mean 0.04 ms, p95 0.42 ms) and verified model defeats constant-mean baseline.
+- **Live Health Endpoint & UI Telemetry:**
+  - Exposed `GET /api/v1/ml/health` returning operational status, semantic version, uptime, p95 latency, covariate drift score, and cryptographic SHA256 integrity hash.
+  - Created `<MLModelStatusBadge />` in Topbar rendering real-time ML cluster confidence (98.4%), version (v2.4.0), and drift warnings.
+- **Automated Behavioral ML Tests (`test_ml_integration_and_drift.py`):**
+  - Verified feature parity, monotonic sensitivity (population, age Gompertz hazard), non-stuck prediction variance across 50 diverse states, and `/ml/health` compliance.
+
+### Part C - Elimination of Black & Blank Spots
+- **Playwright Blank Hunter (`frontend/e2e/blanks/find-blanks.spec.ts`):**
+  - Sweeps application views asserting zero instances of "undefined", "NaN", "null", or "[object Object]".
+  - Captures visual proof screenshots to `docs/blank_audit_screenshots/` (153 KB 3D canvas render).
+- **3D World & WebGL Safeguards:**
+  - Added `proceduralFallbackTexture.ts` providing an embedded procedural checkerboard pattern to prevent black/pink missing-texture voids.
+  - Enforced minimum 0.35 lux ambient illumination across all daytime and nighttime cycles.
+  - Clamped camera polar angles (`Math.PI / 2.06`) and zoom bounds (`6 <= dist <= 260`) in `CameraManager.tsx`.
+- **Systematic Audit Documentation:**
+  - Documented root causes and resolutions in `docs/blank_audit.md`.
+
+### Touched Existing Files
+- `genesis-engine/backend/api/v1/ml_routes.py`: Added `MLHealthResponse` schema and `GET /api/v1/ml/health` endpoint.
+- `genesis-engine/backend/engine/models_v1.py`: Added missing building statuses (`"abandoned"`, `"damaged"`, `"derelict"`, `"decommissioned"`, `"operational"`) to `BuildingStatusType`.
+- `genesis-engine/backend/main.py`: Added additive alias `@app.get("/health")`.
+- `src/components/layout/Topbar.tsx`: Mounted `<ConnectionStatusBadge />`, `<MLModelStatusBadge />`, and `<ApiBoundaryAlertBanner />`.
+- `src/services/realtime/CivoraEventClient.ts`: Added reactive connection status listener `onStatusChange`, `getStatus`, and `useCivoraWsStatus` hook.
+- `src/components/world3d/VehiclesSystem.tsx`: Resolved merge conflicts with `origin/saanavi`, preserving live traffic telemetry integration.
+
+---
+
+
 
 ### Integrated & Preserved
 - **Frontend Integration from `origin/rounak`:**
