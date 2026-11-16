@@ -24,7 +24,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Install pinned production dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" wheel && \
     pip install --no-cache-dir -r requirements.txt
 
 # ------------------------------------------------------------------------------
@@ -32,8 +32,9 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # ------------------------------------------------------------------------------
 FROM python:3.12-slim AS runner
 
-# Security hardening: Create non-root system group and user
-RUN groupadd -g 10001 genesis && \
+# Security hardening: Update OS packages to remediate base CVEs, create non-root user
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/* && \
+    groupadd -g 10001 genesis && \
     useradd -u 10001 -g genesis -s /bin/bash -m -d /home/genesis genesis
 
 # Set environment variables
