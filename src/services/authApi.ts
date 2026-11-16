@@ -10,7 +10,7 @@ const getAuthBaseUrl = (): string => {
   }
   if (import.meta.env.VITE_API_URL) {
     const base = import.meta.env.VITE_API_URL.replace(/\/$/, '');
-    return `${base}/auth`;
+    return base.endsWith('/api/v1') ? `${base}/auth` : `${base}/api/v1/auth`;
   }
   if (typeof window !== 'undefined') {
     if (import.meta.env.PROD || window.location.port === '8000' || !window.location.port) {

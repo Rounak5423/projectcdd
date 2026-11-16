@@ -305,8 +305,10 @@ class MovementModule:
         grid: Dict[Tuple[int, int], List[VehicleEntity]] = {}
         lod_candidates: List[VehicleEntity] = []
         for veh in self.vehicles.values():
+            if len(lod_candidates) >= MAX_LOD_FULL_VEHICLES:
+                break
             dist = math.hypot(veh.current_x - camera_focus_x, veh.current_z - camera_focus_z)
-            if (dist <= 80.0 or len(lod_candidates) < 30) and len(lod_candidates) < MAX_LOD_FULL_VEHICLES:
+            if dist <= 80.0 or len(lod_candidates) < 30:
                 lod_candidates.append(veh)
                 cell = (int(veh.current_x // cell_size), int(veh.current_z // cell_size))
                 if cell not in grid:
@@ -316,7 +318,7 @@ class MovementModule:
         active_lod_set = {v.id for v in lod_candidates}
 
         # Process vehicle dynamics and car-following
-        for vid, v in list(self.vehicles.items()):
+        for vid, v in self.vehicles.items():
             # A. Bus dwelling at station
             if v.category == "bus" and v.status == "boarding":
                 v.dwell_ticks_remaining -= 1
@@ -380,23 +382,24 @@ class MovementModule:
                 n1_id = v.route_node_ids[curr_leg]
                 n2_id = v.route_node_ids[curr_leg + 1]
 
-                # Distance to upcoming intersection node n2
-                n2_node = road_net.nodes.get(n2_id)
-                if n2_node:
-                    dist_to_junction = math.hypot(n2_node.x - v.current_x, n2_node.z - v.current_z)
-                    if dist_to_junction < 12.0:
-                        # Check signal state
-                        sig = self.signals.get(n2_id)
-                        if sig and not v.siren_active:
-                            bearing = math.degrees(math.atan2(n2_node.z - v.current_z, n2_node.x - v.current_x))
-                            if not sig.is_green_for_approach(bearing):
-                                # Virtual red signal obstacle
-                                if dist_to_junction < leader_dist:
-                                    leader_dist = max(0.5, dist_to_junction - 2.0)
-                                    delta_v = v.current_speed_kmh / 3.6
-                                v.status = "waiting_signal"
-                                v.state_badge = "waiting_signal"
-                                junction_queues[n2_id] = junction_queues.get(n2_id, 0) + 1
+                if is_lod_full:
+                    # Distance to upcoming intersection node n2
+                    n2_node = road_net.nodes.get(n2_id)
+                    if n2_node:
+                        dist_to_junction = math.hypot(n2_node.x - v.current_x, n2_node.z - v.current_z)
+                        if dist_to_junction < 12.0:
+                            # Check signal state
+                            sig = self.signals.get(n2_id)
+                            if sig and not v.siren_active:
+                                bearing = math.degrees(math.atan2(n2_node.z - v.current_z, n2_node.x - v.current_x))
+                                if not sig.is_green_for_approach(bearing):
+                                    # Virtual red signal obstacle
+                                    if dist_to_junction < leader_dist:
+                                        leader_dist = max(0.5, dist_to_junction - 2.0)
+                                        delta_v = v.current_speed_kmh / 3.6
+                                    v.status = "waiting_signal"
+                                    v.state_badge = "waiting_signal"
+                                    junction_queues[n2_id] = junction_queues.get(n2_id, 0) + 1
 
             # E. Compute Desired Speed & IDM Acceleration
             if is_lod_full:
