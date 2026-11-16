@@ -1,4 +1,4 @@
-"""
+﻿"""
 Authoritative Command Engine with Batching, Validation, RBAC, Idempotency & Undo Stack
 Version: 2.0.0
 """

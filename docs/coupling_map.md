@@ -1,4 +1,4 @@
-# GENESIS Engine: Master Coupling & Architecture Map
+﻿# GENESIS Engine: Master Coupling & Architecture Map
 
 **Document Version:** 2.0.0 (Unified World Architecture Edition)  
 **Date:** November 9, 2026  

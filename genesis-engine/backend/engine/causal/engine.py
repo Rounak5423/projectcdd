@@ -1,4 +1,4 @@
-"""
+﻿"""
 authoritative Causal Simulation Coupling Engine.
 Enforces strict 10-stage causal propagation per tick:
 1. needs / utilities -> 2. environment -> 3. health & disease ->

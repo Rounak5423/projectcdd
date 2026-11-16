@@ -1,4 +1,4 @@
-"""
+﻿"""
 Causal Simulation Coupling Configuration.
 Defines parameters, baseline hazard rates, and thresholds for the coupled simulation.
 """

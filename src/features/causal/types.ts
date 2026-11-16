@@ -1,4 +1,4 @@
-export interface DeathsByCause {
+﻿export interface DeathsByCause {
   aging: number;
   starvation: number;
   dehydration: number;

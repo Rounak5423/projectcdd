@@ -1,4 +1,4 @@
-"""
+﻿"""
 Pydantic Data Models for GENESIS Unified World State & Command Architecture
 Version: 2.0.0
 """

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Centralized, Versioned Configuration for GENESIS Unified World & Simulation Engine
 Version: 2.0.0
 Covers:

@@ -1,4 +1,4 @@
-# GENESIS Engine Reality Check Report
+﻿# GENESIS Engine Reality Check Report
 **Document ID:** `docs/REALITY_CHECK.md`  
 **Role:** Principal QA & Simulation Architecture Audit  
 **Evaluation Date:** 2026-11-09  

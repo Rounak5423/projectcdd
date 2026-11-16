@@ -1,4 +1,4 @@
-"""
+﻿"""
 Behavior test for Sprint 2: Honest Economy.
 Requirements:
 1. Changing tax rate changes treasury income next tick.

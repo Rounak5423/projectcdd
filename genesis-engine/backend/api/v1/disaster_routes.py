@@ -1,4 +1,4 @@
-"""
+﻿"""
 Authoritative Disaster & Weather API Routes
 Provides endpoints for monitoring, triggering, containing, and resolving natural disasters and weather events.
 """

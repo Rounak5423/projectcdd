@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Behavioral Verification Test for Sprint 4: Frontend Honesty (BLK-03, MAJ-02, MIN-01, MIN-02)
 

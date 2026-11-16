@@ -1,4 +1,4 @@
-"""
+﻿"""
 Behavior test for Sprint 1: Demographics and Real Citizens (BLK-01, BLK-02, MAJ-04).
 Requirement:
 A 500-citizen world over 3650 ticks must show:

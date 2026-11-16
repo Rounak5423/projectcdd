@@ -1,4 +1,4 @@
-# GENESIS Engine Architectural Fix Report
+﻿# GENESIS Engine Architectural Fix Report
 **Document ID:** `docs/FIX_REPORT.md`  
 **Role:** Principal Simulation Architect & Full-Stack Engineer  
 **Date:** 2026-11-09  

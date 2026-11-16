@@ -1,4 +1,4 @@
-"""
+﻿"""
 State definitions and data transfer objects for Causal Simulation Coupling.
 """
 
