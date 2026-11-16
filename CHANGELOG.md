@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.0] - 2026-11-16 (Part 2: Authoritative Microscopic Movement & 3D Integration)
+
+### Backend Authoritative Movement & Topology Validation
+- **Microscopic Traffic Physics (`engine/modules/movement.py`):** Implemented Intelligent Driver Model (IDM) car-following with continuous velocity integration, 4-phase signalized intersection controllers, emergency ambulance preemption (cars pull to lane offset), bus boarding/dwell state machines, and spatial grid partitioning for $O(1)$ leader detection.
+- **Pedestrian Circulation (`engine/modules/movement.py`):** Dynamic pedestrian agents navigating sidewalks, crossing at signalized crosswalks during pedestrian clearance phases, and linked to `CitizenEntity` circadian schedules (home -> commute -> work -> recreation).
+- **Multi-Map Topology & Elevation Snapping (`engine/world/`):**
+  - `terrain_elevation.py`: Mathematical elevation functions matching all 8 biome presets.
+  - `map_topology.py`: Road graphs, multi-lane specs, turnarounds, crosswalks, parking bays, and building access for all 5 maps (`aurora-prime`, `highland-plateau`, `archipelago`, `boreal-basin`, `arid-oasis`).
+  - `validate_maps.py`: Automated map invariant validator ensuring zero slope violations, zero dead ends, and 100% elevation snapping.
+- **Unit Verification Suite (`tests/test_gate2_movement_logic.py`):** 7 empirical unit tests validating IDM car-following, non-overlap, dynamic rerouting, signal stopping, emergency priority, pedestrian crosswalk obedience, and headless scale performance (5,000 vehicles).
+
+### Frontend Movement Interpolation & Diagnostic Overlay
+- **Client Synchronization (`src/world/movement/`):**
+  - `useMovementSync.ts`: Per-frame Hermite spline interpolation, terrain height snapping, heading slerp, and entity lifecycle pruning.
+  - `MovementRenderer.tsx`: 3D instanced meshes, headlights, taillights, rotating emergency strobe beacons, and floating state badges (`WAITING`, `YIELDING`, `EMERGENCY`, `BOARDING`).
+  - `MovementDebugOverlay.tsx`: Interactive F3 diagnostic HUD displaying live FPS, latency, vehicle/pedestrian category counts, signal states, and glitch invariant counters.
+- **Touched Existing Files:**
+  - `src/world/types.ts`: Extended schema with `PedestrianEntity`, `TrafficSignalState`, and vehicle telemetry badges.
+  - `src/world/worldStore.ts`: Integrated active pedestrians and traffic signals into world state reconciliation.
+  - `src/world/useUnifiedWorld.ts`: Exposed pedestrian entities and signal phases to React hooks.
+  - `src/components/world3d/CivilizationWorld3D.tsx`: Replaced client-side fake splines with `MovementRenderer` and mounted `MovementDebugOverlay`.
+
+---
+
 ## [2.7.0] - 2026-11-16 (Phase 1: Authoritative Simulation Core)
 
 ### Authoritative Architecture & Causal Engine Core

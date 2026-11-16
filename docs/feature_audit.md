@@ -1,4 +1,4 @@
-# GENESIS Engine: Feature Logic Audit & Verification Matrix
+﻿# GENESIS Engine: Feature Logic Audit & Verification Matrix
 
 **Document Version:** 1.0.0  
 **Audit Date:** November 9, 2026  

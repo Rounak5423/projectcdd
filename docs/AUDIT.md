@@ -1,4 +1,4 @@
-# GENESIS Engine: Master Forensic Audit & Remediation Plan
+﻿# GENESIS Engine: Master Forensic Audit & Remediation Plan
 
 **Document:** `docs/AUDIT.md`  
 **Date:** November 9, 2026  

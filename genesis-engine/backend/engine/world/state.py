@@ -51,9 +51,13 @@ class RoadNodeEntity(BaseModel):
     y: float = 0.0
     z: float
     elevation: float = 0.0
-    node_type: str = "intersection" # 'intersection', 'cul_de_sac', 'transit_hub'
+    node_type: str = "intersection" # 'intersection', 'cul_de_sac', 'transit_hub', 'roundabout_center', 'highway_portal'
     has_traffic_light: bool = False
     congestion: float = 0.0
+
+    @property
+    def type(self) -> str:
+        return self.node_type
 
 
 class RoadSegmentEntity(BaseModel):
@@ -111,18 +115,57 @@ class VehicleEntity(BaseModel):
     id: str
     world_id: str
     citizen_id: Optional[str] = None
-    category: str = "sedan" # 'sedan', 'suv', 'bus', 'truck', 'ambulance', 'police'
+    category: str = "sedan" # 'sedan', 'bus', 'truck', 'ambulance', 'police', 'fire_truck', 'service'
     origin_x: float
     origin_z: float
     dest_x: float
     dest_z: float
     current_x: float
     current_z: float
+    current_y: float = 0.0
     heading_deg: float = 0.0
     current_speed_kmh: float = 40.0
+    acceleration: float = 0.0
+    target_lane_index: int = 0
+    lane_offset: float = 0.0
+    current_segment_id: Optional[str] = None
+    next_target_node_id: Optional[str] = None
     route_node_ids: List[str] = Field(default_factory=list)
     progress_pct: float = 0.0
-    status: str = "moving" # 'moving', 'queued', 'accident', 'arrived'
+    distance_along_segment: float = 0.0
+    status: str = "moving" # 'moving', 'queued', 'waiting_signal', 'yielding', 'boarding', 'accident', 'arrived'
+    purpose: str = "work" # 'work', 'school', 'shop', 'leisure', 'home', 'delivery', 'emergency'
+    state_badge: str = "normal" # 'normal', 'waiting_signal', 'yielding', 'siren', 'boarding', 'blocked'
+    length: float = 4.2
+    width: float = 1.9
+    siren_active: bool = False
+    passengers_count: int = 0
+    dwell_ticks_remaining: int = 0
+    origin_building_id: Optional[str] = None
+    dest_building_id: Optional[str] = None
+
+
+class PedestrianEntity(BaseModel):
+    id: str
+    world_id: str
+    citizen_id: str
+    archetype: str = "casual" # 'casual', 'executive', 'medical', 'student', 'worker', 'scientist'
+    current_x: float
+    current_y: float = 0.0
+    current_z: float
+    target_x: float = 0.0
+    target_z: float = 0.0
+    heading_deg: float = 0.0
+    speed_mps: float = 1.35
+    status: str = "walking" # 'walking', 'waiting_crossing', 'boarding_bus', 'inside_building'
+    purpose: str = "work"
+    origin_building_id: Optional[str] = None
+    dest_building_id: Optional[str] = None
+    current_edge_id: Optional[str] = None
+    route_node_ids: List[str] = Field(default_factory=list)
+    progress_pct: float = 0.0
+    is_crossing: bool = False
+    bus_stop_id: Optional[str] = None
 
 
 # ==============================================================================
@@ -148,11 +191,15 @@ class UtilityNetworkState(BaseModel):
 
 class TrafficMetricsState(BaseModel):
     active_vehicles_count: int = 0
+    active_pedestrians_count: int = 0
     average_speed_kmh: float = 45.0
     traffic_flow_efficiency: float = 90.0
     congestion_index: float = 10.0
     congested_segment_ids: List[str] = Field(default_factory=list)
     average_commute_minutes: float = 22.0
+    stuck_vehicles_count: int = 0
+    junction_queues: Dict[str, int] = Field(default_factory=dict)
+    signals_state: Dict[str, str] = Field(default_factory=dict)
 
 
 class DerivedCityMetrics(BaseModel):
@@ -197,6 +244,7 @@ class WorldStateSnapshot(BaseModel):
     zone_tiles: List[ZoneTileEntity]
     vehicles_sample: List[VehicleEntity]
     citizens_sample: List[CitizenEntity]
+    pedestrians_sample: List[PedestrianEntity] = Field(default_factory=list)
     utilities: UtilityNetworkState
     traffic: TrafficMetricsState
     metrics: DerivedCityMetrics
@@ -216,6 +264,7 @@ class WorldStateDelta(BaseModel):
     removed_road_ids: List[str] = Field(default_factory=list)
     updated_zone_tiles: List[ZoneTileEntity] = Field(default_factory=list)
     active_vehicles: List[VehicleEntity] = Field(default_factory=list)
+    active_pedestrians: List[PedestrianEntity] = Field(default_factory=list)
     metrics: DerivedCityMetrics
     utilities: UtilityNetworkState
     traffic: TrafficMetricsState

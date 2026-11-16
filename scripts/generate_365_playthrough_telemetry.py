@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Runs a complete 365-tick simulation session on a unified world,
 sampling metrics at 30-tick intervals (plus tick 365) to produce

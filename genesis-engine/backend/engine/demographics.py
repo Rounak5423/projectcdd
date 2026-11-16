@@ -1,4 +1,4 @@
-"""
+﻿"""
 Authoritative Demographics and Citizen Management Module
 Single source of truth for citizen lifecycle, realistic age distributions,
 housing allocation, and demographic vital synchronization.
