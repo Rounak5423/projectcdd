@@ -35,7 +35,36 @@ GENESIS models the trade-off between automated AI assistance and human cognitive
 
 ---
 
-## 🚀 Quick Start
+## 🐳 Docker & Container Deployment (Recommended)
+
+Run the complete GENESIS stack (FastAPI + SQLite WAL backend, Nginx React WebGL frontend, live WebSocket streaming) with one command on any platform:
+
+```bash
+# 1. Prepare environment
+cp .env.example .env
+
+# 2. Launch production stack in background
+docker compose up -d
+# or: make up
+```
+
+Access the stack at:
+- **Web Application:** [http://localhost:3000](http://localhost:3000)
+- **Health Probe:** [http://localhost:3000/health](http://localhost:3000/health)
+
+### Useful Docker Make Targets
+- `make dev`: Launch with live hot-reloading for both backend and frontend.
+- `make test`: Run complete containerized verification (pytest + 365-tick + Playwright).
+- `make backup-db`: Hot-backup live SQLite database atomically.
+- `make restore-db BACKUP_FILE=<path>`: Restore database from snapshot.
+- `make train`: Run machine learning training in isolated container.
+- `make down`: Stop all running containers.
+
+For complete deployment architectures, volume persistence runbooks, GPU acceleration, and troubleshooting, see [docs/DOCKER.md](docs/DOCKER.md).
+
+---
+
+## 🚀 Quick Start (Local Non-Containerized)
 
 ### 1. Environment Configuration
 Copy `.env.example` to `.env` in both the repository root and `genesis-engine/backend/`:

@@ -25,6 +25,7 @@ class Settings:
         self.JWT_SECRET: str = os.getenv("GENESIS_JWT_SECRET", "genesis_super_secret_jwt_key_2026_dev")
         self.JWT_ALGORITHM: str = "HS256"
         self.ACCESS_TOKEN_EXPIRE_HOURS: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_HOURS", "24"))
+        self.ADMIN_DEFAULT_PASSWORD: str = os.getenv("ADMIN_DEFAULT_PASSWORD", "AdminPassword123!")
 
         # CORS
         raw_origins = os.getenv("ALLOWED_ORIGINS", "")
@@ -62,6 +63,14 @@ class Settings:
                     "CRITICAL SECURITY FAILURE: GENESIS_JWT_SECRET must be explicitly set "
                     "to a high-entropy secret (at least 32 characters) in production mode."
                 )
+
+            admin_pwd = getattr(self, "ADMIN_DEFAULT_PASSWORD", os.getenv("ADMIN_DEFAULT_PASSWORD", "AdminPassword123!"))
+            if ("pytest" not in sys.modules or os.getenv("ENFORCE_PROD_ADMIN_PWD", "0") == "1"):
+                if not admin_pwd or admin_pwd in ["AdminPassword123!", "admin", "password", "AdminPassword", "12345678"]:
+                    errors.append(
+                        "CRITICAL SECURITY FAILURE: ADMIN_DEFAULT_PASSWORD must be explicitly set "
+                        "to a secure custom password in production mode (default 'AdminPassword123!' is prohibited)."
+                    )
 
             if "*" in self.ALLOWED_ORIGINS:
                 errors.append(

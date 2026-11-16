@@ -1,0 +1,43 @@
+# Python byte-code and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Databases and WAL journal files (runtime state mounted via persistent Docker volumes)
+db/*.db
+db/*.db-wal
+db/*.db-shm
+*.sqlite
+*.sqlite3
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Large datasets & training runs (mounted via Docker volumes)
+ml/data/raw/
+ml/runs/
+datasets/
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+*.egg-info/

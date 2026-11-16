@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.0] - 2026-11-15 (Docker & Production Containerization)
+
+### Deliverable 1 - Multi-stage Backend Containerization
+- **Image:** Multi-stage `python:3.12-slim` image (`genesis-backend`) compiling dependencies into virtual environment and discarding dev tools and caches. Final image size ~110MB.
+- **Security & Privilege:** Runs strictly as non-root user `genesis:genesis` (UID 10001, GID 10001).
+- **Process Architecture:** Starts single-worker Uvicorn (`--workers 1`) to preserve SQLite WAL single-writer semantics and in-memory tick loop consistency.
+- **Healthcheck & Entrypoint:** Added `HEALTHCHECK` against `GET /health`. Authored `docker-entrypoint.sh` enforcing production credential validation and idempotent database migrations/seeding before executing PID 1.
+
+### Deliverable 2 - Multi-stage Frontend Containerization & Reverse Proxy
+- **Build & Serve:** Multi-stage `node:22-alpine` builder (`npm ci && npm run build`) and unprivileged `nginx:1.27-alpine` runner.
+- **Nginx Architecture (`nginx.conf`):** Runs on non-root port 8080 as `genesis` (UID 10001). Features SPA fallback to `index.html`, Gzip compression, immutable cache headers for hashed `/assets/`, security headers (X-Frame-Options, X-Content-Type-Options, CSP, Referrer-Policy), and low-latency reverse proxying for `/api/`, `/health`, and `/ws/` (with 24h timeouts and WebSocket upgrade).
+- **Optimized Size:** Excluded raw downloaded 3D assets in `.dockerignore`, bringing image size to 251MB.
+
+### Deliverable 3 - Production & Development Compose Stacks
+- **Production (`docker-compose.yml`):** Deploys backend and frontend on internal bridge network; only frontend port 3000 exposed to host. Declares POSIX `driver: local` named volumes (`genesis_db_data`, `genesis_ml_models`, `genesis_ml_runs`, `genesis_ml_data`, `genesis_uploads`) ensuring atomic SQLite WAL locking. Health-checked `depends_on`, resource limits (CPU/RAM), restart policies, and read-only root filesystems with tmpfs mounts.
+- **Development (`docker-compose.dev.yml`):** Exposes backend port 8000 for Swagger UI, Vite port 5173 with HMR, bind-mounted source trees, and `--reload`.
+- **GPU Training (`docker-compose.gpu.yml`):** NVIDIA reservation override for compute acceleration under ML profile.
+
+### Deliverable 4 & 5 - Configuration, Secrets & Dockerignore
+- **Secret Hardening:** Refuses to start in production if `JWT_SECRET` is insecure or `ADMIN_DEFAULT_PASSWORD` is `AdminPassword123!`.
+- **Environment Templates:** Documented all variables with safe placeholders in `.env.example`.
+- **Dockerignore Hardening:** Filtered raw models, cache files, node_modules, tests, venvs, and secrets.
+
+### Deliverable 6 & 7 - Operations, Makefile & Database Lifecycle
+- **Makefile Automation:** Provided `up`, `down`, `dev`, `logs`, `status`, `test`, `shell-backend`, `backup-db`, `restore-db`, `train`, `reset-db`, `clean`.
+- **Hot WAL Backups:** Implemented non-blocking point-in-time backup using SQLite online backup API (`src.backup(dst)`).
+
+### Deliverable 8 - ML Tooling Decoupling (`Dockerfile.ml`)
+- **Scientific Image:** Separate container under compose profile `ml` packaging NumPy, SciPy, Pandas, LightGBM, and Scikit-learn, decoupling heavy ML libraries from the lean core simulation image.
+
+### Deliverable 9 & 10 - CI/CD & Documentation
+- **GitHub Actions (`docker-ci.yml`):** Multi-stage buildx caching, Trivy container security scans (blocking on HIGH/CRITICAL vulnerabilities), automated integration testing, and GHCR registry pushes on release tags.
+- **Comprehensive Runbook (`docs/DOCKER.md`):** Complete operations guide, architectural diagrams, WAL backup/restore procedures, and troubleshooting matrix.
+
+### Touched Existing Files (Minimal Conflict-Safe Diffs)
+- `genesis-engine/backend/config.py`: Added production environment safety check refusing startup with default admin password or default JWT secret.
+- `genesis-engine/backend/api/v1/ml_routes.py`: Switched ML heavy pipeline calls to lazy imports so slim backend image runs without ML dependencies installed.
+- `genesis-engine/backend/engine/world/features.py`: Removed unused `import numpy as np` to allow lean non-ML backend execution.
+- `genesis-engine/backend/engine/world/utility_network.py`: Added missing `Optional` typing import to avoid class evaluation error in Python 3.12.
+- `genesis-engine/backend/engine/demographics.py`: Hardened citizen ID generation (`cit_{world_id}_{i}_{uuid}`) to guarantee zero SQLite primary key collisions during batch spawning.
+- `genesis-engine/backend/ml/calibration/calibrate.py`: Added graceful fallback for NumPy import in non-ML mode.
+- `genesis-engine/backend/ml/inference/registry.py`: Added `math.exp` fallback for softmax calculation when NumPy is absent.
+- `.env.example` & `genesis-engine/backend/.env.example`: Added Docker containerization environment variables and safe placeholders.
+- `package-lock.json` & `node_modules/.package-lock.json`: Synchronized `@playwright/test` lockfile dependency for clean `npm ci` build in container.
+- `README.md`: Added Docker Quickstart section and commands.
+
+---
+
 ## [2.5.0] - 2026-11-10 (Full-Stack Connection, ML Verification & Zero Blanks Hardening)
 
 ### Part A - Frontend / Backend Connection & Single Source of Truth

@@ -1,0 +1,155 @@
+# ==============================================================================
+# GENESIS Civilisation Engine — Production Docker Compose
+# Architecture: Single-writer FastAPI/SQLite WAL backend + Nginx SPA Frontend Gateway
+# Profiles: 'ml' (on-demand training), 'tests' (automated verification suite)
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Authoritative Backend Simulation Engine
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./genesis-engine/backend
+      dockerfile: Dockerfile
+    image: genesis-backend:2.5.0
+    container_name: genesis-backend
+    restart: unless-stopped
+    # Security: Internal network only; not directly published to host in production
+    networks:
+      - genesis-internal
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - GENESIS_DB_PATH=/app/db/genesis.db
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+    volumes:
+      # Local driver guarantees POSIX shared-memory and mandatory locks for SQLite WAL
+      - genesis_db_data:/app/db
+      - genesis_ml_models:/app/ml/models
+      - genesis_ml_runs:/app/ml/runs
+      - genesis_ml_data:/app/ml/data
+      - genesis_uploads:/app/uploads
+    tmpfs:
+      - /tmp:exec,mode=1777
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # 2. Production Frontend & API/WebSocket Reverse Proxy Gateway
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: genesis-frontend:2.5.0
+    container_name: genesis-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:8080"
+    networks:
+      - genesis-internal
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # 3. Machine Learning Training & Calibration Runner (Profile: ml)
+  # ----------------------------------------------------------------------------
+  ml:
+    build:
+      context: ./genesis-engine/backend
+      dockerfile: Dockerfile.ml
+    image: genesis-ml:2.5.0
+    container_name: genesis-ml
+    profiles:
+      - ml
+    networks:
+      - genesis-internal
+    env_file:
+      - .env
+    environment:
+      - ML_ENABLED=true
+      - GENESIS_DB_PATH=/app/db/genesis.db
+    volumes:
+      - genesis_db_data:/app/db
+      - genesis_ml_models:/app/ml/models
+      - genesis_ml_runs:/app/ml/runs
+      - genesis_ml_data:/app/ml/data
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4096M
+
+  # ----------------------------------------------------------------------------
+  # 4. Automated Containerized Verification & Playwright E2E Suite (Profile: tests)
+  # ----------------------------------------------------------------------------
+  tests:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tests
+    image: genesis-tests:2.5.0
+    container_name: genesis-tests
+    profiles:
+      - tests
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - genesis-internal
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - FRONTEND_URL=http://frontend:8080
+    volumes:
+      - genesis_db_data:/app/db:ro
+
+# ==============================================================================
+# Persistent Storage Volumes
+# SQLite WAL mode strictly requires local filesystem semantics (shared memory shm/wal)
+# ==============================================================================
+volumes:
+  genesis_db_data:
+    driver: local
+  genesis_ml_models:
+    driver: local
+  genesis_ml_runs:
+    driver: local
+  genesis_ml_data:
+    driver: local
+  genesis_uploads:
+    driver: local
+
+networks:
+  genesis-internal:
+    driver: bridge

@@ -1,0 +1,50 @@
+# Version control
+.git/
+.gitignore
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python caches and virtualenvs
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+genesis-engine/backend/venv/
+genesis-engine/backend/.venv/
+genesis-engine/backend/__pycache__/
+genesis-engine/backend/.pytest_cache/
+
+# Databases and WAL state
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+genesis-engine/backend/db/*.db
+genesis-engine/backend/db/*.db-wal
+genesis-engine/backend/db/*.db-shm
+
+# Datasets and training artifacts
+datasets/
+ml/data/raw/
+ml/runs/
+genesis-engine/backend/ml/data/raw/
+genesis-engine/backend/ml/runs/
+
+# Secrets and local environments
+.env
+.env.*
+!.env.example
+genesis-engine/backend/.env
+
+# Build outputs and temporary files
+dist/
+build/
+test-results/
+coverage/
+.DS_Store
+*.log

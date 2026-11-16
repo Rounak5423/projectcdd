@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1
+# ==============================================================================
+# GENESIS Civilisation Engine — Automated Test Runner Container (Profile: tests)
+# Executes:
+# 1. Backend Pytest suite
+# 2. Live Simulation Engine 365-tick verification
+# 3. Playwright E2E suites against containerized stack
+# ==============================================================================
+
+FROM mcr.microsoft.com/playwright:v1.50.0-noble
+
+WORKDIR /app
+
+# Install Python 3, venv, curl, and build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up Python virtual environment with pytest and backend test dependencies
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+COPY genesis-engine/backend/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt pytest-asyncio
+
+# Copy node manifests and install Playwright runner dependencies
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy test suites, scripts, and source code
+COPY frontend/e2e /app/frontend/e2e
+COPY playwright.config.ts /app/
+COPY scripts /app/scripts
+COPY genesis-engine/backend /app/backend
+COPY docs /app/docs
+COPY docker/run-tests.sh /usr/local/bin/run-tests.sh
+RUN chmod +x /usr/local/bin/run-tests.sh
+
+ENV BACKEND_URL=http://backend:8000 \
+    FRONTEND_URL=http://frontend:8080 \
+    PYTHONPATH=/app/backend
+
+CMD ["/usr/local/bin/run-tests.sh"]

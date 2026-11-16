@@ -5,8 +5,14 @@ ML Model Registry, Cached Inference Engine & Rule-Based Safe Fallbacks
 import os
 import json
 import logging
-import joblib
-import numpy as np
+try:
+    import joblib
+    import numpy as np
+    HAS_ML_DEPS = True
+except ImportError:
+    joblib = None
+    np = None
+    HAS_ML_DEPS = False
 from typing import Dict, Any, List, Optional
 from functools import lru_cache
 
@@ -49,6 +55,8 @@ def load_calibration_params() -> Dict[str, Any]:
 
 
 def load_model_bundle(model_name: str) -> Optional[Dict[str, Any]]:
+    if not HAS_ML_DEPS or joblib is None:
+        return None
     if model_name in _LOADED_MODELS:
         return _LOADED_MODELS[model_name]
         
@@ -387,10 +395,12 @@ def predict_incident_risk(
 
     # Safe empirical fallback
     p_severe = 0.142 * (1.4 if is_night else 1.0)
+    import random
+    is_sev = bool(np.random.rand() < p_severe) if np is not None else (random.random() < p_severe)
     return {
-        "is_severe": np.random.rand() < p_severe,
+        "is_severe": is_sev,
         "severe_probability": round(p_severe, 4),
-        "severity_code": 1 if np.random.rand() < p_severe else 2,
+        "severity_code": 1 if is_sev else 2,
         "model_applied": "Rule_Based_Calibrated"
     }
 
@@ -407,9 +417,15 @@ def calculate_gompertz_mortality_hazard(age: float, health: float = 0.8) -> floa
     b = float(gomp.get("b_aging_rate", 0.08016))
     
     # Biometric aging hazard modulated by health deficit
-    base_hazard = a * np.exp(b * min(105.0, max(0.0, age)))
-    health_factor = max(0.2, 1.6 - health)
-    return float(np.clip(base_hazard * health_factor, 0.0, 0.95))
+    if np is not None:
+        base_hazard = a * np.exp(b * min(105.0, max(0.0, age)))
+        health_factor = max(0.2, 1.6 - health)
+        return float(np.clip(base_hazard * health_factor, 0.0, 0.95))
+    else:
+        import math
+        base_hazard = a * math.exp(b * min(105.0, max(0.0, age)))
+        health_factor = max(0.2, 1.6 - health)
+        return float(max(0.0, min(0.95, base_hazard * health_factor)))
 
 
 # LEVEL 4: Macro & Citywide State Dynamics Models

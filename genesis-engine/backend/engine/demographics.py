@@ -80,7 +80,7 @@ def spawn_citizens_for_world(
             work_capacity_map[r["id"]] = max(0, int(r["capacity"] or 0) - int(r["workers"] or 0))
 
     for i in range(count):
-        cit_id = f"cit_{world_id}_{uuid.uuid4().hex[:8]}"
+        cit_id = f"cit_{world_id}_{i}_{uuid.uuid4().hex[:12]}"
         age = sample_realistic_age()
         health = sample_health_for_age(age)
         home_id = residential_building_ids[i % len(residential_building_ids)]
