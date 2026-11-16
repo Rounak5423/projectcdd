@@ -13,6 +13,10 @@ Verifies:
 import os
 import time
 import pytest
+
+# Require pandas and ML scientific pipeline libraries; skip module gracefully if not installed
+pytest.importorskip("pandas")
+
 from fastapi.testclient import TestClient
 
 from main import app
