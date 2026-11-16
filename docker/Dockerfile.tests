@@ -25,7 +25,7 @@ RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 COPY genesis-engine/backend/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt pytest-asyncio
+RUN pip install --no-cache-dir -r /tmp/requirements.txt pytest-asyncio numpy psutil
 
 # Copy node manifests and install Playwright runner dependencies
 COPY package.json package-lock.json ./

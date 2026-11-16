@@ -14,8 +14,10 @@ import os
 import time
 import pytest
 
-# Require pandas and ML scientific pipeline libraries; skip module gracefully if not installed
+# Require numpy, pandas, and ML scientific pipeline libraries; skip module gracefully if not installed
+pytest.importorskip("numpy")
 pytest.importorskip("pandas")
+pytest.importorskip("sklearn")
 
 from fastapi.testclient import TestClient
 
