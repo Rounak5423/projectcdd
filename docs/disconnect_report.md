@@ -1,4 +1,4 @@
-# GENESIS Engine: Unified World Disconnect Diagnostic Report
+﻿# GENESIS Engine: Unified World Disconnect Diagnostic Report
 
 **Document Version:** 1.0.0  
 **Audit Date:** November 9, 2026  

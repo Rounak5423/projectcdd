@@ -1,4 +1,4 @@
-"""
+﻿"""
 GENESIS Simulation Diagnostic & Causal Coupling Tracer
 Investigates subsystem isolation, zero-death anomaly, and unmet need/protest disconnection.
 Logs per tick:

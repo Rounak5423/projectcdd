@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Behavioral Verification Test for Sprint 5:
 - Technology effects on simulation (MAJ-01)

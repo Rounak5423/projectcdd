@@ -43,5 +43,4 @@ genesis-engine/backend/ml/data/generated/
 *.xls
 test-results/
 playwright-report/
-
-
+data/*.db

@@ -32,6 +32,7 @@ from .state import (
     ZoneTileEntity,
     CitizenEntity,
     VehicleEntity,
+    PedestrianEntity,
     UtilityNetworkState,
     TrafficMetricsState,
     DerivedCityMetrics,
@@ -40,6 +41,8 @@ from .state import (
 )
 from .road_network import UnifiedRoadNetwork
 from .utility_network import UnifiedUtilityNetwork
+from .map_topology import build_riverfront_masterplan_topology, ALL_MAP_GENERATORS
+from engine.modules.movement import MovementModule
 from engine.causal import global_causal_engine
 
 
@@ -65,6 +68,7 @@ class UnifiedWorldSimulation:
         
         self.road_network = UnifiedRoadNetwork(world_id=world_id)
         self.utility_engine = UnifiedUtilityNetwork(world_id=world_id)
+        self.movement_module = MovementModule(world_id=world_id)
 
         self.buildings: Dict[str, BuildingEntity] = {}
         self.zone_tiles: Dict[str, ZoneTileEntity] = {}
@@ -120,8 +124,8 @@ class UnifiedWorldSimulation:
                 )
                 self.road_network.add_node(node)
 
-            # If no road nodes exist, seed default central intersection grid
-            if not nodes:
+            # If no road nodes exist or old placeholder nodes, seed masterplan road network
+            if not nodes or len(nodes) <= 7 or any(r["id"] == "node_0_0" for r in nodes):
                 self._seed_default_road_network(conn)
 
             # 3. Road Segments
@@ -239,39 +243,35 @@ class UnifiedWorldSimulation:
             conn.close()
 
     def _seed_default_road_network(self, conn):
-        """Seeds standard 4-way arterial road network."""
-        nodes = [
-            ("node_0_0", 0.0, 0.0),
-            ("node_0_30", 0.0, 30.0),
-            ("node_0_neg30", 0.0, -30.0),
-            ("node_30_0", 30.0, 0.0),
-            ("node_neg30_0", -30.0, 0.0),
-            ("node_15_15", 15.0, 15.0),
-            ("node_neg15_15", -15.0, 15.0),
-        ]
+        """Seeds authoritative masterplan road network matching the 3D world topology."""
+        topo = build_riverfront_masterplan_topology()
         with conn:
-            for nid, x, z in nodes:
-                conn.execute("INSERT OR REPLACE INTO road_nodes (id, world_id, x, y, type) VALUES (?, ?, ?, ?, 'intersection')",
-                             (nid, self.world_id, x, z))
-                node = RoadNodeEntity(id=nid, world_id=self.world_id, x=x, y=0.0, z=z)
+            conn.execute("DELETE FROM road_segments WHERE world_id = ?", (self.world_id,))
+            conn.execute("DELETE FROM road_nodes WHERE world_id = ?", (self.world_id,))
+
+            self.road_network.nodes.clear()
+            self.road_network.segments.clear()
+            self.road_network.adjacency.clear()
+
+            for nid, ndef in topo.road_nodes.items():
+                conn.execute("""
+                INSERT OR REPLACE INTO road_nodes (id, world_id, x, y, elevation, type, has_traffic_light)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (nid, self.world_id, ndef.x, ndef.z, ndef.y, ndef.type, 1 if ndef.is_signalized else 0))
+                node = RoadNodeEntity(id=nid, world_id=self.world_id, x=ndef.x, y=ndef.y, z=ndef.z,
+                                      node_type=ndef.type, has_traffic_light=ndef.is_signalized)
                 self.road_network.add_node(node)
 
-            segs = [
-                ("seg_main_n", "node_0_0", "node_0_30", "four_lane", 70.0, 1500, 30.0),
-                ("seg_main_s", "node_0_0", "node_0_neg30", "four_lane", 70.0, 1500, 30.0),
-                ("seg_main_e", "node_0_0", "node_30_0", "four_lane", 70.0, 1500, 30.0),
-                ("seg_main_w", "node_0_0", "node_neg30_0", "four_lane", 70.0, 1500, 30.0),
-                ("seg_diag_ne", "node_30_0", "node_15_15", "two_lane", 50.0, 600, 21.2),
-                ("seg_diag_nw", "node_neg30_0", "node_neg15_15", "two_lane", 50.0, 600, 21.2),
-            ]
-            for sid, n1, n2, rtype, spd, cap, length in segs:
+            for sid, sdef in topo.road_segments.items():
                 conn.execute("""
-                INSERT OR REPLACE INTO road_segments (id, world_id, start_node_id, end_node_id, road_type, speed_limit, capacity, length)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (sid, self.world_id, n1, n2, rtype, spd, cap, length))
+                INSERT OR REPLACE INTO road_segments (id, world_id, start_node_id, end_node_id, road_type, lane_count, speed_limit, capacity, length, is_one_way)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (sid, self.world_id, sdef.start_node_id, sdef.end_node_id, sdef.road_type,
+                      sdef.lanes, sdef.speed_limit_kmh, sdef.capacity_vph, sdef.length, 1 if sdef.is_one_way else 0))
                 seg = RoadSegmentEntity(
-                    id=sid, world_id=self.world_id, start_node_id=n1, end_node_id=n2,
-                    road_type=rtype, speed_limit_kmh=spd, capacity_vph=cap, length=length
+                    id=sid, world_id=self.world_id, start_node_id=sdef.start_node_id, end_node_id=sdef.end_node_id,
+                    road_type=sdef.road_type, speed_limit_kmh=sdef.speed_limit_kmh, capacity_vph=sdef.capacity_vph,
+                    length=sdef.length, lanes=sdef.lanes, is_one_way=sdef.is_one_way
                 )
                 self.road_network.add_segment(seg)
 
@@ -347,31 +347,50 @@ class UnifiedWorldSimulation:
             )
             self.citizens[cid] = c
 
-        # Generate commuter vehicles
-        for i, (cid, c) in enumerate(list(self.citizens.items())[:min(MAX_LOD_FULL_VEHICLES, 40)]):
+        # Generate purpose-driven commuter vehicles, buses, trucks, and emergency dispatches
+        for i, (cid, c) in enumerate(list(self.citizens.items())[:min(MAX_LOD_FULL_VEHICLES, 35)]):
             home_b = self.buildings.get(c.home_building_id) if c.home_building_id else None
             work_b = self.buildings.get(c.work_building_id) if c.work_building_id else None
             if not home_b or not work_b:
                 continue
 
-            path, cost = self.road_network.route_trip(home_b.x, home_b.z, work_b.x, work_b.z)
-            v = VehicleEntity(
-                id=f"veh_{i:03d}",
-                world_id=self.world_id,
-                citizen_id=cid,
-                category=random.choice(["sedan", "suv", "bus"]),
+            category = "bus" if i % 8 == 0 else ("truck" if i % 6 == 0 else "sedan")
+            v = self.movement_module.plan_trip(
+                road_net=self.road_network,
                 origin_x=home_b.x,
                 origin_z=home_b.z,
                 dest_x=work_b.x,
                 dest_z=work_b.z,
-                current_x=home_b.x,
-                current_z=home_b.z,
-                route_node_ids=path,
-                current_speed_kmh=45.0,
-                progress_pct=round(random.random(), 2),
-                status="moving"
+                category=category,
+                purpose="work",
+                citizen_id=cid,
+                origin_building_id=home_b.id,
+                dest_building_id=work_b.id
             )
-            self.vehicles[v.id] = v
+            # Spawn accompanying pedestrians on sidewalks
+            if i % 2 == 0:
+                self.movement_module.spawn_pedestrian(
+                    citizen_id=cid,
+                    origin_x=home_b.x - 1.5,
+                    origin_z=home_b.z - 1.5,
+                    dest_x=work_b.x - 1.5,
+                    dest_z=work_b.z - 1.5,
+                    archetype=random.choice(["casual", "executive", "worker", "student"]),
+                    purpose="work",
+                    origin_building_id=home_b.id,
+                    dest_building_id=work_b.id
+                )
+
+        # Dispatch 1 active emergency ambulance on patrol/service
+        self.movement_module.dispatch_emergency(
+            road_net=self.road_network,
+            category="ambulance",
+            dest_x=8.0,
+            dest_z=20.0,
+            dest_building_id="bld_res_block_1"
+        )
+
+        self.vehicles = self.movement_module.vehicles
 
     # ==========================================================================
     # AUTHORITATIVE SIMULATION TICK ADVANCEMENT
@@ -399,59 +418,35 @@ class UnifiedWorldSimulation:
         for b in updated_buildings:
             self.buildings[b.id] = b
 
-        # 2. Citizen Schedule & Traffic Routing on Real Road Segments
-        # Ensure vehicles exist for commuter trips if roads exist
-        if len(self.vehicles) == 0 and len(self.road_network.nodes) >= 2:
+        # 2. Citizen Schedule & Physical Microscopic Traffic/Pedestrian Advance
+        # Replenish trips if needed
+        if len(self.movement_module.vehicles) < 15 and len(self.road_network.nodes) >= 2:
             res_blds = [b for b in self.buildings.values() if b.status != "abandoned" and b.capacity_residents > 0]
             work_blds = [b for b in self.buildings.values() if b.status != "abandoned" and b.capacity_jobs > 0]
             if res_blds and work_blds:
-                for idx in range(min(30, len(res_blds) * 4)):
+                for idx in range(min(12, len(res_blds) * 2)):
                     h = res_blds[idx % len(res_blds)]
                     w = work_blds[idx % len(work_blds)]
-                    path, _ = self.road_network.route_trip(h.x, h.z, w.x, w.z)
-                    if len(path) >= 2:
-                        vid = f"veh_{self.world_id}_{idx:03d}"
-                        self.vehicles[vid] = VehicleEntity(
-                            id=vid,
-                            world_id=self.world_id,
-                            citizen_id=f"cit_{idx:03d}",
-                            category=random.choice(["sedan", "suv", "bus"]),
-                            origin_x=h.x,
-                            origin_z=h.z,
-                            dest_x=w.x,
-                            dest_z=w.z,
-                            current_x=h.x,
-                            current_z=h.z,
-                            route_node_ids=path,
-                            current_speed_kmh=50.0,
-                            progress_pct=round((idx * 0.17) % 1.0, 2),
-                            status="moving"
-                        )
+                    cat = "bus" if idx % 4 == 0 else ("truck" if idx % 3 == 0 else "sedan")
+                    self.movement_module.plan_trip(
+                        road_net=self.road_network,
+                        origin_x=h.x,
+                        origin_z=h.z,
+                        dest_x=w.x,
+                        dest_z=w.z,
+                        category=cat,
+                        purpose="work",
+                        origin_building_id=h.id,
+                        dest_building_id=w.id
+                    )
 
-        traffic_counts: Dict[str, int] = {}
-        for v in self.vehicles.values():
-            # Advance vehicle progress along route
-            v.progress_pct = (v.progress_pct + 0.12 * ticks) % 1.0
-            if v.route_node_ids and len(v.route_node_ids) >= 2:
-                seg_idx = int(v.progress_pct * (len(v.route_node_ids) - 1))
-                n1_id = v.route_node_ids[seg_idx]
-                n2_id = v.route_node_ids[min(len(v.route_node_ids) - 1, seg_idx + 1)]
-                n1 = self.road_network.nodes.get(n1_id)
-                n2 = self.road_network.nodes.get(n2_id)
-                if n1 and n2:
-                    sub_t = (v.progress_pct * (len(v.route_node_ids) - 1)) - seg_idx
-                    v.current_x = round(n1.x + (n2.x - n1.x) * sub_t, 2)
-                    v.current_z = round(n1.z + (n2.z - n1.z) * sub_t, 2)
-                    v.heading_deg = round(math.degrees(math.atan2(n2.z - n1.z, n2.x - n1.x)), 1)
-
-                # Look up real segment id from road network adjacency
-                for edge in self.road_network.adjacency.get(n1_id, []):
-                    if edge["target"] == n2_id:
-                        actual_seg = edge["segment_id"]
-                        traffic_counts[actual_seg] = traffic_counts.get(actual_seg, 0) + 1
-                        break
-
-        self.road_network.update_congestion_from_traffic(traffic_counts)
+        lod_vehicles, traffic_metrics = self.movement_module.step(
+            ticks=ticks,
+            road_net=self.road_network,
+            dt_seconds=1.0 * ticks
+        )
+        lod_peds = traffic_metrics.get("active_pedestrians", [])
+        self.vehicles = self.movement_module.vehicles
         road_metrics = self.road_network.get_summary_metrics()
 
         conn = get_db_connection()
@@ -501,12 +496,16 @@ class UnifiedWorldSimulation:
                                      (b.level, b.height, max(b.capacity_residents, b.capacity_jobs), b.id))
 
         traffic_state = TrafficMetricsState(
-            active_vehicles_count=len(self.vehicles),
-            average_speed_kmh=road_metrics["average_speed_kmh"],
-            traffic_flow_efficiency=round(max(20.0, 100.0 * (1.0 - road_metrics["average_congestion_ratio"])), 1),
-            congestion_index=round(road_metrics["average_congestion_ratio"] * 100.0, 1),
-            congested_segment_ids=road_metrics["congested_segments"],
-            average_commute_minutes=round(22.0 * (1.0 + road_metrics["average_congestion_ratio"]), 1),
+            active_vehicles_count=traffic_metrics["active_vehicles_count"],
+            active_pedestrians_count=traffic_metrics["active_pedestrians_count"],
+            average_speed_kmh=traffic_metrics["average_speed_kmh"],
+            traffic_flow_efficiency=traffic_metrics["traffic_flow_efficiency"],
+            congestion_index=traffic_metrics["congestion_index"],
+            congested_segment_ids=self.road_network.get_summary_metrics()["congested_segments"],
+            average_commute_minutes=traffic_metrics["average_commute_minutes"],
+            stuck_vehicles_count=traffic_metrics["stuck_vehicles_count"],
+            junction_queues=traffic_metrics["junction_queues"],
+            signals_state=traffic_metrics["signals_state"]
         )
 
         # 4. Honest RCI Demand & Zone Spawning
@@ -727,7 +726,7 @@ class UnifiedWorldSimulation:
             power_demand_mw=util_state.total_power_demand_mw,
             water_supply_t=util_state.total_water_supply_t,
             water_demand_t=util_state.total_water_demand_t,
-            air_pollution_index=round(0.15 + (road_metrics["average_congestion_ratio"] * 0.25), 2),
+            air_pollution_index=round(0.15 + (traffic_metrics["congestion_index"] / 100.0 * 0.25), 2),
             average_happiness=happ,
             civic_stability=stab,
             protest_intensity=protest
@@ -746,7 +745,8 @@ class UnifiedWorldSimulation:
             day=self.day,
             created_buildings=spawned_buildings,
             updated_buildings=updated_buildings[:50],
-            active_vehicles=list(self.vehicles.values())[:30],
+            active_vehicles=lod_vehicles,
+            active_pedestrians=lod_peds,
             metrics=derived_metrics,
             utilities=util_state,
             traffic=traffic_state
@@ -811,8 +811,9 @@ class UnifiedWorldSimulation:
             road_nodes=list(self.road_network.nodes.values()),
             road_segments=list(self.road_network.segments.values()),
             zone_tiles=list(self.zone_tiles.values()),
-            vehicles_sample=list(self.vehicles.values())[:50],
+            vehicles_sample=list(self.movement_module.vehicles.values())[:50],
             citizens_sample=list(self.citizens.values())[:50],
+            pedestrians_sample=list(self.movement_module.pedestrians.values())[:100],
             utilities=util_state,
             traffic=traffic_state,
             metrics=metrics

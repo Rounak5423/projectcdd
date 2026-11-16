@@ -1,4 +1,4 @@
-# GENESIS Engine: User-Facing Feature Logic Specification & Audit
+﻿# GENESIS Engine: User-Facing Feature Logic Specification & Audit
 
 **Document Version:** 1.0.0  
 **Audit Date:** November 9, 2026  

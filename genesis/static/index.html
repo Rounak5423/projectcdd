@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GENESIS - The Artificial Civilisation Engine</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<a class="skip" href="#panel">Skip to panel</a>
+<header>
+  <div class="brand"><span class="logo" aria-hidden="true">&#9672;</span> GENESIS <small id="civName"></small></div>
+  <div class="clock" id="clock" aria-live="polite"></div>
+  <nav class="modes" role="tablist" aria-label="Mode">
+    <button role="tab" id="tabObserve" data-act="mode" data-key="observe" aria-selected="true">&#128065; Observe</button>
+    <button role="tab" id="tabControl" data-act="mode" data-key="control" aria-selected="false">&#9881; Control</button>
+  </nav>
+  <div class="hbtns">
+    <button data-act="help" class="ghost">? Help</button>
+  </div>
+</header>
+<main>
+  <section id="view" aria-label="3D civilisation">
+    <div id="loading" class="loading">Loading your civilisation&hellip;</div>
+    <div id="banner" class="banner" hidden></div>
+    <div class="legend" aria-label="Citizen colour legend" id="legend"></div>
+    <div class="hint">Drag to rotate &middot; scroll to zoom &middot; click a person or building to inspect it</div>
+  </section>
+  <aside id="panel" tabindex="-1" aria-live="off"></aside>
+</main>
+<div id="modal" class="modal" hidden role="dialog" aria-modal="true"><div class="box" id="modalBox"></div></div>
+<div id="toasts" aria-live="polite"></div>
+<script>
+// Load Three.js from a local copy if present (static/vendor), otherwise from a CDN.
+(function () {
+  const files = [
+    ["/static/vendor/three.min.js", "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"],
+    ["/static/vendor/OrbitControls.js", "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"],
+    ["/static/world3d.js"], ["/static/app.js"]];
+  function load(i) {
+    if (i >= files.length) return;
+    let n = 0;
+    (function tryNext() {
+      if (n >= files[i].length) { document.getElementById('loading').textContent = 'Could not load ' + files[i][0] + '. Check your internet connection (see README).'; return; }
+      const s = document.createElement('script'); s.src = files[i][n++];
+      s.onload = () => load(i + 1); s.onerror = tryNext; document.body.appendChild(s);
+    })();
+  }
+  load(0);
+})();
+</script>
+</body>
+</html>

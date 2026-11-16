@@ -1,4 +1,4 @@
-"""
+﻿"""
 Causal Coupling API Endpoints.
 Provides read-only causal diagnostics, vital signs time-series, and causal dependency graphs.
 """
