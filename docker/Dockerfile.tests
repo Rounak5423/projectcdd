@@ -37,6 +37,7 @@ COPY playwright.config.ts /app/
 COPY scripts /app/scripts
 COPY genesis-engine/backend /app/backend
 COPY docs /app/docs
+RUN mkdir -p /app/genesis-engine && ln -s /app/backend /app/genesis-engine/backend
 COPY docker/run-tests.sh /usr/local/bin/run-tests.sh
 RUN chmod +x /usr/local/bin/run-tests.sh
 

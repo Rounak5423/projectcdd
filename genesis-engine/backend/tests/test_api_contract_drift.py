@@ -3,13 +3,21 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 from main import app
+from engine.simulation import seed_aurora_prime_if_not_exists
 
 client = TestClient(app)
 
 def test_openapi_schema_up_to_date():
     """Fails if the backend OpenAPI schema has drifted without backend_contract.json being updated."""
-    contract_path = os.path.join(os.path.dirname(__file__), "../../../docs/contract/backend_contract.json")
-    assert os.path.exists(contract_path), "backend_contract.json must exist in docs/contract/"
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "../../../docs/contract/backend_contract.json"),
+        os.path.join(os.path.dirname(__file__), "../../docs/contract/backend_contract.json"),
+        os.path.join(os.path.dirname(__file__), "../docs/contract/backend_contract.json"),
+        "/app/docs/contract/backend_contract.json",
+        "docs/contract/backend_contract.json",
+    ]
+    contract_path = next((c for c in candidates if os.path.exists(c)), None)
+    assert contract_path is not None, "backend_contract.json must exist in docs/contract/"
     
     with open(contract_path, "r") as f:
         stored_contract = json.load(f)
@@ -24,6 +32,7 @@ def test_openapi_schema_up_to_date():
 
 def test_replay_frontend_endpoints_against_backend():
     """Replays core frontend API calls against backend to verify status < 400 and valid payload structures."""
+    seed_aurora_prime_if_not_exists()
     endpoints_to_test = [
         ("GET", "/health"),
         ("GET", "/api/v1/worlds"),
