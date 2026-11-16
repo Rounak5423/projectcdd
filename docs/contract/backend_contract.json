@@ -749,10 +749,10 @@
       "/api/v1/worlds/{id}/saves": {
         "post": {
           "tags": [
-            "World Management"
+            "Simulation Controls"
           ],
-          "summary": "Create World Save",
-          "operationId": "create_world_save_api_v1_worlds__id__saves_post",
+          "summary": "Create World Save Slot",
+          "operationId": "create_world_save_slot_api_v1_worlds__id__saves_post",
           "parameters": [
             {
               "name": "id",
@@ -765,25 +765,17 @@
             }
           ],
           "requestBody": {
+            "required": true,
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "type": "object",
-                      "additionalProperties": true
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "title": "Payload"
+                  "$ref": "#/components/schemas/SaveSlotRequest"
                 }
               }
             }
           },
           "responses": {
-            "201": {
+            "200": {
               "description": "Successful Response",
               "content": {
                 "application/json": {
@@ -805,10 +797,10 @@
         },
         "get": {
           "tags": [
-            "World Management"
+            "Simulation Controls"
           ],
-          "summary": "List World Saves",
-          "operationId": "list_world_saves_api_v1_worlds__id__saves_get",
+          "summary": "List World Save Slots",
+          "operationId": "list_world_save_slots_api_v1_worlds__id__saves_get",
           "parameters": [
             {
               "name": "id",
@@ -1793,6 +1785,345 @@
                   "schema": {
                     "$ref": "#/components/schemas/SimulationStatusResponse"
                   }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/worlds/{id}/simulation/speed": {
+        "post": {
+          "tags": [
+            "Simulation Controls"
+          ],
+          "summary": "Set Simulation Speed",
+          "operationId": "set_simulation_speed_api_v1_worlds__id__simulation_speed_post",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Id"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationSpeedRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SimulationStatusResponse"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/worlds/{id}/state/v2": {
+        "get": {
+          "tags": [
+            "Simulation Controls"
+          ],
+          "summary": "Get Authoritative World State V2",
+          "operationId": "get_authoritative_world_state_v2_api_v1_worlds__id__state_v2_get",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Id"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {}
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/worlds/{id}/saves/{slot_name}/load": {
+        "post": {
+          "tags": [
+            "Simulation Controls"
+          ],
+          "summary": "Load World Save Slot",
+          "operationId": "load_world_save_slot_api_v1_worlds__id__saves__slot_name__load_post",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Id"
+              }
+            },
+            {
+              "name": "slot_name",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Slot Name"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {}
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/worlds/{id}/policies/{policy_id}/enact": {
+        "post": {
+          "tags": [
+            "Simulation Controls"
+          ],
+          "summary": "Enact World Policy",
+          "operationId": "enact_world_policy_api_v1_worlds__id__policies__policy_id__enact_post",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Id"
+              }
+            },
+            {
+              "name": "policy_id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Policy Id"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {}
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/worlds/{id}/policies/{policy_id}/revoke": {
+        "post": {
+          "tags": [
+            "Simulation Controls"
+          ],
+          "summary": "Revoke World Policy",
+          "operationId": "revoke_world_policy_api_v1_worlds__id__policies__policy_id__revoke_post",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Id"
+              }
+            },
+            {
+              "name": "policy_id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Policy Id"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {}
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/worlds/{id}/branch": {
+        "post": {
+          "tags": [
+            "Simulation Controls"
+          ],
+          "summary": "Create World Scenario Branch",
+          "operationId": "create_world_scenario_branch_api_v1_worlds__id__branch_post",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Id"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioBranchRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {}
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/worlds/{id}/compare": {
+        "post": {
+          "tags": [
+            "Simulation Controls"
+          ],
+          "summary": "Compare World Scenario",
+          "operationId": "compare_world_scenario_api_v1_worlds__id__compare_post",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Id"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioCompareRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {}
                 }
               }
             },
@@ -5652,6 +5983,28 @@
           }
         }
       },
+      "/api/v1/ml/health": {
+        "get": {
+          "tags": [
+            "Machine Learning & Calibration"
+          ],
+          "summary": "Get Ml Health",
+          "description": "Returns real-time health, drift metrics, versioning and cryptographic SHA256 integrity\nfor the GENESIS ML model cluster.",
+          "operationId": "get_ml_health_api_v1_ml_health_get",
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/MLHealthResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "/api/v1/ml/models": {
         "get": {
           "tags": [
@@ -8874,6 +9227,22 @@
           }
         }
       },
+      "/health": {
+        "get": {
+          "summary": "Health Check",
+          "operationId": "health_check_health_get",
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {}
+                }
+              }
+            }
+          }
+        }
+      },
       "/api/worlds": {
         "get": {
           "summary": "List Worlds",
@@ -10374,7 +10743,12 @@
               "enum": [
                 "active",
                 "constructing",
-                "upgrading"
+                "upgrading",
+                "abandoned",
+                "damaged",
+                "derelict",
+                "decommissioned",
+                "operational"
               ],
               "title": "Status",
               "default": "active"
@@ -10466,7 +10840,12 @@
               "enum": [
                 "active",
                 "constructing",
-                "upgrading"
+                "upgrading",
+                "abandoned",
+                "damaged",
+                "derelict",
+                "decommissioned",
+                "operational"
               ],
               "title": "Status"
             },
@@ -14714,6 +15093,77 @@
           ],
           "title": "InfrastructureOverview"
         },
+        "MLHealthResponse": {
+          "properties": {
+            "model_status": {
+              "type": "string",
+              "title": "Model Status",
+              "description": "Operational status of the ML model cluster: online, degraded, offline"
+            },
+            "version": {
+              "type": "string",
+              "title": "Version",
+              "description": "Active semantic version of the calibrated ML models"
+            },
+            "uptime_seconds": {
+              "type": "number",
+              "title": "Uptime Seconds",
+              "description": "Process or ML engine uptime in seconds"
+            },
+            "last_prediction_timestamp": {
+              "type": "number",
+              "title": "Last Prediction Timestamp",
+              "description": "Epoch timestamp of most recent inference call"
+            },
+            "latency_p95_ms": {
+              "type": "number",
+              "title": "Latency P95 Ms",
+              "description": "95th percentile inference latency in milliseconds"
+            },
+            "drift_score": {
+              "type": "number",
+              "title": "Drift Score",
+              "description": "Statistical covariate drift score across input features"
+            },
+            "confidence": {
+              "type": "number",
+              "title": "Confidence",
+              "description": "Confidence score of active inference models"
+            },
+            "active_models": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "title": "Active Models",
+              "description": "List of loaded ML model bundle keys"
+            },
+            "ml_enabled": {
+              "type": "boolean",
+              "title": "Ml Enabled",
+              "description": "Whether ML acceleration is active"
+            },
+            "sha256_hash": {
+              "type": "string",
+              "title": "Sha256 Hash",
+              "description": "Cryptographic integrity hash of the active model artifacts"
+            }
+          },
+          "type": "object",
+          "required": [
+            "model_status",
+            "version",
+            "uptime_seconds",
+            "last_prediction_timestamp",
+            "latency_p95_ms",
+            "drift_score",
+            "confidence",
+            "active_models",
+            "ml_enabled",
+            "sha256_hash"
+          ],
+          "title": "MLHealthResponse"
+        },
         "MapTerrainResponse": {
           "properties": {
             "world_id": {
@@ -15544,6 +15994,66 @@
           ],
           "title": "RoadSegmentEntity"
         },
+        "SaveSlotRequest": {
+          "properties": {
+            "slot_name": {
+              "type": "string",
+              "title": "Slot Name",
+              "default": "manual_save"
+            },
+            "slot_type": {
+              "type": "string",
+              "title": "Slot Type",
+              "default": "manual"
+            }
+          },
+          "type": "object",
+          "title": "SaveSlotRequest"
+        },
+        "ScenarioBranchRequest": {
+          "properties": {
+            "branch_name": {
+              "type": "string",
+              "title": "Branch Name"
+            },
+            "scenario_overrides": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scenario Overrides"
+            }
+          },
+          "type": "object",
+          "required": [
+            "branch_name"
+          ],
+          "title": "ScenarioBranchRequest"
+        },
+        "ScenarioCompareRequest": {
+          "properties": {
+            "branch_id": {
+              "type": "string",
+              "title": "Branch Id"
+            },
+            "branch_metrics": {
+              "additionalProperties": true,
+              "type": "object",
+              "title": "Branch Metrics"
+            }
+          },
+          "type": "object",
+          "required": [
+            "branch_id",
+            "branch_metrics"
+          ],
+          "title": "ScenarioCompareRequest"
+        },
         "ScenarioCompareResponse": {
           "properties": {
             "baseline_id": {
@@ -15741,6 +16251,18 @@
           },
           "type": "object",
           "title": "SimulationAdvanceRequest"
+        },
+        "SimulationSpeedRequest": {
+          "properties": {
+            "speed": {
+              "type": "string",
+              "pattern": "^(0.5x|1x|2x|4x|5x|10x)$",
+              "title": "Speed",
+              "default": "1x"
+            }
+          },
+          "type": "object",
+          "title": "SimulationSpeedRequest"
         },
         "SimulationStartRequest": {
           "properties": {

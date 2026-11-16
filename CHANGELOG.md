@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.7.0] - 2026-11-16 (Phase 1: Authoritative Simulation Core)
+
+### Authoritative Architecture & Causal Engine Core
+- **Time Scale & Replay Determinism (`engine/modules/config.py`):** Formalized discrete time standards (1 tick = 1 sim hour, 24 ticks = 1 sim day, 720 ticks = 1 month, 8760 ticks = 1 year) with isolated deterministic per-world seeded RNG (`random.Random(seed)`).
+- **Nine Subsystem Modules (`engine/modules/`):**
+  - `population.py`: Full citizen agents with age, sex, education, health, wealth, household, needs, and mood; Gompertz biological mortality scaled to ticks with cause logging; Hadwiger fertility; city attractiveness migration; and employment pipeline.
+  - `resources.py`: Multi-tier production chains (food, water, energy, materials), storage capacity, transport losses, and priority rationing.
+  - `economy.py`: Bottom-up GDP derived from citizen wages and enterprise value-add, Gini inequality index computed across the citizen wealth distribution, municipal budget balancing, and taxes.
+  - `infrastructure.py`: Building lifecycles (construction, upgrades, maintenance, abandonment, recovery), utility graph BFS distribution (power, water, sewage, waste) with outage propagation, and road topology.
+  - `environment.py`: 2D discrete diffusion fields ($16 \times 16$) for air, water, and soil pollution with wind vector advection and green cover absorption, 4 distinct seasons, and dynamic weather.
+  - `governance.py`: 8 public policy instruments with activation delays, costs, and trade-offs (Universal Healthcare, Clean Energy Subsidies, Smart Congestion Tolls, etc.), public trust, and protest dynamics mathematically driven by citizen grievance and inequality.
+  - `events.py`: Causal crisis evaluation (famine, grid blackout, toxic smog, civil strikes) and stochastic scientific breakthroughs.
+  - `progression.py`: Civilisation Level and XP formulas, genuine milestone achievements, and empirical mission verification.
+  - `future_sim.py`: Sandboxed scenario branching, counterfactual projection, and comparative analysis preserving the pristine base world.
+- **Movement Subsystem (`engine/modules/movement.py`):** Congestion-weighted A* vehicle routing over road segments, purpose-driven schedules (work, school, hospital, emergency), intersection queueing, and Level-of-Detail (LOD) filtering.
+- **Master Orchestrator (`engine/modules/core.py`):** Enforces strict 10-step causal order:
+  `Needs & Utilities` → `Environment` → `Health & Disease` → `Incidents` → `Emergency Response` → `Mortality & Births` → `Economy` → `Satisfaction` → `Unrest & Protest` → `Governance Reaction`.
+- **Single JSON World State Schema (`docs/schema/`):** Published `docs/schema/world_state.schema.json` and demo civilization seed `docs/schema/demo_civilization_seed.json`.
+- **Additive Simulation & Persistence Endpoints (`genesis-engine/backend/api/v1/simulation.py`):** Added `POST /worlds/{id}/simulation/speed`, `GET /worlds/{id}/state/v2`, `POST /worlds/{id}/saves`, `GET /worlds/{id}/saves`, `POST /worlds/{id}/saves/{name}/load`, `POST /worlds/{id}/policies/{id}/enact`, `POST /worlds/{id}/policies/{id}/revoke`, `POST /worlds/{id}/branch`, and `POST /worlds/{id}/compare`.
+- **Touched Existing Files:**
+  - `genesis-engine/backend/api/v1/simulation.py`: Added additive v2 simulation control, state inspection, save slot, and policy endpoints.
+  - `genesis-engine/backend/engine/scheduler.py`: Extended `SPEED_INTERVALS` to support `0.5x` and `4x`.
+  - `genesis-engine/backend/engine/world/utility_network.py`: Fixed building status overwrite bug ensuring abandoned buildings stay abandoned until repaired.
+  - `docs/contract/backend_contract.json`: Synchronized OpenAPI contract with newly added additive simulation routes.
+
+---
+
 ## [2.6.0] - 2026-11-15 (Docker & Production Containerization)
 
 ### Deliverable 1 - Multi-stage Backend Containerization

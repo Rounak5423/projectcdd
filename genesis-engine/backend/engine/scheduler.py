@@ -13,8 +13,10 @@ from monitoring.collector import perf_collector
 
 
 SPEED_INTERVALS: Dict[str, float] = {
+    "0.5x": 2.0,
     "1x": 1.0,
     "2x": 0.5,
+    "4x": 0.25,
     "5x": 0.2,
     "10x": 0.1
 }
