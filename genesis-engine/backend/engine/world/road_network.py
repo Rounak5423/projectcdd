@@ -1,4 +1,4 @@
-﻿"""
+"""
 Unified Graph-Based Road Network, A* Pathfinding & BPR Congestion Engine
 Version: 2.1.0
 Authoritative topological road network representation with path caching,
