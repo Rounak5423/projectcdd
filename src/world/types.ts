@@ -89,12 +89,43 @@ export interface VehicleEntity {
   dest_x: number;
   dest_z: number;
   current_x: number;
+  current_y?: number;
   current_z: number;
   heading_deg: number;
   current_speed_kmh: number;
+  acceleration?: number;
+  lane_offset?: number;
   route_node_ids: string[];
   progress_pct: number;
-  status: 'moving' | 'queued' | 'accident' | 'arrived';
+  status: 'moving' | 'queued' | 'accident' | 'arrived' | string;
+  purpose?: string;
+  state_badge?: 'normal' | 'waiting_signal' | 'yielding' | 'siren' | 'boarding' | 'blocked' | string;
+  length?: number;
+  width?: number;
+  siren_active?: boolean;
+  passengers_count?: number;
+}
+
+export interface PedestrianEntity {
+  id: string;
+  world_id: string;
+  citizen_id: string;
+  archetype: string;
+  current_x: number;
+  current_y: number;
+  current_z: number;
+  target_x: number;
+  target_z: number;
+  heading_deg: number;
+  speed_mps: number;
+  status: string;
+  purpose: string;
+  origin_building_id?: string | null;
+  dest_building_id?: string | null;
+  current_edge_id?: string | null;
+  progress_pct: number;
+  is_crossing: boolean;
+  bus_stop_id?: string | null;
 }
 
 export interface UtilityNetworkState {
@@ -112,11 +143,15 @@ export interface UtilityNetworkState {
 
 export interface TrafficMetricsState {
   active_vehicles_count: number;
+  active_pedestrians_count?: number;
   average_speed_kmh: number;
   traffic_flow_efficiency: number;
   congestion_index: number;
   congested_segment_ids: string[];
   average_commute_minutes?: number;
+  stuck_vehicles_count?: number;
+  signals_state?: Record<string, string>;
+  junction_queues?: Record<string, number>;
 }
 
 export interface DerivedCityMetrics {
@@ -152,6 +187,7 @@ export interface WorldStateSnapshot {
   road_segments: RoadSegmentEntity[];
   zone_tiles: ZoneTileEntity[];
   vehicles_sample: VehicleEntity[];
+  pedestrians_sample?: PedestrianEntity[];
   utilities: UtilityNetworkState;
   traffic: TrafficMetricsState;
   metrics: DerivedCityMetrics;

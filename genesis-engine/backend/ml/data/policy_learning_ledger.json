@@ -143,5 +143,65 @@
     "actual_approval": 78.5,
     "error_delta": 6.5,
     "adapted_confidence": 0.928
+  },
+  {
+    "instance_id": "inst_1794846374172",
+    "timestamp": 1794846374.172704,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1794846424581",
+    "timestamp": 1794846424.5816681,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1794846500598",
+    "timestamp": 1794846500.598531,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1794846551947",
+    "timestamp": 1794846551.9477272,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1794846783207",
+    "timestamp": 1794846783.20731,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1794847330947",
+    "timestamp": 1794847330.947558,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
   }
 ]

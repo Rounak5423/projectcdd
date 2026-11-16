@@ -8,8 +8,8 @@ import WaterSystem from './WaterSystem';
 import NatureEnvironment from './NatureEnvironment';
 import RoadNetwork from './RoadNetwork';
 import StreetlightsSystem from './StreetlightsSystem';
-import VehiclesSystem from './VehiclesSystem';
-import PedestriansSystem from './PedestriansSystem';
+import MovementRenderer from '../../world/movement/MovementRenderer';
+import { MovementDebugOverlay } from '../../world/movement/MovementDebugOverlay';
 import DistrictOverlays from './DistrictOverlays';
 import TerritoryBoundaryOverlay from './TerritoryBoundaryOverlay';
 import BuildingObject from './BuildingObject';
@@ -71,6 +71,7 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
     activeLayer,
     districts,
     isConstructionMode,
+    civilization,
   } = useGameState();
 
   const graphics = useGraphics();
@@ -167,11 +168,8 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
             {/* Roadside Architectural Streetlights System */}
             <StreetlightsSystem />
 
-            {/* Autonomous Transit Vehicles & Freight Pods */}
-            <VehiclesSystem />
-
-            {/* Real Agent-Based Pedestrians on Sidewalks */}
-            {pedestriansEnabled && <PedestriansSystem isRaining={weatherEffects} />}
+            {/* Authoritative Microscopic Vehicles & Pedestrians Subsystem */}
+            <MovementRenderer terrainType={civilization?.terrainType} showBadges={true} />
 
             {/* Tactical District Projection Rings & Labels */}
             <DistrictOverlays />
@@ -213,6 +211,9 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
 
         {/* In-World Tactical Time, Camera & District Teleport HUD */}
         <WorldHUD />
+
+        {/* Authoritative Movement & Glitch Telemetry Debug Overlay (F3 Toggle) */}
+        <MovementDebugOverlay initialVisible={true} />
       </div>
     </DayNightProvider>
   );
