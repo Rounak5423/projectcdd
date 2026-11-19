@@ -415,9 +415,23 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [rates, setRates] = useState<ResourceRates>(() => initialSaved?.rates || initialRates);
   const [districts, setDistricts] = useState<District[]>(() => initialSaved?.districts || initialDistricts);
   const [placedBuildings, setPlacedBuildings] = useState<PlacedBuilding[]>(() => {
-    const blds = initialSaved?.placedBuildings || initialPlacedBuildings;
+    const civLevel = initialSaved?.civilization?.level || initialCivilization.level || 1;
+    let blds = initialSaved?.placedBuildings || initialPlacedBuildings;
+
+    // Strict starter realm hygiene: if the realm is at Level 1, purge any legacy demo structures
+    // or buildings exceeding Level 1 to guarantee a pristine dead land with only the Level 1 Citadel.
+    if (civLevel <= 1) {
+      const hasStaleDemoBuildings = blds.some(
+        (b) => (b.level && b.level > 1) || b.catalogId === 'bld-sci-fusion' || b.catalogId === 'bld-gov-palace'
+      );
+      if (hasStaleDemoBuildings) {
+        blds = initialPlacedBuildings;
+      }
+    }
+
     return blds.map((b) => ({
       ...b,
+      level: civLevel <= 1 ? 1 : Math.max(1, Math.min(b.level || 1, civLevel, b.maxLevel || 5)),
       x: Number.isFinite(b.x) ? b.x : 0,
       y: Number.isFinite(b.y) ? b.y : 0.6,
       z: Number.isFinite(b.z) ? b.z : 0,

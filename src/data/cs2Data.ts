@@ -174,33 +174,8 @@ export const initialCityMilestones: CityMilestone[] = [
 ];
 
 // ================= PRE-ZONED TILES (ALONG EXISTING ROADS) =================
-
-export const initialZonedTiles: ZonedTile[] = [
-  // Residential Corridor along East Avenue
-  { id: 'zone-r1', x: 12, z: 18, zoneType: 'residential_high', buildingLevel: 4, landValue: 480, isOccupied: true },
-  { id: 'zone-r2', x: 16, z: 18, zoneType: 'residential_high', buildingLevel: 3, landValue: 460, isOccupied: true },
-  { id: 'zone-r3', x: 20, z: 18, zoneType: 'residential_low', buildingLevel: 2, landValue: 410, isOccupied: true },
-  { id: 'zone-r4', x: 12, z: 22, zoneType: 'residential_high', buildingLevel: 5, landValue: 520, isOccupied: true },
-  { id: 'zone-r5', x: 16, z: 22, zoneType: 'residential_low', buildingLevel: 3, landValue: 440, isOccupied: true },
-
-  // Commercial District in Central Boulevard
-  { id: 'zone-c1', x: 4, z: -6, zoneType: 'commercial_high', buildingLevel: 4, landValue: 620, isOccupied: true },
-  { id: 'zone-c2', x: 8, z: -6, zoneType: 'commercial_high', buildingLevel: 4, landValue: 590, isOccupied: true },
-  { id: 'zone-c3', x: 4, z: -10, zoneType: 'commercial_low', buildingLevel: 2, landValue: 510, isOccupied: true },
-  { id: 'zone-c4', x: 8, z: -10, zoneType: 'commercial_high', buildingLevel: 3, landValue: 550, isOccupied: true },
-
-  // Industrial Fab Sector (Vulcan Forge)
-  { id: 'zone-i1', x: 26, z: -12, zoneType: 'industrial', buildingLevel: 4, landValue: 240, isOccupied: true },
-  { id: 'zone-i2', x: 30, z: -12, zoneType: 'industrial', buildingLevel: 3, landValue: 230, isOccupied: true },
-  { id: 'zone-i3', x: 34, z: -12, zoneType: 'industrial', buildingLevel: 4, landValue: 250, isOccupied: true },
-  { id: 'zone-i4', x: 26, z: -16, zoneType: 'industrial', buildingLevel: 5, landValue: 280, isOccupied: true },
-
-  // High-Tech Office Hub (Aethel Ridge)
-  { id: 'zone-o1', x: -22, z: -14, zoneType: 'office', buildingLevel: 4, landValue: 540, isOccupied: true },
-  { id: 'zone-o2', x: -26, z: -14, zoneType: 'office', buildingLevel: 5, landValue: 580, isOccupied: true },
-  { id: 'zone-o3', x: -22, z: -18, zoneType: 'office', buildingLevel: 3, landValue: 490, isOccupied: true },
-  { id: 'zone-o4', x: -26, z: -18, zoneType: 'office', buildingLevel: 4, landValue: 530, isOccupied: true },
-];
+// Starter worlds begin with zero hardcoded pre-zoned lots; players zone and develop land organically.
+export const initialZonedTiles: ZonedTile[] = [];
 
 // ================= CS2 SIMULATION CALCULATION ENGINES =================
 

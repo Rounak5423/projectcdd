@@ -143,7 +143,8 @@ export function loadActiveGameStateFromStorage(): CivoraSavedGameState | null {
         parsed.civilization.id === 'civ-aurora-01' ||
         parsed.civilization.id === 'civ-kyoto-demo' ||
         parsed.civilization.name?.includes('Showcase') ||
-        parsed.civilization.name?.includes('Kyoto Prime')
+        parsed.civilization.name?.includes('Kyoto Prime') ||
+        ((parsed.civilization.level || 1) <= 1 && parsed.placedBuildings.some((b) => (b.level || 1) > 1))
       ) {
         return null;
       }
@@ -173,7 +174,8 @@ export function loadGameStateForWorld(worldId: string): CivoraSavedGameState | n
         parsed.civilization.id === 'civ-aurora-01' ||
         parsed.civilization.id === 'civ-kyoto-demo' ||
         parsed.civilization.name?.includes('Showcase') ||
-        parsed.civilization.name?.includes('Kyoto Prime')
+        parsed.civilization.name?.includes('Kyoto Prime') ||
+        ((parsed.civilization.level || 1) <= 1 && parsed.placedBuildings.some((b) => (b.level || 1) > 1))
       ) {
         return null;
       }
