@@ -1,4 +1,4 @@
-﻿"""
+"""
 Unified World State, Commands, Action Logs, and AI Risk Overlays Endpoints
 Version: 2.0.0
 """

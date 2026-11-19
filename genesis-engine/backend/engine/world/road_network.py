@@ -156,13 +156,13 @@ class UnifiedRoadNetwork:
                 centerline_points=[list(p) for p in sdef.centerline] if sdef.centerline else None
             ))
 
-    def calculate_edge_travel_time(self, edge: Dict[str, Any]) -> float:
+    def calculate_edge_travel_time(self, edge: Dict[str, Any], ignore_blockages: bool = False) -> float:
         """
         Bureau of Public Roads (BPR) function with blockage penalties:
         T = T_free * (1.0 + alpha * (V / C)^beta)
         """
         seg_id = edge["segment_id"]
-        if seg_id in self._blocked_segments:
+        if not ignore_blockages and seg_id in self._blocked_segments:
             return 1e9  # Effectively impassable
 
         free_speed_mps = max(5.0, edge["speed_limit"] / 3.6)
@@ -184,14 +184,14 @@ class UnifiedRoadNetwork:
                 best_id = node_id
         return best_id
 
-    def find_shortest_path(self, start_node_id: str, target_node_id: str) -> Tuple[List[str], float]:
+    def find_shortest_path(self, start_node_id: str, target_node_id: str, ignore_blockages: bool = False) -> Tuple[List[str], float]:
         """A* Shortest Path with congestion heuristic and LRU path caching."""
         if start_node_id not in self.nodes or target_node_id not in self.nodes:
             return ([], 0.0)
         if start_node_id == target_node_id:
             return ([start_node_id], 0.0)
 
-        cache_key = (start_node_id, target_node_id)
+        cache_key = (start_node_id, target_node_id, ignore_blockages)
         if cache_key in self._path_cache:
             return self._path_cache[cache_key]
 
@@ -213,7 +213,7 @@ class UnifiedRoadNetwork:
 
             for edge in self.adjacency.get(current_id, []):
                 neighbor_id = edge["target"]
-                step_cost = self.calculate_edge_travel_time(edge)
+                step_cost = self.calculate_edge_travel_time(edge, ignore_blockages=ignore_blockages)
                 if step_cost >= 1e8:
                     continue  # Blocked edge
 
@@ -232,13 +232,13 @@ class UnifiedRoadNetwork:
         self._path_cache[cache_key] = res
         return res
 
-    def route_trip(self, origin_x: float, origin_z: float, dest_x: float, dest_z: float) -> Tuple[List[str], float]:
+    def route_trip(self, origin_x: float, origin_z: float, dest_x: float, dest_z: float, ignore_blockages: bool = False) -> Tuple[List[str], float]:
         """Routes a trip between arbitrary coordinates using the road network."""
         start_node = self.find_nearest_node(origin_x, origin_z)
         dest_node = self.find_nearest_node(dest_x, dest_z)
         if not start_node or not dest_node:
             return ([], 0.0)
-        return self.find_shortest_path(start_node, dest_node)
+        return self.find_shortest_path(start_node, dest_node, ignore_blockages=ignore_blockages)
 
     def update_congestion_from_traffic(self, traffic_counts: Dict[str, int]):
         """Updates segment current_traffic and computes dynamic congestion ratios."""
