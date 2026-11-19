@@ -83,8 +83,8 @@ function GameApp() {
   } = useGameState();
   const { isAuthenticated, isLoading, logout, user, isAdmin } = useAuth();
 
-  // App-level navigation stage: Always start on auth page as required
-  const [stage, setStage] = useState<AppStage>('auth');
+  // App-level navigation stage: Launch directly into 3D world simulation ('app')
+  const [stage, setStage] = useState<AppStage>('app');
 
   // Auto-open tactical inspector when a building is selected in 3D world
   useEffect(() => {

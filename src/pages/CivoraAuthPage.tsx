@@ -419,6 +419,17 @@ export default function CivoraAuthPage({ onAuthenticated, onBackToLanding }: Civ
                   Player1 / UserPassword123!
                 </button>
               </div>
+
+              <div className="mt-3 pt-2.5 border-t border-[#c5a66a]/10">
+                <button
+                  type="button"
+                  onClick={() => onAuthenticated()}
+                  className="w-full py-1.5 px-3 rounded bg-[#202921] hover:bg-[#2c382d] border border-[#3b493a] text-xs text-[#c5a66a] font-mono hover:text-[#f3f5ee] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span>Play as Guest Commander</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
             </div>
           )}
         </div>
