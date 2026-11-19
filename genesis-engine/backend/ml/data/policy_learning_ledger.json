@@ -243,5 +243,75 @@
     "actual_approval": 78.5,
     "error_delta": 6.5,
     "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1795104773247",
+    "timestamp": 1795104773.247148,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1795105271302",
+    "timestamp": 1795105271.302919,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1795105452704",
+    "timestamp": 1795105452.704214,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1795106256765",
+    "timestamp": 1795106256.7653508,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1795106836075",
+    "timestamp": 1795106836.075958,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1795106902748",
+    "timestamp": 1795106902.7487721,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
+  },
+  {
+    "instance_id": "inst_1795106955309",
+    "timestamp": 1795106955.309621,
+    "policy_name": "Citizens Innovation Dividend",
+    "category": "Research",
+    "predicted_approval": 72.0,
+    "actual_approval": 78.5,
+    "error_delta": 6.5,
+    "adapted_confidence": 0.985
   }
 ]

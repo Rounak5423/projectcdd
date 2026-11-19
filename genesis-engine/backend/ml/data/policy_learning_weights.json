@@ -2,12 +2,12 @@
   "loss_aversion_factor": 2.25,
   "fairness_sensitivity": 0.82,
   "agency_liberty_weight": 0.74,
-  "scientific_curiosity_drive": 1.0180000000000002,
+  "scientific_curiosity_drive": 1.2000000000000004,
   "biosphere_preservation_reflex": 0.6,
   "domain_multipliers": {
     "Cognitive": 1.05,
     "AI": 1.1,
-    "Research": 1.2040362918030285,
+    "Research": 1.2492816960651485,
     "Social": 1.0,
     "Economic": 0.95,
     "Environment": 1.02,
@@ -40,10 +40,10 @@
       "aversion": 0.8
     }
   },
-  "total_learned_instances": 613,
+  "total_learned_instances": 620,
   "learning_rate": 0.05,
   "model_confidence": 0.985,
-  "last_adapted_timestamp": 1795100293.959451,
+  "last_adapted_timestamp": 1795106955.309102,
   "category_adaptation_rates": {
     "AI": {
       "boost": 1.25,
