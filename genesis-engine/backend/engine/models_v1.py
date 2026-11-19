@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, field_validator
 
 SimulationStatusType = Literal["running", "paused", "stopped"]
 SimulationSpeedType = Literal["1x", "2x", "5x", "10x"]
-BuildingStatusType = Literal["active", "constructing", "upgrading"]
+BuildingStatusType = Literal["active", "constructing", "upgrading", "abandoned", "damaged", "derelict", "decommissioned", "operational"]
 BuildingCategoryType = Literal[
     "Residential", "Agriculture", "Industry", "Research",
     "Education", "Healthcare", "Energy", "Government", "Environment"
@@ -326,6 +326,8 @@ class TechnologyNode(BaseModel):
     prerequisites: Optional[List[str]] = None
     unlocks: Optional[List[str]] = None
     cost_points: Optional[int] = 300
+    can_research: Optional[bool] = True
+    missing_prerequisites: Optional[List[str]] = None
 
 
 class TechResearchRequest(BaseModel):

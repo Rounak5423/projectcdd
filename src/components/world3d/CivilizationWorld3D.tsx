@@ -25,6 +25,7 @@ import { useRenderingQuality } from '../../hooks/useRenderingQuality';
 import ErrorBoundary from '../common/ErrorBoundary';
 import WeatherSystem from './WeatherSystem';
 import DisasterVisualEffects from './DisasterVisualEffects';
+import CivilizationEvolutionStageMonument from './CivilizationEvolutionStageMonument';
 import { useGraphics } from '../../context/GraphicsSettingsContext';
 
 function WebGLContextWatcher({
@@ -186,6 +187,9 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
 
             {/* Sovereign Territory Frontier Boundary & Beacons */}
             <TerritoryBoundaryOverlay />
+
+            {/* Central Civilization Evolution Stage Monument */}
+            <CivilizationEvolutionStageMonument />
 
             {/* Interactive Architectural Buildings */}
             {placedBuildings.map((building) => (

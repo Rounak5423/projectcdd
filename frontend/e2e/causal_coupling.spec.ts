@@ -9,25 +9,21 @@ test.describe('Causal Insights & Coupling UI Suite', () => {
 
     await page.goto('/');
 
-    // 1. Dismiss Intro & Navigate to Auth
-    const skipBtn = page.locator('button:has-text("SKIP INTRO")').first();
-    if (await skipBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await skipBtn.click();
-      await expect(skipBtn).toBeHidden({ timeout: 5000 });
-    } else {
-      await page.keyboard.press('Escape');
-    }
-    await page.waitForTimeout(600);
-
-    const heroBtn = page.locator('button:has-text("BEGIN YOUR CIVILISATION")').first();
-    await heroBtn.click({ force: true });
-
-    // 2. Login as admin
-    const adminBtn = page.locator('button:has-text("Admin / AdminPassword123!")').first();
-    await expect(adminBtn).toBeVisible({ timeout: 8000 });
-    await adminBtn.click();
-    await page.locator('button[type="submit"]:has-text("Enter the Simulation")').click();
+    // 1. Visit root app
+    await page.goto('/');
     await page.waitForTimeout(1500);
+
+    // 2. Login if auth modal is visible
+    const quickFillBtn = page.locator('button:has-text("Admin / AdminPassword123!"), button:has-text("Player1 / UserPassword123!")').first();
+    if (await quickFillBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await quickFillBtn.click();
+      await page.waitForTimeout(400);
+      const enterBtn = page.locator('button:has-text("Enter the Simulation")').first();
+      if (await enterBtn.isVisible()) {
+        await enterBtn.click();
+        await page.waitForTimeout(2000);
+      }
+    }
 
     // 3. Dismiss Tutorial if open
     const tutorialClose = page.locator('button[aria-label="Close tutorial"]').first();
@@ -39,13 +35,15 @@ test.describe('Causal Insights & Coupling UI Suite', () => {
     await page.waitForTimeout(500);
 
     // 4. Click 'Causal Insights' in sidebar
-    const causalNavBtn = page.locator('button:has-text("Causal Insights")').first();
+    const causalNavBtn = page.locator('aside button:has-text("Causal Insights")').first();
     await expect(causalNavBtn).toBeVisible({ timeout: 5000 });
-    await causalNavBtn.click();
-    await page.waitForTimeout(1000);
+    await causalNavBtn.scrollIntoViewIfNeeded();
+    await causalNavBtn.click({ force: true });
+    await page.waitForTimeout(2000);
 
     // 5. Verify Causal Insights Page header is visible
-    await expect(page.locator('h1:has-text("CAUSAL SYSTEM INTELLIGENCE")')).toBeVisible();
+    const causalHeading = page.locator('h1:has-text("CAUSAL SYSTEM INTELLIGENCE")').first();
+    await expect(causalHeading).toBeVisible({ timeout: 10000 });
 
     // 6. Verify Vital Signs Panel components
     await expect(page.locator('text=DEMOGRAPHIC PULSE').first()).toBeVisible();

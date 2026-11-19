@@ -15,10 +15,17 @@ import {
 
 // Base URL for FastAPI backend service (supports relative URLs via Vite proxy and custom VITE_API_URL)
 const getApiBaseUrl = (): string => {
-  if (import.meta.env.VITE_API_URL) {
+  if (import.meta.env?.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  return '/api/v1';
+  if (typeof window !== 'undefined') {
+    if (import.meta.env?.PROD || window.location.port === '8000' || !window.location.port) {
+      return '/api/v1';
+    }
+    const host = window.location.hostname || '127.0.0.1';
+    return `http://${host}:8000/api/v1`;
+  }
+  return 'http://127.0.0.1:8000/api/v1';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -253,6 +260,17 @@ export const civilizationApi = {
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.message || 'Failed to trigger eureka boost';
       console.error(`[civilizationApi.triggerEurekaBoost] Error:`, err);
+      return { success: false, message: msg };
+    }
+  },
+
+  async completeTechnology(civId: string, techId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${civId}/technology/${techId}/complete`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to complete technology';
+      console.error(`[civilizationApi.completeTechnology] Error:`, err);
       return { success: false, message: msg };
     }
   },

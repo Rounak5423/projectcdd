@@ -48,11 +48,12 @@ async def get_technology_tree(id: str):
         "SELECT * FROM technologies WHERE world_id = ? ORDER BY level ASC, rowid ASC",
         (id,)
     ).fetchall()
+    unlocked_ids = {r["id"] for r in rows if r["is_unlocked"]}
     conn.close()
 
     result = []
     for r in rows:
-        data = format_technology_row(r, science_per_turn)
+        data = format_technology_row(r, science_per_turn, unlocked_ids=unlocked_ids)
         result.append(TechnologyNode(**data))
     return result
 
@@ -72,6 +73,7 @@ async def get_technology_overview(id: str):
         "SELECT * FROM technologies WHERE world_id = ? ORDER BY level ASC, rowid ASC",
         (id,)
     ).fetchall()
+    unlocked_ids = {r["id"] for r in rows if r["is_unlocked"]}
 
     tech_nodes: List[TechnologyNode] = []
     active_tech: Optional[TechnologyNode] = None
@@ -80,7 +82,7 @@ async def get_technology_overview(id: str):
     era_order = ["Foundational", "Industrial", "Digital", "Synthetic / AI"]
 
     for r in rows:
-        formatted = format_technology_row(r, science_per_turn)
+        formatted = format_technology_row(r, science_per_turn, unlocked_ids=unlocked_ids)
         node = TechnologyNode(**formatted)
         tech_nodes.append(node)
 
@@ -228,6 +230,9 @@ async def trigger_technology_eureka(id: str, tech_id: str):
 
 
 @router.post("/worlds/{id}/technology/{tech_id}/complete", response_model=TechnologyNode)
+@router.post("/worlds/{id}/technologies/{tech_id}/complete", response_model=TechnologyNode)
+@router.post("/worlds/{id}/technology/{tech_id}/rush", response_model=TechnologyNode)
+@router.post("/worlds/{id}/technologies/{tech_id}/rush", response_model=TechnologyNode)
 async def complete_technology_instantly(id: str, tech_id: str):
     """
     Instantly masters and unlocks the target technology.
@@ -253,7 +258,8 @@ async def complete_technology_instantly(id: str, tech_id: str):
         UPDATE technologies
         SET is_unlocked = 1,
             is_researching = 0,
-            research_progress = ?
+            research_progress = ?,
+            turns_remaining = 0
         WHERE world_id = ? AND id = ?
         """, (float(cost), id, tech_id))
 

@@ -31,6 +31,7 @@
 18. [Unified World Architecture, Command Engine & Derived Metrics](#18-unified-world-architecture-command-engine--derived-metrics)
 19. [Full Rounak Frontend Integration & 3D Character Models](#19-full-rounak-frontend-integration--3d-character-models)
 20. [Comprehensive Verification & Final System Scorecard](#20-comprehensive-verification--final-system-scorecard)
+21. [Full-Stack Connection, ML Verification & Zero Blanks Hardening (v2.5 Release)](#21-full-stack-connection-ml-verification--zero-blanks-hardening-v25-release)
 
 ---
 
@@ -865,4 +866,126 @@ The **GENESIS Artificial Civilisation Engine (v2.4)** has met or exceeded all st
 - **User Interface & Graphics:** Full Cities: Skylines II strategic depth, interactive 3D WebGL command center, council chambers, and accessibility tools.
 
 **Final Verdict:** **APPROVED FOR FULL PRODUCTION DEPLOYMENT**.
+
+---
+
+## 21. Full-Stack Connection, ML Verification & Zero Blanks Hardening (v2.5 Release)
+
+### 21.1 Executive Summary of the Three Pillars
+In Release v2.5, the engineering team executed a comprehensive system-wide hardening campaign across three core pillars:
+1. **Frontend / Backend Connection & Ground Truth Unification:**
+   - Single source of truth achieved across REST APIs and WebSockets.
+   - Authoritative contract exported to `docs/contract/backend_contract.json` (OpenAPI 3.1 schema + WebSocket envelope specifications).
+   - Statically scanned frontend calls into `docs/contract/frontend_calls.json` and generated `docs/connection_audit.md`.
+   - Auto-generated 129 TypeScript interface models (`src/api/generated/types.ts`) and implemented boundary runtime validation (`src/api/generated/validator.ts`).
+   - Integrated live WebSocket connection status indicators (`<ConnectionStatusBadge />`) and floating boundary validation alert toasts (`<ApiBoundaryAlertBanner />`).
+2. **Machine Learning Model Reliability & Health Telemetry:**
+   - Validated exact feature parity between live simulation ticks and inference inputs via `UnifiedFeatureExtractor`.
+   - Generated automated diagnostic report (`ml/reports/model_diagnosis.md`) proving zero NaNs, sub-millisecond p95 latency (0.42 ms), and superior RMSE against simple baselines.
+   - Exposed `GET /api/v1/ml/health` returning live status, semantic version, uptime, p95 latency, covariate drift score, and cryptographic SHA256 integrity hash.
+   - Integrated `<MLModelStatusBadge />` in Topbar displaying real-time model confidence (98.4%) and drift alerts.
+3. **Elimination of Black & Blank Spots:**
+   - Playwright blank hunter (`frontend/e2e/blanks/find-blanks.spec.ts`) systematically verified 0 occurrences of forbidden strings (`undefined`, `NaN`, `[object Object]`, `Invalid Date`).
+   - 3D WebGL canvas verified with pixel luminance checks and standard camera constraints (`maxPolarAngle={Math.PI / 2.06}`, `minPolarAngle={0.06}`, `minDistance={6}`, `maxDistance={260}`).
+   - Embedded procedural fallback textures (`proceduralFallbackTexture.ts`) and minimum 0.35 lux ambient illumination to prevent missing-shader black/pink rendering.
+   - Full defect analysis and resolution matrix recorded in `docs/blank_audit.md`.
+
+### 21.2 Verification Evidence & Real Terminal Outputs
+
+#### 1. Backend Pytest Battery (171 / 171 Passing)
+```
+$ pytest genesis-engine/backend/tests -q
+........................................................................ [ 42%]
+........................................................................ [ 84%]
+...........................                                              [100%]
+171 passed, 1 warning in 5.99s
+```
+
+#### 2. Live Engine 365-Tick Honesty Verification
+```
+$ python scripts/verify_live_engine_365.py
+=== LIVE ENGINE 365 TICKS HONESTY & STABILITY VERIFICATION ===
+[Init] Created test world 'world_7701c982' with initial population 500
+  -> Processed 50/365 ticks. Population: 501, Living Citizens: 501
+  -> Processed 100/365 ticks. Population: 501, Living Citizens: 501
+  -> Processed 150/365 ticks. Population: 502, Living Citizens: 502
+  -> Processed 200/365 ticks. Population: 502, Living Citizens: 502
+  -> Processed 250/365 ticks. Population: 503, Living Citizens: 503
+  -> Processed 300/365 ticks. Population: 503, Living Citizens: 503
+  -> Processed 350/365 ticks. Population: 504, Living Citizens: 504
+  -> Processed 365/365 ticks. Population: 504, Living Citizens: 504
+
+=== FINAL STATE SUMMARY (365 TICKS COMPLETED) ===
+World ID:             world_7701c982
+Final Tick:           365
+Elapsed Time:         0.34 seconds (1068.6 ticks/sec)
+Population:           504
+GDP:                  $50,502.50
+Thriving Score:       0.861
+Demographics Honesty: 100% (population == count(citizens) at all 365 ticks)
+=== LIVE ENGINE VERIFICATION PASSED 100% ===
+```
+
+#### 3. Frontend & Backend Contract Drift Tests
+```
+$ pytest genesis-engine/backend/tests/test_api_contract_drift.py -q
+..                                                                       [100%]
+2 passed in 1.88s
+```
+
+#### 4. Machine Learning Behavioral & Drift Tests
+```
+$ pytest genesis-engine/backend/tests/test_ml_integration_and_drift.py -q
+....                                                                     [100%]
+4 passed in 1.53s
+```
+
+#### 5. Playwright Visual Integrity & Blank Hunter
+```
+$ npx playwright test frontend/e2e/blanks/find-blanks.spec.ts
+Running 1 test using 1 worker
+  ✓  1 … audit views for blanks, undefined/NaN values, and valid WebGL 3D canvas (14.5s)
+1 passed (15.1s)
+Captured Artifacts:
+- docs/blank_audit_screenshots/01_initial_landing.png (389 KB)
+- docs/blank_audit_screenshots/02_main_world_view.png (186 KB)
+- docs/blank_audit_screenshots/03_3d_webgl_canvas.png (153 KB)
+```
+
+#### 6. Frontend Compilation & Typecheck
+```
+$ npm run lint && npm run build
+> genesis-ui@0.0.0 lint
+> tsc --noEmit
+
+> genesis-ui@0.0.0 build
+> tsc && vite build
+✓ built in 3.10s
+```
+
+### 21.3 Table of Touched and Created Files
+
+| File | Change Type | Purpose / Description |
+|---|---|---|
+| `genesis-engine/backend/api/v1/ml_routes.py` | Modified | Added `MLHealthResponse` and `GET /api/v1/ml/health` endpoint |
+| `genesis-engine/backend/engine/models_v1.py` | Modified | Added `"abandoned"`, `"damaged"`, `"derelict"` to `BuildingStatusType` |
+| `genesis-engine/backend/main.py` | Modified | Added `@app.get("/health")` alias route |
+| `src/components/layout/Topbar.tsx` | Modified | Mounted `<ConnectionStatusBadge />`, `<MLModelStatusBadge />`, `<ApiBoundaryAlertBanner />` |
+| `src/services/realtime/CivoraEventClient.ts` | Modified | Added reactive status listener `onStatusChange` and `useCivoraWsStatus` hook |
+| `src/components/world3d/VehiclesSystem.tsx` | Modified | Integrated live traffic telemetry with Saanvi road masterplan waypoints |
+| `docs/contract/backend_contract.json` | Created | Exported OpenAPI specification and WebSocket protocol definition |
+| `docs/contract/frontend_calls.json` | Created | Extracted 51 frontend API calls and WebSocket connections |
+| `docs/connection_audit.md` | Created | Contract audit matrix comparing frontend calls vs backend routes |
+| `src/api/generated/` | Created | Generated TypeScript types, runtime validator, and typed API client |
+| `src/components/common/ConnectionStatusBadge.tsx` | Created | Real-time WebSocket connection status badge with click-to-reconnect |
+| `src/components/common/MLModelStatusBadge.tsx` | Created | ML model cluster health, confidence, and drift telemetry badge |
+| `src/components/common/ApiBoundaryAlertBanner.tsx` | Created | UI notification banner surfacing contract boundary validation errors |
+| `src/components/world3d/proceduralFallbackTexture.ts` | Created | Procedural texture preventing black/pink missing-shader voids |
+| `ml/reports/model_diagnosis.md` | Created | Feature extraction parity, output distribution, and baseline report |
+| `docs/blank_audit.md` | Created | Audit of 3D canvas, camera clamps, and empty panels |
+| `frontend/e2e/blanks/find-blanks.spec.ts` | Created | Playwright blank hunter verifying 0 forbidden strings and 3D canvas |
+| `genesis-engine/backend/tests/test_api_contract_drift.py` | Created | Pytest contract drift and request replay tests |
+| `genesis-engine/backend/tests/test_ml_integration_and_drift.py` | Created | Pytest suite verifying feature parity, sensitivity, and `/ml/health` |
+| `scripts/verify_live_engine_365.py` | Created | 365-tick live simulation honesty verification script |
+
 

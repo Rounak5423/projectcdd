@@ -363,16 +363,30 @@ def seed_civilization_technologies(conn: sqlite3.Connection, world_id: str):
 
 def get_world_science_rate(conn: sqlite3.Connection, world_id: str) -> float:
     """Calculates active science generation per turn based on laboratories, universities, and population."""
+    base_rate = 36.0
     try:
-        row = conn.execute("SELECT research_rate FROM world_resources WHERE world_id = ?", (world_id,)).fetchone()
-        if row and row["research_rate"]:
-            return max(36.0, float(row["research_rate"]))
+        row = conn.execute("SELECT research_rate FROM economy_resources WHERE world_id = ?", (world_id,)).fetchone()
+        if row and row["research_rate"] is not None:
+            base_rate = max(10.0, float(row["research_rate"]))
     except Exception:
         pass
-    return 36.0
+
+    try:
+        sci_blds = conn.execute("""
+            SELECT COUNT(*) as cnt
+            FROM buildings
+            WHERE world_id = ? AND status = 'active'
+              AND (type LIKE '%University%' OR type LIKE '%School%' OR type LIKE '%Laboratory%' OR type LIKE '%Research%' OR type LIKE '%Academy%')
+        """, (world_id,)).fetchone()
+        if sci_blds and sci_blds["cnt"]:
+            base_rate += float(sci_blds["cnt"] * 12.0)
+    except Exception:
+        pass
+
+    return round(base_rate, 2)
 
 
-def format_technology_row(r: sqlite3.Row, science_per_turn: float = 36.0) -> Dict[str, Any]:
+def format_technology_row(r: sqlite3.Row, science_per_turn: float = 36.0, unlocked_ids: Optional[set] = None) -> Dict[str, Any]:
     """Formats an SQLite row from `technologies` into a complete TechnologyNode dict."""
     keys = r.keys()
 
@@ -395,6 +409,13 @@ def format_technology_row(r: sqlite3.Row, science_per_turn: float = 36.0) -> Dic
     prereqs = json.loads(r["prerequisites"]) if "prerequisites" in keys and r["prerequisites"] else []
     unlocks_list = json.loads(r["unlocks"]) if "unlocks" in keys and r["unlocks"] else []
 
+    can_research = not is_unlocked
+    missing_prereqs = []
+    if unlocked_ids is not None and prereqs:
+        missing_prereqs = [p for p in prereqs if p not in unlocked_ids]
+        if missing_prereqs:
+            can_research = False
+
     return {
         "id": r["id"],
         "name": r["name"],
@@ -414,7 +435,9 @@ def format_technology_row(r: sqlite3.Row, science_per_turn: float = 36.0) -> Dic
         "unlocked_effects": unlocked_effs,
         "prerequisites": prereqs,
         "unlocks": unlocks_list,
-        "cost_points": cost_val
+        "cost_points": cost_val,
+        "can_research": can_research,
+        "missing_prerequisites": missing_prereqs
     }
 
 
@@ -481,6 +504,21 @@ def set_active_research(conn: sqlite3.Connection, world_id: str, tech_id: str) -
 
     if tech["is_unlocked"]:
         raise ValueError(f"Technology '{tech['name']}' is already unlocked and mastered.")
+
+    # Validate prerequisites if any
+    keys = tech.keys()
+    prereqs = json.loads(tech["prerequisites"]) if "prerequisites" in keys and tech["prerequisites"] else []
+    missing = []
+    for p in prereqs:
+        unlocked = conn.execute(
+            "SELECT is_unlocked FROM technologies WHERE world_id = ? AND id = ?",
+            (world_id, p)
+        ).fetchone()
+        if not unlocked or not unlocked["is_unlocked"]:
+            missing.append(p)
+
+    if missing:
+        raise ValueError(f"Cannot research '{tech['name']}': Missing unlocked prerequisites ({', '.join(missing)})")
 
     with conn:
         # Pause any current research project

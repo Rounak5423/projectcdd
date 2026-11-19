@@ -39,7 +39,7 @@ export default function CivoraIntro({ onComplete }: CivoraIntroProps) {
     // Start Scene 1 Sound immediately
     try {
       introSoundEngine.playScene1();
-    } catch (e) {}
+    } catch (e) { }
 
     // Timeline triggers
     const t2 = setTimeout(() => {
