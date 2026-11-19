@@ -371,10 +371,10 @@ export default function CivilizationEvolutionStageMonument() {
           <div className="w-2 h-2 rounded-full bg-[#c6a76a] animate-ping" />
           <div className="text-left font-mono">
             <span className="block text-[8px] uppercase tracking-wider text-[#a6bd82] font-bold">
-              CIVILIZATION STAGE {stage.order} / 6
+              REALM MILESTONE {stage.order} OF 6
             </span>
             <span className="text-xs font-bold text-[#f5f7f2] whitespace-nowrap">
-              {stage.name} Monument
+              {stage.name} Plinth
             </span>
           </div>
         </div>

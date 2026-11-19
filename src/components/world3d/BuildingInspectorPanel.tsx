@@ -74,18 +74,18 @@ export default function BuildingInspectorPanel() {
   const rushCost = isConstructing ? 30 : 45;
   const canAffordRush = resources.grc >= rushCost;
 
-  // Category styling
+  // Category styling with royal, everyday vocabulary
   const categoryStyles: Record<string, { label: string; bg: string; text: string; border: string }> = {
-    residential: { label: 'Residential Sector', bg: 'bg-[#1b2b3a]', text: 'text-[#82a6bd]', border: 'border-[#30485d]' },
-    commercial: { label: 'Commercial Exchange', bg: 'bg-[#332a19]', text: 'text-[#c6a76a]', border: 'border-[#59492a]' },
-    healthcare: { label: 'Healthcare & Longevity', bg: 'bg-[#331c1c]', text: 'text-[#e57373]', border: 'border-[#5a2e2e]' },
-    education: { label: 'Academic & Science', bg: 'bg-[#291e36]', text: 'text-[#ba68c8]', border: 'border-[#493460]' },
-    industrial: { label: 'Heavy Manufacturing', bg: 'bg-[#332317]', text: 'text-[#ffb74d]', border: 'border-[#5c3e29]' },
-    infrastructure: { label: 'Civil Infrastructure', bg: 'bg-[#1e2a22]', text: 'text-[#a6bd82]', border: 'border-[#35483a]' },
-    environment: { label: 'Ecology & Biosphere', bg: 'bg-[#16291a]', text: 'text-[#81c784]', border: 'border-[#2d4d33]' },
-    energy: { label: 'Energy Generation', bg: 'bg-[#332b17]', text: 'text-[#ffd54f]', border: 'border-[#5c4d29]' },
-    agriculture: { label: 'Agricultural Biomass', bg: 'bg-[#1e2a1b]', text: 'text-[#aed581]', border: 'border-[#384e32]' },
-    government: { label: 'Civic Governance', bg: 'bg-[#2b2416]', text: 'text-[#e0be70]', border: 'border-[#544529]' },
+    residential: { label: 'Family Homes & Hearth', bg: 'bg-[#1b2b3a]', text: 'text-[#82a6bd]', border: 'border-[#30485d]' },
+    commercial: { label: 'Trade & Marketplace', bg: 'bg-[#332a19]', text: 'text-[#c6a76a]', border: 'border-[#59492a]' },
+    healthcare: { label: "Healers' Clinic & Care", bg: 'bg-[#331c1c]', text: 'text-[#e57373]', border: 'border-[#5a2e2e]' },
+    education: { label: 'Scholars & Academies', bg: 'bg-[#291e36]', text: 'text-[#ba68c8]', border: 'border-[#493460]' },
+    industrial: { label: 'Smelters & Craft Workshops', bg: 'bg-[#332317]', text: 'text-[#ffb74d]', border: 'border-[#5c3e29]' },
+    infrastructure: { label: 'Kingdom Works', bg: 'bg-[#1e2a22]', text: 'text-[#a6bd82]', border: 'border-[#35483a]' },
+    environment: { label: 'Nature & Fresh Waters', bg: 'bg-[#16291a]', text: 'text-[#81c784]', border: 'border-[#2d4d33]' },
+    energy: { label: 'Sunlight & Power', bg: 'bg-[#332b17]', text: 'text-[#ffd54f]', border: 'border-[#5c4d29]' },
+    agriculture: { label: 'Harvests & Granaries', bg: 'bg-[#1e2a1b]', text: 'text-[#aed581]', border: 'border-[#384e32]' },
+    government: { label: 'Royal Crown & Citadel', bg: 'bg-[#2b2416]', text: 'text-[#e0be70]', border: 'border-[#544529]' },
   };
 
   const style = categoryStyles[selectedBuilding.category] || categoryStyles.infrastructure;

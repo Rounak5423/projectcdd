@@ -21,6 +21,55 @@ import {
   validateRoadNetworkTopology,
 } from './roadNetworkModel';
 
+// Helper to determine if a road segment is unlocked for the current civilization era/level
+export function isRoadSegmentUnlocked(segmentId: string, level: number): boolean {
+  if (level >= 4) return true;
+  if (level === 3) {
+    return [
+      'seg-loop-west',
+      'seg-loop-east',
+      'seg-bridge-central',
+      'seg-ns-south',
+      'seg-parkway-west',
+      'seg-parkway-east',
+      'seg-branch-res',
+    ].includes(segmentId);
+  }
+  if (level === 2) {
+    return [
+      'seg-loop-west',
+      'seg-loop-east',
+      'seg-bridge-central',
+      'seg-ns-south',
+    ].includes(segmentId);
+  }
+  // Level 1: Starter frontier settlement paths only
+  return ['seg-loop-west', 'seg-loop-east'].includes(segmentId);
+}
+
+// Royal everyday friendly names for road corridors
+export function getRoyalRoadName(id: string, level: number): string {
+  if (level <= 1) {
+    if (id === 'seg-loop-west') return 'Founding West Trail';
+    if (id === 'seg-loop-east') return 'Founding East Trail';
+  }
+  const names: Record<string, string> = {
+    'seg-ns-north': 'The High Northern Road',
+    'seg-bridge-central': 'Central Royal Arch Bridge',
+    'seg-loop-west': 'West Royal Forum Way',
+    'seg-loop-east': 'East Royal Forum Way',
+    'seg-parkway-west': "West Scholars' Way",
+    'seg-parkway-east': 'East Guilds & Craft Avenue',
+    'seg-ns-south': 'South Oasis Avenue',
+    'seg-west-north': 'Aethel Mountain Pass',
+    'seg-bridge-west': 'West Suspension Gorge Bridge',
+    'seg-west-south': 'Verdant Vale Valley Road',
+    'seg-branch-science': 'Observatory Lane',
+    'seg-branch-res': 'Oasis Terraces Crescent',
+  };
+  return names[id] || id;
+}
+
 // ================= TRAFFIC SIGNAL CONTROLLER =================
 export interface TrafficSignalState {
   isNorthSouthGreen: boolean;
@@ -368,7 +417,9 @@ function HighwayBoundaryPortal({
 
 // ================= MASTER RECONSTRUCTED ROAD NETWORK COMPONENT =================
 function RoadNetwork() {
-  const { rates } = useGameState();
+  const { rates, civilization } = useGameState();
+  const currentLevel = civilization?.level ?? 1;
+  const isStarterSettlement = currentLevel <= 1;
   const [selectedRoadId, setSelectedRoadId] = useState<string | null>(null);
 
   // 1. Authoritative Graph Masterplan Definition
@@ -384,14 +435,14 @@ function RoadNetwork() {
     }
   }, [topology]);
 
-  // Road segment telemetry definitions for UI and Inspector
+  // Road segment telemetry definitions for UI and Inspector with noble royal titles
   const roadTelemetryList: RoadSegmentData[] = useMemo(() => {
     return Object.values(topology.segments).map((seg) => ({
       id: seg.id,
-      name: seg.name,
+      name: getRoyalRoadName(seg.id, currentLevel),
       category: seg.category,
-      speedLimitKmh: seg.speedLimitKmh,
-      lanes: seg.lanes,
+      speedLimitKmh: isStarterSettlement ? 30 : seg.speedLimitKmh,
+      lanes: isStarterSettlement ? 1 : seg.lanes,
       width: seg.width,
       lengthMeters: Math.round(
         seg.centerline.reduce((acc, pt, idx, arr) => {
@@ -400,19 +451,23 @@ function RoadNetwork() {
         }, 0) * 10
       ),
       status: 'Optimal',
-      throughputVehiclesPerDay: Math.round(24000 * (1 + rates.gdpGrowthRate / 10)),
-      connectedDistricts: ['Elysium Citadel'],
-      connectedBuildings: ['Planetary Senate Citadel'],
-      description: seg.description || '',
+      throughputVehiclesPerDay: isStarterSettlement
+        ? 150
+        : Math.round(24000 * (1 + rates.gdpGrowthRate / 10)),
+      connectedDistricts: [isStarterSettlement ? 'Founding Outpost' : 'The Royal Citadel'],
+      connectedBuildings: [isStarterSettlement ? 'Founding Hearth' : 'Your Royal Citadel'],
+      description: isStarterSettlement
+        ? 'A humble frontier trail trodden by the realm’s first 150 pioneers.'
+        : seg.description || '',
     }));
-  }, [topology, rates.gdpGrowthRate]);
+  }, [topology, rates.gdpGrowthRate, currentLevel, isStarterSettlement]);
 
   const handleSelectRoad = (road: RoadSegmentData) => {
     setSelectedRoadId(road.id);
     triggerRoadSelection(road);
   };
 
-  // 2. Continuous, Gap-Free Road Geometries
+  // 2. Stage-Filtered, Gap-Free Road Geometries
   const geometries = useMemo(() => {
     const segmentMeshes: Array<{
       id: string;
@@ -421,41 +476,48 @@ function RoadNetwork() {
       sidewalk?: THREE.BufferGeometry;
       marking?: THREE.BufferGeometry;
       dashes?: THREE.BufferGeometry;
+      isFrontierTrail?: boolean;
     }> = [];
 
     for (const seg of Object.values(topology.segments)) {
       if (seg.isBridge) continue; // Rendered by ArchitecturalBridge
+
+      // LOGICAL EVOLUTION: Only render segments unlocked by the civilization stage
+      if (!isRoadSegmentUnlocked(seg.id, currentLevel)) continue;
 
       // Continuous, Gap-Free Unbroken Centerline (Full-length corridor ribbons)
       const nodes = sampleSplinePath(seg.centerline, 1.0, undefined, 0.08);
       if (nodes.length < 2) continue;
 
       const asphalt = createContinuousRoadMesh(nodes, seg.width);
-      const sidewalk = seg.hasSidewalks
-        ? createContinuousSidewalkMesh(nodes, seg.width, seg.sidewalkWidth)
-        : undefined;
+
+      // Level 1: Raw frontier earth trail, no modern sidewalks or yellow/white paint markings
+      const sidewalk =
+        !isStarterSettlement && seg.hasSidewalks
+          ? createContinuousSidewalkMesh(nodes, seg.width, seg.sidewalkWidth)
+          : undefined;
 
       const markingType = seg.markingType === 'dashed-white' ? 'single-white' : seg.markingType;
       const marking =
-        seg.markingType !== 'none'
+        !isStarterSettlement && seg.markingType !== 'none'
           ? createContinuousMarkingsMesh(nodes, seg.width, markingType as any)
           : undefined;
 
       const dashes =
-        seg.lanes === 4
+        !isStarterSettlement && seg.lanes === 4
           ? createContinuousMarkingsMesh(nodes, seg.width, 'dual-dash')
           : undefined;
 
       const data = roadTelemetryList.find((r) => r.id === seg.id) || {
         id: seg.id,
-        name: seg.name,
+        name: getRoyalRoadName(seg.id, currentLevel),
         category: seg.category,
-        speedLimitKmh: seg.speedLimitKmh,
-        lanes: seg.lanes,
+        speedLimitKmh: isStarterSettlement ? 30 : seg.speedLimitKmh,
+        lanes: isStarterSettlement ? 1 : seg.lanes,
         width: seg.width,
         lengthMeters: 200,
         status: 'Optimal',
-        throughputVehiclesPerDay: 20000,
+        throughputVehiclesPerDay: isStarterSettlement ? 150 : 20000,
         connectedDistricts: [],
         connectedBuildings: [],
         description: seg.description || '',
@@ -468,36 +530,55 @@ function RoadNetwork() {
         sidewalk,
         marking,
         dashes,
+        isFrontierTrail: isStarterSettlement,
       });
     }
 
-    // 3. Multi-branch Junction Plazas & Intersection Tables (Seamless Solid Deck)
-    const junctionMeshes: Array<{ id: string; geo: THREE.BufferGeometry }> = [];
+    // 3. Multi-branch Junction Plazas (Filtered to only connect active unlocked roads)
+    const junctionMeshes: Array<{ id: string; geo: THREE.BufferGeometry; isFrontier?: boolean }> = [];
     for (const node of Object.values(topology.nodes)) {
       if (
         node.clearanceRadius > 0 &&
         (node.type.startsWith('intersection') || node.type === 'junction_plaza')
       ) {
+        // Node must have at least one active unlocked segment connecting to it
+        const hasActiveConnection = node.connectedSegmentIds.some((segId) =>
+          isRoadSegmentUnlocked(segId, currentLevel)
+        );
+        if (!hasActiveConnection) continue;
+
         junctionMeshes.push({
           id: node.id,
           geo: createEngineeredJunctionGeometry([node.x, node.z], node.clearanceRadius, 0.082),
+          isFrontier: isStarterSettlement,
         });
       }
     }
 
-    // 4. Exactly ONE Grand Civic Roundabout at [0, 24.0]
-    const rbDef = topology.roundabout;
-    const roundaboutGeo = createFourWayCivicRoundaboutGeometry(
-      rbDef.center,
-      rbDef.innerRadius,
-      rbDef.outerRadius,
-      rbDef.approachWidthNS,
-      rbDef.approachWidthEW,
-      0.08
-    );
+    // 4. Grand Civic Roundabout at [0, 24.0] (Unlocked at Level 3: Market Town)
+    let roundaboutGeo = null;
+    if (currentLevel >= 3) {
+      const rbDef = topology.roundabout;
+      roundaboutGeo = createFourWayCivicRoundaboutGeometry(
+        rbDef.center,
+        rbDef.innerRadius,
+        rbDef.outerRadius,
+        rbDef.approachWidthNS,
+        rbDef.approachWidthEW,
+        0.08
+      );
+    }
 
-    // 5. Exactly 4 Intentional, Vertex-Matched Cul-de-Sacs
-    const culDeSacMeshes = topology.culDeSacs.map((cds) => ({
+    // 5. Cul-de-Sacs (Unlocked progressively: Agri & Residential at Level 3, all at Level 4+)
+    const activeCulDeSacs = topology.culDeSacs.filter((cds) => {
+      if (currentLevel <= 2) return false;
+      if (currentLevel === 3) {
+        return cds.id === 'node-culdesac-agri' || cds.id === 'node-culdesac-res';
+      }
+      return true;
+    });
+
+    const culDeSacMeshes = activeCulDeSacs.map((cds) => ({
       id: cds.id,
       ...createCulDeSacGeometry(
         cds.center,
@@ -515,11 +596,20 @@ function RoadNetwork() {
       roundabout: roundaboutGeo,
       culDeSacs: culDeSacMeshes,
     };
-  }, [topology, roadTelemetryList]);
+  }, [topology, roadTelemetryList, currentLevel, isStarterSettlement]);
 
-  // Premium Asphalt & Surface Materials with Polygon Offset to eradicate Z-fighting
+  // Premium Asphalt & Surface Materials
   const asphaltMat = useMemo(
     () => new THREE.MeshStandardMaterial({ color: '#222724', roughness: 0.94, metalness: 0.06 }),
+    []
+  );
+  const frontierTrailMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#4e3f31',
+        roughness: 0.98,
+        metalness: 0.02,
+      }),
     []
   );
   const junctionMat = useMemo(
@@ -528,6 +618,18 @@ function RoadNetwork() {
         color: '#222724',
         roughness: 0.94,
         metalness: 0.06,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+      }),
+    []
+  );
+  const frontierJunctionMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#493a2d',
+        roughness: 0.98,
+        metalness: 0.02,
         polygonOffset: true,
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -1,
@@ -565,6 +667,18 @@ function RoadNetwork() {
     []
   );
 
+  // Active bridges filtered by civilization era:
+  // Level 1: 0 bridges across the wild canyon
+  // Level 2-3: Central Citadel Arch Bridge only
+  // Level 4+: Central Arch Bridge + West Suspension Bridge
+  const activeBridges = useMemo(() => {
+    if (currentLevel <= 1) return [];
+    if (currentLevel <= 3) {
+      return topology.bridges.filter((b) => b.id === 'bridge-central');
+    }
+    return topology.bridges;
+  }, [topology.bridges, currentLevel]);
+
   return (
     <group name="authoritative-road-network">
       {/* ================= 1. CONTINUOUS TRIMMED ROAD SEGMENTS ================= */}
@@ -576,7 +690,11 @@ function RoadNetwork() {
             handleSelectRoad(seg.data);
           }}
         >
-          <mesh geometry={seg.asphalt} material={asphaltMat} receiveShadow />
+          <mesh
+            geometry={seg.asphalt}
+            material={seg.isFrontierTrail ? frontierTrailMat : asphaltMat}
+            receiveShadow
+          />
           {seg.sidewalk && <mesh geometry={seg.sidewalk} material={sidewalkMat} receiveShadow />}
           {seg.marking && <mesh geometry={seg.marking} material={yellowMarkingMat} raycast={() => null} />}
           {seg.dashes && <mesh geometry={seg.dashes} material={whiteMarkingMat} raycast={() => null} />}
@@ -586,31 +704,40 @@ function RoadNetwork() {
       {/* ================= 2. SEAMLESS JUNCTION PLAZAS ================= */}
       <group name="engineered-junctions" raycast={() => null}>
         {geometries.junctions.map((j) => (
-          <mesh key={j.id} geometry={j.geo} material={junctionMat} receiveShadow />
+          <mesh
+            key={j.id}
+            geometry={j.geo}
+            material={j.isFrontier ? frontierJunctionMat : junctionMat}
+            receiveShadow
+          />
         ))}
       </group>
 
-      {/* ================= 3. EXACTLY ONE GRAND CIVIC ROUNDABOUT AT [0, 24.0] ================= */}
-      <group name="central-civic-roundabout" raycast={() => null}>
-        <mesh geometry={geometries.roundabout.asphalt} material={junctionMat} receiveShadow />
-        <mesh geometry={geometries.roundabout.centerIsland} material={centerIslandGrassMat} receiveShadow />
-        <mesh geometry={geometries.roundabout.sidewalks} material={sidewalkMat} receiveShadow />
-        <mesh geometry={geometries.roundabout.circulatingMarkings} material={whiteMarkingMat} raycast={() => null} />
-      </group>
+      {/* ================= 3. GRAND CIVIC ROUNDABOUT AT [0, 24.0] (Level 3+) ================= */}
+      {geometries.roundabout && (
+        <group name="central-civic-roundabout" raycast={() => null}>
+          <mesh geometry={geometries.roundabout.asphalt} material={junctionMat} receiveShadow />
+          <mesh geometry={geometries.roundabout.centerIsland} material={centerIslandGrassMat} receiveShadow />
+          <mesh geometry={geometries.roundabout.sidewalks} material={sidewalkMat} receiveShadow />
+          <mesh geometry={geometries.roundabout.circulatingMarkings} material={whiteMarkingMat} raycast={() => null} />
+        </group>
+      )}
 
-      {/* ================= 4. EXACTLY 4 ENGINEERED CUL-DE-SACS ================= */}
-      <group name="cul-de-sacs" raycast={() => null}>
-        {geometries.culDeSacs.map((cds) => (
-          <group key={cds.id}>
-            <mesh geometry={cds.asphalt} material={asphaltMat} receiveShadow />
-            <mesh geometry={cds.sidewalk} material={sidewalkMat} receiveShadow />
-            {cds.centerIsland && <mesh geometry={cds.centerIsland} material={centerIslandGrassMat} receiveShadow />}
-          </group>
-        ))}
-      </group>
+      {/* ================= 4. ENGINEERED CUL-DE-SACS (Level 3+) ================= */}
+      {geometries.culDeSacs.length > 0 && (
+        <group name="cul-de-sacs" raycast={() => null}>
+          {geometries.culDeSacs.map((cds) => (
+            <group key={cds.id}>
+              <mesh geometry={cds.asphalt} material={asphaltMat} receiveShadow />
+              <mesh geometry={cds.sidewalk} material={sidewalkMat} receiveShadow />
+              {cds.centerIsland && <mesh geometry={cds.centerIsland} material={centerIslandGrassMat} receiveShadow />}
+            </group>
+          ))}
+        </group>
+      )}
 
-      {/* ================= 5. EXACTLY 2 ARCHITECTURAL RIVER BRIDGES ================= */}
-      {topology.bridges.map((b) => (
+      {/* ================= 5. ARCHITECTURAL RIVER BRIDGES ================= */}
+      {activeBridges.map((b) => (
         <ArchitecturalBridge
           key={b.id}
           id={b.id}
@@ -628,27 +755,43 @@ function RoadNetwork() {
       ))}
 
       {/* ================= 6. ZEBRA PEDESTRIAN CROSSINGS AT STRATEGIC NODES ================= */}
-      {/* Central Arch Bridge Abutments */}
-      <ZebraPedestrianCrossing position={[0, 0.76, -10.2]} width={5.4} length={2.2} />
-      <ZebraPedestrianCrossing position={[0, 0.76, 4.3]} width={5.4} length={2.2} />
+      {/* Central Arch Bridge Abutments (Unlocked at Level 2+) */}
+      {currentLevel >= 2 && (
+        <>
+          <ZebraPedestrianCrossing position={[0, 0.76, -10.2]} width={5.4} length={2.2} />
+          <ZebraPedestrianCrossing position={[0, 0.76, 4.3]} width={5.4} length={2.2} />
+        </>
+      )}
 
-      {/* West Suspension Bridge Abutments */}
-      <ZebraPedestrianCrossing position={[-25.0, 0.76, -23.4]} width={4.5} length={2.2} />
-      <ZebraPedestrianCrossing position={[-25.0, 0.76, -9.0]} width={4.5} length={2.2} />
+      {/* West Suspension Bridge Abutments (Unlocked at Level 4+) */}
+      {currentLevel >= 4 && (
+        <>
+          <ZebraPedestrianCrossing position={[-25.0, 0.76, -23.4]} width={4.5} length={2.2} />
+          <ZebraPedestrianCrossing position={[-25.0, 0.76, -9.0]} width={4.5} length={2.2} />
+        </>
+      )}
 
-      {/* Grand Civic Roundabout Approach Throats */}
-      <ZebraPedestrianCrossing position={[0, 0.86, 18.2]} width={5.4} length={2.2} />
-      <ZebraPedestrianCrossing position={[0, 0.86, 29.8]} width={5.4} length={2.2} />
-      <ZebraPedestrianCrossing position={[-5.8, 0.86, 24.0]} width={4.4} length={2.2} rotationY={Math.PI / 2} />
-      <ZebraPedestrianCrossing position={[5.8, 0.86, 24.0]} width={4.4} length={2.2} rotationY={Math.PI / 2} />
+      {/* Grand Civic Roundabout Approach Throats (Unlocked at Level 3+) */}
+      {currentLevel >= 3 && (
+        <>
+          <ZebraPedestrianCrossing position={[0, 0.86, 18.2]} width={5.4} length={2.2} />
+          <ZebraPedestrianCrossing position={[0, 0.86, 29.8]} width={5.4} length={2.2} />
+          <ZebraPedestrianCrossing position={[-5.8, 0.86, 24.0]} width={4.4} length={2.2} rotationY={Math.PI / 2} />
+          <ZebraPedestrianCrossing position={[5.8, 0.86, 24.0]} width={4.4} length={2.2} rotationY={Math.PI / 2} />
+        </>
+      )}
 
-      {/* ================= 7. HIGHWAY BOUNDARY PORTALS ================= */}
-      <HighwayBoundaryPortal position={[0, 0.85, -43.8]} width={5.4} />
-      <HighwayBoundaryPortal position={[0, 0.85, 43.8]} width={5.4} rotationY={Math.PI} />
-      <HighwayBoundaryPortal position={[-25.0, 0.85, -43.8]} width={4.2} />
+      {/* ================= 7. HIGHWAY BOUNDARY PORTALS (Level 4+) ================= */}
+      {currentLevel >= 4 && (
+        <>
+          <HighwayBoundaryPortal position={[0, 0.85, -43.8]} width={5.4} />
+          <HighwayBoundaryPortal position={[0, 0.85, 43.8]} width={5.4} rotationY={Math.PI} />
+          <HighwayBoundaryPortal position={[-25.0, 0.85, -43.8]} width={4.2} />
+        </>
+      )}
 
-      {/* ================= 8. ANIMATED TRAFFIC SIGNALS ================= */}
-      <TrafficIntersectionSignals />
+      {/* ================= 8. ANIMATED TRAFFIC SIGNALS (Level 3+) ================= */}
+      {currentLevel >= 3 && <TrafficIntersectionSignals />}
     </group>
   );
 }

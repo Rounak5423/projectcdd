@@ -36,8 +36,8 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     id: 'settlement',
     order: 1,
     name: 'Settlement',
-    subtitle: 'Pioneer Valley Outpost',
-    description: 'Initial colonial landing site establishing basic aeroponics, local energy collectors, and pioneer habitation pods.',
+    subtitle: 'The Founding Outpost',
+    description: 'A humble beginning on open land. Build shelter, gather food, draw pure water, and care for your first 150 loyal settlers.',
     minPopulation: 100,
     minBuildings: 1,
     minHappiness: 50,
@@ -46,15 +46,15 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minQualityOfLife: 50,
     minEnvironmentalIndex: 50,
     requiredCategories: ['government'],
-    unlockedOpportunities: ['Hydroponic Bio-Domes', 'Solar Arrays', 'Basic Roadways', 'Local Aquifer Wells'],
+    unlockedOpportunities: ['Royal Granary & Greenhouses', 'Sunlight Collectors', 'Pioneer Dirt Trails', 'Freshwater Wells'],
     themeColor: '#C5A66A',
   },
   {
     id: 'village',
     order: 2,
     name: 'Village',
-    subtitle: 'Riparian Agrarian Community',
-    description: 'Growing permanent residential blocks, foundational metal smelting, and subterranean freshwater pipelines.',
+    subtitle: 'Riverside Village',
+    description: 'Your people build lasting family homes, forge simple metals, and pave the first stone streets across the river.',
     minPopulation: 300,
     minBuildings: 3,
     minHappiness: 60,
@@ -63,15 +63,15 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minQualityOfLife: 55,
     minEnvironmentalIndex: 55,
     requiredCategories: ['government', 'residential'],
-    unlockedOpportunities: ['Modular Habitat Blocks', 'Water Filtration Basins', 'Foundry Smelters', 'Civic Assembly Grounds'],
+    unlockedOpportunities: ['Cozy Family Homes', 'River Filtration Pools', 'Foundry Smelters', 'Town Square Gathering'],
     themeColor: '#8FA879',
   },
   {
     id: 'town',
     order: 3,
     name: 'Town',
-    subtitle: 'Integrated Provincial Hub',
-    description: 'Paved arterial roads, primary medical care triage, commercial markets, and trade connectivity.',
+    subtitle: 'Market Town of Crafts',
+    description: 'Trade flourishes, streets widen into tree-lined avenues, healers open clinics, and the grand roundabout welcomes merchants.',
     minPopulation: 800,
     minBuildings: 6,
     minHappiness: 65,
@@ -80,15 +80,15 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minQualityOfLife: 60,
     minEnvironmentalIndex: 60,
     requiredCategories: ['government', 'residential', 'energy', 'agriculture'],
-    unlockedOpportunities: ['Cellular Care Clinics', 'Commercial Plazas', 'Paved Avenues', 'Civil Defense Forces'],
+    unlockedOpportunities: ["Healers' Clinic", 'Merchant Plazas', 'Paved Royal Avenues', 'Town Watch & Patrols'],
     themeColor: '#6e98b3',
   },
   {
     id: 'city',
     order: 4,
     name: 'City',
-    subtitle: 'Urban Science & Industrial Center',
-    description: 'Polytechnic research campuses, high-capacity bridges, diverse economic sectors, and automated logistics.',
+    subtitle: 'Grand City of Wisdom',
+    description: 'Scholars gather in academies, majestic suspension bridges span the river gorge, and workshops hum with proud craft.',
     minPopulation: 2500,
     minBuildings: 10,
     minHappiness: 70,
@@ -97,15 +97,15 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minQualityOfLife: 70,
     minEnvironmentalIndex: 65,
     requiredCategories: ['government', 'residential', 'energy', 'agriculture', 'industrial', 'healthcare'],
-    unlockedOpportunities: ['Polytechnic Institutes', 'Deep Space Observatories', 'Architectural Bridges', 'Advanced Logistics'],
+    unlockedOpportunities: ['Grand Academies of Craft', 'Mountain Star Observatories', 'Royal Suspension Bridges', 'Caravan Trade Depots'],
     themeColor: '#9F8859',
   },
   {
     id: 'metropolis',
     order: 5,
     name: 'Metropolis',
-    subtitle: 'High Technological Federation',
-    description: 'Vertical Arcology habitats, Elysium Citadel High Senate, high-speed transit pods, and multi-district industrial automation.',
+    subtitle: 'The Royal Metropolis',
+    description: 'Towering spires rise into the clouds, the High Council guides the realm, and swift transit connects every district.',
     minPopulation: 10000,
     minBuildings: 15,
     minHappiness: 75,
@@ -114,15 +114,15 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minQualityOfLife: 75,
     minEnvironmentalIndex: 70,
     requiredCategories: ['government', 'residential', 'energy', 'agriculture', 'industrial', 'healthcare', 'education'],
-    unlockedOpportunities: ['Arcology Spires', 'Elysium Citadel', 'Biosphere Parks', 'Transit Pods', 'Universal Basic Income'],
+    unlockedOpportunities: ['High Arcology Spires', 'The High Citadel Council', 'Royal Botanical Parks', 'Swift Sky Carts', 'Royal Citizen Stipend'],
     themeColor: '#D6A75E',
   },
   {
     id: 'advanced_civilization',
     order: 6,
-    name: 'Advanced Civilization',
-    subtitle: 'Post-Scarcity Planetary Synthesis',
-    description: 'Harmonized ecological integration, quantum AI networks, zero net carbon emissions, and virtually limitless fusion energy.',
+    name: 'Golden Realm',
+    subtitle: 'The Golden Realm',
+    description: 'A golden era of harmony, perpetual clean energy, peace, and abundance for every soul in the kingdom.',
     minPopulation: 50000,
     minBuildings: 20,
     minHappiness: 80,
@@ -131,7 +131,7 @@ export const CIVILIZATION_STAGES: CivilizationStageConfig[] = [
     minQualityOfLife: 80,
     minEnvironmentalIndex: 80,
     requiredCategories: ['government', 'residential', 'energy', 'agriculture', 'industrial', 'healthcare', 'education', 'environment'],
-    unlockedOpportunities: ['Quantum Neural AI Grids', 'Geothermal Megawells', 'Planetary Ecological Equilibrium', 'Stellar Telemetry Arrays'],
+    unlockedOpportunities: ['Master AI Wisdom Grids', 'Deep Geothermal Wells', 'Living Harmony with Nature', 'Stellar Star-Gazer Towers'],
     themeColor: '#3be8b0',
   },
 ];
@@ -196,12 +196,12 @@ export function evaluateCivilizationStage(
       p >= 1000000 ? `${(p / 1000000).toFixed(2)}M` : p >= 1000 ? `${(p / 1000).toFixed(1)}k` : `${Math.round(p)}`;
     criteriaChecklist.push({
       id: 'crit-pop',
-      label: 'Population Census',
+      label: 'Kingdom Population',
       category: 'demographics',
       currentValue: formatPop(population),
       targetValue: formatPop(nextStage.minPopulation),
       isMet: popMet,
-      tooltip: 'Sustained census required to operate specialized municipal sectors.',
+      tooltip: 'Loyal settlers and subjects living peacefully under your crown.',
     });
 
     // 2. Active Buildings Target
@@ -209,12 +209,12 @@ export function evaluateCivilizationStage(
     if (bldMet) metCount++;
     criteriaChecklist.push({
       id: 'crit-bld',
-      label: 'Operational Facilities',
+      label: 'Working Buildings',
       category: 'infrastructure',
       currentValue: activeCount,
       targetValue: nextStage.minBuildings,
       isMet: bldMet,
-      tooltip: 'Total active buildings maintaining city infrastructure.',
+      tooltip: 'Workshops, farms, homes, and clinics actively maintaining your kingdom.',
     });
 
     // 3. Citizen Happiness Target
@@ -222,12 +222,12 @@ export function evaluateCivilizationStage(
     if (hapMet) metCount++;
     criteriaChecklist.push({
       id: 'crit-hap',
-      label: 'Citizen Happiness',
+      label: 'Happiness of Your People',
       category: 'social',
       currentValue: `${happiness}/100`,
       targetValue: `${nextStage.minHappiness}/100`,
       isMet: hapMet,
-      tooltip: 'Public morale reflecting adequate food, safety, healthcare and housing.',
+      tooltip: 'Joy and morale of your subjects reflecting good food, shelter, safety, and health.',
     });
 
     // 4. Quality of Life Target
@@ -235,12 +235,12 @@ export function evaluateCivilizationStage(
     if (qolMet) metCount++;
     criteriaChecklist.push({
       id: 'crit-qol',
-      label: 'Quality of Life Score',
+      label: 'Comfort & Well-Being',
       category: 'social',
       currentValue: `${qol}%`,
       targetValue: `${nextStage.minQualityOfLife}%`,
       isMet: qolMet,
-      tooltip: 'Composite satisfaction across essential and higher-order needs.',
+      tooltip: 'The warmth, ease, and standard of living enjoyed across royal homes.',
     });
 
     // 5. Annual Gross Output (GDP) Target
@@ -248,12 +248,12 @@ export function evaluateCivilizationStage(
     if (gdpMet) metCount++;
     criteriaChecklist.push({
       id: 'crit-gdp',
-      label: 'Annual GDP Output',
+      label: 'Kingdom Wealth & Trade',
       category: 'economy',
       currentValue: `${gdp.toFixed(1)}B Cr`,
       targetValue: `${nextStage.minGdpBillion}B Cr`,
       isMet: gdpMet,
-      tooltip: 'Economic productivity generated across commercial and industrial sectors.',
+      tooltip: 'Total trade, harvests, and workshop craft produced each year across the realm.',
     });
 
     // 6. Treasury Reserves Target
@@ -261,12 +261,12 @@ export function evaluateCivilizationStage(
     if (treasuryMet) metCount++;
     criteriaChecklist.push({
       id: 'crit-treasury',
-      label: 'Treasury Reserves (CRC)',
+      label: 'Gold in the Royal Treasury',
       category: 'economy',
       currentValue: `${treasury.toLocaleString()} GRC`,
       targetValue: `${nextStage.minTreasuryCredits.toLocaleString()} GRC`,
       isMet: treasuryMet,
-      tooltip: 'Fiscal buffer to sustain public payroll and civic maintenance.',
+      tooltip: 'Royal treasury gold to fund new construction, payroll, and emergency relief.',
     });
 
     // 7. Ecological Purity Target
@@ -274,12 +274,12 @@ export function evaluateCivilizationStage(
     if (envMet) metCount++;
     criteriaChecklist.push({
       id: 'crit-env',
-      label: 'Biosphere Ecological Purity',
+      label: 'Clean Lands & Fresh Waters',
       category: 'environment',
       currentValue: `${env}%`,
       targetValue: `${nextStage.minEnvironmentalIndex}%`,
       isMet: envMet,
-      tooltip: 'Air filtration, water cleanliness, and green canopy coverage.',
+      tooltip: 'Fresh mountain breeze, clear running river waters, and fertile green soils.',
     });
 
     // 8. Category Diversity
@@ -288,7 +288,7 @@ export function evaluateCivilizationStage(
     if (catMet) metCount++;
     criteriaChecklist.push({
       id: 'crit-cats',
-      label: 'District Category Diversity',
+      label: 'Variety of Guilds & Quarters',
       category: 'infrastructure',
       currentValue: `${activeCategories.size} Active`,
       targetValue: `${nextStage.requiredCategories.length} Required`,
@@ -299,12 +299,12 @@ export function evaluateCivilizationStage(
     // Stage 6 Pinnacle
     criteriaChecklist.push({
       id: 'crit-pinnacle',
-      label: 'Planetary Synthesis Achieved',
+      label: 'The Golden Realm Achieved',
       category: 'infrastructure',
       currentValue: 'Pinnacle',
       targetValue: 'All Eras Completed',
       isMet: true,
-      tooltip: 'The civilization has unlocked full post-scarcity synthesis.',
+      tooltip: 'Your kingdom has unlocked universal abundance, peace, and eternal harmony.',
     });
   }
 
@@ -343,13 +343,13 @@ export function generateDevelopmentRecommendations(
     const costCred = 450;
     recommendations.push({
       id: 'rec-housing-expansion',
-      title: 'Construct Arcology Spire Beta',
+      title: 'Construct New Family Habitats',
       category: 'residential',
       priority: needs.housing.satisfactionPercent < 70 ? 'critical' : 'high',
-      problemStatement: 'Habitation capacity is trailing urban population growth, risking housing inflation.',
-      simulationEvidence: `Housing Satisfaction: ${needs.housing.satisfactionPercent}% · Residential Demand: ${demands.residentialDemand}% · Census: ${(resources.population / 1000000).toFixed(2)}M`,
-      recommendedAction: 'Erect an Arcology Spire in the residential sector along the southern roadway.',
-      expectedOutcome: '+180,000 Housing Capacity, +12% Housing Satisfaction, +3.5 pts Overall Happiness.',
+      problemStatement: 'More citizens are arriving in your realm than there are warm hearths to shelter them.',
+      simulationEvidence: `Housing Satisfaction: ${needs.housing.satisfactionPercent}% · Demand: ${demands.residentialDemand}% · Population: ${resources.population >= 1000 ? `${(resources.population / 1000).toFixed(1)}k` : `${resources.population}`} souls`,
+      recommendedAction: 'Build new residential homes along the southern avenues.',
+      expectedOutcome: '+180,000 Housing Capacity, +12% Shelter Comfort, +3.5 pts Joy of the People.',
       targetDistrictId: 'dist-residential',
       suggestedCatalogId: 'bld-res-arcology',
       materialsCost: costMat,
@@ -364,13 +364,13 @@ export function generateDevelopmentRecommendations(
     const costCred = 380;
     recommendations.push({
       id: 'rec-energy-expansion',
-      title: 'Deploy Clean Solar Concentrator Array',
+      title: 'Deploy Clean Sunlight Power Collectors',
       category: 'energy',
       priority: energyStress > 95 ? 'critical' : 'high',
-      problemStatement: 'Grid load is approaching generation capacity, creating brownout vulnerability.',
+      problemStatement: 'The lanterns and hearths of your kingdom are flickering as power demand nears total supply.',
       simulationEvidence: `Grid Stress: ${energyStress.toFixed(0)}% · Power Demand: ${economyReport.resources.energyConsumedMW} MW · Generation: ${economyReport.resources.energyProducedMW} MW`,
-      recommendedAction: 'Construct an additional clean energy generator in the Science or Industrial Basin.',
-      expectedOutcome: '+85 MW Clean Power Output, Grid Stress reduced to safe threshold (<75%).',
+      recommendedAction: 'Construct an additional clean energy generator in the Valley or Science District.',
+      expectedOutcome: '+85 MW Clean Power Output, Grid Stress restored to safe margin (<75%).',
       targetDistrictId: 'dist-science',
       suggestedCatalogId: 'bld-ene-solar',
       materialsCost: costMat,
@@ -385,13 +385,13 @@ export function generateDevelopmentRecommendations(
     const costCred = 350;
     recommendations.push({
       id: 'rec-health-clinic',
-      title: 'Upgrade Oasis Cellular Care Clinic',
+      title: "Commission Healers' Medical Clinic",
       category: 'healthcare',
       priority: 'high',
-      problemStatement: 'Medical triage capacity is strained by rapid demographic expansion.',
-      simulationEvidence: `Healthcare Satisfaction: ${needs.healthcare.satisfactionPercent}% · Clinical Bed Margin Deficit`,
-      recommendedAction: 'Overhaul healthcare medical wings with regenerative cellular therapy suites.',
-      expectedOutcome: '+90,000 Patient Bed Capacity, +15% Healthcare Satisfaction, +2.5 pts Public Health.',
+      problemStatement: 'Fevers and fatigue trouble your subjects; local healers are overwhelmed by population growth.',
+      simulationEvidence: `Healthcare Satisfaction: ${needs.healthcare.satisfactionPercent}% · Bed Margin Deficit`,
+      recommendedAction: "Establish a fully equipped Healers' Clinic to nurse the sick back to vigor.",
+      expectedOutcome: '+90,000 Patient Bed Capacity, +15% Health Satisfaction, +2.5 pts Public Health.',
       targetDistrictId: 'dist-residential',
       suggestedCatalogId: 'bld-hea-clinic',
       materialsCost: costMat,
@@ -406,13 +406,13 @@ export function generateDevelopmentRecommendations(
     const costCred = 400;
     recommendations.push({
       id: 'rec-industrial-foundry',
-      title: 'Expand Vulcan Smelter Fabrication Complex',
+      title: 'Expand Royal Smelter & Craft Workshops',
       category: 'industrial',
       priority: 'medium',
-      problemStatement: 'Workforce supply exceeds active factory slots, leading to idle engineering labor.',
-      simulationEvidence: `Unemployment: ${economyReport.resources.unemploymentRatePercent}% · Industrial Demand: ${demands.industrialDemand}%`,
-      recommendedAction: 'Construct an automated Foundry Smelter Hub in the industrial sector.',
-      expectedOutcome: '+160 Industrial Jobs, +120 Tons/day Construction Materials production.',
+      problemStatement: 'Willing hands await purposeful work; artisans lack workshops and forge fires.',
+      simulationEvidence: `Unemployment: ${economyReport.resources.unemploymentRatePercent}% · Workshop Demand: ${demands.industrialDemand}%`,
+      recommendedAction: 'Construct a royal Foundry Smelter Hub in the eastern craft district.',
+      expectedOutcome: '+160 Craft & Smelter Jobs, +120 Tons/day Construction Materials.',
       targetDistrictId: 'dist-industrial',
       suggestedCatalogId: 'bld-ind-foundry',
       materialsCost: costMat,
@@ -427,13 +427,13 @@ export function generateDevelopmentRecommendations(
     const costCred = 280;
     recommendations.push({
       id: 'rec-agri-dome',
-      title: 'Construct Hydroponic Bio-Dome Prime',
+      title: 'Plant Verdant Royal Greenhouses',
       category: 'agriculture',
       priority: foodNet < 0 ? 'critical' : 'medium',
-      problemStatement: 'Food consumption is near total crop output; reserves require long-term buffer.',
+      problemStatement: 'Granary stores are dwindling as citizens consume harvests as quickly as they grow.',
       simulationEvidence: `Food Net: ${foodNet >= 0 ? '+' : ''}${foodNet} Rations/day · Satisfaction: ${needs.food.satisfactionPercent}%`,
-      recommendedAction: 'Build an additional climate-controlled Hydroponic Bio-Dome along the western riverbank.',
-      expectedOutcome: '+150 Rations/day Food Surplus, guaranteed emergency famine security.',
+      recommendedAction: 'Cultivate climate-controlled Greenhouses along the riverbank.',
+      expectedOutcome: '+150 Rations/day Harvest Surplus, guaranteeing safety against famine.',
       targetDistrictId: 'dist-agriculture',
       suggestedCatalogId: 'bld-agr-hydroponic',
       materialsCost: costMat,
@@ -448,13 +448,13 @@ export function generateDevelopmentRecommendations(
     const costCred = 200;
     recommendations.push({
       id: 'rec-biosphere-park',
-      title: 'Establish Biosphere Ecological Sanctuary',
+      title: 'Lay Out Royal Gardens & Tree Canopies',
       category: 'environment',
       priority: 'growth',
-      problemStatement: 'Urban density has reduced citizen recreation access and green canopy coverage.',
-      simulationEvidence: `Recreation Satisfaction: ${needs.recreation.satisfactionPercent}% · Environmental Index: ${resources.environmentalIndex}%`,
-      recommendedAction: 'Plant a protected Biosphere Park with native riparian flora near the central forum.',
-      expectedOutcome: '+18% Recreation Score, +8 pts Ecological Purity, +3.5 pts Societal Happiness.',
+      problemStatement: 'Growing streets have left your subjects yearning for green grass, shady groves, and fresh air.',
+      simulationEvidence: `Recreation Satisfaction: ${needs.recreation.satisfactionPercent}% · Nature Index: ${resources.environmentalIndex}%`,
+      recommendedAction: 'Plant flowering Royal Gardens and shaded plazas near the Citadel.',
+      expectedOutcome: '+18% Leisure & Peace, +8 pts Nature Purity, +3.5 pts Joy of the People.',
       targetDistrictId: 'dist-citadel',
       suggestedCatalogId: 'bld-env-park',
       materialsCost: costMat,

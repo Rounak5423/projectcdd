@@ -169,14 +169,14 @@ export default function CivilizationAnalyticsDashboard({ onClose }: Civilization
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-mono tracking-widest text-[#c6a76a] uppercase font-bold">
-                CIVILIZATION EVOLUTION & LONG-TERM SIMULATION
+                ROYAL CHRONICLES & KINGDOM GROWTH
               </span>
               <span className="text-[9px] font-mono px-2 py-0.5 rounded-full font-bold uppercase bg-[#2b2718] text-[#c6a76a] border border-[#594d2d] whitespace-nowrap">
-                Stage {currentStage.order} of 6: {currentStage.name}
+                Era {currentStage.order} of 6: {currentStage.name}
               </span>
             </div>
             <h2 className="text-xl font-black text-[#f3f5ef] tracking-tight mt-0.5 truncate">
-              {civilization.name} Evolutionary Matrix
+              The Royal Chronicles of {civilization.name}
             </h2>
           </div>
         </div>
@@ -191,7 +191,7 @@ export default function CivilizationAnalyticsDashboard({ onClose }: Civilization
                 : 'text-[#8e9c8c] hover:text-[#e8e9e3]'
             }`}
           >
-            Stages
+            Kingdom Eras
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
@@ -201,7 +201,7 @@ export default function CivilizationAnalyticsDashboard({ onClose }: Civilization
                 : 'text-[#8e9c8c] hover:text-[#e8e9e3]'
             }`}
           >
-            Historical Graphs
+            Royal Annals & Growth
           </button>
           <button
             onClick={() => setActiveTab('expansion')}
@@ -211,7 +211,7 @@ export default function CivilizationAnalyticsDashboard({ onClose }: Civilization
                 : 'text-[#8e9c8c] hover:text-[#e8e9e3]'
             }`}
           >
-            Planner ({recommendations.length})
+            Royal Planner ({recommendations.length})
           </button>
           <button
             onClick={() => setActiveTab('districts')}
@@ -221,7 +221,7 @@ export default function CivilizationAnalyticsDashboard({ onClose }: Civilization
                 : 'text-[#8e9c8c] hover:text-[#e8e9e3]'
             }`}
           >
-            Districts & Hazards
+            Districts & Wards
           </button>
           <button
             onClick={() => setActiveTab('persistence')}
@@ -231,7 +231,7 @@ export default function CivilizationAnalyticsDashboard({ onClose }: Civilization
                 : 'text-[#8e9c8c] hover:text-[#e8e9e3]'
             }`}
           >
-            Archive & Save
+            Archive & Seal
           </button>
 
           {onClose && (
@@ -270,36 +270,40 @@ export default function CivilizationAnalyticsDashboard({ onClose }: Civilization
         </div>
 
         <div className="p-2.5 rounded-xl bg-[#1b231d] border border-[#2b392d]">
-          <span className="text-[#8e9c8c] block text-[9px] uppercase">SIMULATED CHRONOLOGY</span>
+          <span className="text-[#8e9c8c] block text-[9px] uppercase">KINGDOM CHRONOLOGY</span>
           <span className="text-base font-bold text-[#f3f5ef] block mt-0.5 truncate">
             Year {civilization.currentYear} · Day {civilization.currentDay}
           </span>
-          <span className="text-[10px] text-[#a6bd82] block mt-0.5">Long-term timeline</span>
+          <span className="text-[10px] text-[#a6bd82] block mt-0.5">Royal kingdom timeline</span>
         </div>
 
         <div className="p-2.5 rounded-xl bg-[#1b231d] border border-[#2b392d]">
-          <span className="text-[#8e9c8c] block text-[9px] uppercase">TOTAL CENSUS</span>
+          <span className="text-[#8e9c8c] block text-[9px] uppercase">TOTAL SUBJECTS</span>
           <span className="text-base font-bold text-[#f3f5ef] block mt-0.5">
-            {(resources.population / 1000000).toFixed(3)}M
+            {resources.population >= 1000000
+              ? `${(resources.population / 1000000).toFixed(2)}M`
+              : resources.population >= 1000
+              ? `${(resources.population / 1000).toFixed(1)}k`
+              : `${Math.round(resources.population)} citizens`}
           </span>
           <span className="text-[10px] text-[#a6bd82] block mt-0.5">+{rates.populationGrowthRate}%/yr growth</span>
         </div>
 
         <div className="p-2.5 rounded-xl bg-[#1b231d] border border-[#2b392d]">
-          <span className="text-[#8e9c8c] block text-[9px] uppercase">GROSS PRODUCT (GDP)</span>
+          <span className="text-[#8e9c8c] block text-[9px] uppercase">KINGDOM WEALTH & OUTPUT</span>
           <span className="text-base font-bold text-[#f3f5ef] block mt-0.5">
-            {resources.gdp.toFixed(1)}B Cr
+            {resources.gdp >= 1 ? `${resources.gdp.toFixed(1)}B Cr` : `${(resources.gdp * 1000).toFixed(0)}M Cr`}
           </span>
           <span className="text-[10px] text-[#a6bd82] block mt-0.5">+{rates.gdpGrowthRate}%/yr</span>
         </div>
 
         <div className="p-2.5 rounded-xl bg-[#1b231d] border border-[#2b392d] col-span-2 sm:col-span-1">
-          <span className="text-[#8e9c8c] block text-[9px] uppercase">STAGE ADVANCEMENT</span>
+          <span className="text-[#8e9c8c] block text-[9px] uppercase">ERA PROGRESSION</span>
           <span className="text-base font-bold text-[#2ecc71] block mt-0.5">
             {evolutionReport.stageProgressPercent}%
           </span>
           <span className="text-[10px] text-[#8e9c8c] block mt-0.5 truncate">
-            {nextStage ? `Target: ${nextStage.name}` : 'Pinnacle Reached'}
+            {nextStage ? `Next Era: ${nextStage.name}` : 'The Golden Age'}
           </span>
         </div>
       </div>

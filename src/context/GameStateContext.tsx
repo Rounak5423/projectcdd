@@ -78,17 +78,17 @@ import {
 export function getCitadelNameForLevel(level: number): string {
   switch (Math.max(1, Math.min(5, Math.round(level)))) {
     case 1:
-      return 'Frontier Colony Outpost';
+      return 'The Founding Outpost';
     case 2:
-      return 'Frontier Civic Forum';
+      return 'The Village Forum';
     case 3:
-      return 'High Council Citadel';
+      return 'The Grand Council Citadel';
     case 4:
-      return 'Planetary Senate Citadel';
+      return 'The Royal High Citadel';
     case 5:
-      return 'Imperial High Citadel';
+      return 'The Imperial Crown Citadel';
     default:
-      return 'High Council Citadel';
+      return 'The Grand Council Citadel';
   }
 }
 
@@ -1525,7 +1525,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
               triggerToast({
                 type: 'levelup',
                 title: `CITADEL ELEVATED TO LEVEL ${nextLvl}!`,
-                subtitle: `Sovereign dominion expanded to ${newRadius}m! Building tier ${nextLvl} authorized village-wide!`,
+                subtitle: `Your royal domain expands to ${newRadius}m! Building tier ${nextLvl} unlocked across the kingdom!`,
               });
 
               newEvents.push({
@@ -2193,7 +2193,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         triggerToast({
           type: 'levelup',
           title: `CITADEL ELEVATED TO LEVEL ${nextLvl}!`,
-          subtitle: `Sovereign dominion expanded to ${newRadius}m! Building tier ${nextLvl} authorized village-wide!`,
+          subtitle: `Your royal domain expands to ${newRadius}m! Building tier ${nextLvl} unlocked across the kingdom!`,
         });
       }
 

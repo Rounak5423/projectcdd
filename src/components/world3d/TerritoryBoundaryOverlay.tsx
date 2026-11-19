@@ -90,7 +90,7 @@ export default function TerritoryBoundaryOverlay() {
           anchorX="center"
           anchorY="middle"
         >
-          {`LEVEL ${citadelLevel} CITADEL DOMINION (${(targetRadius ?? 0).toFixed(0)}M TERRITORY)`}
+          {`REALM BORDER · LEVEL ${citadelLevel} CITADEL (${(targetRadius ?? 0).toFixed(0)}M DOMAIN)`}
         </Text>
       </group>
 

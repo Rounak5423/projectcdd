@@ -13,39 +13,69 @@ interface StreetlightCoord {
 
 export default React.memo(function StreetlightsSystem() {
   const isNight = useIsNight();
+  const { civilization } = useGameState();
+  const currentLevel = civilization?.level ?? 1;
 
   const lightPoleRef = useRef<THREE.InstancedMesh>(null);
   const lampLensRef = useRef<THREE.InstancedMesh>(null);
 
   // Generate organized streetlamp positions along sidewalks
   const lampCoords: StreetlightCoord[] = useMemo(() => {
+    // LEVEL 1: Starter Settlement / Frontier Outpost
+    // Only 4 warm brass lantern posts immediately flanking the Citadel court
+    if (currentLevel <= 1) {
+      return [
+        { x: -5.0, z: 6.5, rotationY: -Math.PI / 2 },
+        { x: 5.0, z: 6.5, rotationY: Math.PI / 2 },
+        { x: -5.0, z: 17.5, rotationY: -Math.PI / 2 },
+        { x: 5.0, z: 17.5, rotationY: Math.PI / 2 },
+      ];
+    }
+
     const list: StreetlightCoord[] = [];
 
-    // 1. North-South Grand Arterial (Along X = 0, sidewalks at X = -3.2 and +3.2)
-    // North Parkway (Z from -40 to -14)
-    for (let z = -40; z <= -14; z += 12) {
-      list.push({ x: -3.2, z, rotationY: -Math.PI / 2 }); // Faces road (+X)
-      list.push({ x: 3.2, z, rotationY: Math.PI / 2 }); // Faces road (-X)
+    // LEVEL 2: Riverside Village (Civic Promenade + South Village Lane)
+    for (let z = 6; z <= 22; z += 6) {
+      list.push({ x: -13.2, z, rotationY: -Math.PI / 2 });
+      list.push({ x: 13.2, z, rotationY: Math.PI / 2 });
     }
-    // South Grand Arterial (Z from 28 to 42)
-    for (let z = 28; z <= 42; z += 12) {
+    for (let z = 28; z <= 36; z += 8) {
       list.push({ x: -3.2, z, rotationY: -Math.PI / 2 });
       list.push({ x: 3.2, z, rotationY: Math.PI / 2 });
     }
+    if (currentLevel === 2) return list;
 
-    // 2. South Cross-Arterial (Along Z = 24, sidewalks at Z = 21.6 and 26.4)
-    // West Arm: X from -20 to -6
+    // LEVEL 3: Market Town (Cross-Parkways + Grand Roundabout + Town Cul-de-Sacs)
     for (let x = -20; x <= -6; x += 12) {
-      list.push({ x, z: 21.6, rotationY: 0 }); // Faces road (+Z)
-      list.push({ x, z: 26.4, rotationY: Math.PI }); // Faces road (-Z)
+      list.push({ x, z: 21.6, rotationY: 0 });
+      list.push({ x, z: 26.4, rotationY: Math.PI });
     }
-    // East Arm: X from 6 to 20
     for (let x = 6; x <= 20; x += 12) {
       list.push({ x, z: 21.6, rotationY: 0 });
       list.push({ x, z: 26.4, rotationY: Math.PI });
     }
+    // Roundabout Corner Luminaires
+    list.push({ x: -5.0, z: 19.0, rotationY: Math.PI / 4 });
+    list.push({ x: 5.0, z: 19.0, rotationY: -Math.PI / 4 });
+    list.push({ x: -5.0, z: 29.0, rotationY: (3 * Math.PI) / 4 });
+    list.push({ x: 5.0, z: 29.0, rotationY: -(3 * Math.PI) / 4 });
+    // Town Cul-de-Sacs
+    list.push({ x: -25.0, z: 39.5, rotationY: Math.PI });
+    list.push({ x: 14.0, z: 39.5, rotationY: Math.PI });
+    if (currentLevel === 3) return list;
 
-    // 3. West Science Highway (Along X = -25, sidewalks at X = -27.4 and -22.6)
+    // LEVEL 4+: City, Metropolis, Golden Realm (Full Regional Network)
+    // North Grand Arterial
+    for (let z = -40; z <= -14; z += 12) {
+      list.push({ x: -3.2, z, rotationY: -Math.PI / 2 });
+      list.push({ x: 3.2, z, rotationY: Math.PI / 2 });
+    }
+    // Extended South Grand Arterial
+    for (let z = 38; z <= 42; z += 12) {
+      list.push({ x: -3.2, z, rotationY: -Math.PI / 2 });
+      list.push({ x: 3.2, z, rotationY: Math.PI / 2 });
+    }
+    // West Science Highway
     for (let z = -36; z <= -26; z += 10) {
       list.push({ x: -27.4, z, rotationY: -Math.PI / 2 });
       list.push({ x: -22.6, z, rotationY: Math.PI / 2 });
@@ -54,37 +84,21 @@ export default React.memo(function StreetlightsSystem() {
       list.push({ x: -27.4, z, rotationY: -Math.PI / 2 });
       list.push({ x: -22.6, z, rotationY: Math.PI / 2 });
     }
-
-    // 4. East Vulcan Industrial Highway (Along X = 25, sidewalks at X = 22.6 and 27.4)
+    // East Vulcan Industrial Highway
     for (let z = -36; z <= -24; z += 12) {
       list.push({ x: 22.6, z, rotationY: -Math.PI / 2 });
       list.push({ x: 27.4, z, rotationY: Math.PI / 2 });
     }
-    for (let z = 28; z <= 38; z += 10) {
+    for (let z = 28; z <= 38; z += 12) {
       list.push({ x: 22.6, z, rotationY: -Math.PI / 2 });
       list.push({ x: 27.4, z, rotationY: Math.PI / 2 });
     }
-
-    // 5. Civic Flank Loop Promenade Lamps (Along X = -13.2 and X = +13.2, Z from 6 to 22)
-    for (let z = 6; z <= 22; z += 5) {
-      list.push({ x: -13.2, z, rotationY: -Math.PI / 2 }); // Faces road (+X)
-      list.push({ x: 13.2, z, rotationY: Math.PI / 2 });   // Faces road (-X)
-    }
-
-    // 6. Grand Civic Roundabout Corner Luminaires (At the 4 corner sidewalk fillets)
-    list.push({ x: -5.0, z: 19.0, rotationY: Math.PI / 4 });
-    list.push({ x: 5.0, z: 19.0, rotationY: -Math.PI / 4 });
-    list.push({ x: -5.0, z: 29.0, rotationY: (3 * Math.PI) / 4 });
-    list.push({ x: 5.0, z: 29.0, rotationY: -(3 * Math.PI) / 4 });
-
-    // 7. Cul-de-Sac Luminaires
+    // Distant Cul-de-Sacs
     list.push({ x: -35.2, z: -2.0, rotationY: Math.PI / 2 });
-    list.push({ x: -25.0, z: 39.5, rotationY: Math.PI });
     list.push({ x: 37.2, z: 24.0, rotationY: -Math.PI / 2 });
-    list.push({ x: 14.0, z: 39.5, rotationY: Math.PI });
 
     return list;
-  }, []);
+  }, [currentLevel]);
 
   // Geometry: Sleek modern streetlamp post with cantilever mast and subterranean foundation
   const poleGeo = useMemo(() => {

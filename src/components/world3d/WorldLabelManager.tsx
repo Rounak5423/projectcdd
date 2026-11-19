@@ -149,11 +149,11 @@ export default function WorldLabelManager() {
               {/* Health & Efficiency Gauges */}
               <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                 <div className="p-1.5 rounded bg-[#131914] border border-[#263528]">
-                  <span className="text-[9px] text-[#8e9c8c] block uppercase">HEALTH</span>
+                  <span className="text-[9px] text-[#8e9c8c] block uppercase">CONDITION</span>
                   <span className="font-bold text-[#f0f3eb]">{selectedBuilding.health}%</span>
                 </div>
                 <div className="p-1.5 rounded bg-[#131914] border border-[#263528]">
-                  <span className="text-[9px] text-[#8e9c8c] block uppercase">EFFICIENCY</span>
+                  <span className="text-[9px] text-[#8e9c8c] block uppercase">PRODUCTIVITY</span>
                   <span className="font-bold text-[#a6bd82]">{selectedBuilding.efficiency}%</span>
                 </div>
               </div>
@@ -176,7 +176,7 @@ export default function WorldLabelManager() {
                           : 'bg-[#212721] text-[#697268] border border-[#2f3830] cursor-not-allowed'
                       }`}
                     >
-                      {selectedBuilding.level >= selectedBuilding.maxLevel ? 'Max' : `Upgrade (${upgradeCost}M)`}
+                      {selectedBuilding.level >= selectedBuilding.maxLevel ? 'Highest Rank' : `Upgrade (${upgradeCost}M)`}
                     </button>
                   );
                 })()}
@@ -187,9 +187,9 @@ export default function WorldLabelManager() {
                     rotateBuilding(selectedBuilding.id, Math.PI / 4);
                   }}
                   className="py-1 px-2 rounded-lg text-xs font-semibold bg-[#202921] hover:bg-[#2d382e] text-[#dce9ca] border border-[#374738] transition-colors cursor-pointer"
-                  title="Rotate structure 45°"
+                  title="Turn structure 45°"
                 >
-                  ↻ 45°
+                  Turn ↻
                 </button>
 
                 <button
@@ -198,9 +198,9 @@ export default function WorldLabelManager() {
                     startRelocation(selectedBuilding.id);
                   }}
                   className="py-1 px-2 rounded-lg text-xs font-semibold bg-[#252a1d] hover:bg-[#363e2a] text-[#c6a76a] border border-[#4d482a] transition-colors cursor-pointer"
-                  title="Relocate this building to a new terrain site"
+                  title="Move this building to a new site"
                 >
-                  Move
+                  Relocate
                 </button>
 
                 <button
@@ -209,9 +209,9 @@ export default function WorldLabelManager() {
                     demolishBuilding(selectedBuilding.id);
                   }}
                   className="py-1 px-2 rounded-lg text-xs font-semibold bg-[#2a1a18] hover:bg-[#3b231f] text-[#d47e69] border border-[#522d25] transition-colors cursor-pointer"
-                  title="Demolish structure and recover materials"
+                  title="Dismantle structure and recover royal materials"
                 >
-                  Demolish
+                  Dismantle
                 </button>
               </div>
             </div>
@@ -263,10 +263,10 @@ export default function WorldLabelManager() {
 
               <div className="pt-1.5 border-t border-[#29352a] text-[10px] text-[#abb8a8] space-y-0.5">
                 <div>
-                  <strong className="text-[#c6a76a]">Daily Traffic:</strong> {selectedRoad.throughputVehiclesPerDay.toLocaleString()} vehicles/day
+                  <strong className="text-[#c6a76a]">Daily Wayfarers:</strong> {selectedRoad.throughputVehiclesPerDay.toLocaleString()} travelers/day
                 </div>
                 <div>
-                  <strong className="text-[#c6a76a]">Districts:</strong> {selectedRoad.connectedDistricts.join(' ↔ ')}
+                  <strong className="text-[#c6a76a]">Connected Quarters:</strong> {selectedRoad.connectedDistricts.join(' ↔ ')}
                 </div>
               </div>
             </div>
