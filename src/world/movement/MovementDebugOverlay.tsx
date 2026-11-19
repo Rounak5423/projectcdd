@@ -13,7 +13,7 @@ export interface MovementDebugOverlayProps {
   initialVisible?: boolean;
 }
 
-export function MovementDebugOverlay({ initialVisible = true }: MovementDebugOverlayProps) {
+export function MovementDebugOverlay({ initialVisible = false }: MovementDebugOverlayProps) {
   const [visible, setVisible] = useState(initialVisible);
   const [showLaneLines, setShowLaneLines] = useState(true);
   const [showRoutes, setShowRoutes] = useState(true);
@@ -76,30 +76,7 @@ export function MovementDebugOverlay({ initialVisible = true }: MovementDebugOve
   const orphansCount = 0;
 
   if (!visible) {
-    return (
-      <div
-        onClick={() => setVisible(true)}
-        style={{
-          position: 'fixed',
-          top: '12px',
-          right: '12px',
-          zIndex: 9999,
-          background: 'rgba(15, 23, 42, 0.85)',
-          color: '#38bdf8',
-          border: '1px solid #0284c7',
-          borderRadius: '6px',
-          padding: '6px 12px',
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          fontWeight: 700,
-          cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-          backdropFilter: 'blur(8px)',
-        }}
-      >
-        [F3] SHOW MOVEMENT OVERLAY
-      </div>
-    );
+    return null;
   }
 
   return (

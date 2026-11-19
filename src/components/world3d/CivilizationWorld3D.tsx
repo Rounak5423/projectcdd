@@ -10,7 +10,6 @@ import NatureEnvironment from './NatureEnvironment';
 import RoadNetwork from './RoadNetwork';
 import StreetlightsSystem from './StreetlightsSystem';
 import MovementRenderer from '../../world/movement/MovementRenderer';
-import { MovementDebugOverlay } from '../../world/movement/MovementDebugOverlay';
 import DistrictOverlays from './DistrictOverlays';
 import TerritoryBoundaryOverlay from './TerritoryBoundaryOverlay';
 import BuildingObject from './BuildingObject';
@@ -177,7 +176,7 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
             <StreetlightsSystem />
 
             {/* Authoritative Microscopic Vehicles & Pedestrians Subsystem */}
-            <MovementRenderer terrainType={civilization?.terrainType} showBadges={true} />
+            <MovementRenderer terrainType={civilization?.terrainType} showBadges={false} />
 
             {/* Tactical District Projection Rings & Labels */}
             <DistrictOverlays />
@@ -216,9 +215,6 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
 
         {/* In-World Tactical Time, Camera & District Teleport HUD */}
         <WorldHUD />
-
-        {/* Authoritative Movement & Glitch Telemetry Debug Overlay (F3 Toggle) */}
-        <MovementDebugOverlay initialVisible={true} />
       </div>
     </DayNightProvider>
   );
