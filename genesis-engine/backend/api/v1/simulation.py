@@ -81,7 +81,7 @@ def _resolve_world_id(id: str) -> str:
     conn.close()
     if row:
         return id
-    if id in ["civ-aurora-01", "civ-default", "prime", "default"]:
+    if id in ["civ-aurora-01", "civ-default", "civ-new-frontier", "prime", "default"]:
         return "aurora-prime"
     return id
 

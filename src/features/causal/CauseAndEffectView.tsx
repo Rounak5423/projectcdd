@@ -28,8 +28,11 @@ export const CauseAndEffectView: React.FC<CauseAndEffectViewProps> = ({ traceGra
     );
   }
 
-  const { nodes, links, summary, contributing_factors } = traceGraph;
-  const selectedNode = nodes.find((n) => n.id === selectedNodeId) || nodes[0];
+  const nodes = traceGraph?.nodes || [];
+  const links = traceGraph?.links || [];
+  const summary = traceGraph?.summary || 'Closed-loop causal coupling dynamics across societal, economic, and health sectors.';
+  const contributing_factors = traceGraph?.contributing_factors || [];
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId) || nodes[0] || null;
 
   const getStatusColor = (status: 'normal' | 'warning' | 'critical', isSelected: boolean) => {
     if (isSelected) {

@@ -144,35 +144,42 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
   const handleExecutePolicy = async (policyType: string) => {
     setIsExecutingPolicy(true);
     try {
-      const cmdId = `cmd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      const cmdRes = await apiClient.post(`/worlds/${worldId}/commands`, {
-        commands: [
-          {
-            command_id: cmdId,
-            action: 'causal_intervention',
-            payload: { intervention_id: policyType },
-          },
-        ],
-      });
-
-      const cmdData = cmdRes.data;
-      const res = cmdData.results?.[0];
-      if (res && res.status === 'rejected') {
-        throw new Error(res.reason || 'Simulation rules rejected this intervention.');
+      // First attempt direct intervention simulation endpoint
+      try {
+        const res = await apiClient.post(`/worlds/${worldId}/intervene`, {
+          intervention_type: policyType,
+          ticks: 2,
+        });
+        if (res.data) {
+          if (res.data.vitals) {
+            setLatestVitals(res.data.vitals);
+            setVitalsHistory((prev) => [...prev, res.data.vitals].slice(-60));
+          }
+          if (res.data.trace_graph) {
+            setTraceGraph(res.data.trace_graph);
+          }
+        }
+      } catch {
+        // Fallback to command dispatch
+        const cmdId = `cmd_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const cmdRes = await apiClient.post(`/worlds/${worldId}/commands`, {
+          commands: [
+            {
+              command_id: cmdId,
+              action: 'causal_intervention',
+              payload: { intervention_id: policyType },
+            },
+          ],
+        });
+        const cmdData = cmdRes.data;
+        const res = cmdData.results?.[0];
+        if (res && res.status === 'rejected') {
+          throw new Error(res.reason || 'Simulation rules rejected this intervention.');
+        }
+        await handleManualAdvance();
       }
 
-      // Step simulation by 1 tick so that downstream effects materialize in the causal graph
-      const advRes = await apiClient.post(`/worlds/${worldId}/simulation/advance`, { ticks: 1 });
-      if (advRes.data) {
-        const delta = advRes.data;
-        if (delta.vitals) {
-          setLatestVitals(delta.vitals);
-          setVitalsHistory((prev) => [...prev, delta.vitals].slice(-60));
-        }
-        if (delta.trace_graph) {
-          setTraceGraph(delta.trace_graph);
-        }
-      }
+      soundFx.playHammerBuild();
       await fetchData();
     } catch (err: any) {
       console.error('Policy execution error:', err);

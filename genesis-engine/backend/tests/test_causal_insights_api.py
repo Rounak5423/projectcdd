@@ -143,3 +143,15 @@ def test_backward_compatible_aliases():
     )
     assert resp_intervene.status_code == 200, resp_intervene.text
     assert resp_intervene.json()["success"] is True
+
+def test_civ_new_frontier_default_resolution():
+    """Verify civ-new-frontier automatically resolves without 404 or empty failure."""
+    resp = client.get("/api/v1/worlds/civ-new-frontier/vitals?limit=10")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["world_id"] == "aurora-prime"
+    assert len(body["data"]) > 0
+
+    trace_resp = client.get("/api/v1/worlds/civ-new-frontier/causal-trace")
+    assert trace_resp.status_code == 200, trace_resp.text
+    assert len(trace_resp.json()["nodes"]) > 0

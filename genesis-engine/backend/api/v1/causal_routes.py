@@ -19,7 +19,7 @@ router = APIRouter(tags=["Causal Simulation"])
 
 
 def resolve_world_id(world_id: str) -> str:
-    if not world_id or world_id in ["civ-aurora-01", "civ-default", "prime", "default"]:
+    if not world_id or world_id in ["civ-aurora-01", "civ-default", "civ-new-frontier", "prime", "default"]:
         return "aurora-prime"
     return world_id
 

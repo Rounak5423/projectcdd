@@ -96,6 +96,34 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
       ],
       accentColor: 'from-emerald-600 to-emerald-700',
     },
+    {
+      id: 'cut_food',
+      title: 'Ration Deficit Stress Test',
+      category: 'Controlled System Shock · Aggravating',
+      icon: <Utensils className="w-5 h-5 text-rose-400" />,
+      cost: 'Controlled Laboratory Simulation',
+      description: 'Ablate strategic food reserves to zero to measure societal resistance, time-to-protest propagation, and starvation mortality kinetics.',
+      projectedImpacts: [
+        'Triggers sudden calorie deficit and starvation mortality',
+        'Spikes citizen grievance score and rebellion probability',
+        'Reveals vulnerability thresholds in supply chains',
+      ],
+      accentColor: 'from-rose-600 to-rose-700',
+    },
+    {
+      id: 'cut_hospital_capacity',
+      title: 'Medical Facility Brownout Shock',
+      category: 'Controlled System Shock · Aggravating',
+      icon: <Building className="w-5 h-5 text-amber-400" />,
+      cost: 'Controlled Laboratory Simulation',
+      description: 'Restrict clinical bed capacity to 20 cots to evaluate emergency overflow casualties, triage saturation, and healthcare deficit risk.',
+      projectedImpacts: [
+        'Causes hospital bed occupancy to spike above 100%',
+        'Forces overflow patient casualties into mortality statistics',
+        'Measures system resilience under pandemic or trauma conditions',
+      ],
+      accentColor: 'from-amber-600 to-amber-700',
+    },
   ];
 
   const activePreset = presets.find((p) => p.id === selectedPresetId) || presets[0];

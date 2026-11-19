@@ -329,7 +329,7 @@ def advance_world_simulation(world_id: str, ticks: int = 1) -> Dict[str, Any]:
     """
     conn = get_db_connection()
     world = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
-    if not world and world_id in ["civ-aurora-01", "civ-default", "prime", "default"]:
+    if not world and world_id in ["civ-aurora-01", "civ-default", "civ-new-frontier", "prime", "default"]:
         world_id = "aurora-prime"
         world = conn.execute("SELECT * FROM worlds WHERE id = ?", (world_id,)).fetchone()
 

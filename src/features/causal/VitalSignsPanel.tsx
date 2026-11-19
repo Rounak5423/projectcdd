@@ -43,42 +43,63 @@ export const VitalSignsPanel: React.FC<VitalSignsPanelProps> = ({
     );
   }
 
-  const {
-    births,
-    deaths,
-    deaths_by_cause,
-    unmet_needs,
-    bed_occupancy_pct,
-    bed_capacity,
-    overflow_patients,
-    protest_intensity,
-    protest_participants,
-    grievance_score,
-    health_index,
-  } = latestVitals;
+  const deaths_by_cause = latestVitals.deaths_by_cause || {
+    aging: 0,
+    starvation: 0,
+    dehydration: 0,
+    hospital_overload: 0,
+    pollution: 0,
+    trauma: 0,
+  };
+  const unmet_needs = latestVitals.unmet_needs || {
+    food: 0,
+    water: 0,
+    energy: 0,
+    healthcare: 0,
+    shelter: 0,
+  };
+  const births = latestVitals.births ?? 0;
+  const deaths = latestVitals.deaths ?? 0;
+  const bed_occupancy_pct = latestVitals.bed_occupancy_pct ?? 0;
+  const bed_capacity = latestVitals.bed_capacity ?? 0;
+  const overflow_patients = latestVitals.overflow_patients ?? 0;
+  const protest_intensity = latestVitals.protest_intensity ?? 0;
+  const protest_participants = latestVitals.protest_participants ?? 0;
+  const grievance_score = latestVitals.grievance_score ?? 0;
+  const health_index = latestVitals.health_index ?? 1.0;
 
   // Chart data formatting
-  const chartData = vitalsHistory.slice(-25).map((v) => ({
-    name: `C${v.tick}`,
-    births: v.births,
-    deaths: v.deaths,
-    aging: v.deaths_by_cause.aging,
-    starvation: v.deaths_by_cause.starvation,
-    dehydration: v.deaths_by_cause.dehydration,
-    hospital_overload: v.deaths_by_cause.hospital_overload,
-    pollution: v.deaths_by_cause.pollution,
-    trauma: v.deaths_by_cause.trauma,
-    protest_intensity: Math.round(v.protest_intensity * 100),
-    occupancy_pct: Math.min(200, Math.round(v.bed_occupancy_pct)),
-  }));
+  const chartData = (vitalsHistory || []).slice(-25).map((v) => {
+    const dc = v.deaths_by_cause || {
+      aging: 0,
+      starvation: 0,
+      dehydration: 0,
+      hospital_overload: 0,
+      pollution: 0,
+      trauma: 0,
+    };
+    return {
+      name: `C${v.tick ?? 1}`,
+      births: v.births ?? 0,
+      deaths: v.deaths ?? 0,
+      aging: dc.aging ?? 0,
+      starvation: dc.starvation ?? 0,
+      dehydration: dc.dehydration ?? 0,
+      hospital_overload: dc.hospital_overload ?? 0,
+      pollution: dc.pollution ?? 0,
+      trauma: dc.trauma ?? 0,
+      protest_intensity: Math.round((v.protest_intensity ?? 0) * 100),
+      occupancy_pct: Math.min(200, Math.round(v.bed_occupancy_pct ?? 0)),
+    };
+  });
 
   const causeBreakdown = [
-    { name: 'Natural Aging', count: deaths_by_cause.aging, color: 'text-[#8e9c8c]', bg: 'bg-[#596657]' },
-    { name: 'Starvation', count: deaths_by_cause.starvation, color: 'text-[#c5a66a]', bg: 'bg-[#c5a66a]' },
-    { name: 'Dehydration', count: deaths_by_cause.dehydration, color: 'text-[#6e98b3]', bg: 'bg-[#6e98b3]' },
-    { name: 'Healer Overload', count: deaths_by_cause.hospital_overload, color: 'text-[#e74c3c]', bg: 'bg-[#e74c3c]' },
-    { name: 'Miasma & Pollution', count: deaths_by_cause.pollution, color: 'text-[#9b59b6]', bg: 'bg-[#9b59b6]' },
-    { name: 'Physical Trauma', count: deaths_by_cause.trauma, color: 'text-[#e67e22]', bg: 'bg-[#e67e22]' },
+    { name: 'Natural Aging', count: deaths_by_cause.aging ?? 0, color: 'text-[#8e9c8c]', bg: 'bg-[#596657]' },
+    { name: 'Starvation', count: deaths_by_cause.starvation ?? 0, color: 'text-[#c5a66a]', bg: 'bg-[#c5a66a]' },
+    { name: 'Dehydration', count: deaths_by_cause.dehydration ?? 0, color: 'text-[#6e98b3]', bg: 'bg-[#6e98b3]' },
+    { name: 'Healer Overload', count: deaths_by_cause.hospital_overload ?? 0, color: 'text-[#e74c3c]', bg: 'bg-[#e74c3c]' },
+    { name: 'Miasma & Pollution', count: deaths_by_cause.pollution ?? 0, color: 'text-[#9b59b6]', bg: 'bg-[#9b59b6]' },
+    { name: 'Physical Trauma', count: deaths_by_cause.trauma ?? 0, color: 'text-[#e67e22]', bg: 'bg-[#e67e22]' },
   ];
 
   return (
