@@ -191,7 +191,9 @@ export default function BuildingActivityEffect({ building }: BuildingActivityEff
             <sphereGeometry args={[0.12, 12, 12]} />
             <meshStandardMaterial color="#00ffff" emissive="#00e5ff" emissiveIntensity={2.0} />
           </mesh>
-          <pointLight position={[1.4, 1.8, 1.7]} color="#00e5ff" intensity={0.9} distance={6.0} />
+          {isNight && (
+            <pointLight position={[1.4, 1.8, 1.7]} color="#00e5ff" intensity={0.9} distance={5.0} />
+          )}
         </group>
       )}
 
@@ -208,7 +210,7 @@ export default function BuildingActivityEffect({ building }: BuildingActivityEff
             position={[0, 1.1, 0]}
             color="#ff6611"
             intensity={1.2}
-            distance={8.0}
+            distance={6.0}
           />
 
           {/* Operational Smokestack Thermal Steam Emission (Stylized Rising Puffs) */}
@@ -257,12 +259,14 @@ export default function BuildingActivityEffect({ building }: BuildingActivityEff
               <meshStandardMaterial color="#ffa000" emissive="#ff5500" emissiveIntensity={2.5} />
             </mesh>
           </group>
-          <pointLight
-            position={[0, 1.2, 2.4]}
-            color="#ffaa33"
-            intensity={nightIntensity > 0.1 ? 1.4 : 0.6}
-            distance={7.5}
-          />
+          {nightIntensity > 0.1 && (
+            <pointLight
+              position={[0, 1.2, 2.4]}
+              color="#ffaa33"
+              intensity={1.2 * nightIntensity}
+              distance={6.0}
+            />
+          )}
         </group>
       )}
 

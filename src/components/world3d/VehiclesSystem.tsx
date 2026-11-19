@@ -764,14 +764,30 @@ function VehiclesSystem() {
             />
           </mesh>
 
-          {/* Night Dynamic Headlight Projection Spot Cone */}
+          {/* Night Volumetric Headlight Beams (Authentic game-style volumetric lighting with zero GPU light penalty) */}
           {isNight && (
+            <group position={[0, 0.22, 1.8]} rotation={[Math.PI / 2, 0, 0]}>
+              <mesh>
+                <coneGeometry args={[0.7, 3.2, 10, 1, true]} />
+                <meshBasicMaterial
+                  color="#fff8db"
+                  transparent
+                  opacity={0.08}
+                  depthWrite={false}
+                  side={THREE.DoubleSide}
+                />
+              </mesh>
+            </group>
+          )}
+
+          {/* Single Focal Dynamic Headlight on Lead Transit Vehicle */}
+          {isNight && idx === 0 && (
             <spotLight
               position={[0, 0.35, 0.85]}
               target-position={[0, 0, 9]}
               color="#fff8db"
-              intensity={0.9}
-              distance={8.5}
+              intensity={1.2}
+              distance={12.0}
               angle={0.55}
               penumbra={0.6}
             />

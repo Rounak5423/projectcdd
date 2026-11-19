@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { ZapOff, RefreshCw } from 'lucide-react';
 import { useGameState } from '../../context/GameStateContext';
@@ -130,6 +131,14 @@ export default function CivilizationWorld3D({ isPaused = false }: CivilizationWo
               antialias: true,
               alpha: false,
               powerPreference: 'high-performance',
+              stencil: false,
+              depth: true,
+            }}
+            onCreated={({ gl }) => {
+              gl.toneMapping = THREE.ACESFilmicToneMapping;
+              gl.toneMappingExposure = 1.15;
+              gl.shadowMap.enabled = true;
+              gl.shadowMap.type = THREE.PCFSoftShadowMap;
             }}
             onPointerDown={(e) => {
               if (!isConstructionMode && (e.target as HTMLElement).tagName === 'CANVAS') {

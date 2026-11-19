@@ -124,6 +124,9 @@ export default function CameraManager() {
       ) {
         isTransitioning.current = false;
       }
+    } else {
+      // Keep momentum damping fluid and responsive during manual user interaction
+      controls.update();
     }
   });
 
@@ -134,11 +137,14 @@ export default function CameraManager() {
         // User interacted with mouse/touch: immediately release automatic camera lock
         isTransitioning.current = false;
       }}
-      maxPolarAngle={Math.PI / 2.06}
-      minPolarAngle={0.06}
+      maxPolarAngle={Math.PI / 2.08}
+      minPolarAngle={0.08}
       minDistance={6}
-      maxDistance={260}
-      dampingFactor={0.08}
+      maxDistance={240}
+      dampingFactor={0.06}
+      rotateSpeed={0.75}
+      zoomSpeed={0.9}
+      panSpeed={0.8}
       enableDamping
     />
   );

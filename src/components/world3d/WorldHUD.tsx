@@ -10,6 +10,42 @@ import { useDayNight } from './DayNightController';
 import { triggerCameraPreset, CameraPreset } from './CameraManager';
 import { usePerformanceTelemetry } from './PerformanceTelemetry';
 
+// Isolated FPS badge to prevent full HUD re-rendering every 500ms
+const FpsBadge = React.memo(function FpsBadge() {
+  const telemetry = usePerformanceTelemetry();
+  const [showFpsDetail, setShowFpsDetail] = useState(false);
+
+  return (
+    <div className="relative pl-1 border-l border-[#263528]">
+      <button
+        onClick={() => setShowFpsDetail(!showFpsDetail)}
+        className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[#202921] text-[10px] text-[#7a8878] hover:text-[#2ecc71] transition-colors"
+        title="Graphics frame rate (click for quick engine stats)"
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-[#2ecc71]" />
+        <span>{telemetry.fps} FPS</span>
+      </button>
+
+      {showFpsDetail && (
+        <div className="absolute top-full right-0 mt-2 w-48 bg-[#161d18]/95 border border-[#3b493a] rounded-xl shadow-2xl p-2.5 text-[10px] font-mono text-[#9da99b] space-y-1 z-30 animate-in fade-in">
+          <div className="flex justify-between">
+            <span>Draw Calls:</span>
+            <span className="text-[#f0f3eb] font-bold">{telemetry.drawCalls}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Triangles:</span>
+            <span className="text-[#82a6bd] font-bold">{(telemetry.triangles || 0).toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Frame Time:</span>
+            <span className="text-[#c6a76a] font-bold">{telemetry.frameTimeMs} ms</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
 export default function WorldHUD() {
   const {
     timeOfDay,
@@ -18,9 +54,6 @@ export default function WorldHUD() {
     setIsAutoCycle,
     isAutoCycle,
   } = useDayNight();
-
-  const telemetry = usePerformanceTelemetry();
-  const [showFpsDetail, setShowFpsDetail] = useState(false);
 
   const formatHour = (hour: number) => {
     const h = Math.floor(hour);
@@ -81,34 +114,8 @@ export default function WorldHUD() {
           </span>
         </button>
 
-        {/* Subtle Engine FPS Badge */}
-        <div className="relative pl-1 border-l border-[#263528]">
-          <button
-            onClick={() => setShowFpsDetail(!showFpsDetail)}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[#202921] text-[10px] text-[#7a8878] hover:text-[#2ecc71] transition-colors"
-            title="Graphics frame rate (click for quick engine stats)"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#2ecc71]" />
-            <span>{telemetry.fps} FPS</span>
-          </button>
-
-          {showFpsDetail && (
-            <div className="absolute top-full right-0 mt-2 w-48 bg-[#161d18]/95 border border-[#3b493a] rounded-xl shadow-2xl p-2.5 text-[10px] font-mono text-[#9da99b] space-y-1 z-30 animate-in fade-in">
-              <div className="flex justify-between">
-                <span>Draw Calls:</span>
-                <span className="text-[#f0f3eb] font-bold">{telemetry.drawCalls}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Triangles:</span>
-                <span className="text-[#82a6bd] font-bold">{(telemetry.triangles || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Frame Time:</span>
-                <span className="text-[#c6a76a] font-bold">{telemetry.frameTimeMs} ms</span>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Isolated Subtle Engine FPS Badge */}
+        <FpsBadge />
       </div>
     </div>
   );

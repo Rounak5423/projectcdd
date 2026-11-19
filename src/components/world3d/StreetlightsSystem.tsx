@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { useIsNight } from './DayNightController';
 import { useGameState } from '../../context/GameStateContext';
 import { getTerrainHeight } from './Terrain';
@@ -108,23 +109,20 @@ export default React.memo(function StreetlightsSystem() {
     const shade = new THREE.BoxGeometry(0.24, 0.08, 0.38);
     shade.translate(0, 3.32, 0.78);
 
-    const merged = new THREE.BufferGeometry();
-    const pos = new Float32Array([
-      ...footing.attributes.position.array,
-      ...baseCollar.attributes.position.array,
-      ...mast.attributes.position.array,
-      ...arm.attributes.position.array,
-      ...shade.attributes.position.array,
+    const merged = mergeGeometries([
+      footing.toNonIndexed(),
+      baseCollar.toNonIndexed(),
+      mast.toNonIndexed(),
+      arm.toNonIndexed(),
+      shade.toNonIndexed(),
     ]);
-    merged.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    merged.computeVertexNormals();
 
     footing.dispose();
     baseCollar.dispose();
     mast.dispose();
     arm.dispose();
     shade.dispose();
-    return merged;
+    return merged || new THREE.BufferGeometry();
   }, []);
 
   // Geometry: Glowing LED luminaire lens

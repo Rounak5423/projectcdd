@@ -20,6 +20,14 @@ interface BuildingObjectProps {
   activeLayer: MapLayer;
 }
 
+// Static GPU geometry & material singletons shared across all building foundations
+const foundationGeo = new THREE.BoxGeometry(3.8, 0.55, 3.4);
+const foundationMat = new THREE.MeshStandardMaterial({ color: '#222823', roughness: 0.9 });
+const apronGeo = new THREE.BoxGeometry(4.1, 0.08, 3.7);
+const apronMat = new THREE.MeshStandardMaterial({ color: '#364038', roughness: 0.8 });
+const walkwayGeo = new THREE.BoxGeometry(1.4, 0.06, 0.8);
+const walkwayMat = new THREE.MeshStandardMaterial({ color: '#4f5950', roughness: 0.7 });
+
 function BuildingObject({
   building,
   isSelected,
@@ -80,19 +88,10 @@ function BuildingObject({
       {/* 0. Deep Subterranean Foundation Plinth & Paved Ground Apron */}
       {/* Anchors the structure -0.55m into bedrock, eliminating any floating gaps on slopes or uneven terrain */}
       <group raycast={() => null}>
-        <mesh position={[0, -0.22, 0]} receiveShadow>
-          <boxGeometry args={[3.8, 0.55, 3.4]} />
-          <meshStandardMaterial color="#222823" roughness={0.9} />
-        </mesh>
-        <mesh position={[0, 0.03, 0]} receiveShadow>
-          <boxGeometry args={[4.1, 0.08, 3.7]} />
-          <meshStandardMaterial color="#364038" roughness={0.8} />
-        </mesh>
+        <mesh position={[0, -0.22, 0]} geometry={foundationGeo} material={foundationMat} receiveShadow />
+        <mesh position={[0, 0.03, 0]} geometry={apronGeo} material={apronMat} receiveShadow />
         {/* Paved entrance walkway connecting front entrance toward adjacent roadway */}
-        <mesh position={[0, 0.04, 1.95]} receiveShadow>
-          <boxGeometry args={[1.4, 0.06, 0.8]} />
-          <meshStandardMaterial color="#4f5950" roughness={0.7} />
-        </mesh>
+        <mesh position={[0, 0.04, 1.95]} geometry={walkwayGeo} material={walkwayMat} receiveShadow />
       </group>
 
       {/* 1. Main 3D Architectural Model or Active Construction Lifecycle */}

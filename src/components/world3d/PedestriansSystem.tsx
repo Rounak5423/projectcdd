@@ -279,7 +279,7 @@ function PedestrianAvatar({
         </mesh>
 
         {/* Head */}
-        <mesh position={[0, 1.34, 0]} castShadow>
+        <mesh position={[0, 1.34, 0]}>
           <boxGeometry args={[0.18, 0.2, 0.18]} />
           <meshStandardMaterial color={skinTone} roughness={0.5} />
         </mesh>
@@ -476,6 +476,11 @@ function PedestriansSystem({ isRaining = false }: { isRaining?: boolean } = {}) 
     entitiesRef.current = list;
   }, [activeCitizens, citizenReport.citizenAgents]);
 
+  const agentMap = useMemo(
+    () => new Map(citizenReport.citizenAgents.map((a) => [a.id, a])),
+    [citizenReport.citizenAgents]
+  );
+
   // Frame tick: update movement, avoidance, social encounters, and instanced visuals
   useFrame((_, delta) => {
     if (!groupRef.current) return;
@@ -492,7 +497,7 @@ function PedestriansSystem({ isRaining = false }: { isRaining?: boolean } = {}) 
       const child = groupRef.current?.children[idx] as THREE.Group | undefined;
       if (!child) return;
 
-      const detailed = citizenReport.citizenAgents.find((a) => a.id === entity.citizen.id);
+      const detailed = agentMap.get(entity.citizen.id);
       const activity = detailed?.currentActivity || 'working';
 
       // 1. Resolve Target Coordinates based on authentic activity

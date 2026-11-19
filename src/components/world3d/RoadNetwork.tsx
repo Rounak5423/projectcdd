@@ -106,6 +106,7 @@ function TrafficSignalPost({
 // Coordinated Traffic Signal System
 const TrafficIntersectionSignals = React.memo(function TrafficIntersectionSignals() {
   const [signalState, setSignalState] = useState<TrafficSignalState>(globalTrafficSignal);
+  const phaseRef = React.useRef<number>(-1);
 
   useFrame(({ clock }) => {
     const cycleTime = clock.getElapsedTime() % 22;
@@ -115,14 +116,17 @@ const TrafficIntersectionSignals = React.memo(function TrafficIntersectionSignal
     else if (cycleTime < 19.5) phase = 2;
     else phase = 3;
 
-    const nextState: TrafficSignalState = {
-      isNorthSouthGreen: phase === 0,
-      isNorthSouthYellow: phase === 1,
-      isEastWestGreen: phase === 2,
-      isEastWestYellow: phase === 3,
-    };
-    globalTrafficSignal = nextState;
-    setSignalState(nextState);
+    if (phase !== phaseRef.current) {
+      phaseRef.current = phase;
+      const nextState: TrafficSignalState = {
+        isNorthSouthGreen: phase === 0,
+        isNorthSouthYellow: phase === 1,
+        isEastWestGreen: phase === 2,
+        isEastWestYellow: phase === 3,
+      };
+      globalTrafficSignal = nextState;
+      setSignalState(nextState);
+    }
   });
 
   return (
@@ -306,9 +310,16 @@ function ZebraPedestrianCrossing({
       {Array.from({ length: stripeCount }).map((_, i) => {
         const offset = -width * 0.5 + (i + 0.5) * stripeSpacing;
         return (
-          <mesh key={i} position={[offset, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh key={i} position={[offset, 0.016, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[stripeWidth, length]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.88} />
+            <meshBasicMaterial
+              color="#ffffff"
+              transparent
+              opacity={0.88}
+              polygonOffset
+              polygonOffsetFactor={-3}
+              polygonOffsetUnits={-3}
+            />
           </mesh>
         );
       })}
@@ -506,9 +517,21 @@ function RoadNetwork() {
     };
   }, [topology, roadTelemetryList]);
 
-  // Premium Asphalt & Surface Materials
+  // Premium Asphalt & Surface Materials with Polygon Offset to eradicate Z-fighting
   const asphaltMat = useMemo(
     () => new THREE.MeshStandardMaterial({ color: '#222724', roughness: 0.94, metalness: 0.06 }),
+    []
+  );
+  const junctionMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: '#222724',
+        roughness: 0.94,
+        metalness: 0.06,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+      }),
     []
   );
   const sidewalkMat = useMemo(
@@ -516,11 +539,25 @@ function RoadNetwork() {
     []
   );
   const yellowMarkingMat = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: '#e5c46d' }),
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: '#e5c46d',
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+      }),
     []
   );
   const whiteMarkingMat = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.8 }),
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: '#ffffff',
+        transparent: true,
+        opacity: 0.82,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+      }),
     []
   );
   const centerIslandGrassMat = useMemo(
@@ -549,13 +586,13 @@ function RoadNetwork() {
       {/* ================= 2. SEAMLESS JUNCTION PLAZAS ================= */}
       <group name="engineered-junctions" raycast={() => null}>
         {geometries.junctions.map((j) => (
-          <mesh key={j.id} geometry={j.geo} material={asphaltMat} receiveShadow />
+          <mesh key={j.id} geometry={j.geo} material={junctionMat} receiveShadow />
         ))}
       </group>
 
       {/* ================= 3. EXACTLY ONE GRAND CIVIC ROUNDABOUT AT [0, 24.0] ================= */}
       <group name="central-civic-roundabout" raycast={() => null}>
-        <mesh geometry={geometries.roundabout.asphalt} material={asphaltMat} receiveShadow />
+        <mesh geometry={geometries.roundabout.asphalt} material={junctionMat} receiveShadow />
         <mesh geometry={geometries.roundabout.centerIsland} material={centerIslandGrassMat} receiveShadow />
         <mesh geometry={geometries.roundabout.sidewalks} material={sidewalkMat} receiveShadow />
         <mesh geometry={geometries.roundabout.circulatingMarkings} material={whiteMarkingMat} raycast={() => null} />

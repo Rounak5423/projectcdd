@@ -473,7 +473,8 @@ export const WorldLighting = React.memo(function WorldLighting({
         shadow-camera-right={85}
         shadow-camera-top={85}
         shadow-camera-bottom={-85}
-        shadow-bias={-0.0003}
+        shadow-bias={-0.0001}
+        shadow-normalBias={0.035}
       />
 
       {/* Secondary Fill Light */}

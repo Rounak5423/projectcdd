@@ -32,13 +32,8 @@ export function ThreeSceneSampler({ sceneId }: ThreeSceneSamplerProps) {
       frameCount.current = 0;
       lastSampleTime.current = now;
 
-      // Count active scene objects
-      let objectCount = 0;
-      try {
-        scene.traverse(() => {
-          objectCount++;
-        });
-      } catch {}
+      // Count active top-level scene objects without deep recursive traversal stall
+      const objectCount = scene.children.length;
 
       const calls = gl.info?.render?.calls ?? 0;
       const triangles = gl.info?.render?.triangles ?? 0;
