@@ -101,6 +101,9 @@ class AuthoritativeSimulationCore:
             self.day = int(world_row["day"] or 1)
             self.status = world_row["simulation_status"] or "paused"
             self.speed = world_row["simulation_speed"] or "1x"
+            self.climate = world_row["climate"] if "climate" in world_row.keys() and world_row["climate"] else "Temperate"
+        else:
+            self.climate = "Temperate"
 
         # Load Buildings
         b_rows = conn.execute("SELECT * FROM buildings WHERE world_id = ?", (self.world_id,)).fetchall()
@@ -168,20 +171,24 @@ class AuthoritativeSimulationCore:
         if cit_rows:
             self.population_module.load_from_list([dict(cr) for cr in cit_rows])
         else:
+            from engine.demographics import sample_realistic_age, sample_health_for_age
             sample_citizens = []
             for i in range(150):
                 cid = f"cit_{self.world_id}_{i:04d}"
+                age = sample_realistic_age(self.rng)
+                health = sample_health_for_age(age, self.rng)
+                is_working_age = (18.0 <= age < 65.0)
                 sample_citizens.append({
                     "id": cid,
                     "world_id": self.world_id,
                     "name": f"Citizen {i}",
-                    "age": 22.0 + (i % 55),
-                    "sex": "F" if i % 2 == 0 else "M",
-                    "education": 0.55,
-                    "health": 0.90,
+                    "age": age,
+                    "sex": "M" if self.rng.random() < 0.512 else "F",
+                    "education": 0.55 if age >= 18.0 else (0.2 if age >= 6.0 else 0.0),
+                    "health": health,
                     "wealth": 120.0,
-                    "employed": 1 if 18 <= (22 + (i % 55)) < 65 else 0,
-                    "occupation": "Technician" if i % 3 == 0 else "Specialist"
+                    "employed": 1 if is_working_age else 0,
+                    "occupation": "Technician" if is_working_age else ("Student" if age < 18.0 else "Retiree")
                 })
             self.population_module.load_from_list(sample_citizens)
 
@@ -364,6 +371,11 @@ class AuthoritativeSimulationCore:
             residential_capacity=res_capacity,
             jobs_capacity=jobs_capacity,
             policy_multipliers=policy_mults,
+            temperature_c=env_summary["temperature_c"],
+            current_season=env_summary["current_season"],
+            weather_condition=env_summary["weather_condition"],
+            climate=getattr(self, "climate", "Temperate"),
+            current_tick=self.tick,
             rng=self.rng
         )
 
@@ -567,7 +579,12 @@ class AuthoritativeSimulationCore:
                 "living_citizens_count": len(living_cits),
                 "cumulative_births": self.population_module.cumulative_births,
                 "cumulative_deaths": self.population_module.cumulative_deaths,
+                "cumulative_in_migrants": self.population_module.cumulative_in_migrants,
+                "cumulative_out_migrants": self.population_module.cumulative_out_migrants,
+                "infant_mortality_rate": round(self.population_module.cumulative_infant_deaths / max(1, self.population_module.cumulative_births), 4),
                 "deaths_by_cause": dict(self.population_module.deaths_by_cause),
+                "age_cohorts": self.population_module.get_age_cohorts(),
+                "demographic_accounting": self.population_module.last_step_accounting,
                 "average_health": round(sum(c.health for c in living_cits) / max(1, len(living_cits)), 3),
                 "average_happiness": round(sum(c.mood for c in living_cits) / max(1, len(living_cits)), 3),
                 "sample_citizens": [c.to_dict() for c in living_cits[:25]]

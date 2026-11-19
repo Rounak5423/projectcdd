@@ -1,6 +1,6 @@
 # GENESIS Engine v2.0 - 30-Minute Movement Soak Test Report
 
-**Date:** 2026-11-19 16:47:02 UTC  
+**Date:** 2026-11-19 17:26:55 UTC  
 **Execution Mode:** Seeded Deterministic Micro-step Simulation (dt=0.2s, 30 sim-minutes per map)  
 **Total Maps Tested:** 5 / 5  
 
@@ -8,11 +8,11 @@
 
 | Map ID | Terrain Preset | Sim Time | Wall Time | Teleports | Overlaps | Off-Net | Clips | Flips | Orphans | Census Violations | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `aurora-prime` | Verdant River Valley | 1800s | 0.51s | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **PASS** |
+| `aurora-prime` | Verdant River Valley | 1800s | 0.52s | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **PASS** |
 | `highland-plateau` | Highland Plateau | 1800s | 0.38s | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **PASS** |
-| `archipelago` | Archipelago | 1800s | 0.4s | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **PASS** |
+| `archipelago` | Archipelago | 1800s | 0.41s | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **PASS** |
 | `boreal-basin` | Boreal Basin | 1800s | 0.46s | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **PASS** |
-| `arid-oasis` | Arid Oasis | 1800s | 0.38s | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **PASS** |
+| `arid-oasis` | Arid Oasis | 1800s | 0.39s | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **PASS** |
 
 ## Executive Summary
 

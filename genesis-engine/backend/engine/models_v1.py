@@ -174,6 +174,14 @@ class PopulationOverview(BaseModel):
     death_rate: float
     migration_rate: float
     demographics_breakdown: Dict[str, int]
+    demographic_accounting: Optional[Dict[str, Any]] = None
+    age_cohorts: Optional[Dict[str, int]] = None
+    deaths_by_cause: Optional[Dict[str, int]] = None
+    infant_mortality_rate: Optional[float] = None
+    natural_growth_rate: Optional[float] = None
+    crude_birth_rate: Optional[float] = None
+    crude_death_rate: Optional[float] = None
+    net_migration_rate: Optional[float] = None
 
 
 class CitizenRecord(BaseModel):

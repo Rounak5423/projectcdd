@@ -83,7 +83,8 @@ async def create_world(
             residential_building_ids=[outpost_id],
             work_building_ids=[outpost_id],
             center_x=center,
-            center_y=center
+            center_y=center,
+            climate=req.climate
         )
 
         # Initial event

@@ -12,32 +12,130 @@ router = APIRouter(tags=["Population, Economy & Resources"])
 
 @router.get("/worlds/{id}/population", response_model=PopulationOverview)
 async def get_population_overview(id: str):
+    from engine.modules.core import _SIMULATION_CORES
+
+    # 1. If world is currently active in authoritative simulation engine, read live authoritative state
+    if id in _SIMULATION_CORES:
+        sim = _SIMULATION_CORES[id]
+        pop_mod = sim.population_module
+        living_cits = pop_mod.get_living_citizens()
+        total_pop = len(living_cits)
+        avg_health = pop_mod.get_average_health()
+        avg_happiness = pop_mod.get_average_happiness()
+        avg_edu = pop_mod.get_average_education()
+        b_rate = pop_mod.get_annual_birth_rate()
+        d_rate = pop_mod.get_annual_death_rate()
+        m_rate = pop_mod.get_annual_net_migration_rate()
+        growth_rate = round(b_rate - d_rate + m_rate, 4)
+        natural_growth = round(b_rate - d_rate, 4)
+        cohorts = pop_mod.get_age_cohorts()
+        accounting = pop_mod.last_step_accounting
+        deaths_by_cause = dict(pop_mod.deaths_by_cause)
+        infant_mortality = round(pop_mod.cumulative_infant_deaths / max(1, pop_mod.cumulative_births), 4)
+
+        working_age = [c for c in living_cits if 18.0 <= c.age < 65.0]
+        employed = sum(1 for c in working_age if c.employed == 1)
+        emp_rate = round(float(employed) / max(1, len(working_age)), 3)
+
+        breakdown: Dict[str, int] = {}
+        for c in living_cits:
+            breakdown[c.occupation] = breakdown.get(c.occupation, 0) + 1
+
+        # Check if macro population in DB is higher (e.g. metropolitan scaling)
+        conn = get_db_connection()
+        econ_row = conn.execute("SELECT population, population_growth_rate FROM economy_resources WHERE world_id = ?", (id,)).fetchone()
+        conn.close()
+        macro_pop = int(econ_row["population"]) if econ_row and econ_row["population"] else total_pop
+        reported_pop = max(total_pop, macro_pop)
+
+        return PopulationOverview(
+            world_id=id,
+            total_population=reported_pop,
+            growth_rate=growth_rate,
+            happiness=avg_happiness,
+            health=avg_health,
+            education=avg_edu,
+            employment_rate=emp_rate,
+            birth_rate=round(b_rate, 4),
+            death_rate=round(d_rate, 4),
+            migration_rate=round(m_rate, 4),
+            demographics_breakdown=breakdown,
+            demographic_accounting=accounting,
+            age_cohorts=cohorts,
+            deaths_by_cause=deaths_by_cause,
+            infant_mortality_rate=infant_mortality,
+            natural_growth_rate=natural_growth,
+            crude_birth_rate=round(b_rate * 1000.0, 2),
+            crude_death_rate=round(d_rate * 1000.0, 2),
+            net_migration_rate=round(m_rate * 1000.0, 2)
+        )
+
+    # 2. Otherwise hydrate directly from database
     conn = get_db_connection()
     econ = conn.execute("SELECT * FROM economy_resources WHERE world_id = ?", (id,)).fetchone()
     if not econ:
         conn.close()
         raise HTTPException(status_code=404, detail=f"World '{id}' not found")
 
-    # Demographic breakdown
-    rows = conn.execute("SELECT occupation, COUNT(*) as count FROM citizens WHERE world_id = ? GROUP BY occupation", (id,)).fetchall()
+    living_stats = conn.execute(
+        "SELECT COUNT(*) as living_count, AVG(health) as avg_health, AVG(education_level) as avg_edu, AVG(wellbeing) as avg_wellbeing FROM citizens WHERE world_id = ? AND is_alive = 1",
+        (id,)
+    ).fetchone()
+
+    age_rows = conn.execute("SELECT age FROM citizens WHERE world_id = ? AND is_alive = 1", (id,)).fetchall()
+    cohorts = {"Infant": 0, "Child": 0, "Youth": 0, "Young Adult": 0, "Prime Adult": 0, "Mature Adult": 0, "Senior": 0, "Elder": 0}
+    for ar in age_rows:
+        age_val = float(ar["age"])
+        if age_val < 2.0:
+            cohorts["Infant"] += 1
+        elif age_val < 13.0:
+            cohorts["Child"] += 1
+        elif age_val < 18.0:
+            cohorts["Youth"] += 1
+        elif age_val < 25.0:
+            cohorts["Young Adult"] += 1
+        elif age_val < 55.0:
+            cohorts["Prime Adult"] += 1
+        elif age_val < 65.0:
+            cohorts["Mature Adult"] += 1
+        elif age_val < 80.0:
+            cohorts["Senior"] += 1
+        else:
+            cohorts["Elder"] += 1
+
+    # Demographic breakdown by occupation
+    rows = conn.execute("SELECT occupation, COUNT(*) as count FROM citizens WHERE world_id = ? AND is_alive = 1 GROUP BY occupation", (id,)).fetchall()
     conn.close()
 
     breakdown = {r["occupation"]: r["count"] for r in rows}
     if not breakdown:
         breakdown = {"Scholar": 25, "Engineer": 25, "Farmer": 25, "Builder": 25}
 
+    macro_pop = int(econ["population"]) if econ and econ["population"] is not None else 0
+    agent_pop = int(living_stats["living_count"]) if living_stats and living_stats["living_count"] is not None else 0
+    actual_pop = max(agent_pop, macro_pop)
+    avg_health = round(float(living_stats["avg_health"]), 3) if living_stats and living_stats["avg_health"] is not None else 0.88
+    avg_edu = round(float(living_stats["avg_edu"]), 3) if living_stats and living_stats["avg_edu"] is not None else 0.82
+    avg_happiness = round(float(living_stats["avg_wellbeing"]), 3) if living_stats and living_stats["avg_wellbeing"] is not None else float(econ["happiness"] or 0.85)
+
     return PopulationOverview(
         world_id=id,
-        total_population=econ["population"],
-        growth_rate=econ["population_growth_rate"],
-        happiness=econ["happiness"],
-        health=0.88,
-        education=0.82,
-        employment_rate=econ["employment_rate"],
-        birth_rate=0.032,
+        total_population=actual_pop,
+        growth_rate=float(econ["population_growth_rate"] or 0.024),
+        happiness=avg_happiness,
+        health=avg_health,
+        education=avg_edu,
+        employment_rate=float(econ["employment_rate"] or 0.85),
+        birth_rate=0.020,
         death_rate=0.008,
-        migration_rate=0.012,
-        demographics_breakdown=breakdown
+        migration_rate=0.005,
+        demographics_breakdown=breakdown,
+        age_cohorts=cohorts,
+        infant_mortality_rate=0.024,
+        natural_growth_rate=0.012,
+        crude_birth_rate=20.0,
+        crude_death_rate=8.0,
+        net_migration_rate=5.0
     )
 
 
