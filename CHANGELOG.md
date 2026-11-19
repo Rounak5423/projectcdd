@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.9.0] - 2026-11-19 (Gates A, B, C: Full Movement Logic Rebuild & Invariant Verification)
+
+### Authoritative Movement Contracts & Time Model Decoupling (Gate A)
+- **Authoritative Movement Contracts (`engine/modules/movement_contract.py`):** Established `TripContract` and `MovementExplanation` schemas formalizing mover identity, state transitions, reason codes, and causal decision trees.
+- **Explainability API Endpoint (`GET /api/v1/worlds/{id}/entities/{entity_id}/explain`):** Returns complete causal telemetry for any vehicle or pedestrian (IDM speed targets, gap to leader, signal phases, origin/destination buildings).
+- **Time Model Decoupling (`engine/modules/movement.py`):** Decoupled microscopic physical simulation ($\Delta t = 0.2\text{s}$) from hourly macro-civilisation ticks; verified bit-for-bit seeded determinism and $1\times$ vs $8\times$ speed consistency in `tests/test_gate_a_movement_contracts_and_time.py`.
+
+### Microscopic Vehicle & Pedestrian Behavioral Logic (Gate B)
+- **Intelligent Driver Model (IDM) & Priority Yielding:** Active IDM car-following maintaining non-zero bumper gaps; siren preemption enabling emergency vehicles to clear traffic with adjacent vehicles pulling to $2.2\text{m}$ lateral lane offset.
+- **Dynamic A\* BPR Rerouting & Incident Management:** Road closures, accidents (`trigger_accident`), and bulldozed segments trigger dynamic corridor rerouting or safe return without teleporting.
+- **Unified Pedestrian Network (`engine/world/pedestrian_network.py`):** Sidewalk graphs, signalized crosswalk clearance verification, bus stop dwelling, and real citizen boarding.
+- **Demographic Census Conservation:** Authoritative census guarantee: $\text{walking} + \text{driving} + \text{riding\_bus} + \text{indoor} == \text{total\_living}$.
+- **Comprehensive Verification Suite (`tests/test_gate_b_movement_behaviors.py`):** 10/10 passed behavioral battery.
+- **HUD Screenshot Verification (`frontend/e2e/gate_b_movement_hud.spec.ts`):** Captured complete Playwright screenshot series to `docs/screenshots/`.
+
+### Soak Testing & Map Invariant Assurance (Gate C)
+- **30-Minute Movement Soak Suite (`scripts/soak_test_movement.py`):** Executed 30 sim-minutes across all 5 map topologies (`aurora-prime`, `highland-plateau`, `archipelago`, `boreal-basin`, `arid-oasis`) logging 0 teleports, 0 overlaps, 0 off-network deviations, 0 elevation clips, 0 orientation flips, 0 orphans, and 0 census violations to `docs/soak_report.md`.
+- **Topology Alignment (`engine/world/map_topology.py`):** Rectified West bridge abutment coordinates to eliminate micro-reversals; verified 100% pass across all 5 maps via `python -m engine.validate_maps`.
+
+---
+
 ## [2.8.0] - 2026-11-16 (Part 2: Authoritative Microscopic Movement & 3D Integration)
 
 ### Backend Authoritative Movement & Topology Validation

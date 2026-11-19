@@ -120,6 +120,8 @@ class MovementModule:
         self.signals: Dict[str, TrafficSignalController] = {}
         self.trips: Dict[str, TripContract] = {}
         self.explanations: Dict[str, MovementExplanation] = {}
+        self._next_vehicle_seq: int = 0
+        self._next_ped_seq: int = 0
 
         # Deadlock tracking: entity_id -> seconds_stuck
         self.vehicle_stuck_times: Dict[str, float] = {}
@@ -163,12 +165,17 @@ class MovementModule:
         if not path or len(path) < 2:
             return None
 
-        vid = f"veh_{self.world_id}_{category}_{len(self.vehicles):04d}"
+        self._next_vehicle_seq += 1
+        vid = f"veh_{self.world_id}_{category}_{self._next_vehicle_seq:04d}"
 
         first_node = road_net.nodes.get(path[0])
+        second_node = road_net.nodes.get(path[1]) if len(path) > 1 else None
         sx = first_node.x if first_node else origin_x
         sz = first_node.z if first_node else origin_z
         sy = round(get_terrain_height(sx, sz, self.terrain_type), 2)
+        init_heading = 0.0
+        if first_node and second_node:
+            init_heading = round(math.degrees(math.atan2(second_node.z - first_node.z, second_node.x - first_node.x)), 1)
 
         owner_id = citizen_id or f"service_{category}"
         trip_id = f"trip_{vid}"
@@ -208,7 +215,7 @@ class MovementModule:
             current_x=sx,
             current_y=sy,
             current_z=sz,
-            heading_deg=0.0,
+            heading_deg=init_heading,
             current_speed_kmh=spec["max_speed_kmh"] * 0.5,
             acceleration=0.0,
             target_lane_index=0,
@@ -305,7 +312,8 @@ class MovementModule:
         dest_building_id: Optional[str] = None
     ) -> Optional[PedestrianEntity]:
         """Spawns an authoritative pedestrian navigating the pedestrian network."""
-        pid = f"ped_{self.world_id}_{citizen_id}"
+        self._next_ped_seq += 1
+        pid = f"ped_{self.world_id}_{citizen_id}_{self._next_ped_seq:04d}"
         spec = PEDESTRIAN_SPECS.get(archetype, PEDESTRIAN_SPECS["adult"])
         trip_id = f"trip_{pid}"
 

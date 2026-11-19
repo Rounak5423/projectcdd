@@ -143,7 +143,7 @@ def build_riverfront_masterplan_topology() -> MapTopology:
     node("node-roundabout-throat-east", 6.0, 24.0, "roundabout_throat", 2.4)
 
     node("node-west-north-junc", -25.0, -22.0, "intersection", 2.4, signal=True)
-    node("node-bridge-west-north", -25.0, -23.7, "bridge_abutment", 1.0)
+    node("node-bridge-west-north", -25.0, -13.7, "bridge_abutment", 1.0)
     node("node-bridge-west-south", -25.0, -8.7, "bridge_abutment", 1.0)
     node("node-west-sci-branch", -25.0, -2.0, "intersection", 2.2)
     node("node-west-crossroads", -25.0, 24.0, "intersection", 2.6, signal=True)
@@ -207,9 +207,9 @@ def build_riverfront_masterplan_topology() -> MapTopology:
     segment("seg-west-north-1", "Aethel Ridge Mountain Pass Upper", "node-portal-west-north", "node-west-north-junc",
             "grand_arterial", 65.0, 1200, 2, 4.2, [(-25.0, -44.0), (-25.0, -33.0), (-25.0, -22.0)])
     segment("seg-west-north-2", "Aethel Ridge Mountain Pass Lower", "node-west-north-junc", "node-bridge-west-north",
-            "grand_arterial", 65.0, 1200, 2, 4.2, [(-25.0, -22.0), (-25.0, -23.7)])
+            "grand_arterial", 65.0, 1200, 2, 4.2, [(-25.0, -22.0), (-25.0, -13.7)])
     segment("seg-bridge-west", "West Aethel Ridge Suspension Bridge", "node-bridge-west-north", "node-bridge-west-south",
-            "architectural_bridge", 60.0, 1100, 2, 4.5, [(-25.0, -23.7), (-25.0, -16.2), (-25.0, -8.7)], bridge=True)
+            "architectural_bridge", 60.0, 1100, 2, 4.5, [(-25.0, -13.7), (-25.0, -11.2), (-25.0, -8.7)], bridge=True)
     segment("seg-west-south-1", "West River Bluff Avenue North", "node-bridge-west-south", "node-west-sci-branch",
             "district_collector", 55.0, 800, 2, 4.2, [(-25.0, -8.7), (-25.0, -2.0)])
     segment("seg-west-south-2", "West River Bluff Avenue Mid", "node-west-sci-branch", "node-west-crossroads",
