@@ -445,7 +445,16 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     }));
   });
   const [technologies, setTechnologies] = useState<Technology[]>(() => initialSaved?.technologies || initialTechnologies);
-  const [policies, setPolicies] = useState<Policy[]>(() => initialSaved?.policies || initialPolicies);
+  const [policies, setPolicies] = useState<Policy[]>(() => {
+    const raw = initialSaved?.policies || initialPolicies;
+    const civLevel = initialSaved?.civilization?.level || initialCivilization.level || 1;
+    if (civLevel <= 1) {
+      // Ensure AI research policy is never hardcoded or pre-enacted on Level 1 maps;
+      // players can input/propose AI research policies whenever they choose through the Policy Lab.
+      return raw.filter((p) => p.id !== 'pol-ai-access');
+    }
+    return raw;
+  });
   const [citizens, setCitizens] = useState<Citizen[]>(() => initialSaved?.citizens || initialCitizens);
   const [scenarios] = useState<SimulationScenario[]>(simulationScenarios);
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
@@ -3036,7 +3045,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         createInitialDetailedAgents(savedForTarget.citizens || initialCitizens, savedForTarget.civilization.level)
       );
       setTechnologies(savedForTarget.technologies || initialTechnologies);
-      setPolicies(savedForTarget.policies || initialPolicies);
+      setPolicies(
+        savedForTarget.policies
+          ? savedForTarget.policies.filter((p) => (civLevel <= 1 ? p.id !== 'pol-ai-access' : true))
+          : initialPolicies
+      );
       setZonedTiles(savedForTarget.zonedTiles || []);
       setTaxRate(savedForTarget.taxRate ?? 18);
       if (savedForTarget.quests) setQuests(savedForTarget.quests);

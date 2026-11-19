@@ -110,6 +110,14 @@ export const PolicyLaboratoryPage: React.FC<PolicyLaboratoryPageProps> = ({ onCl
   const filteredPolicies = policies.filter((p) => {
     if (selectedDomain === 'active') return p.isActive;
     if (selectedDomain === 'all') return true;
+    if (selectedDomain === 'AI') {
+      return (
+        p.category.toLowerCase().includes('ai') ||
+        p.name.toLowerCase().includes('ai') ||
+        p.name.toLowerCase().includes('artificial intelligence') ||
+        p.category.toLowerCase().includes('cognitive')
+      );
+    }
     return p.category.toLowerCase().includes(selectedDomain.toLowerCase());
   });
 
@@ -645,6 +653,70 @@ ${policy.description}
                   </div>
                 );
               })}
+
+              {filteredPolicies.length === 0 && selectedDomain === 'AI' && (
+                <div className="col-span-full p-8 rounded-xl bg-[#171D18] border border-[#C5A66A]/30 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-[#C5A66A]/10 border border-[#C5A66A]/30 flex items-center justify-center mx-auto text-[#C5A66A]">
+                    <Brain className="w-6 h-6" />
+                  </div>
+                  <h4 className="font-serif text-base font-bold text-[#EAE3D2]">No AI Research Policies Hardcoded</h4>
+                  <p className="text-xs text-[#A5AD9D] max-w-md mx-auto leading-relaxed">
+                    AI research policies are never hardcoded or forced upon your realm. When you wish to introduce machine cognition, automated assistants, or algorithmic governance, you can propose and input your directive here.
+                  </p>
+                  <button
+                    onClick={() => {
+                      soundFx.playClick();
+                      setCustomForm({
+                        name: 'Civilian AI Research & Ethics Accord',
+                        category: 'AI',
+                        description: 'Institutes ethical AI research guidelines, neural computation safety standards, and citizen coprocessor access.',
+                        costPoliticalCapital: 120,
+                        sliderLabel: 'Cognitive Coprocessor Allocation',
+                        sliderValue: 50,
+                        minVal: 10,
+                        maxVal: 100,
+                        unit: '%',
+                        focusBenefit: '+18% Scientific inquiry output across research labs and academic workshops.',
+                        focusRisk: 'Initial cognitive dependency friction and increased power consumption.',
+                      });
+                      setIsDraftingCustom(true);
+                    }}
+                    className="px-4 py-2 rounded bg-gradient-to-r from-[#C5A66A] to-[#D8CBAA] hover:brightness-110 text-[#171D18] font-serif font-bold text-xs uppercase tracking-wider inline-flex items-center gap-2 shadow-md transition-all cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Propose AI Research Policy</span>
+                  </button>
+                </div>
+              )}
+
+              {filteredPolicies.length === 0 && selectedDomain !== 'AI' && (
+                <div className="col-span-full p-8 rounded-xl bg-[#171D18] border border-[#C5A66A]/20 text-center space-y-3">
+                  <p className="text-xs text-[#A5AD9D]">No active or drafted directives found in this domain.</p>
+                  <button
+                    onClick={() => {
+                      soundFx.playClick();
+                      setCustomForm({
+                        name: '',
+                        category: selectedDomain === 'all' || selectedDomain === 'active' ? 'Research' : selectedDomain,
+                        description: '',
+                        costPoliticalCapital: 100,
+                        sliderLabel: 'Enforcement & Funding Level',
+                        sliderValue: 50,
+                        minVal: 10,
+                        maxVal: 100,
+                        unit: '%',
+                        focusBenefit: 'Accelerates targeted civic development across settlements.',
+                        focusRisk: 'Allocates municipal political capital and treasury reserves.',
+                      });
+                      setIsDraftingCustom(true);
+                    }}
+                    className="px-4 py-2 rounded bg-[#202820] hover:bg-[#2a352a] text-[#C5A66A] border border-[#C5A66A]/30 font-serif font-bold text-xs uppercase tracking-wider inline-flex items-center gap-2 transition-all cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Draft Policy for this Domain</span>
+                  </button>
+                </div>
+              )}
             </div>
           </>
         ) : (
