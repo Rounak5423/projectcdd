@@ -23,8 +23,17 @@ from ml.inference.registry import (
     predict_commute_mode,
     calculate_gompertz_mortality_hazard,
 )
-from ml.calibration.calibrate import run_calibration_pipeline
-from ml.control.controller import generate_policy_recommendation, KillSwitchActiveError
+try:
+    from ml.calibration.calibrate import run_calibration_pipeline
+except ImportError:
+    run_calibration_pipeline = None
+
+try:
+    from ml.control.controller import generate_policy_recommendation, KillSwitchActiveError
+except ImportError:
+    generate_policy_recommendation = None
+    class KillSwitchActiveError(Exception):
+        pass
 
 router = APIRouter(tags=["Machine Learning & Calibration"])
 
@@ -239,6 +248,11 @@ async def trigger_calibration(
     Admin-only endpoint: fits empirical simulation parameters (Gompertz mortality,
     Hadwiger fertility, accident splits, Gini bounds) to raw data and writes params_v1.json.
     """
+    if run_calibration_pipeline is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Machine Learning calibration pipeline requires ML dependencies (run with ML container profile)."
+        )
     calibrated = run_calibration_pipeline()
     return {
         "status": "success",
@@ -292,6 +306,11 @@ async def recommend_policy(
         }
 
     try:
+        if generate_policy_recommendation is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Policy recommendation requires ML dependencies (run with ML container profile)."
+            )
         recommendation = generate_policy_recommendation(target_world_id, state)
         return PolicyRecommendResponse(**recommendation)
     except KillSwitchActiveError as e:

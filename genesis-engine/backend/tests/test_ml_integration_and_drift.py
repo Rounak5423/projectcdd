@@ -1,5 +1,10 @@
 import pytest
-import numpy as np
+import math
+import statistics
+try:
+    import numpy as np
+except ImportError:
+    np = None
 from fastapi.testclient import TestClient
 from main import app
 
@@ -41,8 +46,8 @@ def test_train_serve_feature_parity():
     # Assert value types and ranges
     for k, v in features.items():
         assert isinstance(v, (int, float)), f"Feature {k} must be numeric, got {type(v)}"
-        assert not np.isnan(v), f"Feature {k} cannot be NaN"
-        assert not np.isinf(v), f"Feature {k} cannot be infinite"
+        assert not math.isnan(v), f"Feature {k} cannot be NaN"
+        assert not math.isinf(v), f"Feature {k} cannot be infinite"
 
 
 def test_model_sensitivity():
@@ -90,7 +95,7 @@ def test_prediction_not_stuck():
         res = predict_city_trajectory_step(varied_state, horizon_steps=1)
         predictions.append(res["predicted_population"])
         
-    pop_variance = float(np.var(predictions))
+    pop_variance = float(statistics.pvariance(predictions))
     assert pop_variance > 1000.0, f"Model predictions appear stuck! Population variance was only {pop_variance}"
 
 

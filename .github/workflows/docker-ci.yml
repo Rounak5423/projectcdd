@@ -1,0 +1,120 @@
+name: GENESIS Container CI & Security Scan
+
+on:
+  push:
+    branches: [ main, rounak, Divyamsh, 'feat/**', 'fix/**' ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ main, Divyamsh, rounak ]
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+jobs:
+  docker-build-and-test:
+    name: Build Containers, Scan Vulnerabilities & Run E2E Stack
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create Test Environment File
+        run: |
+          cp .env.example .env
+          sed -i 's/ENVIRONMENT=production/ENVIRONMENT=development/g' .env
+
+      - name: Build Backend Image with Layer Caching
+        uses: docker/build-push-action@v5
+        with:
+          context: ./genesis-engine/backend
+          file: ./genesis-engine/backend/Dockerfile
+          load: true
+          tags: genesis-backend:latest,genesis-backend:2.5.0,genesis-backend:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build Frontend Image with Layer Caching
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./frontend/Dockerfile
+          load: true
+          tags: genesis-frontend:latest,genesis-frontend:2.5.0,genesis-frontend:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Run Trivy Security Vulnerability Scan (Backend Image)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: genesis-backend:latest
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy Security Vulnerability Scan (Frontend Image)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: genesis-frontend:latest
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Start Production Stack via Compose
+        run: |
+          docker compose up -d
+          docker compose ps
+
+      - name: Verify Live Stack Health
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/health >/dev/null 2>&1; then
+              echo "Production stack is healthy!"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Stack failed to become healthy in time."
+          docker compose logs
+          exit 1
+
+      - name: Execute Automated Test Container (Pytest, 365 Ticks, Playwright)
+        run: |
+          docker compose --profile tests run --rm tests
+
+      - name: Clean Up Test Stack
+        if: always()
+        run: |
+          docker compose down -v
+
+      - name: Log in to GitHub Container Registry (Tagged Releases Only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Images to GHCR (Tagged Releases Only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          TAG="${GITHUB_REF_NAME}"
+          
+          docker tag genesis-backend:latest "ghcr.io/${REPO_LOWER}/backend:${TAG}"
+          docker tag genesis-backend:latest "ghcr.io/${REPO_LOWER}/backend:latest"
+          docker tag genesis-frontend:latest "ghcr.io/${REPO_LOWER}/frontend:${TAG}"
+          docker tag genesis-frontend:latest "ghcr.io/${REPO_LOWER}/frontend:latest"
+          
+          docker push "ghcr.io/${REPO_LOWER}/backend:${TAG}"
+          docker push "ghcr.io/${REPO_LOWER}/backend:latest"
+          docker push "ghcr.io/${REPO_LOWER}/frontend:${TAG}"
+          docker push "ghcr.io/${REPO_LOWER}/frontend:latest"

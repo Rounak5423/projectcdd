@@ -34,6 +34,7 @@ export function useUnifiedWorld() {
     roads: globalWorldStore.getRoads(),
     zones: globalWorldStore.getZones(),
     vehicles: globalWorldStore.getVehicles(),
+    pedestrians: globalWorldStore.getPedestrians(),
     utilities: globalWorldStore.getUtilities(),
     traffic: globalWorldStore.getTraffic(),
     metrics: globalWorldStore.getMetrics(),

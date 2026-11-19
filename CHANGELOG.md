@@ -7,6 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.0] - 2026-11-16 (Part 2: Authoritative Microscopic Movement & 3D Integration)
+
+### Backend Authoritative Movement & Topology Validation
+- **Microscopic Traffic Physics (`engine/modules/movement.py`):** Implemented Intelligent Driver Model (IDM) car-following with continuous velocity integration, 4-phase signalized intersection controllers, emergency ambulance preemption (cars pull to lane offset), bus boarding/dwell state machines, and spatial grid partitioning for $O(1)$ leader detection.
+- **Pedestrian Circulation (`engine/modules/movement.py`):** Dynamic pedestrian agents navigating sidewalks, crossing at signalized crosswalks during pedestrian clearance phases, and linked to `CitizenEntity` circadian schedules (home -> commute -> work -> recreation).
+- **Multi-Map Topology & Elevation Snapping (`engine/world/`):**
+  - `terrain_elevation.py`: Mathematical elevation functions matching all 8 biome presets.
+  - `map_topology.py`: Road graphs, multi-lane specs, turnarounds, crosswalks, parking bays, and building access for all 5 maps (`aurora-prime`, `highland-plateau`, `archipelago`, `boreal-basin`, `arid-oasis`).
+  - `validate_maps.py`: Automated map invariant validator ensuring zero slope violations, zero dead ends, and 100% elevation snapping.
+- **Unit Verification Suite (`tests/test_gate2_movement_logic.py`):** 7 empirical unit tests validating IDM car-following, non-overlap, dynamic rerouting, signal stopping, emergency priority, pedestrian crosswalk obedience, and headless scale performance (5,000 vehicles).
+
+### Frontend Movement Interpolation & Diagnostic Overlay
+- **Client Synchronization (`src/world/movement/`):**
+  - `useMovementSync.ts`: Per-frame Hermite spline interpolation, terrain height snapping, heading slerp, and entity lifecycle pruning.
+  - `MovementRenderer.tsx`: 3D instanced meshes, headlights, taillights, rotating emergency strobe beacons, and floating state badges (`WAITING`, `YIELDING`, `EMERGENCY`, `BOARDING`).
+  - `MovementDebugOverlay.tsx`: Interactive F3 diagnostic HUD displaying live FPS, latency, vehicle/pedestrian category counts, signal states, and glitch invariant counters.
+- **Touched Existing Files:**
+  - `src/world/types.ts`: Extended schema with `PedestrianEntity`, `TrafficSignalState`, and vehicle telemetry badges.
+  - `src/world/worldStore.ts`: Integrated active pedestrians and traffic signals into world state reconciliation.
+  - `src/world/useUnifiedWorld.ts`: Exposed pedestrian entities and signal phases to React hooks.
+  - `src/components/world3d/CivilizationWorld3D.tsx`: Replaced client-side fake splines with `MovementRenderer` and mounted `MovementDebugOverlay`.
+
+---
+
+## [2.7.0] - 2026-11-16 (Phase 1: Authoritative Simulation Core)
+
+### Authoritative Architecture & Causal Engine Core
+- **Time Scale & Replay Determinism (`engine/modules/config.py`):** Formalized discrete time standards (1 tick = 1 sim hour, 24 ticks = 1 sim day, 720 ticks = 1 month, 8760 ticks = 1 year) with isolated deterministic per-world seeded RNG (`random.Random(seed)`).
+- **Nine Subsystem Modules (`engine/modules/`):**
+  - `population.py`: Full citizen agents with age, sex, education, health, wealth, household, needs, and mood; Gompertz biological mortality scaled to ticks with cause logging; Hadwiger fertility; city attractiveness migration; and employment pipeline.
+  - `resources.py`: Multi-tier production chains (food, water, energy, materials), storage capacity, transport losses, and priority rationing.
+  - `economy.py`: Bottom-up GDP derived from citizen wages and enterprise value-add, Gini inequality index computed across the citizen wealth distribution, municipal budget balancing, and taxes.
+  - `infrastructure.py`: Building lifecycles (construction, upgrades, maintenance, abandonment, recovery), utility graph BFS distribution (power, water, sewage, waste) with outage propagation, and road topology.
+  - `environment.py`: 2D discrete diffusion fields ($16 \times 16$) for air, water, and soil pollution with wind vector advection and green cover absorption, 4 distinct seasons, and dynamic weather.
+  - `governance.py`: 8 public policy instruments with activation delays, costs, and trade-offs (Universal Healthcare, Clean Energy Subsidies, Smart Congestion Tolls, etc.), public trust, and protest dynamics mathematically driven by citizen grievance and inequality.
+  - `events.py`: Causal crisis evaluation (famine, grid blackout, toxic smog, civil strikes) and stochastic scientific breakthroughs.
+  - `progression.py`: Civilisation Level and XP formulas, genuine milestone achievements, and empirical mission verification.
+  - `future_sim.py`: Sandboxed scenario branching, counterfactual projection, and comparative analysis preserving the pristine base world.
+- **Movement Subsystem (`engine/modules/movement.py`):** Congestion-weighted A* vehicle routing over road segments, purpose-driven schedules (work, school, hospital, emergency), intersection queueing, and Level-of-Detail (LOD) filtering.
+- **Master Orchestrator (`engine/modules/core.py`):** Enforces strict 10-step causal order:
+  `Needs & Utilities` → `Environment` → `Health & Disease` → `Incidents` → `Emergency Response` → `Mortality & Births` → `Economy` → `Satisfaction` → `Unrest & Protest` → `Governance Reaction`.
+- **Single JSON World State Schema (`docs/schema/`):** Published `docs/schema/world_state.schema.json` and demo civilization seed `docs/schema/demo_civilization_seed.json`.
+- **Additive Simulation & Persistence Endpoints (`genesis-engine/backend/api/v1/simulation.py`):** Added `POST /worlds/{id}/simulation/speed`, `GET /worlds/{id}/state/v2`, `POST /worlds/{id}/saves`, `GET /worlds/{id}/saves`, `POST /worlds/{id}/saves/{name}/load`, `POST /worlds/{id}/policies/{id}/enact`, `POST /worlds/{id}/policies/{id}/revoke`, `POST /worlds/{id}/branch`, and `POST /worlds/{id}/compare`.
+- **Touched Existing Files:**
+  - `genesis-engine/backend/api/v1/simulation.py`: Added additive v2 simulation control, state inspection, save slot, and policy endpoints.
+  - `genesis-engine/backend/engine/scheduler.py`: Extended `SPEED_INTERVALS` to support `0.5x` and `4x`.
+  - `genesis-engine/backend/engine/world/utility_network.py`: Fixed building status overwrite bug ensuring abandoned buildings stay abandoned until repaired.
+  - `docs/contract/backend_contract.json`: Synchronized OpenAPI contract with newly added additive simulation routes.
+
+---
+
+## [2.6.0] - 2026-11-15 (Docker & Production Containerization)
+
+### Deliverable 1 - Multi-stage Backend Containerization
+- **Image:** Multi-stage `python:3.12-slim` image (`genesis-backend`) compiling dependencies into virtual environment and discarding dev tools and caches. Final image size ~110MB.
+- **Security & Privilege:** Runs strictly as non-root user `genesis:genesis` (UID 10001, GID 10001).
+- **Process Architecture:** Starts single-worker Uvicorn (`--workers 1`) to preserve SQLite WAL single-writer semantics and in-memory tick loop consistency.
+- **Healthcheck & Entrypoint:** Added `HEALTHCHECK` against `GET /health`. Authored `docker-entrypoint.sh` enforcing production credential validation and idempotent database migrations/seeding before executing PID 1.
+
+### Deliverable 2 - Multi-stage Frontend Containerization & Reverse Proxy
+- **Build & Serve:** Multi-stage `node:22-alpine` builder (`npm ci && npm run build`) and unprivileged `nginx:1.27-alpine` runner.
+- **Nginx Architecture (`nginx.conf`):** Runs on non-root port 8080 as `genesis` (UID 10001). Features SPA fallback to `index.html`, Gzip compression, immutable cache headers for hashed `/assets/`, security headers (X-Frame-Options, X-Content-Type-Options, CSP, Referrer-Policy), and low-latency reverse proxying for `/api/`, `/health`, and `/ws/` (with 24h timeouts and WebSocket upgrade).
+- **Optimized Size:** Excluded raw downloaded 3D assets in `.dockerignore`, bringing image size to 251MB.
+
+### Deliverable 3 - Production & Development Compose Stacks
+- **Production (`docker-compose.yml`):** Deploys backend and frontend on internal bridge network; only frontend port 3000 exposed to host. Declares POSIX `driver: local` named volumes (`genesis_db_data`, `genesis_ml_models`, `genesis_ml_runs`, `genesis_ml_data`, `genesis_uploads`) ensuring atomic SQLite WAL locking. Health-checked `depends_on`, resource limits (CPU/RAM), restart policies, and read-only root filesystems with tmpfs mounts.
+- **Development (`docker-compose.dev.yml`):** Exposes backend port 8000 for Swagger UI, Vite port 5173 with HMR, bind-mounted source trees, and `--reload`.
+- **GPU Training (`docker-compose.gpu.yml`):** NVIDIA reservation override for compute acceleration under ML profile.
+
+### Deliverable 4 & 5 - Configuration, Secrets & Dockerignore
+- **Secret Hardening:** Refuses to start in production if `JWT_SECRET` is insecure or `ADMIN_DEFAULT_PASSWORD` is `AdminPassword123!`.
+- **Environment Templates:** Documented all variables with safe placeholders in `.env.example`.
+- **Dockerignore Hardening:** Filtered raw models, cache files, node_modules, tests, venvs, and secrets.
+
+### Deliverable 6 & 7 - Operations, Makefile & Database Lifecycle
+- **Makefile Automation:** Provided `up`, `down`, `dev`, `logs`, `status`, `test`, `shell-backend`, `backup-db`, `restore-db`, `train`, `reset-db`, `clean`.
+- **Hot WAL Backups:** Implemented non-blocking point-in-time backup using SQLite online backup API (`src.backup(dst)`).
+
+### Deliverable 8 - ML Tooling Decoupling (`Dockerfile.ml`)
+- **Scientific Image:** Separate container under compose profile `ml` packaging NumPy, SciPy, Pandas, LightGBM, and Scikit-learn, decoupling heavy ML libraries from the lean core simulation image.
+
+### Deliverable 9 & 10 - CI/CD & Documentation
+- **GitHub Actions (`docker-ci.yml`):** Multi-stage buildx caching, Trivy container security scans (blocking on HIGH/CRITICAL vulnerabilities), automated integration testing, and GHCR registry pushes on release tags.
+- **Comprehensive Runbook (`docs/DOCKER.md`):** Complete operations guide, architectural diagrams, WAL backup/restore procedures, and troubleshooting matrix.
+
+### Touched Existing Files (Minimal Conflict-Safe Diffs)
+- `genesis-engine/backend/config.py`: Added production environment safety check refusing startup with default admin password or default JWT secret.
+- `genesis-engine/backend/api/v1/ml_routes.py`: Switched ML heavy pipeline calls to lazy imports so slim backend image runs without ML dependencies installed.
+- `genesis-engine/backend/engine/world/features.py`: Removed unused `import numpy as np` to allow lean non-ML backend execution.
+- `genesis-engine/backend/engine/world/utility_network.py`: Added missing `Optional` typing import to avoid class evaluation error in Python 3.12.
+- `genesis-engine/backend/engine/demographics.py`: Hardened citizen ID generation (`cit_{world_id}_{i}_{uuid}`) to guarantee zero SQLite primary key collisions during batch spawning.
+- `genesis-engine/backend/ml/calibration/calibrate.py`: Added graceful fallback for NumPy import in non-ML mode.
+- `genesis-engine/backend/ml/inference/registry.py`: Added `math.exp` fallback for softmax calculation when NumPy is absent.
+- `.env.example` & `genesis-engine/backend/.env.example`: Added Docker containerization environment variables and safe placeholders.
+- `package-lock.json` & `node_modules/.package-lock.json`: Synchronized `@playwright/test` lockfile dependency for clean `npm ci` build in container.
+- `README.md`: Added Docker Quickstart section and commands.
+
+---
+
 ## [2.5.0] - 2026-11-10 (Full-Stack Connection, ML Verification & Zero Blanks Hardening)
 
 ### Part A - Frontend / Backend Connection & Single Source of Truth

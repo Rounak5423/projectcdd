@@ -6,7 +6,6 @@ Version: 2.0.0
 import math
 import copy
 from typing import Dict, List, Optional, Tuple, Any
-import numpy as np
 
 from .state import WorldStateSnapshot, DerivedCityMetrics, WorldCommand
 from .simulation import UnifiedWorldSimulation, get_unified_simulation

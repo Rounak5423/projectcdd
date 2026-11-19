@@ -1,0 +1,289 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GenesisWorldState",
+  "description": "Authoritative Unified Single World State Schema for GENESIS Engine v2.0",
+  "type": "object",
+  "required": [
+    "world_id",
+    "tick",
+    "year",
+    "day",
+    "version",
+    "simulation_status",
+    "simulation_speed",
+    "population",
+    "resources",
+    "economy",
+    "infrastructure",
+    "environment",
+    "governance",
+    "events",
+    "progression"
+  ],
+  "properties": {
+    "world_id": {
+      "type": "string"
+    },
+    "tick": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "year": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "day": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 365
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "simulation_status": {
+      "type": "string",
+      "enum": [
+        "running",
+        "paused",
+        "stopped"
+      ]
+    },
+    "simulation_speed": {
+      "type": "string",
+      "enum": [
+        "0.5x",
+        "1x",
+        "2x",
+        "4x",
+        "10x"
+      ]
+    },
+    "population": {
+      "type": "object",
+      "required": [
+        "total",
+        "living_citizens_count",
+        "cumulative_births",
+        "cumulative_deaths",
+        "deaths_by_cause"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer"
+        },
+        "living_citizens_count": {
+          "type": "integer"
+        },
+        "cumulative_births": {
+          "type": "integer"
+        },
+        "cumulative_deaths": {
+          "type": "integer"
+        },
+        "deaths_by_cause": {
+          "type": "object"
+        },
+        "average_health": {
+          "type": "number"
+        },
+        "average_happiness": {
+          "type": "number"
+        },
+        "sample_citizens": {
+          "type": "array"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "required": [
+        "food_stock",
+        "water_stock",
+        "energy_stock",
+        "materials_stock"
+      ],
+      "properties": {
+        "food_stock": {
+          "type": "number"
+        },
+        "water_stock": {
+          "type": "number"
+        },
+        "energy_stock": {
+          "type": "number"
+        },
+        "materials_stock": {
+          "type": "number"
+        },
+        "food_capacity": {
+          "type": "number"
+        },
+        "water_capacity": {
+          "type": "number"
+        },
+        "energy_capacity": {
+          "type": "number"
+        },
+        "materials_capacity": {
+          "type": "number"
+        }
+      }
+    },
+    "economy": {
+      "type": "object",
+      "required": [
+        "gdp",
+        "treasury_credits",
+        "tax_rate_percent",
+        "gini_coefficient"
+      ],
+      "properties": {
+        "gdp": {
+          "type": "number"
+        },
+        "treasury_credits": {
+          "type": "number"
+        },
+        "tax_rate_percent": {
+          "type": "number"
+        },
+        "gini_coefficient": {
+          "type": "number"
+        },
+        "jobs_capacity": {
+          "type": "integer"
+        },
+        "employed_citizens": {
+          "type": "integer"
+        }
+      }
+    },
+    "infrastructure": {
+      "type": "object",
+      "required": [
+        "buildings_count",
+        "power_supply_mw",
+        "power_demand_mw",
+        "grid_reliability_pct"
+      ],
+      "properties": {
+        "buildings_count": {
+          "type": "integer"
+        },
+        "residential_capacity": {
+          "type": "integer"
+        },
+        "jobs_capacity": {
+          "type": "integer"
+        },
+        "road_nodes_count": {
+          "type": "integer"
+        },
+        "road_segments_count": {
+          "type": "integer"
+        },
+        "power_supply_mw": {
+          "type": "number"
+        },
+        "power_demand_mw": {
+          "type": "number"
+        },
+        "grid_reliability_pct": {
+          "type": "number"
+        },
+        "water_supply_t": {
+          "type": "number"
+        },
+        "water_demand_t": {
+          "type": "number"
+        },
+        "water_reliability_pct": {
+          "type": "number"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": [
+        "current_season",
+        "temperature_c",
+        "environmental_health_index"
+      ],
+      "properties": {
+        "current_season": {
+          "type": "string"
+        },
+        "temperature_c": {
+          "type": "number"
+        },
+        "weather_condition": {
+          "type": "string"
+        },
+        "environmental_health_index": {
+          "type": "number"
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "required": [
+        "public_trust",
+        "grievance_index",
+        "protest_intensity",
+        "active_policies"
+      ],
+      "properties": {
+        "public_trust": {
+          "type": "number"
+        },
+        "grievance_index": {
+          "type": "number"
+        },
+        "protest_intensity": {
+          "type": "number"
+        },
+        "active_policies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "events": {
+      "type": "object",
+      "required": [
+        "active_events"
+      ],
+      "properties": {
+        "active_events": {
+          "type": "array"
+        }
+      }
+    },
+    "progression": {
+      "type": "object",
+      "required": [
+        "level",
+        "title",
+        "xp",
+        "grc_balance"
+      ],
+      "properties": {
+        "level": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "xp": {
+          "type": "integer"
+        },
+        "grc_balance": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

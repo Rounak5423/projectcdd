@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 import sys
+import os
 import json
 import time
 
-sys.path.insert(0, 'genesis-engine/backend')
+for _p in ['genesis-engine/backend', 'backend', '/app/backend']:
+    if os.path.exists(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
 from fastapi.testclient import TestClient
 from main import app
 from db.database import get_db_connection

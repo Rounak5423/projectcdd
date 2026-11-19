@@ -1,4 +1,4 @@
-﻿"""
+"""
 Centralized, Versioned Configuration for GENESIS Unified World & Simulation Engine
 Version: 2.0.0
 Covers:
@@ -253,7 +253,35 @@ MAX_LOD_FULL_AGENTS = 500
 MAX_LOD_FULL_VEHICLES = 150
 
 # ==============================================================================
-# 5. ECONOMIC & POLICY ELASTICITY
+# 5. MICROSCOPIC VEHICLE & IDM PARAMETERS
+# ==============================================================================
+IDM_A_MAX = 2.5          # Max acceleration m/s^2
+IDM_B_COMFORT = 2.5      # Comfortable deceleration m/s^2
+IDM_S0 = 2.5             # Minimum jam distance meters
+IDM_T_HEADWAY = 1.2      # Safe time headway seconds
+IDM_DELTA = 4.0          # Acceleration exponent
+
+VEHICLE_SPECS = {
+    "sedan": {"length": 4.2, "width": 1.9, "max_speed_kmh": 60.0, "accel": 2.5, "priority": 1},
+    "bus": {"length": 11.5, "width": 2.5, "max_speed_kmh": 45.0, "accel": 1.8, "priority": 2, "capacity": 40, "dwell_ticks": 3},
+    "truck": {"length": 9.0, "width": 2.4, "max_speed_kmh": 50.0, "accel": 1.6, "priority": 1},
+    "ambulance": {"length": 5.8, "width": 2.1, "max_speed_kmh": 80.0, "accel": 3.2, "priority": 10, "is_emergency": True},
+    "police": {"length": 4.8, "width": 1.9, "max_speed_kmh": 80.0, "accel": 3.2, "priority": 9, "is_emergency": True},
+    "fire_truck": {"length": 9.5, "width": 2.5, "max_speed_kmh": 70.0, "accel": 2.2, "priority": 10, "is_emergency": True},
+    "service": {"length": 6.5, "width": 2.2, "max_speed_kmh": 35.0, "accel": 1.8, "priority": 1},
+}
+
+PEDESTRIAN_SPECS = {
+    "adult": {"speed_mps": 1.35, "width": 0.5},
+    "child": {"speed_mps": 1.10, "width": 0.4},
+    "senior": {"speed_mps": 0.95, "width": 0.5},
+}
+
+SIGNAL_CYCLE_SECONDS = 24.0  # 10s Green NS, 2s Yellow, 10s Green EW, 2s Yellow
+JUNCTION_DEADLOCK_TIMEOUT_SECONDS = 8.0
+
+# ==============================================================================
+# 6. ECONOMIC & POLICY ELASTICITY
 # ==============================================================================
 DEFAULT_TAX_RATE = 0.18 # 18% base corporate/income tax
 TAX_ELASTICITY_HAPPINESS = -0.45 # Higher taxes reduce happiness

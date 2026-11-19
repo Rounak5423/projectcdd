@@ -9,6 +9,7 @@ import {
   RoadSegmentEntity,
   ZoneTileEntity,
   VehicleEntity,
+  PedestrianEntity,
   UtilityNetworkState,
   TrafficMetricsState,
   DerivedCityMetrics,
@@ -34,6 +35,7 @@ class UnifiedWorldStore {
   private roads: Map<string, RoadSegmentEntity> = new Map();
   private zones: Map<string, ZoneTileEntity> = new Map();
   private vehicles: Map<string, VehicleEntity> = new Map();
+  private pedestrians: Map<string, PedestrianEntity> = new Map();
 
   // Subsystem Metrics
   private utilities: UtilityNetworkState = {
@@ -134,6 +136,11 @@ class UnifiedWorldStore {
     this.vehicles.clear();
     snap.vehicles_sample.forEach((v) => this.vehicles.set(v.id, v));
 
+    if (snap.pedestrians_sample) {
+      this.pedestrians.clear();
+      snap.pedestrians_sample.forEach((p) => this.pedestrians.set(p.id, p));
+    }
+
     this.utilities = snap.utilities;
     this.traffic = snap.traffic;
     this.metrics = snap.metrics;
@@ -207,6 +214,10 @@ class UnifiedWorldStore {
     if (delta.active_vehicles) {
       this.vehicles.clear();
       delta.active_vehicles.forEach((v: VehicleEntity) => this.vehicles.set(v.id, v));
+    }
+    if (delta.active_pedestrians) {
+      this.pedestrians.clear();
+      delta.active_pedestrians.forEach((p: PedestrianEntity) => this.pedestrians.set(p.id, p));
     }
     if (delta.metrics) {
       this.metrics = delta.metrics;
@@ -344,6 +355,10 @@ class UnifiedWorldStore {
 
   public getVehicles(): VehicleEntity[] {
     return Array.from(this.vehicles.values());
+  }
+
+  public getPedestrians(): PedestrianEntity[] {
+    return Array.from(this.pedestrians.values());
   }
 
   public getUtilities(): UtilityNetworkState {

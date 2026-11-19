@@ -195,18 +195,19 @@ class UnifiedUtilityNetwork:
                 b.unwatered_ticks = 0
 
             # Status and efficiency update
-            if not b.power_connected and not b.water_connected:
-                b.status = "unpowered"
-                b.efficiency = 0.20
-            elif not b.power_connected:
-                b.status = "unpowered"
-                b.efficiency = 0.40
-            elif not b.water_connected:
-                b.status = "unwatered"
-                b.efficiency = 0.60
-            elif b.status in ("unpowered", "unwatered"):
-                b.status = "active"
-                b.efficiency = 1.0
+            if b.status != "abandoned":
+                if not b.power_connected and not b.water_connected:
+                    b.status = "unpowered"
+                    b.efficiency = 0.20
+                elif not b.power_connected:
+                    b.status = "unpowered"
+                    b.efficiency = 0.40
+                elif not b.water_connected:
+                    b.status = "unwatered"
+                    b.efficiency = 0.60
+                elif b.status in ("unpowered", "unwatered"):
+                    b.status = "active"
+                    b.efficiency = 1.0
 
             # Abandonment if unserviced for too long
             if b.unpowered_ticks >= 5 or b.unwatered_ticks >= 5:

@@ -1,0 +1,32 @@
+# ==============================================================================
+# GENESIS Civilisation Engine — Development Compose Override
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Features: Hot code reloading, direct port binding for Swagger, Vite HMR
+# ==============================================================================
+
+services:
+  backend:
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+    volumes:
+      # Live bind-mount for instantaneous hot reload
+      - ./genesis-engine/backend:/app
+      - genesis_db_data:/app/db
+      - /app/__pycache__
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  frontend:
+    ports:
+      - "${FRONTEND_DEV_PORT:-5173}:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+      - VITE_WS_URL=ws://localhost:8000
+    volumes:
+      # Live bind-mount for instantaneous Vite HMR
+      - .:/app
+      - /app/node_modules
+      - /app/dist
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]

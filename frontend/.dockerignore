@@ -1,0 +1,29 @@
+# Version control
+.git/
+.gitignore
+
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Build outputs and cache
+dist/
+build/
+.pytest_cache/
+__pycache__/
+
+# Tests & E2E artifacts
+test-results/
+playwright-report/
+blob-report/
+
+# Raw/unoptimized 3D model archives
+public/models/council/downloaded/
+public/models/council/real_*.glb
+
+# OS and temporary files
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example

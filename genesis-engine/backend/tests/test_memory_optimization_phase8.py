@@ -163,9 +163,15 @@ def test_06_memory_telemetry_diagnostics_reporting(client):
 @pytest.mark.asyncio
 async def test_07_extended_simulation_long_session_stability():
     """Requirement: Extended simulation execution must maintain stable tick timings without runaway memory."""
-    import psutil
-    process = psutil.Process()
-    initial_rss = process.memory_info().rss / (1024 * 1024)
+    try:
+        import psutil
+        process = psutil.Process()
+        get_rss = lambda: process.memory_info().rss / (1024 * 1024)
+    except ImportError:
+        import resource
+        get_rss = lambda: resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+
+    initial_rss = get_rss()
 
     runner = SimulationRunner(world_id="aurora-prime")
 
@@ -173,7 +179,7 @@ async def test_07_extended_simulation_long_session_stability():
     for _ in range(100):
         await runner.advance_ticks(1)
 
-    final_rss = process.memory_info().rss / (1024 * 1024)
+    final_rss = get_rss()
     rss_growth = final_rss - initial_rss
 
     # Memory growth over 100 ticks must remain stable (< 25 MB growth ceiling)

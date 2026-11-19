@@ -9,10 +9,19 @@ import json
 import gzip
 import logging
 from typing import Tuple, Dict, List, Optional, Any
-import numpy as np
-import pandas as pd
-from scipy.optimize import curve_fit
-from sklearn.metrics import r2_score, mean_absolute_error
+try:
+    import numpy as np
+    import pandas as pd
+    from scipy.optimize import curve_fit
+    from sklearn.metrics import r2_score, mean_absolute_error
+    HAS_CALIBRATION_DEPS = True
+except ImportError:
+    np = None
+    pd = None
+    curve_fit = None
+    r2_score = None
+    mean_absolute_error = None
+    HAS_CALIBRATION_DEPS = False
 
 from ..config import RAW_DATA_DIR, PROCESSED_DATA_DIR, CALIBRATION_DIR, REALISM_GUARDRAILS, RANDOM_SEED
 
@@ -247,6 +256,8 @@ def validate_sim_to_real_gaps() -> dict:
 
 
 def run_calibration_pipeline():
+    if not HAS_CALIBRATION_DEPS:
+        raise RuntimeError("Calibration requires numpy, pandas, scipy, and scikit-learn (install requirements-ml.txt)")
     print("=== Running GENESIS Simulation Calibration Pipeline ===")
     out_file = os.path.join(CALIBRATION_DIR, "params_v1.json")
     try:

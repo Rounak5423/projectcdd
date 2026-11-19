@@ -126,3 +126,20 @@ The unified simulation advances in a strict, deterministic sequence where each s
 8. **Citizen Satisfaction & Happiness:** Commute times, noise, utility stability, and taxation determine citizen happiness.
 9. **Unrest & Protests:** Low satisfaction and basic need deprivations trigger civil unrest and strikes.
 10. **Governance & AI Feedback:** Policy edicts and AI advisor recommendations respond to state metrics.
+
+---
+
+## 3. Disconnect Map & Frontend-Logic-in-Wrong-Place List
+
+The following client-side calculations, rules, validations, and state mutations have been audited and ranked by architectural impact for migration into backend authoritative modules:
+
+| Rank | Impact Category | Client Location | Misplaced Operation | Target Backend Module (`engine/modules/`) |
+| :--- | :--- | :--- | :--- | :--- |
+| **1** | **CRITICAL: Simulation Desync** | `src/context/GameStateContext.tsx:1136-1145` | Real-time interval (`setInterval 1s`) computing deltas for food, water, energy, materials, research points, and GRC. | `engine/modules/resources.py` & `engine/modules/economy.py` |
+| **2** | **CRITICAL: Ghost Entities** | `src/context/GameStateContext.tsx:1108` | `popGrowth = Math.round(...)` spawning client-only citizens without database entity IDs. | `engine/modules/population.py` |
+| **3** | **HIGH: Economic Exploit** | `src/context/GameStateContext.tsx:1668, 2040, 2062` | Computing repair costs (`(100 - health) * 2.5`) and demolition refunds (`costMaterials * 0.8`) locally in browser state. | `engine/modules/infrastructure.py` (Command Gateway) |
+| **4** | **HIGH: Unguarded Progression** | `src/context/GameStateContext.tsx:1153, 2204` | Client accumulating science points and unlocking Eureka 50% discounts without backend validation. | `engine/modules/progression.py` |
+| **5** | **HIGH: Cosmetic Demand Curves** | `src/data/cs2Data.ts:220-230, 261-265` | RCI demand, water consumption, and traffic flow percentage computed from hardcoded client polynomials. | `engine/modules/infrastructure.py` & `engine/modules/movement.py` |
+| **6** | **MEDIUM: Unguarded Policies** | `src/pages/PolicyLaboratoryPage.tsx:218-231` | Calculating GDP, happiness, and stability modifiers from slider inputs using client arithmetic. | `engine/modules/governance.py` |
+| **7** | **MEDIUM: Client Achievement Claims**| `src/pages/MissionsPage.tsx:168`, `AchievementsPage.tsx:237` | Evaluating mission progress percentages and claiming rewards without backend proof validation. | `engine/modules/progression.py` (Atomic Ledger) |
+
