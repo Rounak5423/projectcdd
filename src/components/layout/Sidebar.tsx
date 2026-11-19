@@ -46,6 +46,7 @@ const baseNavigation: NavSection[] = [
     items: [
       { name: 'World Explorer', icon: Globe2, badge: '3D' },
       { name: 'Overview', icon: LayoutDashboard },
+      { name: 'Causal Insights', icon: Activity, badge: 'ML' },
       { name: 'Population', icon: Users },
       { name: 'Infrastructure', icon: Building2 },
       { name: 'Economy & Resources', icon: ChartNoAxesCombined },
