@@ -259,7 +259,7 @@ interface GameStateContextType {
   claimTitle: (titleId: string) => void;
   toasts: GameToast[];
   levelUpCelebration: { level: number; era: string; perks: string[] } | null;
-  
+
   // Simulation controls
   isPlaying: boolean;
   speed: '1x' | '2x' | '5x' | '10x';
@@ -277,7 +277,7 @@ interface GameStateContextType {
   saveGame: () => boolean;
   lastSavedTimestamp: number | null;
   isSaving: boolean;
-  
+
   // Action Handlers
   togglePlay: () => void;
   setSpeed: (speed: '1x' | '2x' | '5x' | '10x') => void;
@@ -376,12 +376,35 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   // Synchronously load saved game progress from localStorage so the game resumes exactly where the user left off
   const initialSaved = useMemo(() => loadActiveGameStateFromStorage(), []);
 
-  const [civilization, setCivilization] = useState<CivilizationProfile>(() => initialSaved?.civilization || initialCivilization);
-  const [savedWorlds, setSavedWorlds] = useState<CivilizationProfile[]>(() => initialSaved?.savedWorlds || alternateWorlds);
+  const [civilization, setCivilization] = useState<CivilizationProfile>(() => {
+    if (initialSaved?.civilization && initialSaved.civilization.id !== 'civ-aurora-01' && !initialSaved.civilization.name?.includes('Showcase')) {
+      return initialSaved.civilization;
+    }
+    return initialCivilization;
+  });
+  const [savedWorlds, setSavedWorlds] = useState<CivilizationProfile[]>(() => {
+    const raw = initialSaved?.savedWorlds || alternateWorlds;
+    return raw.filter((w) => w.id !== 'civ-aurora-01' && w.id !== 'civ-kyoto-demo' && !w.name?.includes('Showcase'));
+  });
   const [resources, setResources] = useState<ResourceState>(() => initialSaved?.resources || initialResources);
   const [rates, setRates] = useState<ResourceRates>(() => initialSaved?.rates || initialRates);
   const [districts, setDistricts] = useState<District[]>(() => initialSaved?.districts || initialDistricts);
-  const [placedBuildings, setPlacedBuildings] = useState<PlacedBuilding[]>(() => initialSaved?.placedBuildings || initialPlacedBuildings);
+  const [placedBuildings, setPlacedBuildings] = useState<PlacedBuilding[]>(() => {
+    const blds = initialSaved?.placedBuildings || initialPlacedBuildings;
+    return blds.map((b) => ({
+      ...b,
+      x: Number.isFinite(b.x) ? b.x : 0,
+      y: Number.isFinite(b.y) ? b.y : 0.6,
+      z: Number.isFinite(b.z) ? b.z : 0,
+      maxLevel: b.maxLevel || 5,
+      health: Number.isFinite(b.health) ? b.health : 100,
+      efficiency: Number.isFinite(b.efficiency) ? b.efficiency : 100,
+      districtId: b.districtId || 'dist-pioneer',
+      status: b.status || 'active',
+      workersAssigned: Number.isFinite(b.workersAssigned) ? b.workersAssigned : 0,
+      workersNeeded: Number.isFinite(b.workersNeeded) ? b.workersNeeded : 10,
+    }));
+  });
   const [technologies, setTechnologies] = useState<Technology[]>(() => initialSaved?.technologies || initialTechnologies);
   const [policies, setPolicies] = useState<Policy[]>(() => initialSaved?.policies || initialPolicies);
   const [citizens, setCitizens] = useState<Citizen[]>(() => initialSaved?.citizens || initialCitizens);
@@ -419,6 +442,40 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       activeTimersRef.current.forEach((t) => clearTimeout(t));
       activeTimersRef.current.clear();
     };
+  }, []);
+
+  // Sync available worlds from backend on startup
+  useEffect(() => {
+    civilizationApi.listWorlds().then((res) => {
+      if (res.success && res.data && Array.isArray(res.data) && res.data.length > 0) {
+        const backendWorlds = res.data;
+        setSavedWorlds((prev) => {
+          const map = new Map<string, CivilizationProfile>();
+          prev.forEach((w) => map.set(w.id, w));
+          backendWorlds.forEach((bw: any) => {
+            if (!map.has(bw.id)) {
+              map.set(bw.id, {
+                id: bw.id,
+                name: bw.name,
+                planet: 'Terra Nova II',
+                era: (bw.technology_level as any) || 'Foundational',
+                level: bw.level || 1,
+                xp: 0,
+                xpToNextLevel: 1000,
+                leaderTitle: 'Settlement Pioneer',
+                governanceModel: 'Direct Frontier Council',
+                foundingYear: 1,
+                currentYear: bw.year || 1,
+                currentDay: bw.day || 1,
+                terrainType: 'Verdant River Valley',
+                climateType: bw.climate || 'Temperate',
+              });
+            }
+          });
+          return Array.from(map.values());
+        });
+      }
+    }).catch(() => { });
   }, []);
 
   const dismissToast = useCallback((id: string) => {
@@ -484,10 +541,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       prev.map((t) =>
         t.id === titleId
           ? {
-              ...t,
-              isUnlocked: true,
-              unlockedAt: `Year ${civilization.currentYear.toString().padStart(3, '0')}, Day ${civilization.currentDay.toString().padStart(3, '0')}`,
-            }
+            ...t,
+            isUnlocked: true,
+            unlockedAt: `Year ${civilization.currentYear.toString().padStart(3, '0')}, Day ${civilization.currentDay.toString().padStart(3, '0')}`,
+          }
           : t
       )
     );
@@ -498,7 +555,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       subtitle: `Honoured by the High Council of Civora`,
     });
   }, [civilization.currentYear, civilization.currentDay, triggerToast]);
-  
+
   const [taxRate, setTaxRate] = useState<number>(() => initialSaved?.taxRate ?? 18); // %
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [speed, setSpeed] = useState<'1x' | '2x' | '5x' | '10x'>('1x');
@@ -514,7 +571,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   const [activeInfoView, setActiveInfoView] = useState<InfoViewType>('none');
   const [activeZoneTool, setActiveZoneTool] = useState<ZoneType | null>(null);
   const [zoneMode, setZoneMode] = useState<'brush' | 'marquee'>('brush');
-  const [zonedTiles, setZonedTiles] = useState<ZonedTile[]>(() => initialSaved?.zonedTiles || initialZonedTiles);
+  const [zonedTiles, setZonedTiles] = useState<ZonedTile[]>(() => initialSaved?.zonedTiles || []);
   const [chirperFeed, setChirperFeed] = useState<ChirperMessage[]>(initialChirperMessages);
   const [isChirperOpen, setIsChirperOpen] = useState<boolean>(false);
   const [cityMilestones, setCityMilestones] = useState<CityMilestone[]>(initialCityMilestones);
@@ -713,16 +770,18 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 
   const loadMaxDemoWorld = useCallback(() => {
     soundFx.playRewardClaim();
-    setCivilization(demoMetropolisCivilization);
-    setResources(demoMetropolisResources);
-    setRates(demoMetropolisRates);
-    setDistricts(demoMetropolisDistricts);
-    setPlacedBuildings(demoMetropolisBuildings);
-    setCitizens(demoMetropolisCitizens);
+    setCivilization(initialCivilization);
+    setResources(initialResources);
+    setRates(initialRates);
+    setDistricts(initialDistricts);
+    setPlacedBuildings(initialPlacedBuildings);
+    setCitizens(initialCitizens);
+    setDetailedAgents(createInitialDetailedAgents(initialCitizens, 1));
+    setZonedTiles([]);
     triggerToast({
-      type: 'reward',
-      title: '🌟 MAX CAPABILITIES DEMO INITIALIZED',
-      subtitle: 'Kyoto Prime Nexus loaded with complete 16-structure district architecture and Tier-V resources.',
+      type: 'info',
+      title: '🌱 PIONEER FOUNDATION INITIALIZED',
+      subtitle: 'Starting fresh on dead land with 150 founding citizens and a Level 1 Outpost.',
       icon: '🏛️',
     });
   }, [triggerToast]);
@@ -776,6 +835,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     economyReportRef.current = economyReport;
   }, [economyReport]);
+
+  // Demographic accumulators for fractional births, deaths, and settler arrivals
+  const birthAccumulatorRef = useRef(0);
+  const deathAccumulatorRef = useRef(0);
+  const immigrantAccumulatorRef = useRef(0);
 
   // Throttled tick accumulator to eliminate HTTP flooding latency
   const accumulatedTicksRef = useRef(0);
@@ -924,23 +988,170 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     });
 
     // 2. Adjust Resources & Treasury based on real simulation calculations
-    setResources((prev) => {
-      const liveReport = economyReportRef.current;
+    const liveReport = economyReportRef.current;
+    const researchDaily = liveReport.resources.researchProduced || 0;
+    const researchDelta = researchDaily * 0.1;
 
+    // Sync active research rate
+    setRates((r) => (r.researchRate !== researchDaily ? { ...r, researchRate: researchDaily } : r));
+
+    // Demographic simulation for births, deaths, and settler arrivals
+    let netBorn = 0;
+    let netDead = 0;
+    let netImmigrants = 0;
+
+    // A. Births Accumulator
+    const currentHealth = resources.health || 80;
+    const healthFactor = currentHealth / 100;
+    const foodSurplusFactor = resources.food > 100 ? 1.0 : resources.food > 0 ? 0.35 : 0;
+    const housingAvailable = liveReport.demands.residentialDemand < 95;
+    const dailyBirthFraction = (resources.population * (0.022 / 365)) * healthFactor * foodSurplusFactor * (housingAvailable ? 1.2 : 0.4);
+    birthAccumulatorRef.current += dailyBirthFraction;
+
+    if (birthAccumulatorRef.current >= 1) {
+      netBorn = 1;
+      birthAccumulatorRef.current -= 1;
+    }
+
+    // B. Deaths Accumulator (Natural aging + Starvation/Dehydration risk)
+    const seniors = citizens.filter((c) => c.lifeStage === 'Senior');
+    const elderDeathFraction = (Math.max(1, seniors.length) * (0.05 / 365));
+    const starvationFraction = resources.food <= 0 ? (resources.population * (0.025 / 365) + 0.08) : 0;
+    const dehydrationFraction = resources.water <= 0 ? (resources.population * (0.04 / 365) + 0.12) : 0;
+    deathAccumulatorRef.current += elderDeathFraction + starvationFraction + dehydrationFraction;
+
+    if (deathAccumulatorRef.current >= 1 && resources.population > 5) {
+      netDead = 1;
+      deathAccumulatorRef.current -= 1;
+    }
+
+    // C. Immigrant Pioneer Shuttles
+    if (resources.happiness > 75 && resources.food > 250 && resources.water > 250 && housingAvailable) {
+      immigrantAccumulatorRef.current += 0.035;
+      if (immigrantAccumulatorRef.current >= 1) {
+        netImmigrants = 2; // +2 settlers arrive
+        immigrantAccumulatorRef.current -= 1;
+      }
+    }
+
+    // Apply demographic population changes to real citizens roster
+    if (netBorn > 0 || netDead > 0 || netImmigrants > 0) {
+      setCitizens((prevCitizens) => {
+        let updated = [...prevCitizens];
+
+        // Process Birth
+        if (netBorn > 0) {
+          const babyId = `cit-born-${Date.now() % 100000}`;
+          const babyGender = Math.random() > 0.5 ? 'M' : 'F';
+          const babyNamesM = ['Leo', 'Noah', 'Felix', 'Arthur', 'Julian', 'Silas', 'Milo'];
+          const babyNamesF = ['Iris', 'Nora', 'Chloe', 'Amara', 'Lyra', 'Aria', 'Maya'];
+          const fName = babyGender === 'M' ? babyNamesM[Math.floor(Math.random() * babyNamesM.length)] : babyNamesF[Math.floor(Math.random() * babyNamesF.length)];
+          const parent = prevCitizens[Math.floor(Math.random() * prevCitizens.length)];
+          const lName = parent?.name.split(' ')[1] || 'Vance';
+
+          const newBaby: Citizen = {
+            id: babyId,
+            name: `${fName} ${lName}`,
+            age: 0,
+            gender: babyGender,
+            occupation: 'Newborn Pioneer',
+            district: 'Founding Settlement',
+            educationLevel: 'Basic',
+            lifeStage: 'Child',
+            wealthTier: 'Modest',
+            homeAddress: parent?.homeAddress || 'Frontier Shelter Pod 1',
+            workplaceAddress: 'Pioneer Nursery Bay',
+            happiness: 98,
+            health: 99,
+            income: 0,
+            aiAssistanceUsage: 0,
+            status: 'Optimal',
+            needs: { food: 98, water: 98, energy: 95, luxury: 20, order: 98 },
+          };
+          updated.push(newBaby);
+
+          setChirperFeed((cf) => [
+            {
+              id: `chirp-birth-${Date.now()}`,
+              author: 'Colony Registrar',
+              handle: '@ColonyRegistrar',
+              avatar: '👶',
+              text: `🍼 Joyous news: A newborn pioneer, ${newBaby.name}, has been born in the settlement!`,
+              time: 'Just now',
+              district: 'Founding Settlement',
+              likes: 12,
+              isLiked: false,
+              tag: '#NewLife',
+            },
+            ...cf.slice(0, 24),
+          ]);
+        }
+
+        // Process Death
+        if (netDead > 0 && updated.length > 5) {
+          // Prioritize seniors or critical health citizens
+          let victimIdx = updated.findIndex((c) => c.lifeStage === 'Senior');
+          if (victimIdx === -1) victimIdx = updated.length - 1;
+          const deceased = updated[victimIdx];
+          updated.splice(victimIdx, 1);
+
+          setChirperFeed((cf) => [
+            {
+              id: `chirp-death-${Date.now()}`,
+              author: 'Frontier Memorial',
+              handle: '@ColonyMemorial',
+              avatar: '🕊️',
+              text: `Memorial Service: We honor the life and dedicated service of pioneer ${deceased.name}.`,
+              time: 'Just now',
+              district: 'Founding Settlement',
+              likes: 18,
+              isLiked: false,
+              tag: '#InMemoriam',
+            },
+            ...cf.slice(0, 24),
+          ]);
+        }
+
+        // Process Immigrants
+        if (netImmigrants > 0) {
+          for (let m = 0; m < netImmigrants; m++) {
+            const imId = `cit-immigrant-${Date.now() % 100000}-${m}`;
+            const imGender = Math.random() > 0.5 ? 'M' : 'F';
+            const imName = `${imGender === 'M' ? 'Daniel' : 'Claire'} Sterling`;
+            updated.push({
+              id: imId,
+              name: imName,
+              age: 24 + m * 4,
+              gender: imGender,
+              occupation: 'Pioneer Settler',
+              district: 'Founding Settlement',
+              educationLevel: 'Secondary',
+              lifeStage: 'Adult',
+              wealthTier: 'Modest',
+              homeAddress: 'Frontier Habitation Pod',
+              workplaceAddress: 'Expedition Command Pool',
+              happiness: 90,
+              health: 94,
+              income: 2600,
+              aiAssistanceUsage: 10,
+              status: 'Optimal',
+              needs: { food: 90, water: 90, energy: 90, luxury: 30, order: 90 },
+            });
+          }
+        }
+
+        return updated;
+      });
+    }
+
+    setResources((prev) => {
       const netCashDelta = liveReport.economy.netDailyCashFlow * 0.1;
       const foodDelta = liveReport.resources.foodNet * 0.1;
       const waterDelta = liveReport.resources.waterNet * 0.1;
       const energyDelta = liveReport.resources.energyNetMW * 0.1;
       const materialsDelta = liveReport.resources.materialsNet * 0.1;
-      const researchDelta = rates.researchRate * 0.1;
 
-      // Natural Population growth influenced by housing capacity and healthcare
-      const housingFactor = liveReport.demands.residentialDemand > 98 ? 0.15 : 1.0;
-      const healthFactor = (prev.health || 80) / 100;
-      const popGrowth = Math.round(
-        (prev.population * (rates.populationGrowthRate / 100) * housingFactor * healthFactor) / 365
-      );
-      const newPop = prev.population + popGrowth;
+      const newPop = Math.max(5, prev.population + netBorn - netDead + netImmigrants);
 
       // GDP responds to commercial activity and employment rate
       const employmentFactor = (liveReport.resources.employmentRatePercent || 90) / 100;
@@ -950,15 +1161,17 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       // Public health responds to water and clinic availability
       let newHealth = prev.health;
       if (liveReport.resources.waterNet < 0) {
-        newHealth = Math.max(30, newHealth - 0.5);
+        newHealth = Math.max(20, newHealth - 0.5);
       } else if (newHealth < 98) {
         newHealth = Math.min(100, newHealth + 0.1);
       }
 
-      // Public happiness responds to fiscal health, power stability, and unemployment
+      // Public happiness responds to fiscal health, power stability, and starvation
       let newHappiness = prev.happiness;
-      if (liveReport.resources.energyNetMW < 0) {
-        newHappiness = Math.max(20, newHappiness - 1.0);
+      if (prev.food <= 0 || prev.water <= 0) {
+        newHappiness = Math.max(15, newHappiness - 2.0);
+      } else if (liveReport.resources.energyNetMW < 0) {
+        newHappiness = Math.max(20, newHappiness - 0.8);
       } else if (liveReport.economy.fiscalHealth === 'Surplus' && newHappiness < 98) {
         newHappiness = Math.min(100, newHappiness + 0.1);
       }
@@ -978,11 +1191,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       };
     });
 
-    // 3. Progress Research
+    // 3. Progress Research (Only advances if researchDaily > 0 from active research lab)
     setTechnologies((prev) =>
       prev.map((tech) => {
-        if (!tech.isResearched && tech.isAvailable && tech.progress < tech.costResearchPoints) {
-          const newProgress = Math.min(tech.costResearchPoints, tech.progress + Math.round(rates.researchRate * 0.2));
+        if (!tech.isResearched && tech.isAvailable && tech.progress < tech.costResearchPoints && researchDaily > 0) {
+          const newProgress = Math.min(tech.costResearchPoints, tech.progress + Math.round(researchDaily * 0.2));
           const completed = newProgress >= tech.costResearchPoints;
           return {
             ...tech,
@@ -1281,7 +1494,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         `tick_${civilization.id}_${now}`
       );
       if (!sent) {
-        civilizationApi.advanceSimulationTicks(civilization.id, ticksToSync).catch(() => {});
+        civilizationApi.advanceSimulationTicks(civilization.id, ticksToSync).catch(() => { });
       }
     }
   }, [
@@ -1329,7 +1542,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         `tick_${civilization.id}_${Date.now()}`
       );
       if (!sent) {
-        civilizationApi.advanceSimulationTicks(civilization.id, ticks).catch(() => {});
+        civilizationApi.advanceSimulationTicks(civilization.id, ticks).catch(() => { });
       }
     }
   }, [isPlaying, civilization.id]);
@@ -1451,12 +1664,12 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       prev.map((b) =>
         b.id === buildingId
           ? {
-              ...b,
-              x: Math.round(x * 10) / 10,
-              z: Math.round(z * 10) / 10,
-              districtId: districtId || b.districtId,
-              rotation: rotation !== undefined ? rotation : b.rotation,
-            }
+            ...b,
+            x: Math.round(x * 10) / 10,
+            z: Math.round(z * 10) / 10,
+            districtId: districtId || b.districtId,
+            rotation: rotation !== undefined ? rotation : b.rotation,
+          }
           : b
       )
     );
@@ -1485,9 +1698,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       prev.map((b) =>
         b.id === buildingId
           ? {
-              ...b,
-              rotation: ((b.rotation || 0) + angleDelta) % (Math.PI * 2),
-            }
+            ...b,
+            rotation: ((b.rotation || 0) + angleDelta) % (Math.PI * 2),
+          }
           : b
       )
     );
@@ -1590,7 +1803,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       z: newBuilding.z,
       y: newBuilding.y,
       districtId: newBuilding.districtId,
-    }).catch(() => {});
+    }).catch(() => { });
 
     const event: GameEvent = {
       id: `ev-${Date.now()}`,
@@ -1690,15 +1903,15 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       prev.map((b) =>
         b.id === buildingId
           ? {
-              ...b,
-              status: 'upgrading',
-              targetLevel: b.level + 1,
-              upgradeProgress: 0,
-            }
+            ...b,
+            status: 'upgrading',
+            targetLevel: b.level + 1,
+            upgradeProgress: 0,
+          }
           : b
       )
     );
-    civilizationApi.upgradeFacility(civilization.id, buildingId).catch(() => {});
+    civilizationApi.upgradeFacility(civilization.id, buildingId).catch(() => { });
 
     soundFx.playHammerBuild();
     triggerToast({
@@ -1766,13 +1979,13 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         prev.map((b) =>
           b.id === buildingId
             ? {
-                ...b,
-                status: 'active',
-                constructionProgress: 100,
-                workersAssigned: workers,
-                health: 100,
-                efficiency: 95,
-              }
+              ...b,
+              status: 'active',
+              constructionProgress: 100,
+              workersAssigned: workers,
+              health: 100,
+              efficiency: 95,
+            }
             : b
         )
       );
@@ -1823,15 +2036,15 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         prev.map((b) =>
           b.id === buildingId
             ? {
-                ...b,
-                name: newName,
-                status: 'active',
-                level: nextLvl,
-                upgradeProgress: 0,
-                targetLevel: undefined,
-                health: 100,
-                efficiency: 100,
-              }
+              ...b,
+              name: newName,
+              status: 'active',
+              level: nextLvl,
+              upgradeProgress: 0,
+              targetLevel: undefined,
+              health: 100,
+              efficiency: 100,
+            }
             : b
         )
       );
@@ -1900,11 +2113,11 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         prev.map((b) =>
           b.id === buildingId
             ? {
-                ...b,
-                status: 'active',
-                upgradeProgress: 0,
-                targetLevel: undefined,
-              }
+              ...b,
+              status: 'active',
+              upgradeProgress: 0,
+              targetLevel: undefined,
+            }
             : b
         )
       );
@@ -1948,10 +2161,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       prev.map((b) =>
         b.id === buildingId
           ? {
-              ...b,
-              status: willBeOffline ? 'offline' : 'active',
-              workersAssigned: willBeOffline ? 0 : item?.workerReq || b.workersNeeded,
-            }
+            ...b,
+            status: willBeOffline ? 'offline' : 'active',
+            workersAssigned: willBeOffline ? 0 : item?.workerReq || b.workersNeeded,
+          }
           : b
       )
     );
@@ -1981,7 +2194,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     pushSnapshot();
 
     setPlacedBuildings((prev) => prev.filter((b) => b.id !== buildingId));
-    civilizationApi.decommissionFacility(civilization.id, buildingId).catch(() => {});
+    civilizationApi.decommissionFacility(civilization.id, buildingId).catch(() => { });
     setSelectedBuildingId(null);
     setActiveDrawer('none');
 
@@ -2009,7 +2222,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     if (!tech || tech.isResearched) return false;
 
     soundFx.playResearchStart();
-    civilizationApi.queueResearch(civilization.id, techId).catch(() => {});
+    civilizationApi.queueResearch(civilization.id, techId).catch(() => { });
 
     setTechnologies((prev) =>
       prev.map((t) => {
@@ -2046,7 +2259,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
   };
 
   const togglePolicy = (policyId: string) => {
-    civilizationApi.enactPolicy(civilization.id, policyId, 1).catch(() => {});
+    civilizationApi.enactPolicy(civilization.id, policyId, 1).catch(() => { });
     setPolicies((prev) =>
       prev.map((p) => {
         if (p.id === policyId) {
@@ -2066,13 +2279,12 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
               cPrev.map((c, i) =>
                 i % 3 === 0
                   ? {
-                      ...c,
-                      currentThought: `Discussing ${p.name}: ${
-                        p.effectsSummary.happinessModifier >= 0
-                          ? 'Optimistic about new civil reforms.'
-                          : 'Cautiously adapting to administrative directives.'
+                    ...c,
+                    currentThought: `Discussing ${p.name}: ${p.effectsSummary.happinessModifier >= 0
+                        ? 'Optimistic about new civil reforms.'
+                        : 'Cautiously adapting to administrative directives.'
                       }`,
-                    }
+                  }
                   : c
               )
             );
@@ -2105,7 +2317,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
                 actual_approval: estimatedApproval + (Math.random() * 6 - 3),
                 world_id: civilization.id,
               })
-              .catch(() => {});
+              .catch(() => { });
           }
           return {
             ...p,
@@ -2155,22 +2367,22 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       prev.map((p) =>
         p.id === policyId
           ? {
-              ...p,
-              researchFindings: {
-                ...(p.researchFindings || {
-                  totalObservations: 100,
-                  measuredHappinessShift: p.effectsSummary.happinessModifier,
-                  measuredProductivityShift: p.effectsSummary.gdpModifier,
-                  measuredStabilityShift: p.effectsSummary.stabilityModifier,
-                  evolutionaryAdaptationScore: Math.round(progress),
-                  breakthroughDiscovery: `Empirical research whitepaper finalized on ${p.name}.`,
-                  isResearchSubmitted: true,
-                }),
+            ...p,
+            researchFindings: {
+              ...(p.researchFindings || {
+                totalObservations: 100,
+                measuredHappinessShift: p.effectsSummary.happinessModifier,
+                measuredProductivityShift: p.effectsSummary.gdpModifier,
+                measuredStabilityShift: p.effectsSummary.stabilityModifier,
+                evolutionaryAdaptationScore: Math.round(progress),
+                breakthroughDiscovery: `Empirical research whitepaper finalized on ${p.name}.`,
                 isResearchSubmitted: true,
-                submittedAtDay: civilization.currentDay,
-                submittedAtYear: civilization.currentYear,
-              },
-            }
+              }),
+              isResearchSubmitted: true,
+              submittedAtDay: civilization.currentDay,
+              submittedAtYear: civilization.currentYear,
+            },
+          }
           : p
       )
     );
@@ -2232,7 +2444,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         actual_approval: 60 + (policy.effectsSummary.happinessModifier * 2) + 4.5,
         world_id: civilization.id,
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return true;
   };
@@ -2515,6 +2727,26 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       savedWorlds: newSavedWorlds,
     });
 
+    // Asynchronously create world in backend SQLite database
+    civilizationApi
+      .createWorld({
+        name: newCiv.name,
+        climate: newCiv.climateType,
+        technology_level: newCiv.era,
+        initial_population: 10,
+        grid_size: 32,
+      })
+      .then((res) => {
+        if (res.success && res.data?.id) {
+          const backendId = res.data.id;
+          setCivilization((prev) => ({ ...prev, id: backendId }));
+          setSavedWorlds((prev) =>
+            prev.map((w) => (w.id === newCiv.id ? { ...w, id: backendId } : w))
+          );
+        }
+      })
+      .catch(() => { });
+
     triggerToast({
       type: 'info',
       title: `🌱 Welcome to ${newCiv.name}!`,
@@ -2527,7 +2759,55 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     // 1. Save currently active world before switching
     saveGameStateToStorage(latestStateRef.current);
 
-    // 2. Check if target world has saved state in storage
+    // 2. Fetch authoritative state from backend if available
+    civilizationApi.getWorldState(civId).then((res) => {
+      if (res.success && res.data) {
+        const state = res.data;
+        if (Array.isArray(state.buildings) && state.buildings.length > 0) {
+          const mappedBuildings: PlacedBuilding[] = state.buildings.map((b: any) => ({
+            id: b.id,
+            catalogId: b.catalogId || `bld-${b.type?.toLowerCase() || 'generic'}`,
+            name: b.name || 'Structure',
+            category: (b.type || 'Services') as any,
+            level: b.level || 1,
+            maxLevel: b.maxLevel || 5,
+            x: Number.isFinite(b.x) ? b.x : 0,
+            y: Number.isFinite(b.y) ? b.y : (Number.isFinite(b.elevation) ? b.elevation : 0.6),
+            z: Number.isFinite(b.z) ? b.z : (Number.isFinite(b.y) ? b.y : 0),
+            rotation: b.orientation || b.rotation || 0,
+            districtId: b.districtId || 'dist-pioneer',
+            status: (b.status as any) || 'active',
+            health: Number.isFinite(b.health) ? b.health : 100,
+            efficiency: Number.isFinite(b.efficiency) ? b.efficiency : 100,
+            workersAssigned: Number.isFinite(b.current_workers) ? b.current_workers : 0,
+            workersNeeded: Number.isFinite(b.capacity) ? b.capacity : 10,
+            isOperational: b.status === 'active',
+            modelType: b.type?.toLowerCase() || 'residential_house',
+            currentOccupants: b.current_occupants || 0,
+            maxOccupants: b.capacity || 10,
+            currentWorkers: b.current_workers || 0,
+            maxWorkers: b.capacity || 10,
+          }));
+          setPlacedBuildings(mappedBuildings);
+        }
+        if (state.metrics) {
+          setResources((prev) => ({
+            ...prev,
+            population: state.metrics.population ?? prev.population,
+            gdp: state.metrics.gdp ?? prev.gdp,
+            food: state.metrics.food ?? prev.food,
+            water: state.metrics.water ?? prev.water,
+            energy: state.metrics.energy ?? prev.energy,
+            materials: state.metrics.materials ?? prev.materials,
+            grc: state.metrics.treasury ?? prev.grc,
+            happiness: Math.round((state.metrics.happiness ?? 0.8) * 100),
+            health: Math.round((state.metrics.health ?? 0.8) * 100),
+          }));
+        }
+      }
+    }).catch(() => { });
+
+    // 3. Check if target world has saved state in storage
     const savedForTarget = loadGameStateForWorld(civId);
     if (savedForTarget) {
       setCivilization(savedForTarget.civilization);
@@ -2558,24 +2838,22 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const target = savedWorlds.find((w) => w.id === civId);
+    const target = savedWorlds.find((w) => w.id === civId) || alternateWorlds.find((w) => w.id === civId);
     if (target) {
       setCivilization(target);
-      if (civId === 'civ-kyoto-demo' || civId === 'civ-01') {
-        setPlacedBuildings(demoMetropolisBuildings);
-        setResources(demoMetropolisResources);
-        setRates(demoMetropolisRates);
-        setDistricts(demoMetropolisDistricts);
-        setCitizens(demoMetropolisCitizens);
-        setDetailedAgents(createInitialDetailedAgents(demoMetropolisCitizens, 5));
-      } else {
-        setPlacedBuildings(initialPlacedBuildings);
-        setResources(initialResources);
-        setRates(initialRates);
-        setDistricts(initialDistricts);
-        setCitizens(initialCitizens);
-        setDetailedAgents(createInitialDetailedAgents(initialCitizens, 1));
-      }
+      setPlacedBuildings(initialPlacedBuildings);
+      setResources(initialResources);
+      setRates(initialRates);
+      setDistricts(initialDistricts);
+      setCitizens(initialCitizens);
+      setDetailedAgents(createInitialDetailedAgents(initialCitizens, 1));
+      setZonedTiles([]);
+      triggerToast({
+        type: 'info',
+        title: `🌱 Pioneer Outpost Initialized: ${target.name}`,
+        subtitle: `Level 1 settlement established on ${target.terrainType} with 150 founding citizens.`,
+        icon: '🏛️',
+      });
     }
   };
 

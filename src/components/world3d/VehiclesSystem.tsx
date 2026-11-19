@@ -42,24 +42,55 @@ export function setTrafficFlowMetrics(metrics: Partial<TrafficFlowMetrics>) {
 
 function VehiclesSystem() {
   const isNight = useIsNight();
-  const { isPlaying, speed: simSpeed, resources } = useGameState();
+  const { isPlaying, speed: simSpeed, resources, civilization, placedBuildings } = useGameState();
   const { traffic } = useUnifiedWorld();
   const vehiclesRef = useRef<THREE.Group>(null);
   const emergencyStrobeRef = useRef<THREE.PointLight>(null);
 
+  const isStarterFrontier = civilization.level <= 1 && placedBuildings.length <= 2;
+
   React.useEffect(() => {
     if (traffic) {
       setTrafficFlowMetrics({
-        activeVehicles: traffic.active_vehicles_count || 12,
+        activeVehicles: isStarterFrontier ? 1 : (traffic.active_vehicles_count || 12),
         averageSpeedKph: traffic.average_speed_kmh || 45,
         trafficFlowEfficiency: Math.round(traffic.traffic_flow_efficiency || 90),
         congestionIndex: Math.round(traffic.congestion_index || 10),
       });
+    } else {
+      setTrafficFlowMetrics({
+        activeVehicles: isStarterFrontier ? 1 : 12,
+      });
     }
-  }, [traffic]);
+  }, [traffic, isStarterFrontier]);
 
-  // 12 Realistic Transportation Vehicles with Exact Road Network Waypoints
-  const vehicles: VehicleDef[] = useMemo(() => [
+  // Transportation Vehicles adapt dynamically: fresh dead land starts with 1 rugged survey rover
+  const vehicles: VehicleDef[] = useMemo(() => {
+    if (isStarterFrontier) {
+      return [
+        {
+          id: 'veh-pioneer-rover',
+          name: 'Frontier Pioneer Survey Buggy 01',
+          category: 'commuter',
+          color: '#e67e22',
+          routeId: 'r-forum-loop',
+          waypoints: [
+            [0, 1.05, 5.6],
+            [8.6, 1.05, 5.6],
+            [8.6, 1.05, 12.0],
+            [8.6, 1.05, 18.5],
+            [0, 1.05, 18.5],
+            [-8.6, 1.05, 18.5],
+            [-8.6, 1.05, 12.0],
+            [-8.6, 1.05, 5.6],
+          ],
+          speed: 4.8,
+          length: 1.6,
+        },
+      ];
+    }
+
+    return [
     // 1. Commuter Pod (North-South Grand Arterial)
     {
       id: 'veh-ns-commuter',
@@ -311,7 +342,8 @@ function VehiclesSystem() {
       speed: 5.2,
       length: 1.8,
     },
-  ], []);
+  ];
+}, [isStarterFrontier]);
 
   // Precomputed Route Geometry & Distances
   const routeMetas = useMemo(() => {
@@ -335,6 +367,13 @@ function VehiclesSystem() {
   const progressRef = useRef<number[]>(vehicles.map((_, i) => (i * 0.16) % 1.0));
   const currentSpeedsRef = useRef<number[]>(vehicles.map((v) => v.speed));
   const isBrakingRef = useRef<boolean[]>(vehicles.map(() => false));
+
+  // Keep simulation state synchronized whenever fleet size adapts dynamically
+  React.useEffect(() => {
+    progressRef.current = vehicles.map((_, i) => (i * 0.16) % 1.0);
+    currentSpeedsRef.current = vehicles.map((v) => v.speed);
+    isBrakingRef.current = vehicles.map(() => false);
+  }, [vehicles]);
 
   useFrame(({ clock }, delta) => {
     if (!isPlaying) return;
@@ -438,23 +477,30 @@ function VehiclesSystem() {
       }
 
       // Smooth physics-inspired acceleration and braking
-      const isBraking = targetSpeed < currentSpeedsRef.current[idx] - 0.2;
+      const curSpeed = Number.isFinite(currentSpeedsRef.current[idx]) ? currentSpeedsRef.current[idx] : veh.speed;
+      const isBraking = targetSpeed < curSpeed - 0.2;
       isBrakingRef.current[idx] = isBraking;
 
-      const accelRate = targetSpeed < currentSpeedsRef.current[idx] ? 6.5 : 3.8;
-      currentSpeedsRef.current[idx] = THREE.MathUtils.lerp(
-        currentSpeedsRef.current[idx],
+      const accelRate = targetSpeed < curSpeed ? 6.5 : 3.8;
+      const newSpeed = THREE.MathUtils.lerp(
+        curSpeed,
         targetSpeed,
         dt * accelRate
       );
+      currentSpeedsRef.current[idx] = Number.isFinite(newSpeed) ? newSpeed : veh.speed;
 
       totalVelocity += currentSpeedsRef.current[idx];
       totalMaxVelocity += veh.speed;
 
       // Advance progress along route
+      const curProgress = Number.isFinite(progressRef.current[idx]) ? progressRef.current[idx] : 0;
+      const effectiveDist = totalDist > 0.01 ? totalDist : 1.0;
       progressRef.current[idx] =
-        (progressRef.current[idx] + (currentSpeedsRef.current[idx] * dt) / totalDist) % 1.0;
-      const targetDist = progressRef.current[idx] * totalDist;
+        (curProgress + (currentSpeedsRef.current[idx] * dt) / effectiveDist) % 1.0;
+      if (!Number.isFinite(progressRef.current[idx])) {
+        progressRef.current[idx] = 0;
+      }
+      const targetDist = progressRef.current[idx] * effectiveDist;
 
       // Find current waypoint segment via precomputed cumulative distances
       let segIdx = 0;
@@ -474,7 +520,9 @@ function VehiclesSystem() {
       const posY = THREE.MathUtils.lerp(p1[1], p2[1], segT);
       const posZ = THREE.MathUtils.lerp(p1[2], p2[2], segT);
 
-      child.position.set(posX, posY, posZ);
+      if (Number.isFinite(posX) && Number.isFinite(posY) && Number.isFinite(posZ)) {
+        child.position.set(posX, posY, posZ);
+      }
 
       // Smooth orientation along movement vector
       const targetAngle = Math.atan2(p2[0] - p1[0], p2[2] - p1[2]);

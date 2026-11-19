@@ -468,11 +468,11 @@ export default function CityEconomyDashboard({ onClose }: CityEconomyDashboardPr
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono mt-2">
                 <div className="p-2 rounded bg-[#131914] border border-[#222d24]">
                   <span className="text-[9px] text-[#8f9d8d] block">TOTAL POPULATION</span>
-                  <span className="font-bold text-[#f3f5ef]">{(resFlow.totalPopulation / 1000000).toFixed(3)}M</span>
+                  <span className="font-bold text-[#f3f5ef]">{resFlow.totalPopulation >= 1000000 ? `${(resFlow.totalPopulation / 1000000).toFixed(3)}M` : resFlow.totalPopulation.toLocaleString()}</span>
                 </div>
                 <div className="p-2 rounded bg-[#131914] border border-[#222d24]">
                   <span className="text-[9px] text-[#8f9d8d] block">LABOR POOL</span>
-                  <span className="font-bold text-[#a6bd82]">{(resFlow.workingAgePopulation / 1000).toFixed(0)}k</span>
+                  <span className="font-bold text-[#a6bd82]">{resFlow.workingAgePopulation >= 1000 ? `${(resFlow.workingAgePopulation / 1000).toFixed(0)}k` : resFlow.workingAgePopulation.toLocaleString()}</span>
                 </div>
                 <div className="p-2 rounded bg-[#131914] border border-[#222d24]">
                   <span className="text-[9px] text-[#8f9d8d] block">EMPLOYED JOBS</span>

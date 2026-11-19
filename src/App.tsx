@@ -39,6 +39,8 @@ const GenesisPortalPage = React.lazy(() => import('./pages/GenesisPortalPage'));
 const WorldCreationStudioPage = React.lazy(() => import('./pages/WorldCreationStudioPage'));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 const AdminConsolePage = React.lazy(() => import('./pages/AdminConsolePage'));
+const CausalInsightsPage = React.lazy(() => import('./pages/CausalInsightsPage'));
+const DisastersPage = React.lazy(() => import('./pages/DisastersPage'));
 import PerformanceDashboardModal from './components/diagnostics/PerformanceDashboardModal';
 import { soundFx } from './services/soundFx';
 
@@ -264,6 +266,12 @@ function GameApp() {
         );
       case 'Future Simulator':
         return <FutureSimulatorPage onClose={handleClose} />;
+      case 'Causal Insights':
+        return <CausalInsightsPage onClose={handleClose} />;
+      case 'Civil Defense':
+      case 'Disaster Management':
+      case 'Disasters':
+        return <DisastersPage onClose={handleClose} />;
       case 'Research Observatory':
         return <ResearchObservatoryPage onClose={handleClose} />;
       case 'Research Wallet':

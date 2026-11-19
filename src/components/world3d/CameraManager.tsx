@@ -27,18 +27,20 @@ export default function CameraManager() {
   const { selectedBuilding } = useGameState();
 
   const targetVec = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.8, 10.0));
-  const camVec = useRef<THREE.Vector3>(new THREE.Vector3(32, 28, 38));
+  const camVec = useRef<THREE.Vector3>(new THREE.Vector3(38, 34, 46));
   const isTransitioning = useRef<boolean>(false);
+  const transitionTimer = useRef<number>(0);
 
   // Smoothly center camera when building is selected in game state
   useEffect(() => {
     if (selectedBuilding && controlsRef.current) {
-      targetVec.current.set(selectedBuilding.x, selectedBuilding.y, selectedBuilding.z);
-      camVec.current.set(
-        selectedBuilding.x + 18,
-        selectedBuilding.y + 14,
-        selectedBuilding.z + 18
-      );
+      const bx = Number.isFinite(selectedBuilding.x) ? selectedBuilding.x : 0;
+      const by = Number.isFinite(selectedBuilding.y) ? selectedBuilding.y : 1.2;
+      const bz = Number.isFinite(selectedBuilding.z) ? selectedBuilding.z : 0;
+
+      targetVec.current.set(bx, by, bz);
+      camVec.current.set(bx + 18, by + 14, bz + 18);
+      transitionTimer.current = 0;
       isTransitioning.current = true;
     }
   }, [selectedBuilding]);
@@ -71,11 +73,18 @@ export default function CameraManager() {
             camVec.current.set(38, 34, 46);
             break;
         }
+        transitionTimer.current = 0;
         isTransitioning.current = true;
       } else if (custom.detail.type === 'focus') {
         const { x, y, z, dist } = custom.detail;
-        targetVec.current.set(x, y, z);
-        camVec.current.set(x + dist * 0.75, y + dist * 0.65, z + dist * 0.75);
+        const fx = Number.isFinite(x) ? x : 0;
+        const fy = Number.isFinite(y) ? y : 1.2;
+        const fz = Number.isFinite(z) ? z : 10;
+        const fd = Number.isFinite(dist) ? dist : 22;
+
+        targetVec.current.set(fx, fy, fz);
+        camVec.current.set(fx + fd * 0.75, fy + fd * 0.65, fz + fd * 0.75);
+        transitionTimer.current = 0;
         isTransitioning.current = true;
       }
     };
@@ -86,12 +95,27 @@ export default function CameraManager() {
 
   // Smooth lerp during camera transition
   useFrame((_, delta) => {
-    if (isTransitioning.current && controlsRef.current) {
-      const controls = controlsRef.current;
-      const cam = controls.object as THREE.PerspectiveCamera;
+    if (!controlsRef.current) return;
+    const controls = controlsRef.current;
+    const cam = controls.object as THREE.PerspectiveCamera;
 
-      controls.target.lerp(targetVec.current, delta * 3.8);
-      cam.position.lerp(camVec.current, delta * 3.8);
+    // Sanity check: prevent NaN lockouts from poisoning controls
+    if (!Number.isFinite(cam.position.x) || !Number.isFinite(cam.position.y) || !Number.isFinite(cam.position.z)) {
+      cam.position.set(38, 34, 46);
+    }
+    if (!Number.isFinite(controls.target.x) || !Number.isFinite(controls.target.y) || !Number.isFinite(controls.target.z)) {
+      controls.target.set(0, 1.8, 10.0);
+    }
+
+    if (isTransitioning.current) {
+      transitionTimer.current += delta;
+      if (transitionTimer.current > 1.2) {
+        isTransitioning.current = false;
+        return;
+      }
+
+      controls.target.lerp(targetVec.current, Math.min(1.0, delta * 4.5));
+      cam.position.lerp(camVec.current, Math.min(1.0, delta * 4.5));
       controls.update();
 
       if (
@@ -106,6 +130,10 @@ export default function CameraManager() {
   return (
     <OrbitControls
       ref={controlsRef}
+      onStart={() => {
+        // User interacted with mouse/touch: immediately release automatic camera lock
+        isTransitioning.current = false;
+      }}
       maxPolarAngle={Math.PI / 2.06}
       minPolarAngle={0.06}
       minDistance={6}

@@ -185,10 +185,148 @@ export function ElectricalSubstationModel({ isSelected, level }: ModelProps) {
   );
 }
 
-// 4. Planetary Senate Citadel (Monumental Neoclassical Civic Command Palace)
-export function SenateCitadelModel({ isSelected, level }: ModelProps) {
+// 4. Planetary Senate Citadel (Adapts dynamically from Starter Level 1 Outpost to Monumental Neoclassical Palace)
+export function SenateCitadelModel({ isSelected, level = 1 }: ModelProps) {
   const isNight = useIsNight();
 
+  // LEVEL 1: Compact, Rugged Frontier Expedition Outpost / Command Hub
+  if (level <= 1) {
+    return (
+      <group>
+        {/* Steel Modular Foundation Skid with Leveling Jacks */}
+        <mesh position={[0, 0.12, 0]} castShadow receiveShadow>
+          <boxGeometry args={[3.8, 0.24, 3.2]} />
+          <meshStandardMaterial color={isSelected ? '#e0be70' : '#2d3436'} metalness={0.7} roughness={0.4} />
+        </mesh>
+        {/* Foundation Corner Hydraulic Piston Legs */}
+        {[-1.7, 1.7].map((lx) =>
+          [-1.4, 1.4].map((lz) => (
+            <mesh key={`leg-${lx}-${lz}`} position={[lx, -0.06, lz]}>
+              <cylinderGeometry args={[0.08, 0.1, 0.25, 8]} />
+              <meshStandardMaterial color="#636e72" metalness={0.8} />
+            </mesh>
+          ))
+        )}
+
+        {/* Primary Pressurized Expedition Command Pod */}
+        <mesh position={[0, 0.85, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.4, 1.25, 2.0]} />
+          <meshStandardMaterial color={isSelected ? '#e5c46d' : '#4b5548'} roughness={0.6} metalness={0.3} />
+        </mesh>
+
+        {/* Slanted Armor Roof Shell */}
+        <mesh position={[0, 1.52, 0]} castShadow>
+          <boxGeometry args={[2.2, 0.12, 1.8]} />
+          <meshStandardMaterial color="#2c3e50" roughness={0.4} metalness={0.5} />
+        </mesh>
+
+        {/* Airlock Entry Vestibule */}
+        <mesh position={[0, 0.65, 1.15]} castShadow receiveShadow>
+          <boxGeometry args={[0.85, 0.95, 0.45]} />
+          <meshStandardMaterial color="#34495e" roughness={0.5} />
+        </mesh>
+        {/* Airlock Hatch Door with Hazard Seal */}
+        <mesh position={[0, 0.6, 1.39]}>
+          <planeGeometry args={[0.55, 0.75]} />
+          <meshStandardMaterial color="#e67e22" roughness={0.5} metalness={0.6} />
+        </mesh>
+
+        {/* Command Deck Observation Strip Windows */}
+        <mesh position={[0, 1.05, 1.02]}>
+          <planeGeometry args={[1.6, 0.25]} />
+          <meshStandardMaterial
+            color={isNight ? '#ffeaa7' : '#00cec9'}
+            emissive={isNight ? '#ffeaa7' : '#00cec9'}
+            emissiveIntensity={isNight ? 2.0 : 0.6}
+          />
+        </mesh>
+
+        {/* Communications Antenna Mast & Beacon */}
+        <mesh position={[-0.85, 1.9, -0.6]}>
+          <cylinderGeometry args={[0.03, 0.04, 1.6, 8]} />
+          <meshStandardMaterial color="#7f8c8d" metalness={0.8} />
+        </mesh>
+        {/* Blinking Red/Cyan Hazard Warning Strobe */}
+        <mesh position={[-0.85, 2.75, -0.6]}>
+          <sphereGeometry args={[0.07, 8, 8]} />
+          <meshStandardMaterial
+            color="#e74c3c"
+            emissive="#ff2222"
+            emissiveIntensity={isNight ? 3.0 : 1.5}
+          />
+        </mesh>
+
+        {/* Parabolic Survey Satellite Dish */}
+        <group position={[0.75, 1.7, -0.5]} rotation={[0.4, -0.6, 0.2]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.35, 0.08, 0.15, 12, 1, true]} />
+            <meshStandardMaterial color="#bdc3c7" metalness={0.8} />
+          </mesh>
+          <mesh position={[0, 0.12, 0]}>
+            <cylinderGeometry args={[0.02, 0.02, 0.25, 6]} />
+            <meshStandardMaterial color="#e74c3c" />
+          </mesh>
+        </group>
+
+        {/* Deployable Pioneer Solar Awning */}
+        <mesh position={[1.4, 0.95, 0.2]} rotation={[0, 0, -0.25]} castShadow>
+          <boxGeometry args={[0.9, 0.04, 1.6]} />
+          <meshStandardMaterial color="#1e3799" metalness={0.8} roughness={0.2} />
+        </mesh>
+
+        {/* Supply Crates and Power Cell Packs on Deck */}
+        <mesh position={[-1.25, 0.4, 0.8]} castShadow>
+          <boxGeometry args={[0.5, 0.35, 0.5]} />
+          <meshStandardMaterial color="#d35400" roughness={0.7} />
+        </mesh>
+        <mesh position={[-1.25, 0.32, 0.2]} castShadow>
+          <boxGeometry args={[0.4, 0.25, 0.4]} />
+          <meshStandardMaterial color="#7f8c8d" metalness={0.6} />
+        </mesh>
+        <mesh position={[1.25, 0.35, 0.8]} castShadow>
+          <cylinderGeometry args={[0.15, 0.15, 0.45, 8]} />
+          <meshStandardMaterial color="#27ae60" metalness={0.5} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // LEVEL 2: Intermediate Pioneer Assembly Hall & Administration Complex
+  if (level === 2) {
+    return (
+      <group>
+        {/* Reinforced Stone Base Terrace */}
+        <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
+          <boxGeometry args={[5.4, 0.5, 4.4]} />
+          <meshStandardMaterial color={isSelected ? '#e0be70' : '#3d443e'} roughness={0.7} />
+        </mesh>
+        {/* Central Administrative Hall */}
+        <mesh position={[0, 1.1, 0]} castShadow receiveShadow>
+          <boxGeometry args={[3.6, 1.4, 3.0]} />
+          <meshStandardMaterial color="#8c9a8c" roughness={0.5} />
+        </mesh>
+        {/* Flanking Modular Annexes */}
+        {[-2.0, 2.0].map((ax, i) => (
+          <mesh key={`annex-${i}`} position={[ax, 0.85, 0]} castShadow>
+            <boxGeometry args={[1.0, 0.9, 2.6]} />
+            <meshStandardMaterial color="#556052" roughness={0.6} />
+          </mesh>
+        ))}
+        {/* Entry Portico */}
+        <mesh position={[0, 0.9, 1.6]} castShadow>
+          <boxGeometry args={[1.8, 1.1, 0.6]} />
+          <meshStandardMaterial color="#b2bec3" roughness={0.4} />
+        </mesh>
+        {/* Rooftop Observatory Dome */}
+        <mesh position={[0, 1.95, 0]} castShadow>
+          <sphereGeometry args={[0.85, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <meshStandardMaterial color="#c6a76a" metalness={0.7} roughness={0.3} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // LEVEL 3+: Monumental Neoclassical Civic Command Palace
   return (
     <group>
       {/* 1. Grand Rusticated Stone Base Podium & Broad Entrance Terrace */}

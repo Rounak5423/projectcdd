@@ -13,19 +13,12 @@ import {
   GameEvent,
 } from '../types/game';
 
-// Base URL for FastAPI backend service (supports relative URLs in production and custom VITE_API_URL)
+// Base URL for FastAPI backend service (supports relative URLs via Vite proxy and custom VITE_API_URL)
 const getApiBaseUrl = (): string => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  if (typeof window !== 'undefined') {
-    if (import.meta.env.PROD || window.location.port === '8000' || !window.location.port) {
-      return '/api/v1';
-    }
-    const host = window.location.hostname || '127.0.0.1';
-    return `http://${host}:8000/api/v1`;
-  }
-  return 'http://127.0.0.1:8000/api/v1';
+  return '/api/v1';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -503,6 +496,300 @@ export const civilizationApi = {
       return { success: true, data: response.data };
     } catch (err: any) {
       return { success: false, message: err.response?.data?.detail || 'Failed to repay municipal bond' };
+    }
+  },
+
+  // ── Unified World & Transactional Commands ─────────────────────────────
+  async createWorld(data: {
+    name: string;
+    climate?: string;
+    technology_level?: string;
+    initial_population?: number;
+    grid_size?: number;
+    initial_resources?: Record<string, number>;
+  }): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post('/worlds', data);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to create world' };
+    }
+  },
+
+  async deleteWorld(worldId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.delete(`/worlds/${worldId}`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to delete world' };
+    }
+  },
+
+  async getWorldState(worldId: string): Promise<ApiResponse<any>> {
+    return apiCache.deduplicate(`world_state_${worldId}`, async () => {
+      try {
+        const response = await apiClient.get(`/worlds/${worldId}/state`);
+        return { success: true, data: response.data };
+      } catch (err: any) {
+        return { success: false, message: err.response?.data?.detail || 'Failed to fetch world state' };
+      }
+    }, 2000);
+  },
+
+  async executeCommands(worldId: string, commands: any[]): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${worldId}/commands`, { commands });
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Command execution failed' };
+    }
+  },
+
+  async undoCommand(worldId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${worldId}/undo`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Undo command failed' };
+    }
+  },
+
+  async getActionLog(worldId: string, limit = 50): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/action-log?limit=${limit}`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, data: [], message: err.response?.data?.detail || 'Failed to fetch action log' };
+    }
+  },
+
+  async getDerivedMetrics(worldId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/derived-metrics`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to fetch derived metrics' };
+    }
+  },
+
+  // ── Population & Citizens ──────────────────────────────────────────────
+  async getCitizens(worldId: string, limit = 50, offset = 0): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/citizens?limit=${limit}&offset=${offset}`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, data: [], message: err.response?.data?.detail || 'Failed to fetch citizens' };
+    }
+  },
+
+  // ── Roads & Utilities Infrastructure ──────────────────────────────────
+  async getRoadNetwork(worldId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/road-network`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to fetch road network' };
+    }
+  },
+
+  async constructRoad(worldId: string, roadData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${worldId}/roads`, roadData);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to construct road' };
+    }
+  },
+
+  async getUtilityNetwork(worldId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/utility-network`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to fetch utility network' };
+    }
+  },
+
+  // ── Cities: Skylines II Deep Infoviews & Chirper ───────────────────────
+  async getCs2Infoview(worldId: string, viewType: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/cs2/infoviews/${viewType}`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to load infoview' };
+    }
+  },
+
+  async getCs2RciDemand(worldId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/cs2/rci-demand`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to load RCI demand' };
+    }
+  },
+
+  async getCs2Chirps(worldId: string): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/cs2/chirper`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, data: [], message: err.response?.data?.detail || 'Failed to load chirps' };
+    }
+  },
+
+  async postCs2Chirp(worldId: string, chirpData: { text: string; author?: string; tags?: string[] }): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${worldId}/cs2/chirper`, chirpData);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to post chirp' };
+    }
+  },
+
+  // ── Causal Vitals & Demographic Health ─────────────────────────────────
+  async getCausalVitals(worldId: string = 'aurora-prime', limit: number = 60): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/vitals?limit=${limit}`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      try {
+        const alt = await apiClient.get('/causal/vitals');
+        return { success: true, data: alt.data };
+      } catch {
+        return { success: false, message: err.response?.data?.detail || 'Failed to load causal vitals' };
+      }
+    }
+  },
+
+  async getCausalTrace(worldId: string = 'aurora-prime'): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/causal-trace`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to load causal trace' };
+    }
+  },
+
+  async simulateCausalShock(worldId: string = 'aurora-prime', shockData: any = {}): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${worldId}/intervene`, shockData);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to simulate causal shock' };
+    }
+  },
+
+  // ── Disasters & Civil Defense ──────────────────────────────────────────
+  async getDisasters(worldId: string): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await apiClient.get(`/worlds/${worldId}/disasters/active`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, data: [], message: err.response?.data?.detail || 'Failed to load disasters' };
+    }
+  },
+
+  async triggerDisaster(worldId: string, disasterData: {
+    type: string;
+    intensity: number;
+    epicenter_x?: number;
+    epicenter_y?: number;
+    radius?: number;
+    duration_ticks?: number;
+  }): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${worldId}/disasters/trigger`, disasterData);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to trigger disaster' };
+    }
+  },
+
+  async resolveDisaster(worldId: string, disasterId: string, action: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/worlds/${worldId}/disasters/resolve`, { disaster_id: disasterId, action });
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to resolve disaster' };
+    }
+  },
+
+  // ── Council of Advisors ────────────────────────────────────────────────
+  async getCouncilAdvisors(): Promise<ApiResponse<any[]>> {
+    return apiCache.deduplicate('council_advisors_all', async () => {
+      try {
+        const response = await apiClient.get('/council/advisors');
+        return { success: true, data: response.data?.data || response.data };
+      } catch (err: any) {
+        return { success: false, message: err.response?.data?.detail || 'Failed to load council advisors' };
+      }
+    }, 6000);
+  },
+
+  async requestCouncilDeliberation(worldId: string, topic?: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post('/council/deliberation', { world_id: worldId, topic });
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Council deliberation failed' };
+    }
+  },
+
+  async chatWithAdvisor(advisorId: string, message: string, worldId?: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/council/advisors/${advisorId}/chat`, { message, world_id: worldId });
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Advisor response failed' };
+    }
+  },
+
+  // ── Machine Learning & Behavioral Models ───────────────────────────────
+  async getMlModels(): Promise<ApiResponse<any>> {
+    return apiCache.deduplicate('ml_models_registry', async () => {
+      try {
+        const response = await apiClient.get('/ml/models');
+        return { success: true, data: response.data };
+      } catch (err: any) {
+        return { success: false, message: err.response?.data?.detail || 'Failed to load ML models' };
+      }
+    }, 10000);
+  },
+
+  async predictCommute(features: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post('/ml/predict/commute', features);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Commute prediction failed' };
+    }
+  },
+
+  async predictActivity(features: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post('/ml/predict/activity', features);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Activity prediction failed' };
+    }
+  },
+
+  async predictHazard(features: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post('/ml/predict/hazard', features);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Hazard prediction failed' };
+    }
+  },
+
+  async optimizeMpc(payload: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post('/ml/mpc/optimize', payload);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'MPC policy optimization failed' };
     }
   },
 };

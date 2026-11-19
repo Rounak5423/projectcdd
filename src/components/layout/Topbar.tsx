@@ -70,6 +70,12 @@ function TopbarComponent({
 
   const { resources: resFlow, economy } = economyReport;
 
+  const formatAdaptive = (num: number): string => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
+    if (num >= 10000) return `${(num / 1000).toFixed(1)}k`;
+    return num.toLocaleString();
+  };
+
   const resourcePills: {
     key: SelectedResourceKey;
     label: string;
@@ -85,7 +91,7 @@ function TopbarComponent({
     {
       key: 'population',
       label: 'Citizens',
-      val: `${(resources.population / 1000000).toFixed(2)}M`,
+      val: formatAdaptive(resources.population),
       rate: `+${rates.populationGrowthRate}%`,
       isNegative: false,
       icon: Users,
@@ -95,7 +101,7 @@ function TopbarComponent({
     {
       key: 'food',
       label: 'Food Rations',
-      val: `${(resources.food / 1000).toFixed(1)}k`,
+      val: formatAdaptive(resources.food),
       rate: resFlow.foodNet >= 0 ? `+${resFlow.foodNet}` : `${resFlow.foodNet}`,
       isNegative: resFlow.foodNet < 0,
       isCritical: resFlow.foodNet < 0 && resources.food < 500,
@@ -106,7 +112,7 @@ function TopbarComponent({
     {
       key: 'water',
       label: 'Fresh Water',
-      val: `${(resources.water / 1000).toFixed(1)}k`,
+      val: formatAdaptive(resources.water),
       rate: resFlow.waterNet >= 0 ? `+${resFlow.waterNet}` : `${resFlow.waterNet}`,
       isNegative: resFlow.waterNet < 0,
       isCritical: resFlow.waterNet < 0 && resources.water < 500,
@@ -128,7 +134,7 @@ function TopbarComponent({
     {
       key: 'materials',
       label: 'Building Materials',
-      val: `${(resources.materials / 1000).toFixed(1)}k`,
+      val: formatAdaptive(resources.materials),
       rate: resFlow.materialsNet >= 0 ? `+${resFlow.materialsNet}` : `${resFlow.materialsNet}`,
       isNegative: resFlow.materialsNet < 0,
       icon: Package,
@@ -257,24 +263,6 @@ function TopbarComponent({
             </button>
           )}
 
-          {/* High Council Chamber Direct Shortcut */}
-          {onNavigate && (
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                onNavigate('Council of Advisors');
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#C5A66A]/20 border border-[#C5A66A]/60 text-[#C5A66A] font-serif text-xs font-bold transition-all shadow-sm"
-              title="Open Royal Council Chamber (3D)"
-            >
-              <Crown size={13} className="text-[#C5A66A]" />
-              <span className="hidden sm:inline">The Council</span>
-              <span className="px-1 py-0.2 rounded bg-[#C5A66A]/20 text-[8px] font-mono font-bold text-[#EAE3D2]">
-                3D
-              </span>
-            </button>
-          )}
-
           {/* Notifications Center Bell */}
           <button
             onClick={() => {
@@ -282,7 +270,7 @@ function TopbarComponent({
               setIsNotificationOpen(true);
             }}
             className="relative p-1.5 rounded bg-[#202820] hover:bg-[#283228] border border-[#2B372C] text-[#A5AD9D] hover:text-[#C5A66A] transition-colors"
-            title="Open High Council Event Notifications"
+            title="Open Event Notifications"
           >
             <Bell size={15} />
             {unreadCount > 0 && (
@@ -290,34 +278,6 @@ function TopbarComponent({
                 {unreadCount}
               </span>
             )}
-          </button>
-
-          {/* Chirper Network Widget (Cities: Skylines II Citizen Voices) */}
-          <CS2ChirperWidget />
-
-          {/* Presenter Suite / Capabilities Showcase */}
-          <button
-            onClick={() => {
-              soundFx.playClick();
-              setIsDemoModalOpen(true);
-            }}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#C5A66A]/40 text-[11px] font-bold text-[#C5A66A] transition-all shadow-xs font-cinzel"
-            title="Open Presenter Suite: Showcase All Potential Capabilities"
-          >
-            <span>Presenter</span>
-          </button>
-
-          {/* Civil Defense & Disaster Command Center */}
-          <button
-            onClick={() => {
-              soundFx.playClick();
-              setActiveDrawer('disaster');
-            }}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#202820] hover:bg-[#283228] border border-[#344435] hover:border-[#4e644f] text-[11px] font-bold text-[#a6bd82] transition-all shadow-xs"
-            title="Open Civil Defense & Emergency Response Command Center"
-          >
-            <ShieldAlert size={13} className="text-[#a6bd82]" />
-            <span>Defense</span>
           </button>
 
           {/* Persistent Auto-Save Status & Manual Save Trigger */}
@@ -366,20 +326,6 @@ function TopbarComponent({
                 </button>
               )}
             </div>
-          )}
-
-          {/* Developer Performance Telemetry Dashboard Toggle */}
-          {onOpenDiagnostics && (
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                onOpenDiagnostics();
-              }}
-              className="p-1.5 rounded bg-[#202820] hover:bg-[#283228] border border-[#2B372C] hover:border-[#C5A66A]/40 text-[#A5AD9D] hover:text-[#C5A66A] transition-colors"
-              title="Open Performance Telemetry & Diagnostics (F2 / Ctrl+Shift+P)"
-            >
-              <Activity size={15} />
-            </button>
           )}
 
           {/* Tactical 3D Inspector Panel Toggle */}

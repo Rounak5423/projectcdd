@@ -194,7 +194,7 @@ export default function CitizenIntelligenceDashboard({ onClose }: CitizenDashboa
         <div className="p-2.5 rounded-xl bg-[#1b231d] border border-[#2b392d]">
           <span className="text-[#8e9c8c] block text-[9px] uppercase">TOTAL CENSUS</span>
           <span className="text-base font-bold text-[#f3f5ef]">
-            {(citizenReport.totalPopulation / 1000000).toFixed(3)}M
+            {citizenReport.totalPopulation >= 1000000 ? `${(citizenReport.totalPopulation / 1000000).toFixed(3)}M` : citizenReport.totalPopulation.toLocaleString()}
           </span>
           <span className="text-[10px] text-[#a6bd82] block mt-0.5">+{rates.populationGrowthRate}%/yr growth</span>
         </div>
@@ -228,7 +228,7 @@ export default function CitizenIntelligenceDashboard({ onClose }: CitizenDashboa
             </span>
           </div>
           <span className="text-[10px] text-[#8e9c8c] block mt-0.5">
-            {(citizenReport.employedCount / 1000).toFixed(0)}k workforce
+            {citizenReport.employedCount >= 1000 ? `${(citizenReport.employedCount / 1000).toFixed(0)}k workforce` : `${citizenReport.employedCount} workers`}
           </span>
         </div>
 

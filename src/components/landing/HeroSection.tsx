@@ -262,7 +262,7 @@ export default function HeroSection({
                   ACTIVE REALM
                 </span>
                 <span className="text-xs font-serif font-bold text-[#faecd0]">
-                  Kyoto Prime (128km²)
+                  New Frontier (Pioneer Realm)
                 </span>
               </div>
             </div>
@@ -274,7 +274,7 @@ export default function HeroSection({
                   CIVILISATION EPOCH
                 </span>
                 <span className="text-xs font-serif font-bold text-[#faecd0]">
-                  Advanced Sovereign VI
+                  Foundational Epoch (Level 1)
                 </span>
               </div>
             </div>

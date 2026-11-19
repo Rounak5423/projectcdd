@@ -79,22 +79,11 @@ export default function GenesisPortalPage({
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
-              onClick={() => {
-                loadMaxDemoWorld();
-                onNavigate('World Explorer');
-              }}
-              className="px-6 py-3 rounded-xl bg-[#292212] hover:bg-[#3d3215] text-[#dfb74a] font-bold text-sm flex items-center gap-2.5 border border-[#a18131] shadow-xl transition-all"
-            >
-              <Sparkles size={16} className="text-[#dfb74a] animate-pulse" />
-              <span>Launch Max-Capabilities Demo (Kyoto Prime)</span>
-            </button>
-
-            <button
               onClick={() => onNavigate('World Explorer')}
-              className="px-5 py-3 rounded-xl bg-[#405439] hover:bg-[#526b48] text-[#dce9ca] font-semibold text-sm flex items-center gap-2 border border-[#6b875f] shadow-md transition-all"
+              className="px-6 py-3 rounded-xl bg-[#405439] hover:bg-[#526b48] text-[#dce9ca] font-bold text-sm flex items-center gap-2.5 border border-[#6b875f] shadow-xl transition-all"
             >
-              <Play size={15} className="fill-current" />
-              <span>Resume Active Simulation</span>
+              <Play size={16} className="fill-current text-[#dce9ca]" />
+              <span>Enter World Explorer (Level 1)</span>
             </button>
 
             <button
@@ -102,7 +91,7 @@ export default function GenesisPortalPage({
               className="px-5 py-3 rounded-xl bg-[#232d24] hover:bg-[#2d3a2e] text-[#e8e9e3] font-semibold text-sm flex items-center gap-2 border border-[#394a3a] transition-all"
             >
               <PlusCircle size={16} className="text-[#c6a76a]" />
-              <span>Found New World</span>
+              <span>Found New Civilisation</span>
             </button>
           </div>
         </div>

@@ -134,8 +134,8 @@ export default function DemoShowcaseModal({
                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#241d11] text-[#dfb74a] border border-[#5e4e24]">
                   METROPOLE TIER L{civilization.level}
                 </span>
-                <span className="text-[10px] font-mono text-[#7ea376] bg-[#14231b] px-1.5 py-0.5 rounded border border-[#23422f]">
-                  ERA V: QUANTUM
+                <span className="text-[10px] font-mono text-[#7ea376] bg-[#14231b] px-1.5 py-0.5 rounded border border-[#23422f] uppercase">
+                  ERA: {civilization.era}
                 </span>
               </div>
               <p className="text-xs text-[#a8a192] leading-relaxed">
@@ -149,10 +149,10 @@ export default function DemoShowcaseModal({
             <button
               onClick={loadMaxDemoWorld}
               className="px-3.5 py-2 rounded bg-[#292212] hover:bg-[#3d3215] border border-[#a18131] text-xs font-bold text-[#dfb74a] flex items-center gap-2 transition-all shadow-md shrink-0 active:scale-95"
-              title="Reset world to maximum demo capabilities"
+              title="Reset world to clean level 1 outpost"
             >
               <RotateCcw size={14} className="text-[#dfb74a]" />
-              <span>⚡ RE-STOCK MAX DEMO STATS</span>
+              <span>🌱 RESET TO LEVEL 1 PIONEER</span>
             </button>
           </div>
 

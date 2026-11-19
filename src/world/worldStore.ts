@@ -83,7 +83,7 @@ class UnifiedWorldStore {
   constructor() {
     // Auto-initialize when running in browser
     if (typeof window !== 'undefined') {
-      this.initWorld('aurora-prime');
+      this.initWorld('civ-new-frontier');
     }
   }
 
@@ -96,8 +96,8 @@ class UnifiedWorldStore {
     this.listeners.forEach((fn) => fn());
   }
 
-  public async initWorld(worldId: string = 'aurora-prime') {
-    const canonId = worldId in { 'civ-aurora-01': 1, 'prime': 1, 'default': 1 } ? 'aurora-prime' : worldId;
+  public async initWorld(worldId: string = 'civ-new-frontier') {
+    const canonId = worldId in { 'civ-aurora-01': 1, 'prime': 1, 'default': 1, 'aurora-prime': 1 } ? 'civ-new-frontier' : worldId;
     this.worldId = canonId;
     await this.fetchSnapshot();
     this.connectWebSocket();

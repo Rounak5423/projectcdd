@@ -217,15 +217,6 @@ function BottomControlsComponent() {
           <span className="text-xs">🏆</span>
           <span className="hidden sm:inline">Milestones</span>
         </button>
-
-        {/* Master Turn Advancement Action Button */}
-        <button
-          onClick={handleNextTurn}
-          className="btn-civ-gold px-3.5 py-1.5 rounded text-xs flex items-center gap-1.5 transition-all shrink-0"
-          title="Advance simulation by 1 day"
-        >
-          <span>Cycle</span>
-        </button>
       </div>
     </footer>
   );

@@ -140,10 +140,10 @@ export default function LandingNavbar({
             </div>
             <div className="hidden xl:flex flex-col text-left">
               <span className="text-[10px] font-serif font-bold text-[#ede8dc] leading-tight">
-                {civilization?.name ?? 'Kyoto Prime'}
+                {civilization?.name ?? 'New Frontier'}
               </span>
               <span className="text-[8px] font-mono text-[#c5a66a] uppercase">
-                Tier {civilization?.level ?? 4} Sovereign
+                Tier {civilization?.level ?? 1} Sovereign
               </span>
             </div>
           </div>

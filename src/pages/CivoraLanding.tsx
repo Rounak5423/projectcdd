@@ -35,11 +35,7 @@ export default function CivoraLanding({ onNavigate }: CivoraLandingProps) {
 
   const handleSelectWorld = (worldId: string) => {
     soundFx.playClick();
-    if (worldId === 'kyoto-prime') {
-      loadMaxDemoWorld();
-    } else {
-      loadCivilization(worldId);
-    }
+    loadCivilization(worldId);
     onNavigate('World Explorer');
   };
 

@@ -48,13 +48,18 @@ function BuildingObject({
     }
   });
 
+  const bx = Number.isFinite(building.x) ? building.x : 0;
+  const bz = Number.isFinite(building.z) ? building.z : 0;
   const rotY = building.rotation || 0;
   // Calculate exact terrain surface height at the building's coordinates
-  const groundY = useMemo(() => getTerrainHeight(building.x, building.z), [building.x, building.z]);
+  const groundY = useMemo(() => {
+    const gh = getTerrainHeight(bx, bz);
+    return Number.isFinite(gh) ? gh : 0.6;
+  }, [bx, bz]);
 
   return (
     <group
-      position={[building.x, groundY, building.z]}
+      position={[bx, groundY, bz]}
       rotation={[0, rotY, 0]}
       raycast={isConstructionMode ? () => null : undefined}
       onClick={(e: ThreeEvent<MouseEvent>) => {

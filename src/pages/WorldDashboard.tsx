@@ -448,7 +448,7 @@ function WorldDashboardComponent({
               { label: 'Infrastructure Catalogue', page: 'Infrastructure', icon: Hammer, desc: 'Commission new buildings and expand the civic grid' },
               { label: 'Technology Tree', page: 'Technology Tree', icon: GitBranch, desc: 'Direct RP research toward epochal breakthroughs' },
               { label: 'Policy Laboratory', page: 'Policy Laboratory', icon: FlaskConical, desc: 'Draft legislative decrees and test civic covenants' },
-              { label: 'Civilisation Chronicle', page: 'Civilisation Chronicle', icon: BookOpen, desc: 'Consult the historical archive of Aurora Prime' },
+              { label: 'Civilisation Chronicle', page: 'Civilisation Chronicle', icon: BookOpen, desc: 'Consult the historical archive of your civilisation' },
             ].map((btn) => {
               const Icon = btn.icon;
               return (

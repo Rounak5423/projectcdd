@@ -557,13 +557,15 @@ function PedestriansSystem({ isRaining = false }: { isRaining?: boolean } = {}) 
       }
 
       // 3. Movement towards destination
-      const dx = destX - entity.currentX;
-      const dz = destZ - entity.currentZ;
+      const safeDestX = Number.isFinite(destX) ? destX : 0;
+      const safeDestZ = Number.isFinite(destZ) ? destZ : 12;
+      const dx = safeDestX - entity.currentX;
+      const dz = safeDestZ - entity.currentZ;
       const dist = Math.hypot(dx, dz);
 
-      const isStationary = entity.isSleeping || entity.isConversing || dist < 0.4;
+      const isStationary = entity.isSleeping || entity.isConversing || !Number.isFinite(dist) || dist < 0.4;
 
-      if (!isStationary && dt > 0) {
+      if (!isStationary && dt > 0 && dist > 0.001) {
         const moveStep = Math.min(dist, entity.speed * dt);
         const dirX = dx / dist;
         const dirZ = dz / dist;
@@ -576,8 +578,10 @@ function PedestriansSystem({ isRaining = false }: { isRaining?: boolean } = {}) 
 
       const posY = getSidewalkY(entity.currentX, entity.currentZ);
 
-      child.position.set(entity.currentX, posY, entity.currentZ);
-      child.rotation.y = entity.facingAngle;
+      if (Number.isFinite(entity.currentX) && Number.isFinite(posY) && Number.isFinite(entity.currentZ)) {
+        child.position.set(entity.currentX, posY, entity.currentZ);
+      }
+      child.rotation.y = Number.isFinite(entity.facingAngle) ? entity.facingAngle : 0;
     });
 
     setTrafficFlowMetrics({ activePedestrians: entities.length });

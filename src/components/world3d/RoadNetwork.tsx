@@ -353,8 +353,11 @@ function ZebraPedestrianCrossing({
 // ================= MASTER ROAD NETWORK COMPONENT =================
 function RoadNetwork() {
   const isNight = useIsNight();
-  const { rates } = useGameState();
+  const { rates, civilization, placedBuildings } = useGameState();
   const [selectedRoadId, setSelectedRoadId] = useState<string | null>(null);
+
+  // When starting on fresh frontier dead land with Level 1 Citadel, highways and river bridges are locked until settlement expands
+  const isStarterFrontier = civilization.level <= 1 && placedBuildings.length <= 2;
 
   // Road segment telemetry definitions
   const roadSegments: RoadSegmentData[] = useMemo(() => [
@@ -668,6 +671,45 @@ function RoadNetwork() {
     () => new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.75 }),
     []
   );
+
+  // If entering fresh dead land with Level 1 Outpost, only render the immediate outpost access perimeter
+  if (isStarterFrontier) {
+    return (
+      <group>
+        {/* Starter Frontier Access Road around Level 1 Outpost */}
+        <group
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSelectRoad(roadSegments[4]);
+          }}
+        >
+          <mesh geometry={roadGeometries.nsDaisApproach} material={asphaltMat} receiveShadow />
+          <mesh geometry={roadGeometries.nsDaisApproachSW} material={sidewalkMat} receiveShadow />
+          <mesh geometry={roadGeometries.nsDaisMarks} material={yellowMarkingMat} raycast={() => null} />
+
+          <mesh geometry={roadGeometries.forumNorth} material={asphaltMat} receiveShadow />
+          <mesh geometry={roadGeometries.forumNorthSW} material={sidewalkMat} receiveShadow />
+          <mesh geometry={roadGeometries.forumNorthMarks} material={whiteMarkingMat} raycast={() => null} />
+
+          <mesh geometry={roadGeometries.forumWest} material={asphaltMat} receiveShadow />
+          <mesh geometry={roadGeometries.forumWestSW} material={sidewalkMat} receiveShadow />
+          <mesh geometry={roadGeometries.forumWestMarks} material={whiteMarkingMat} raycast={() => null} />
+
+          <mesh geometry={roadGeometries.forumEast} material={asphaltMat} receiveShadow />
+          <mesh geometry={roadGeometries.forumEastSW} material={sidewalkMat} receiveShadow />
+          <mesh geometry={roadGeometries.forumEastMarks} material={whiteMarkingMat} raycast={() => null} />
+
+          <mesh geometry={roadGeometries.forumSouth} material={asphaltMat} receiveShadow />
+          <mesh geometry={roadGeometries.forumSouthSW} material={sidewalkMat} receiveShadow />
+          <mesh geometry={roadGeometries.forumSouthMarks} material={whiteMarkingMat} raycast={() => null} />
+        </group>
+
+        {/* Local Pedestrian Crossing */}
+        <ZebraPedestrianCrossing position={[0, 0.86, 5.6]} width={4.8} length={2.0} rotationY={Math.PI / 2} />
+        <ZebraPedestrianCrossing position={[0, 0.86, 18.5]} width={4.8} length={2.0} rotationY={Math.PI / 2} />
+      </group>
+    );
+  }
 
   return (
     <group>

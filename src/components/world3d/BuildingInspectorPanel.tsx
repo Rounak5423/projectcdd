@@ -166,7 +166,7 @@ export default function BuildingInspectorPanel() {
               <Hammer size={14} className="animate-bounce" /> UNDER ACTIVE CONSTRUCTION
             </span>
             <span className="font-mono font-extrabold text-[#f1c40f]">
-              {cProgress.toFixed(0)}%
+              {(cProgress ?? 0).toFixed(0)}%
             </span>
           </div>
 
@@ -232,7 +232,7 @@ export default function BuildingInspectorPanel() {
               <Sparkles size={14} className="animate-spin" /> EXPANDING TO LEVEL {selectedBuilding.targetLevel || selectedBuilding.level + 1}
             </span>
             <span className="font-mono font-extrabold text-[#2ecc71]">
-              {uProgress.toFixed(0)}%
+              {(uProgress ?? 0).toFixed(0)}%
             </span>
           </div>
 
@@ -391,7 +391,7 @@ export default function BuildingInspectorPanel() {
         <div className="px-3 py-1.5 rounded-lg bg-[#141b16] border border-[#243026] flex items-center justify-between text-[10px] font-mono text-[#8e9c8c]">
           <span>COORDINATES:</span>
           <span className="text-[#a6bd82] font-semibold">
-            X: {selectedBuilding.x.toFixed(1)}m · Z: {selectedBuilding.z.toFixed(1)}m · Y: {selectedBuilding.y.toFixed(1)}m
+            X: {(selectedBuilding.x ?? 0).toFixed(1)}m · Z: {(selectedBuilding.z ?? 0).toFixed(1)}m · Y: {(selectedBuilding.y ?? 0).toFixed(1)}m
           </span>
         </div>
       </div>

@@ -309,7 +309,7 @@ export default function PlacementSystem() {
 
               {validation.isValid && validation.zoneName && (
                 <div className="text-[11px] text-[#a6bd82] font-mono">
-                  📍 {validation.zoneName} · Road Frontage: {validation.distToRoad.toFixed(1)}m
+                  📍 {validation.zoneName} · Road Frontage: {(validation.distToRoad ?? 0).toFixed(1)}m
                 </div>
               )}
 

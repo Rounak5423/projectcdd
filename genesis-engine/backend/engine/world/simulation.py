@@ -1,4 +1,4 @@
-﻿"""
+"""
 Authoritative Unified World Simulation Engine
 Version: 2.0.0
 Connects:
@@ -239,15 +239,10 @@ class UnifiedWorldSimulation:
             conn.close()
 
     def _seed_default_road_network(self, conn):
-        """Seeds standard 4-way arterial road network."""
+        """Seeds minimal frontier pioneer accessway on dead land."""
         nodes = [
-            ("node_0_0", 0.0, 0.0),
-            ("node_0_30", 0.0, 30.0),
-            ("node_0_neg30", 0.0, -30.0),
-            ("node_30_0", 30.0, 0.0),
-            ("node_neg30_0", -30.0, 0.0),
-            ("node_15_15", 15.0, 15.0),
-            ("node_neg15_15", -15.0, 15.0),
+            ("node_0_5", 0.0, 5.0),
+            ("node_0_20", 0.0, 20.0),
         ]
         with conn:
             for nid, x, z in nodes:
@@ -257,12 +252,7 @@ class UnifiedWorldSimulation:
                 self.road_network.add_node(node)
 
             segs = [
-                ("seg_main_n", "node_0_0", "node_0_30", "four_lane", 70.0, 1500, 30.0),
-                ("seg_main_s", "node_0_0", "node_0_neg30", "four_lane", 70.0, 1500, 30.0),
-                ("seg_main_e", "node_0_0", "node_30_0", "four_lane", 70.0, 1500, 30.0),
-                ("seg_main_w", "node_0_0", "node_neg30_0", "four_lane", 70.0, 1500, 30.0),
-                ("seg_diag_ne", "node_30_0", "node_15_15", "two_lane", 50.0, 600, 21.2),
-                ("seg_diag_nw", "node_neg30_0", "node_neg15_15", "two_lane", 50.0, 600, 21.2),
+                ("seg_main_pioneer", "node_0_5", "node_0_20", "two_lane", 30.0, 300, 15.0),
             ]
             for sid, n1, n2, rtype, spd, cap, length in segs:
                 conn.execute("""
@@ -276,17 +266,9 @@ class UnifiedWorldSimulation:
                 self.road_network.add_segment(seg)
 
     def _seed_default_buildings(self, conn):
-        """Seeds foundational civic, residential, commercial, energy, and water facilities."""
+        """Seeds singular Level 1 Frontier Colony Outpost for fresh frontier settlement."""
         defaults = [
-            ("bld_citadel", "Civic Citadel", "Civic", 0.0, 0.0, 8.0, 4),
-            ("bld_power_main", "Fusion Power Plant", "Energy", -18.0, 15.0, 6.0, 3),
-            ("bld_water_main", "Hydro-Purification Plant", "Water", 18.0, -15.0, 4.0, 3),
-            ("bld_hospital_prime", "Elysium General Hospital", "Healthcare", 12.0, 12.0, 5.0, 3),
-            ("bld_academy", "Grand Academy of Science", "Education", -12.0, -12.0, 4.0, 2),
-            ("bld_res_block_1", "High-Density Residential Block A", "ResidentialHigh", 8.0, 20.0, 8.5, 3),
-            ("bld_res_block_2", "Suburban Terraces B", "Residential", -8.0, 20.0, 4.0, 2),
-            ("bld_comm_plaza", "Central Commerce Complex", "CommercialHigh", 20.0, 8.0, 9.0, 3),
-            ("bld_industry_hub", "Advanced Materials Foundry", "Industrial", -22.0, -20.0, 4.5, 2),
+            ("bld_citadel", "Frontier Colony Outpost", "Civic", 0.0, 13.0, 4.0, 1),
         ]
         with conn:
             for bid, name, btype, x, z, h, lvl in defaults:

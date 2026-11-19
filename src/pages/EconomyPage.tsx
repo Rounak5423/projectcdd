@@ -33,6 +33,7 @@ import {
   Legend,
 } from 'recharts';
 import { useGameState } from '../context/GameStateContext';
+import CityEconomyDashboard from '../components/dashboard/CityEconomyDashboard';
 
 interface TradeRoute {
   id: string;
@@ -179,7 +180,24 @@ export default function EconomyPage({ onClose }: { onClose?: () => void } = {}) 
         >
           District Performance
         </button>
+        <button
+          onClick={() => setActiveTab('citybudget' as any)}
+          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+            (activeTab as any) === 'citybudget'
+              ? 'bg-[#3b4c37] text-[#dce9ca] border border-[#5d7756] shadow-sm'
+              : 'text-[#9da99b] hover:text-white'
+          }`}
+        >
+          City Budget & Utilities
+        </button>
       </div>
+
+      {/* TAB 0: DEEP CITY BUDGET & UTILITIES DASHBOARD */}
+      {(activeTab as any) === 'citybudget' && (
+        <div className="space-y-6">
+          <CityEconomyDashboard />
+        </div>
+      )}
 
       {/* TAB 1: MACRO & FISCAL TAX BRACKETS */}
       {activeTab === 'macro' && (

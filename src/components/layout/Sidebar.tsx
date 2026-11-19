@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
+  ShieldAlert,
   BookOpen,
   Target,
   ChevronDown,
@@ -41,43 +42,31 @@ interface NavSection {
 
 const baseNavigation: NavSection[] = [
   {
-    title: 'THE EMPIRE',
+    title: 'CIVILISATION',
     items: [
-      { name: 'Overview', icon: LayoutDashboard },
       { name: 'World Explorer', icon: Globe2, badge: '3D' },
+      { name: 'Overview', icon: LayoutDashboard },
       { name: 'Population', icon: Users },
       { name: 'Infrastructure', icon: Building2 },
       { name: 'Economy & Resources', icon: ChartNoAxesCombined },
     ],
   },
   {
-    title: 'THE COUNCIL',
+    title: 'GOVERNANCE & SCIENCE',
     items: [
       { name: 'Council of Advisors', icon: Crown, badge: '6' },
-    ],
-  },
-  {
-    title: 'DEVELOPMENT',
-    items: [
       { name: 'Technology Tree', icon: GitBranch },
-      { name: 'Research Wallet', icon: Coins, badge: 'CRC' },
       { name: 'Policy Laboratory', icon: FlaskConical },
-    ],
-  },
-  {
-    title: 'THE FUTURE',
-    items: [
-      { name: 'Future Simulator', icon: Microscope },
-      { name: 'Causal Insights', icon: Activity, badge: 'Live' },
       { name: 'Research Observatory', icon: Compass },
+      { name: 'Civil Defense', icon: ShieldAlert },
     ],
   },
   {
-    title: 'LEGACY',
+    title: 'LEGACY & ARCHIVES',
     items: [
+      { name: 'Missions & Challenges', icon: Target },
       { name: 'Civilisation Chronicle', icon: BookOpen },
       { name: 'Achievements', icon: Trophy },
-      { name: 'Missions & Challenges', icon: Target },
     ],
   },
 ];

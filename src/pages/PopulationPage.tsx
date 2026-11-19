@@ -238,7 +238,7 @@ export const PopulationPage: React.FC<PopulationPageProps> = ({ onClose }) => {
         <div className="flex flex-col">
           <span className="text-[10px] uppercase tracking-wider text-[#A5AD9D]">Total Population</span>
           <span className="text-lg font-serif font-bold text-[#EAE3D2] mt-0.5">
-            {(resources.population / 1000000).toFixed(3)}M
+            {resources.population >= 1000000 ? `${(resources.population / 1000000).toFixed(3)}M` : resources.population.toLocaleString()}
           </span>
         </div>
         <div className="flex flex-col">
@@ -300,7 +300,7 @@ export const PopulationPage: React.FC<PopulationPageProps> = ({ onClose }) => {
                       <div>
                         <h3 className="font-serif text-sm font-bold text-[#EAE3D2]">{tier.name}</h3>
                         <span className="text-[10px] font-mono text-[#A5AD9D]">
-                          {(tier.count / 1000).toFixed(0)}k Citizens
+                          {tier.count >= 1000 ? `${(tier.count / 1000).toFixed(0)}k Citizens` : `${tier.count} Citizens`}
                         </span>
                       </div>
                     </div>

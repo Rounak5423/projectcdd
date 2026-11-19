@@ -15,13 +15,11 @@ import {
   Cpu,
   Trees,
   Grid,
-  Compass,
 } from 'lucide-react';
 import CivilizationWorld3D from '../components/world3d/CivilizationWorld3D';
 import BuildingInspectorPanel from '../components/world3d/BuildingInspectorPanel';
 import CivRegionsDrawer from '../components/game/CivRegionsDrawer';
 import AnnoCitizenCard from '../components/game/AnnoCitizenCard';
-import CS2InfoViewsPanel from '../components/cs2/CS2InfoViewsPanel';
 import CS2ZoningToolDock from '../components/cs2/CS2ZoningToolDock';
 import CS2BulldozerTool from '../components/cs2/CS2BulldozerTool';
 import CS2CitizenLifepathModal from '../components/cs2/CS2CitizenLifepathModal';
@@ -164,9 +162,6 @@ function WorldExplorerPageComponent({
         {/* TOP-RIGHT CIV REGIONS DRAWER */}
         <CivRegionsDrawer onSelectDistrict={handleSelectDistrict} />
 
-        {/* CITIES: SKYLINES II - FLOATING INFO VIEWS HEATMAP CONTROLS */}
-        <CS2InfoViewsPanel />
-
         {/* CITIES: SKYLINES II - ACTIVE BULLDOZER DEMOLITION BANNER */}
         <CS2BulldozerTool />
 
@@ -243,35 +238,10 @@ function WorldExplorerPageComponent({
         {/* DEDICATED CENTRALIZED BUILDING INSPECTOR OVERLAY */}
         <BuildingInspectorPanel />
 
-        {/* BOTTOM-LEFT SETTLEMENT COMPASS RADAR */}
-        <div className="absolute bottom-4 left-4 z-20 flex flex-col items-center gap-1 p-1.5 rounded-xl border border-[#2b353c] bg-[#14181b]/90 backdrop-blur-md shadow-md">
-          <div className="w-14 h-14 rounded-full border border-[#3d4b55] relative overflow-hidden bg-[#0e1214] shadow-inner flex items-center justify-center">
-            <div className="absolute inset-0 border border-[#232c32] rounded-full" />
-            <div className="absolute w-full h-px bg-[#232c32]" />
-            <div className="absolute h-full w-px bg-[#232c32]" />
-            {districts.map((d) => (
-              <div
-                key={d.id}
-                className="absolute w-1.5 h-1.5 rounded-full"
-                style={{
-                  backgroundColor: d.color,
-                  left: `${50 + (d.x / 55) * 36}%`,
-                  top: `${50 + (d.z / 55) * 36}%`,
-                }}
-                title={d.name}
-              />
-            ))}
-            <Compass size={14} className="text-[#8f7742] opacity-40 pointer-events-none" />
-          </div>
-          <span className="text-[8px] font-mono font-bold text-[#8a8376] tracking-wider uppercase">
-            Radar
-          </span>
-        </div>
-
         {/* BOTTOM DOCK: CONSTRUCTION DRAWER TRIGGER */}
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute bottom-4 left-24 z-10 flex items-center gap-2"
+          className="absolute bottom-4 left-4 z-10 flex items-center gap-2"
         >
           <button
             onClick={() => {

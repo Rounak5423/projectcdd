@@ -51,9 +51,24 @@ export const initialCivilization: CivilizationProfile = {
 
 export const alternateWorlds: CivilizationProfile[] = [
   initialCivilization,
-  demoMetropolisCivilization,
   {
-    id: 'civ-crimson-02',
+    id: 'civ-highland-02',
+    name: 'Highland Ridge Settlement',
+    planet: 'Aethel-V',
+    era: 'Foundational',
+    level: 1,
+    xp: 0,
+    xpToNextLevel: 1000,
+    leaderTitle: 'Highland Warden',
+    governanceModel: 'Frontier Assembly',
+    foundingYear: 1,
+    currentYear: 1,
+    currentDay: 1,
+    terrainType: 'Highland Plateau',
+    climateType: 'Continental',
+  },
+  {
+    id: 'civ-crimson-03',
     name: 'Crimson Canyon Colony',
     planet: 'Aresia-III',
     era: 'Foundational',
@@ -69,7 +84,7 @@ export const alternateWorlds: CivilizationProfile[] = [
     climateType: 'Continental',
   },
   {
-    id: 'civ-atoll-03',
+    id: 'civ-atoll-04',
     name: 'Sapphire Atoll Colony',
     planet: 'Pelagia-IV',
     era: 'Foundational',
@@ -85,14 +100,14 @@ export const alternateWorlds: CivilizationProfile[] = [
     climateType: 'Subtropical',
   },
   {
-    id: 'civ-frostpeak-04',
+    id: 'civ-frostpeak-05',
     name: 'Frostpeak Taiga Settlement',
     planet: 'Borealis Prime',
     era: 'Foundational',
     level: 1,
     xp: 0,
     xpToNextLevel: 1000,
-    leaderTitle: 'Highland Warden',
+    leaderTitle: 'Taiga Warden',
     governanceModel: 'Frontier Assembly',
     foundingYear: 1,
     currentYear: 1,
@@ -101,7 +116,23 @@ export const alternateWorlds: CivilizationProfile[] = [
     climateType: 'Subpolar',
   },
   {
-    id: 'civ-caldera-05',
+    id: 'civ-oasis-06',
+    name: 'Sunder Sun Oasis Colony',
+    planet: 'Dune-VI',
+    era: 'Foundational',
+    level: 1,
+    xp: 0,
+    xpToNextLevel: 1000,
+    leaderTitle: 'Oasis Overseer',
+    governanceModel: 'Frontier Assembly',
+    foundingYear: 1,
+    currentYear: 1,
+    currentDay: 1,
+    terrainType: 'Arid Oasis',
+    climateType: 'Subtropical',
+  },
+  {
+    id: 'civ-caldera-07',
     name: 'Obsidian Caldera Outpost',
     planet: 'Vulcanus-II',
     era: 'Foundational',
@@ -115,6 +146,22 @@ export const alternateWorlds: CivilizationProfile[] = [
     currentDay: 1,
     terrainType: 'Obsidian Caldera',
     climateType: 'Continental',
+  },
+  {
+    id: 'civ-boreal-08',
+    name: 'Boreal Basin Settlement',
+    planet: 'Sylva-VII',
+    era: 'Foundational',
+    level: 1,
+    xp: 0,
+    xpToNextLevel: 1000,
+    leaderTitle: 'Basin Warden',
+    governanceModel: 'Frontier Assembly',
+    foundingYear: 1,
+    currentYear: 1,
+    currentDay: 1,
+    terrainType: 'Boreal Basin',
+    climateType: 'Temperate',
   },
 ];
 
@@ -135,22 +182,22 @@ export const demoMetropolisResources: ResourceState = {
   politicalCapital: 640,
 };
 
-// Modest pioneer supplies for genuine ground-up civilization building
+// Modest pioneer supplies for genuine ground-up civilization building with 150 founding pioneers
 export const initialResources: ResourceState = {
   food: 1200,
   water: 1500,
-  energy: 800,
-  materials: 2500,
-  researchPoints: 100,
-  grc: 500,
-  population: 10,
-  gdp: 0.05,
-  happiness: 92,
-  health: 94,
-  stability: 95,
-  environmentalIndex: 98,
-  educationIndex: 88,
-  politicalCapital: 150,
+  energy: 120,
+  materials: 850,
+  researchPoints: 0, // Starts at 0: Research Lab must be constructed by user
+  grc: 1250, // Realistic starter treasury (not crazy money)
+  population: 150, // Handful of 150 pioneers
+  gdp: 0.12,
+  happiness: 90,
+  health: 92,
+  stability: 94,
+  environmentalIndex: 96,
+  educationIndex: 82,
+  politicalCapital: 100,
 };
 
 export const demoMetropolisRates: ResourceRates = {
@@ -165,14 +212,14 @@ export const demoMetropolisRates: ResourceRates = {
 };
 
 export const initialRates: ResourceRates = {
-  foodRate: 15,
-  waterRate: 20,
-  energyRate: 10,
-  materialsRate: 18,
-  researchRate: 5,
-  grcEarnRate: 2,
+  foodRate: -65, // Net consumption until hydroponics is built
+  waterRate: -75, // Net consumption until aquifer well is built
+  energyRate: 20,
+  materialsRate: 0,
+  researchRate: 0, // 0 until Research Lab is built
+  grcEarnRate: 22, // Grounded tax yield from 150 settlers
   populationGrowthRate: 1.2,
-  gdpGrowthRate: 2.0,
+  gdpGrowthRate: 1.5,
 };
 
 export const demoMetropolisDistricts: District[] = [
@@ -247,13 +294,156 @@ export const initialDistricts: District[] = [
     x: 0,
     z: 13,
     radius: 12,
-    population: 10,
+    population: 150,
     efficiency: 100,
     specialization: 'Colony Genesis & Pioneer Survival',
   },
 ];
 
 export const buildingCatalog: BuildingCatalogItem[] = [
+  // ================= LEVEL 1 STARTER FRONTIER BUILDINGS =================
+  {
+    id: 'bld-res-pod',
+    name: 'Pioneer Habitation Pod',
+    category: 'residential',
+    description: 'Rugged modular pressurized quarters providing shelter, atmospheric scrubbers, and personal bunks for 50 pioneers.',
+    costMaterials: 95,
+    costCredits: 70,
+    energyReq: 10,
+    waterReq: 12,
+    populationCapacity: 50,
+    workerReq: 2,
+    productionAmount: 0,
+    maintenanceCost: 6,
+    constructionDurationDays: 4,
+    minTechLevel: 1,
+    modelType: 'tower',
+  },
+  {
+    id: 'bld-agr-hydro-starter',
+    name: 'Colonial Hydroponics Shed',
+    category: 'agriculture',
+    description: 'Enclosed soil-free cultivation bay utilizing nutrient solution racks to supply +85 food rations per day.',
+    costMaterials: 110,
+    costCredits: 80,
+    energyReq: 12,
+    waterReq: 15,
+    populationCapacity: 0,
+    workerReq: 12,
+    productionType: 'food',
+    productionAmount: 85,
+    maintenanceCost: 8,
+    constructionDurationDays: 5,
+    minTechLevel: 1,
+    modelType: 'hydroponic',
+  },
+  {
+    id: 'bld-env-well',
+    name: 'Aquifer Extraction Well',
+    category: 'environment',
+    description: 'Deep subterranean drill rig drawing subterranean glacial groundwater, purifying and pumping +100 kL of water per day.',
+    costMaterials: 90,
+    costCredits: 65,
+    energyReq: 8,
+    waterReq: -100, // generates 100 water
+    populationCapacity: 0,
+    workerReq: 6,
+    productionType: 'water',
+    productionAmount: 100,
+    maintenanceCost: 6,
+    constructionDurationDays: 4,
+    minTechLevel: 1,
+    modelType: 'water_treatment',
+  },
+  {
+    id: 'bld-ene-solar-starter',
+    name: 'Pioneer Solar Array',
+    category: 'energy',
+    description: 'Deployable photovoltaic panel field with micro-inverters producing +55 MW of clean electrical grid power.',
+    costMaterials: 105,
+    costCredits: 75,
+    energyReq: -55, // generates 55 MW
+    waterReq: 2,
+    populationCapacity: 0,
+    workerReq: 4,
+    productionType: 'energy',
+    productionAmount: 55,
+    maintenanceCost: 7,
+    constructionDurationDays: 4,
+    minTechLevel: 1,
+    modelType: 'solar',
+  },
+  {
+    id: 'bld-ind-workshop',
+    name: 'Pioneer Fabrication Depot',
+    category: 'industrial',
+    description: 'Field workshop featuring heavy 3D alloy printers and stone crushers refining raw regolith into +45 tons of building materials daily.',
+    costMaterials: 120,
+    costCredits: 85,
+    energyReq: 18,
+    waterReq: 10,
+    populationCapacity: 0,
+    workerReq: 15,
+    productionType: 'materials',
+    productionAmount: 45,
+    maintenanceCost: 9,
+    constructionDurationDays: 6,
+    minTechLevel: 1,
+    modelType: 'factory',
+  },
+  {
+    id: 'bld-hea-clinic-starter',
+    name: 'Frontier Medical Clinic',
+    category: 'healthcare',
+    description: 'Expedition medical station providing field triage, trauma stabilization, and antibiotic synthesis for up to 150 pioneers.',
+    costMaterials: 130,
+    costCredits: 90,
+    energyReq: 14,
+    waterReq: 10,
+    populationCapacity: 0,
+    workerReq: 8,
+    productionAmount: 0,
+    maintenanceCost: 10,
+    constructionDurationDays: 5,
+    minTechLevel: 1,
+    modelType: 'hospital',
+  },
+  {
+    id: 'bld-res-lab',
+    name: 'Pioneer Research Station',
+    category: 'research',
+    description: 'Scientific field laboratory equipped with planetary spectrometry benches and computing clusters. Generates +8 Research Points/day to pass policies.',
+    costMaterials: 140,
+    costCredits: 95,
+    energyReq: 16,
+    waterReq: 8,
+    populationCapacity: 0,
+    workerReq: 10,
+    productionType: 'researchPoints',
+    productionAmount: 8,
+    maintenanceCost: 11,
+    constructionDurationDays: 6,
+    minTechLevel: 1,
+    modelType: 'academy',
+  },
+  {
+    id: 'bld-com-outpost-market',
+    name: 'Frontier Trading Post',
+    category: 'commercial',
+    description: 'Barter depot and supply market allowing pioneers to exchange harvested rations and craftwork, generating +40 Cr in commercial tax surplus.',
+    costMaterials: 100,
+    costCredits: 70,
+    energyReq: 10,
+    waterReq: 6,
+    populationCapacity: 0,
+    workerReq: 8,
+    productionAmount: 0,
+    maintenanceCost: 7,
+    constructionDurationDays: 4,
+    minTechLevel: 1,
+    modelType: 'commercial',
+  },
+
   // Residential
   {
     id: 'bld-res-arcology',
@@ -1683,199 +1873,204 @@ export const demoMetropolisCitizens: Citizen[] = [
   },
 ];
 
-// Initial handful of 10 founding pioneers for fresh, emotional ground-up civilization building
-export const initialCitizens: Citizen[] = [
-  {
-    id: 'cit-founder-01',
-    name: 'Dr. Elena Vance',
-    age: 34,
-    gender: 'F',
-    occupation: 'Expedition Commander',
-    district: 'Founding Settlement',
-    educationLevel: 'Specialist',
-    lifeStage: 'Adult',
-    wealthTier: 'Comfortable',
-    homeAddress: 'Frontier Colony Outpost Quarters 1',
-    workplaceAddress: 'Command Deck',
-    happiness: 96,
-    health: 98,
-    income: 42000,
-    aiAssistanceUsage: 12,
-    status: 'Optimal',
-    needs: { food: 96, water: 95, energy: 94, luxury: 45, order: 98 },
-  },
-  {
-    id: 'cit-founder-02',
-    name: 'Marcus Cole',
-    age: 38,
-    gender: 'M',
-    occupation: 'Civil Architect',
-    district: 'Founding Settlement',
-    educationLevel: 'Higher',
-    lifeStage: 'Adult',
-    wealthTier: 'Comfortable',
-    homeAddress: 'Frontier Colony Outpost Quarters 2',
-    workplaceAddress: 'Surveyor Workshop',
-    happiness: 94,
-    health: 96,
-    income: 38000,
-    aiAssistanceUsage: 10,
-    status: 'Optimal',
-    needs: { food: 95, water: 94, energy: 92, luxury: 40, order: 95 },
-  },
-  {
-    id: 'cit-founder-03',
-    name: 'Maya Lin',
-    age: 29,
-    gender: 'F',
-    occupation: 'Pioneer Botanist',
-    district: 'Founding Settlement',
-    educationLevel: 'Higher',
-    lifeStage: 'Adult',
-    wealthTier: 'Modest',
-    homeAddress: 'Frontier Colony Outpost Quarters 3',
-    workplaceAddress: 'Field Lab',
-    happiness: 97,
-    health: 98,
-    income: 32000,
-    aiAssistanceUsage: 8,
-    status: 'Optimal',
-    needs: { food: 98, water: 96, energy: 90, luxury: 35, order: 92 },
-  },
-  {
-    id: 'cit-founder-04',
-    name: 'Kaelen Voss',
-    age: 42,
-    gender: 'M',
-    occupation: 'Energy Systems Engineer',
-    district: 'Founding Settlement',
-    educationLevel: 'Specialist',
-    lifeStage: 'Adult',
-    wealthTier: 'Comfortable',
-    homeAddress: 'Frontier Colony Outpost Quarters 4',
-    workplaceAddress: 'Primary Reactor & Grid Hub',
-    happiness: 92,
-    health: 95,
-    income: 40000,
-    aiAssistanceUsage: 14,
-    status: 'Optimal',
-    needs: { food: 94, water: 92, energy: 98, luxury: 50, order: 94 },
-  },
-  {
-    id: 'cit-founder-05',
-    name: 'Dr. Sarah Chen',
-    age: 36,
-    gender: 'F',
-    occupation: 'Chief Medical Officer',
-    district: 'Founding Settlement',
-    educationLevel: 'Specialist',
-    lifeStage: 'Adult',
-    wealthTier: 'Comfortable',
-    homeAddress: 'Frontier Colony Outpost Quarters 5',
-    workplaceAddress: 'Pioneer MedBay',
-    happiness: 95,
-    health: 99,
-    income: 41000,
-    aiAssistanceUsage: 15,
-    status: 'Optimal',
-    needs: { food: 95, water: 98, energy: 95, luxury: 45, order: 96 },
-  },
-  {
-    id: 'cit-founder-06',
-    name: 'James Miller',
-    age: 31,
-    gender: 'M',
-    occupation: 'Master Builder',
-    district: 'Founding Settlement',
-    educationLevel: 'Secondary',
-    lifeStage: 'Adult',
-    wealthTier: 'Modest',
-    homeAddress: 'Frontier Colony Outpost Quarters 6',
-    workplaceAddress: 'Fabrication Depot',
-    happiness: 93,
-    health: 96,
-    income: 30000,
-    aiAssistanceUsage: 6,
-    status: 'Optimal',
-    needs: { food: 96, water: 90, energy: 92, luxury: 35, order: 90 },
-  },
-  {
-    id: 'cit-founder-07',
-    name: 'Priya Sharma',
-    age: 27,
-    gender: 'F',
-    occupation: 'Cultural Chronicler',
-    district: 'Founding Settlement',
-    educationLevel: 'Specialist',
-    lifeStage: 'Adult',
-    wealthTier: 'Modest',
-    homeAddress: 'Frontier Colony Outpost Quarters 7',
-    workplaceAddress: 'Archive & Communications',
-    happiness: 94,
-    health: 96,
-    income: 31000,
-    aiAssistanceUsage: 10,
-    status: 'Optimal',
-    needs: { food: 92, water: 92, energy: 94, luxury: 50, order: 95 },
-  },
-  {
-    id: 'cit-founder-08',
-    name: 'Lucas Drake',
-    age: 25,
-    gender: 'M',
-    occupation: 'Frontier Scout',
-    district: 'Founding Settlement',
-    educationLevel: 'Basic',
-    lifeStage: 'Adult',
-    wealthTier: 'Modest',
-    homeAddress: 'Frontier Colony Outpost Quarters 8',
-    workplaceAddress: 'Forward Scout Post',
-    happiness: 98,
-    health: 99,
-    income: 28000,
-    aiAssistanceUsage: 5,
-    status: 'Optimal',
-    needs: { food: 95, water: 94, energy: 92, luxury: 40, order: 94 },
-  },
-  {
-    id: 'cit-founder-09',
-    name: 'Renzo Takahashi',
-    age: 33,
-    gender: 'M',
-    occupation: 'Hydrogeologist',
-    district: 'Founding Settlement',
-    educationLevel: 'Higher',
-    lifeStage: 'Adult',
-    wealthTier: 'Modest',
-    homeAddress: 'Frontier Colony Outpost Quarters 9',
-    workplaceAddress: 'Aquifer Analysis Bay',
-    happiness: 94,
-    health: 97,
-    income: 34000,
-    aiAssistanceUsage: 9,
-    status: 'Optimal',
-    needs: { food: 94, water: 99, energy: 90, luxury: 40, order: 94 },
-  },
-  {
-    id: 'cit-founder-10',
-    name: 'Lyra Sterling',
-    age: 28,
-    gender: 'F',
-    occupation: 'Communications Specialist',
-    district: 'Founding Settlement',
-    educationLevel: 'Higher',
-    lifeStage: 'Adult',
-    wealthTier: 'Modest',
-    homeAddress: 'Frontier Colony Outpost Quarters 10',
-    workplaceAddress: 'Orbital Beacon Substation',
-    happiness: 95,
-    health: 96,
-    income: 33000,
-    aiAssistanceUsage: 11,
-    status: 'Optimal',
-    needs: { food: 93, water: 92, energy: 95, luxury: 45, order: 95 },
-  },
-];
+// Pioneer generator to create exactly 150 founding citizens for fresh start
+export function generateInitialPioneers(count: number = 150): Citizen[] {
+  const firstNamesM = [
+    'Marcus', 'Kaelen', 'Renzo', 'Darius', 'Zane', 'Thorne', 'Felix', 'Rowan',
+    'Tobias', 'Leon', 'Caspian', 'Julian', 'Soren', 'Silas', 'Evander', 'Gabriel',
+    'Lucian', 'Kiran', 'Orion', 'Vaughn', 'Dante', 'Asher', 'Corin', 'Malik',
+    'Jarek', 'Bram', 'Darrow', 'Nico', 'Torin', 'Zephyr'
+  ];
+  const firstNamesF = [
+    'Elena', 'Maya', 'Sariyah', 'Cassian', 'Lyra', 'Aria', 'Seraphina', 'Eleni',
+    'Naomi', 'Talia', 'Vesper', 'Kaelia', 'Mira', 'Isolde', 'Selene', 'Zara',
+    'Nadia', 'Freja', 'Livia', 'Callista', 'Rhea', 'Anika', 'Soraya', 'Astrid',
+    'Elodie', 'Jun', 'Thalia', 'Morrigan', 'Sybilla', 'Hespera'
+  ];
+  const lastNames = [
+    'Vance', 'Cole', 'Lin', 'Voss', 'Nakamura', 'O’Connor', 'Sterling', 'Takahashi',
+    'Mercer', 'Holt', 'Cross', 'Sinclair', 'Winter', 'Kowalski', 'Chen',
+    'Novak', 'Reyes', 'Solomon', 'Ashford', 'Valerius', 'Moreau', 'Devereaux',
+    'Kallio', 'Morrison', 'Althaus', 'Lindholm', 'Castillo', 'Trevino', 'Aris', 'Keene'
+  ];
+
+  const occupationsAdult = [
+    'Expedition Surveyor', 'Hydroponics Specialist', 'Fabrication Technician',
+    'Aquifer Well Engineer', 'Solar Array Technician', 'Field Nurse', 'Research Fellow',
+    'Logistics Coordinator', 'Mechanic', 'Geotechnical Analyst', 'Biomass Processor',
+    'Grid Electrician', 'Colonial Artisan', 'Supply Quartermaster', 'Sanitation Engineer'
+  ];
+
+  const founders: Citizen[] = [
+    {
+      id: 'cit-founder-001',
+      name: 'Dr. Elena Vance',
+      age: 34,
+      gender: 'F',
+      occupation: 'Expedition Commander',
+      district: 'Founding Settlement',
+      educationLevel: 'Specialist',
+      lifeStage: 'Adult',
+      wealthTier: 'Comfortable',
+      homeAddress: 'Frontier Colony Outpost Quarters 1',
+      workplaceAddress: 'Command Deck',
+      happiness: 96,
+      health: 98,
+      income: 4200,
+      aiAssistanceUsage: 12,
+      status: 'Optimal',
+      needs: { food: 96, water: 95, energy: 94, luxury: 45, order: 98 },
+    },
+    {
+      id: 'cit-founder-002',
+      name: 'Marcus Cole',
+      age: 38,
+      gender: 'M',
+      occupation: 'Civil Architect',
+      district: 'Founding Settlement',
+      educationLevel: 'Higher',
+      lifeStage: 'Adult',
+      wealthTier: 'Comfortable',
+      homeAddress: 'Frontier Colony Outpost Quarters 2',
+      workplaceAddress: 'Surveyor Workshop',
+      happiness: 94,
+      health: 96,
+      income: 3800,
+      aiAssistanceUsage: 10,
+      status: 'Optimal',
+      needs: { food: 95, water: 94, energy: 92, luxury: 40, order: 95 },
+    },
+    {
+      id: 'cit-founder-003',
+      name: 'Maya Lin',
+      age: 29,
+      gender: 'F',
+      occupation: 'Pioneer Botanist',
+      district: 'Founding Settlement',
+      educationLevel: 'Higher',
+      lifeStage: 'Adult',
+      wealthTier: 'Modest',
+      homeAddress: 'Frontier Colony Outpost Quarters 3',
+      workplaceAddress: 'Field Lab',
+      happiness: 97,
+      health: 98,
+      income: 3200,
+      aiAssistanceUsage: 8,
+      status: 'Optimal',
+      needs: { food: 98, water: 96, energy: 90, luxury: 35, order: 92 },
+    },
+    {
+      id: 'cit-founder-004',
+      name: 'Kaelen Voss',
+      age: 42,
+      gender: 'M',
+      occupation: 'Energy Systems Engineer',
+      district: 'Founding Settlement',
+      educationLevel: 'Specialist',
+      lifeStage: 'Adult',
+      wealthTier: 'Comfortable',
+      homeAddress: 'Frontier Colony Outpost Quarters 4',
+      workplaceAddress: 'Primary Reactor & Grid Hub',
+      happiness: 92,
+      health: 95,
+      income: 4000,
+      aiAssistanceUsage: 14,
+      status: 'Optimal',
+      needs: { food: 94, water: 92, energy: 98, luxury: 50, order: 94 },
+    },
+    {
+      id: 'cit-founder-005',
+      name: 'Dr. Sarah Chen',
+      age: 36,
+      gender: 'F',
+      occupation: 'Chief Medical Officer',
+      district: 'Founding Settlement',
+      educationLevel: 'Specialist',
+      lifeStage: 'Adult',
+      wealthTier: 'Comfortable',
+      homeAddress: 'Frontier Colony Outpost Quarters 5',
+      workplaceAddress: 'Pioneer MedBay',
+      happiness: 95,
+      health: 99,
+      income: 4100,
+      aiAssistanceUsage: 15,
+      status: 'Optimal',
+      needs: { food: 95, water: 98, energy: 95, luxury: 45, order: 96 },
+    },
+  ];
+
+  for (let i = founders.length + 1; i <= count; i++) {
+    const isFemale = (i % 2 === 0);
+    const isNb = (i % 15 === 0);
+    const gender: 'M' | 'F' | 'NB' = isNb ? 'NB' : (isFemale ? 'F' : 'M');
+
+    const fnList = gender === 'M' ? firstNamesM : firstNamesF;
+    const fName = fnList[(i * 7 + 3) % fnList.length];
+    const lName = lastNames[(i * 11 + 5) % lastNames.length];
+    const name = `${fName} ${lName}`;
+
+    // Realistic Age Distribution: 15% Children/Teens, 75% Working Adults, 10% Elders
+    let age = 22 + (i * 3) % 36;
+    let lifeStage: 'Child' | 'Teen' | 'Adult' | 'Senior' = 'Adult';
+    let occupation = occupationsAdult[i % occupationsAdult.length];
+    let edu: 'Basic' | 'Secondary' | 'Higher' | 'Specialist' = 'Secondary';
+
+    if (i % 10 === 0) {
+      age = 62 + (i % 12);
+      lifeStage = 'Senior';
+      occupation = 'Elder Consultant & Archivist';
+      edu = 'Higher';
+    } else if (i % 12 === 0) {
+      age = 6 + (i % 10);
+      lifeStage = 'Child';
+      occupation = 'Pioneer Apprentice / Student';
+      edu = 'Basic';
+    } else if (i % 14 === 0) {
+      age = 16 + (i % 2);
+      lifeStage = 'Teen';
+      occupation = 'Field Cadet';
+      edu = 'Basic';
+    } else if (i % 5 === 0) {
+      edu = 'Higher';
+    } else if (i % 8 === 0) {
+      edu = 'Specialist';
+    }
+
+    const income = lifeStage === 'Child' ? 0 : 2200 + ((i * 47) % 1800);
+    const paddedId = i < 10 ? `00${i}` : i < 100 ? `0${i}` : `${i}`;
+
+    founders.push({
+      id: `cit-founder-${paddedId}`,
+      name,
+      age,
+      gender,
+      occupation,
+      district: 'Founding Settlement',
+      educationLevel: edu,
+      lifeStage,
+      wealthTier: lifeStage === 'Child' ? 'Modest' : (income > 3400 ? 'Comfortable' : 'Modest'),
+      homeAddress: `Frontier Shelter Pod ${Math.ceil(i / 10)}`,
+      workplaceAddress: lifeStage === 'Child' ? 'Pioneer Learning Bay' : `${occupation} Station`,
+      happiness: 88 + (i % 10),
+      health: lifeStage === 'Senior' ? 82 + (i % 8) : 92 + (i % 7),
+      income,
+      aiAssistanceUsage: 8 + (i % 10),
+      status: 'Optimal',
+      needs: {
+        food: 92 + (i % 7),
+        water: 91 + (i % 8),
+        energy: 90 + (i % 8),
+        luxury: 30 + (i % 15),
+        order: 92 + (i % 6),
+      },
+    });
+  }
+
+  return founders;
+}
+
+// Initial handful of exactly 150 founding pioneers for fresh, emotional ground-up civilization building
+export const initialCitizens: Citizen[] = generateInitialPioneers(150);
 
 export const simulationScenarios: SimulationScenario[] = [
   {

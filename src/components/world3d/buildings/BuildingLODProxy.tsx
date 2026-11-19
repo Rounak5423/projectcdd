@@ -474,6 +474,29 @@ export const BuildingLODProxy = React.memo(function BuildingLODProxy({
   // 7. INFRASTRUCTURE & GOVERNMENT (Water Tower, Water Treatment, High Council Citadel)
   if (category === 'infrastructure' || category === 'government') {
     if (modelType === 'citadel' || cid.includes('citadel')) {
+      if (level <= 1) {
+        return (
+          <group raycast={() => null}>
+            <FoundationPlinth width={3.8} depth={3.2} />
+            <mesh position={[0, 0.12, 0]} castShadow receiveShadow>
+              <boxGeometry args={[3.8, 0.24, 3.2]} />
+              <primitive object={isSelected ? selGlowMat : wallCharcoalMat} attach="material" />
+            </mesh>
+            <mesh position={[0, 0.85, 0]} castShadow receiveShadow>
+              <boxGeometry args={[2.4, 1.25, 2.0]} />
+              <primitive object={wallStoneMat} attach="material" />
+            </mesh>
+            <mesh position={[0, 1.52, 0]} castShadow>
+              <boxGeometry args={[2.2, 0.12, 1.8]} />
+              <primitive object={roofSlateMat} attach="material" />
+            </mesh>
+            <mesh position={[-0.85, 1.9, -0.6]}>
+              <cylinderGeometry args={[0.03, 0.04, 1.6, 8]} />
+              <primitive object={steelMat} attach="material" />
+            </mesh>
+          </group>
+        );
+      }
       return (
         <group raycast={() => null}>
           <FoundationPlinth width={6.8} depth={5.6} />

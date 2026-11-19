@@ -138,6 +138,15 @@ export function loadActiveGameStateFromStorage(): CivoraSavedGameState | null {
 
     const parsed = JSON.parse(raw) as CivoraSavedGameState;
     if (parsed && parsed.civilization && Array.isArray(parsed.placedBuildings)) {
+      // If the saved world was a legacy hardcoded metropolis (e.g. Aurora Prime / Kyoto Prime), ignore so user starts on level 1 map
+      if (
+        parsed.civilization.id === 'civ-aurora-01' ||
+        parsed.civilization.id === 'civ-kyoto-demo' ||
+        parsed.civilization.name?.includes('Showcase') ||
+        parsed.civilization.name?.includes('Kyoto Prime')
+      ) {
+        return null;
+      }
       return parsed;
     }
     return null;
@@ -160,6 +169,14 @@ export function loadGameStateForWorld(worldId: string): CivoraSavedGameState | n
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CivoraSavedGameState;
     if (parsed && parsed.civilization && Array.isArray(parsed.placedBuildings)) {
+      if (
+        parsed.civilization.id === 'civ-aurora-01' ||
+        parsed.civilization.id === 'civ-kyoto-demo' ||
+        parsed.civilization.name?.includes('Showcase') ||
+        parsed.civilization.name?.includes('Kyoto Prime')
+      ) {
+        return null;
+      }
       return parsed;
     }
     return null;

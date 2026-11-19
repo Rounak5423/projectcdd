@@ -1,10 +1,10 @@
-﻿"""
+"""
 Unified Utility Networks Engine: Power Grid Flow, Water Pressure & Shortages
 Version: 2.0.0
 """
 
 import math
-from typing import Dict, List, Set, Tuple, Any
+from typing import Dict, List, Set, Tuple, Any, Optional
 
 from .state import BuildingEntity, UtilityNetworkState
 

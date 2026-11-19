@@ -65,6 +65,9 @@ export interface ResourceAccounting {
   materialsConsumed: number;
   materialsNet: number;
 
+  // Scientific Research (RP/day)
+  researchProduced: number;
+
   // Workforce & Employment
   totalPopulation: number;
   workingAgePopulation: number;
@@ -167,6 +170,7 @@ export function calculateCitySimulation(
   let totalFoodGen = 0;
   let totalMaterialsGen = 0;
   let totalMaterialsCon = 0;
+  let totalResearchGen = 0;
   let totalHousingCap = 0;
   let totalClinicCap = 0;
   let totalAcademyCap = 0;
@@ -244,6 +248,8 @@ export function calculateCitySimulation(
         totalFoodGen += prodYield;
       } else if (prodType === 'materials') {
         totalMaterialsGen += prodYield;
+      } else if (prodType === 'researchPoints') {
+        totalResearchGen += prodYield;
       }
     }
 
@@ -271,25 +277,25 @@ export function calculateCitySimulation(
     }
   });
 
-  // 2. Resource Management Accounting (Water, Food, Materials, Workforce)
-  const pop = resources.population || 1240000;
-  const workingAgePop = Math.round(pop * 0.58);
+  // 2. Resource Management Accounting (Water, Food, Materials, Scientific Research, Workforce)
+  const pop = resources.population !== undefined ? resources.population : 150;
+  const workingAgePop = Math.round(pop * 0.60);
   const employed = Math.min(workingAgePop, totalJobsFilled);
   const unemployed = Math.max(0, workingAgePop - employed);
-  const employmentRate = workingAgePop > 0 ? (employed / workingAgePop) * 100 : 90;
+  const employmentRate = workingAgePop > 0 ? (employed / workingAgePop) * 100 : 92;
   const unemploymentRate = 100 - employmentRate;
 
-  // Population baseline resource draws
-  const populationWaterDraw = Math.round((pop / 10000) * 1.8);
+  // Population baseline resource draws (realistic consumption per capita)
+  const populationWaterDraw = Math.max(1, Math.round(pop * 0.50));
   const totalWaterConsumed = Math.round(totalWaterCon + populationWaterDraw);
-  const totalWaterProduced = Math.max(80, Math.round(totalWaterGen + 120)); // baseline municipal aquifer + facilities
+  const totalWaterProduced = Math.round(totalWaterGen + (placedBuildings.length > 0 ? 10 : 0)); // emergency condenser + extraction wells
 
-  const populationFoodDraw = Math.round((pop / 10000) * 1.4);
+  const populationFoodDraw = Math.max(1, Math.round(pop * 0.45));
   const totalFoodConsumed = Math.round(populationFoodDraw);
-  const totalFoodProduced = Math.max(40, Math.round(totalFoodGen));
+  const totalFoodProduced = Math.round(totalFoodGen);
 
-  const totalMaterialsConsumed = Math.round(totalMaterialsCon + totalMaintenance * 0.25);
-  const totalMaterialsProduced = Math.max(50, Math.round(totalMaterialsGen));
+  const totalMaterialsConsumed = Math.round(totalMaterialsCon + totalMaintenance * 0.15);
+  const totalMaterialsProduced = Math.round(totalMaterialsGen);
 
   const energyGridStress = totalEnergyGenMW > 0 ? (totalEnergyConMW / totalEnergyGenMW) * 100 : 100;
   const waterGridStress = totalWaterProduced > 0 ? (totalWaterConsumed / totalWaterProduced) * 100 : 100;
@@ -318,6 +324,8 @@ export function calculateCitySimulation(
     materialsConsumed: totalMaterialsConsumed,
     materialsNet: totalMaterialsProduced - totalMaterialsConsumed,
 
+    researchProduced: Math.round(totalResearchGen),
+
     totalPopulation: pop,
     workingAgePopulation: workingAgePop,
     employedWorkforce: employed,
@@ -332,16 +340,16 @@ export function calculateCitySimulation(
     environmentalIndex: resources.environmentalIndex || 88,
   };
 
-  // 3. City Fiscal & Economy Engine
+  // 3. City Fiscal & Economy Engine (Realistic, grounded cashflow)
   const effectiveTaxRate = taxRate || 12;
   const baseWorkerWageCredits = 4.2;
   const popIncomeTax = Math.round(employed * baseWorkerWageCredits * (effectiveTaxRate / 100));
-  const commTax = Math.round(totalCommercialOutput * 1.8 * (effectiveTaxRate / 100));
-  const indRev = Math.round(totalMaterialsProduced * 2.2);
+  const commTax = Math.round(totalCommercialOutput * 1.5 * (effectiveTaxRate / 100));
+  const indRev = Math.round(totalMaterialsProduced * 0.8);
   const tradeSurplus = Math.round(
-    Math.max(0, resourceAccounting.foodNet * 1.2) +
-    Math.max(0, resourceAccounting.materialsNet * 1.8) +
-    Math.max(0, resourceAccounting.energyNetMW * 2.5)
+    Math.max(0, resourceAccounting.foodNet * 0.4) +
+    Math.max(0, resourceAccounting.materialsNet * 0.5) +
+    Math.max(0, resourceAccounting.energyNetMW * 0.3)
   );
 
   // Early-colony exploration stipend & charter grant ensures small settlements can accumulate capital for Citadel expansion

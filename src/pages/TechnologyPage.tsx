@@ -415,7 +415,7 @@ export default function TechnologyPage({ onClose }: { onClose?: () => void }) {
         <div className="flex items-center gap-3 font-serif">
           <div className="text-right hidden sm:block">
             <span className="text-[10px] text-[#98b8ba] block leading-none">SCIENCE PER TURN</span>
-            <span className="text-xs font-bold font-mono text-[#caa455]">+{sciencePerTurn.toFixed(1)} 🧪</span>
+            <span className="text-xs font-bold font-mono text-[#caa455]">+{((sciencePerTurn ?? 0)).toFixed(1)} 🧪</span>
           </div>
           <div className="w-8 h-8 rounded-full border-2 border-[#caa455] bg-[#092b2f] flex items-center justify-center text-[#caa455] shadow-md font-mono text-xs font-bold">
             {activeTech.turns}T
