@@ -17,6 +17,7 @@ import { useGameState } from '../../context/GameStateContext';
 import CityEconomyDashboard from '../dashboard/CityEconomyDashboard';
 import DisasterManagementDashboard from '../dashboard/DisasterManagementDashboard';
 import CitizenIntelligenceDashboard from '../dashboard/CitizenIntelligenceDashboard';
+import CivilizationAnalyticsDashboard from '../dashboard/CivilizationAnalyticsDashboard';
 
 export default function GameModals() {
   const {
@@ -263,6 +264,11 @@ export default function GameModals() {
       {/* ================= CITIZEN INTELLIGENCE & SOCIAL BEHAVIOUR DASHBOARD ================= */}
       {activeDrawer === 'citizens' && (
         <CitizenIntelligenceDashboard onClose={() => setActiveDrawer('none')} />
+      )}
+
+      {/* ================= ADVANCED CIVILIZATION EVOLUTION & ANALYTICS DASHBOARD ================= */}
+      {activeDrawer === 'evolution' && (
+        <CivilizationAnalyticsDashboard onClose={() => setActiveDrawer('none')} />
       )}
     </div>
   );

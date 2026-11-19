@@ -1,5 +1,9 @@
 export type RoadCategory =
   | 'grand_arterial'
+  | 'civic_boulevard'
+  | 'secondary_loop'
+  | 'district_collector'
+  | 'local_spur'
   | 'district_avenue'
   | 'residential_street'
   | 'industrial_corridor'
