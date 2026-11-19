@@ -810,4 +810,90 @@ export const civilizationApi = {
       return { success: false, message: err.response?.data?.detail || 'MPC policy optimization failed' };
     }
   },
+
+  // ── Research Intelligence & Scientific Paper Generation ──────────────────
+  async createResearchExperiment(payload: {
+    policy_name: string;
+    policy_category?: string;
+    simulation_duration_years?: number;
+    initial_year?: number;
+    author_affiliation?: string;
+    intervention_parameters?: Record<string, any>;
+    initial_state?: Record<string, any>;
+  }): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post('/research/experiments', payload);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to initialize policy experiment' };
+    }
+  },
+
+  async runResearchExperiment(experimentId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/research/experiments/${experimentId}/run`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Simulation execution failed' };
+    }
+  },
+
+  async generateResearchPaper(experimentId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/research/experiments/${experimentId}/generate-paper`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Paper synthesis failed' };
+    }
+  },
+
+  async getResearchExperimentResults(experimentId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.get(`/research/experiments/${experimentId}/results`);
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to fetch experiment results' };
+    }
+  },
+
+  async listResearchExperiments(): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await apiClient.get('/research/experiments');
+      return { success: true, data: response.data };
+    } catch (err: any) {
+      return { success: false, message: err.response?.data?.detail || 'Failed to list experiments' };
+    }
+  },
+
+  async downloadResearchPdf(experimentId: string, filename?: string): Promise<void> {
+    const response = await apiClient.get(`/research/experiments/${experimentId}/download/pdf`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename || `CIVORA_Research_Paper_${experimentId.slice(0, 8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+
+  async downloadResearchDocx(experimentId: string, filename?: string): Promise<void> {
+    const response = await apiClient.get(`/research/experiments/${experimentId}/download/docx`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename || `CIVORA_Research_Paper_${experimentId.slice(0, 8)}.docx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
 };

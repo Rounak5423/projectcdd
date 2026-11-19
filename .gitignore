@@ -44,3 +44,6 @@ genesis-engine/backend/ml/data/generated/
 test-results/
 playwright-report/
 data/*.db
+genesis-engine/backend/data/research_experiments/*
+!genesis-engine/backend/data/research_experiments/.gitkeep
+genesis-engine/backend/data/test_research_output/

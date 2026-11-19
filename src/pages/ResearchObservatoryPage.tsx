@@ -33,6 +33,7 @@ import {
 } from 'recharts';
 import { useGameState } from '../context/GameStateContext';
 import { soundFx } from '../services/soundFx';
+import { ResearchIntelligenceModal } from '../components/research/ResearchIntelligenceModal';
 
 interface ResearchObservatoryPageProps {
   onClose?: () => void;
@@ -50,6 +51,7 @@ const cohortTelemetry = [
 export const ResearchObservatoryPage: React.FC<ResearchObservatoryPageProps> = ({ onClose }) => {
   const { experiments, resources, startExperiment, civilization } = useGameState();
   const [selectedExpId, setSelectedExpId] = useState<string>(experiments[0].id);
+  const [isResearchModalOpen, setIsResearchModalOpen] = useState<boolean>(false);
 
   const activeExp = experiments.find((e) => e.id === selectedExpId) || experiments[0];
 
@@ -109,6 +111,17 @@ Statistical testing confirms p < 0.001 significance across all three cohorts ove
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setIsResearchModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-[#C5A66A] hover:bg-[#D8CBAA] text-[#171D18] rounded text-xs font-serif font-bold tracking-wider uppercase transition-all shadow"
+          >
+            <BrainCircuit className="w-3.5 h-3.5" />
+            <span>Research Intelligence</span>
+          </button>
+
           <button
             onClick={handleExportPaper}
             className="flex items-center gap-2 px-4 py-2 border border-[#C5A66A]/40 text-[#C5A66A] hover:bg-[#C5A66A]/15 rounded text-xs font-serif tracking-wider uppercase transition-colors"
@@ -192,6 +205,17 @@ Statistical testing confirms p < 0.001 significance across all three cohorts ove
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  soundFx.playClick();
+                  setIsResearchModalOpen(true);
+                }}
+                className="px-4 py-2 rounded border border-[#C5A66A]/40 text-[#C5A66A] hover:bg-[#C5A66A]/15 text-xs font-serif font-bold uppercase tracking-wider flex items-center gap-2 transition-all shadow"
+              >
+                <BrainCircuit className="w-3.5 h-3.5" />
+                <span>Simulate & Synthesize Paper</span>
+              </button>
+
               {activeExp.status === 'Active' ? (
                 <span className="px-4 py-2 rounded bg-[#17231B] border border-[#8FA879]/40 text-xs font-mono text-[#8FA879] font-semibold flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#8FA879] animate-ping" />
@@ -335,6 +359,20 @@ Statistical testing confirms p < 0.001 significance across all three cohorts ove
           </div>
         )}
       </div>
+
+      {/* Research Intelligence Modal */}
+      <ResearchIntelligenceModal
+        isOpen={isResearchModalOpen}
+        onClose={() => setIsResearchModalOpen(false)}
+        defaultPolicyName={activeExp.title}
+        defaultCategory={
+          activeExp.title.toLowerCase().includes('ai')
+            ? 'technological_acceleration'
+            : activeExp.title.toLowerCase().includes('health')
+            ? 'healthcare_expansion'
+            : 'education_investment'
+        }
+      />
     </div>
   );
 };

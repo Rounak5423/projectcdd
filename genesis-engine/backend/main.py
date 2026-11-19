@@ -20,6 +20,7 @@ from auth.security import decode_access_token
 from db.database import get_db_connection
 from api.v1.router import api_v1_router
 from app.features.council.router import router as council_router
+from api.v1.research_routes import router as research_router
 from monitoring import (
     perf_collector,
     PerformanceMonitoringMiddleware,
@@ -147,6 +148,9 @@ app.include_router(api_v1_router)
 
 # Mount /api/council direct alias
 app.include_router(council_router, prefix="/api")
+
+# Mount /api/research direct alias
+app.include_router(research_router, prefix="/api")
 
 # Mount Performance Diagnostics Router
 app.include_router(diagnostics_router, prefix="/api/v1")
