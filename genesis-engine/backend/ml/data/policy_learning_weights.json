@@ -10,7 +10,7 @@
     "Research": 1.12,
     "Social": 1.0,
     "Economic": 0.95,
-    "Environment": 1.02,
+    "Environment": 1.0201634296889541,
     "Education": 1.08,
     "Labor": 0.92,
     "Custom": 1.0
@@ -41,11 +41,8 @@
       "aversion": 0.8
     }
   },
-  "total_learned_instances": 600,
+  "total_learned_instances": 20,
   "learning_rate": 0.05,
-  "model_confidence": 0.978,
-  "last_adapted_timestamp": 1795068803.2148962,
-  "verified_accuracy_pct": 97.78,
-  "verified_r2": 0.8775,
-  "verified_mae": 1.111
+  "model_confidence": 0.886,
+  "last_adapted_timestamp": 1795084133.4428961
 }

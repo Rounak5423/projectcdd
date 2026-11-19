@@ -517,6 +517,30 @@ ${policy.description}
               </div>
             </div>
 
+            {/* Create Your Settlement's Own Policy Hero Banner */}
+            <div className="p-5 rounded-xl bg-gradient-to-r from-[#202820] via-[#1D251E] to-[#171D18] border border-[#C5A66A]/40 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#C5A66A]" />
+                  <span className="text-xs font-mono uppercase tracking-wider text-[#C5A66A] font-bold">SOVEREIGN LAWMAKING</span>
+                </div>
+                <h3 className="font-serif text-lg font-bold text-[#EAE3D2]">Author & Institute Your Own Policies</h3>
+                <p className="text-xs text-[#A5AD9D] max-w-xl leading-relaxed">
+                  Every settlement begins from scratch. Propose custom civic rules, economic trade accords, labor standards, ecological protection, or research directives created entirely by you.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  soundFx.playClick();
+                  setIsDraftingCustom(true);
+                }}
+                className="px-5 py-2.5 rounded bg-gradient-to-r from-[#C5A66A] to-[#D8CBAA] hover:brightness-110 text-[#171D18] font-serif font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shrink-0 cursor-pointer transition-all"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Draft New Policy</span>
+              </button>
+            </div>
+
             {/* Domain Filter Pills */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               {DOMAINS.map((f) => (
@@ -1425,6 +1449,96 @@ ${policy.description}
               <button onClick={() => setIsDraftingCustom(false)} className="text-[#A5AD9D] hover:text-[#EAE3D2]">
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Quick Inspiration Templates */}
+            <div className="pt-3 pb-2 border-b border-[#C5A66A]/20">
+              <span className="text-[10px] font-mono text-[#A5AD9D] uppercase block mb-1.5 font-bold">
+                Quick Inspiration Templates (Click to Auto-Fill or Type From Scratch)
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  {
+                    name: 'Communal Granary & Water Sharing',
+                    category: 'Economic',
+                    description: 'Guarantees equal emergency ration shares and communal grain silo storage across all pioneer families during lean seasons.',
+                    costPoliticalCapital: 60,
+                    sliderLabel: 'Silo Emergency Reserve Ratio',
+                    sliderValue: 50,
+                    unit: '%',
+                    focusBenefit: '+10% Food stability and zero starvation during unexpected climate shocks.',
+                    focusRisk: 'Slight reduction in daily open market grain inventory.',
+                  },
+                  {
+                    name: 'Frontier Artisan Guild Accord',
+                    category: 'Education',
+                    description: 'Pairs apprentice pioneers with master builders and smiths to master masonry, carpentry, and foundational metallurgy.',
+                    costPoliticalCapital: 75,
+                    sliderLabel: 'Apprenticeship Guild Ratio',
+                    sliderValue: 60,
+                    unit: '%',
+                    focusBenefit: '+15% Construction speed and +10% manufacturing durability.',
+                    focusRisk: 'Temporarily diverts skilled craftsmen from active manual work.',
+                  },
+                  {
+                    name: 'Open Laboratory Research Compact',
+                    category: 'Research',
+                    description: 'Mandates transparent academic documentation and peer-reviewed sharing of all technological breakthroughs.',
+                    costPoliticalCapital: 90,
+                    sliderLabel: 'Academic Grant Funding Allocation',
+                    sliderValue: 65,
+                    unit: '%',
+                    focusBenefit: '+20% Research point generation across all scientific laboratories.',
+                    focusRisk: 'Requires ongoing treasury maintenance credits from public coffers.',
+                  },
+                  {
+                    name: 'Ethical Machine Intelligence Accord',
+                    category: 'AI',
+                    description: 'Authorizes experimental AI problem solving while instituting human oversight, safety alignment, and computational audits.',
+                    costPoliticalCapital: 110,
+                    sliderLabel: 'Cognitive Coprocessor Allocation',
+                    sliderValue: 45,
+                    unit: '%',
+                    focusBenefit: '+18% Laboratory research acceleration and automated logistical efficiency.',
+                    focusRisk: 'Increased energy consumption and potential cognitive over-reliance.',
+                  },
+                  {
+                    name: 'Pioneer Assembly Clean Water Protection',
+                    category: 'Environmental',
+                    description: 'Establishes strict sanitary perimeters around natural rivers, aquifers, and lake basins.',
+                    costPoliticalCapital: 70,
+                    sliderLabel: 'Riparian Buffer Zone Width',
+                    sliderValue: 40,
+                    unit: '%',
+                    focusBenefit: '+12 Environmental sustainability index and reduced contagion risk.',
+                    focusRisk: 'Limits industrial facility zoning directly adjacent to waterways.',
+                  },
+                ].map((tpl) => (
+                  <button
+                    key={tpl.name}
+                    type="button"
+                    onClick={() => {
+                      soundFx.playClick();
+                      setCustomForm({
+                        name: tpl.name,
+                        category: tpl.category,
+                        description: tpl.description,
+                        costPoliticalCapital: tpl.costPoliticalCapital,
+                        sliderLabel: tpl.sliderLabel,
+                        sliderValue: tpl.sliderValue,
+                        minVal: 10,
+                        maxVal: 100,
+                        unit: tpl.unit,
+                        focusBenefit: tpl.focusBenefit,
+                        focusRisk: tpl.focusRisk,
+                      });
+                    }}
+                    className="px-2.5 py-1 rounded bg-[#171D18] hover:bg-[#202820] text-[#D8CBAA] hover:text-[#faecd0] border border-[#C5A66A]/25 text-[11px] font-sans flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <span>{tpl.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <form onSubmit={handleCreateCustomPolicy} className="py-4 space-y-4 text-xs">

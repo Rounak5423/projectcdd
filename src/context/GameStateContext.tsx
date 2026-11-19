@@ -449,9 +449,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     const raw = initialSaved?.policies || initialPolicies;
     const civLevel = initialSaved?.civilization?.level || initialCivilization.level || 1;
     if (civLevel <= 1) {
-      // Ensure AI research policy is never hardcoded or pre-enacted on Level 1 maps;
-      // players can input/propose AI research policies whenever they choose through the Policy Lab.
-      return raw.filter((p) => p.id !== 'pol-ai-access');
+      // For level 1 starter settlements, begin with no complex hardcoded policies;
+      // keep only custom policies authored by the user or the single basic pioneer charter.
+      return raw.filter((p) => p.id === 'pol-frontier-charter' || p.id.startsWith('custom_'));
     }
     return raw;
   });
@@ -3047,7 +3047,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       setTechnologies(savedForTarget.technologies || initialTechnologies);
       setPolicies(
         savedForTarget.policies
-          ? savedForTarget.policies.filter((p) => (civLevel <= 1 ? p.id !== 'pol-ai-access' : true))
+          ? (civLevel <= 1
+              ? savedForTarget.policies.filter((p) => p.id === 'pol-frontier-charter' || p.id.startsWith('custom_'))
+              : savedForTarget.policies)
           : initialPolicies
       );
       setZonedTiles(savedForTarget.zonedTiles || []);
