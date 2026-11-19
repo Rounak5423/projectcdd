@@ -57,14 +57,14 @@ def _ensure_causal_vitals_seeded(world_id: str):
         try:
             with conn:
                 conn.execute("""
-                INSERT INTO worlds (
+                INSERT OR IGNORE INTO worlds (
                     id, name, parent_world_id, owner_id, tick, year, day,
                     simulation_status, simulation_speed, climate, technology_level,
                     grid_size, created_at, updated_at
                 ) VALUES (?, ?, NULL, 'usr_player1_001', 1, 2026, 1, 'running', '1x', 'Temperate', 'Automated', 32, ?, ?)
                 """, (world_id, f"World {world_id}", now, now))
                 conn.execute("""
-                INSERT INTO economy_resources (
+                INSERT OR IGNORE INTO economy_resources (
                     world_id, population, population_growth_rate, gdp, gdp_growth_rate,
                     employment_rate, average_income, gini_coefficient, civic_stability,
                     tax_rate, food, food_rate, water, water_rate, energy, energy_rate,
@@ -79,12 +79,12 @@ def _ensure_causal_vitals_seeded(world_id: str):
                 )
                 """, (world_id,))
                 conn.execute("""
-                INSERT INTO progression (
+                INSERT OR IGNORE INTO progression (
                     world_id, xp, level, title, thriving_score, grc_balance
                 ) VALUES (?, 0, 1, 'Level 1 Civilisation', 0.80, 1000.0)
                 """, (world_id,))
                 conn.execute("""
-                INSERT INTO buildings (
+                INSERT OR IGNORE INTO buildings (
                     id, world_id, name, type, level, x, y, z, width, length, height, status, capacity
                 ) VALUES (?, ?, 'General Medical Center', 'Healthcare', 1, 10.0, 0.5, 10.0, 3.0, 3.0, 3.0, 'active', 500)
                 """, (f"bld_hosp_{uuid.uuid4().hex[:6]}", world_id))
