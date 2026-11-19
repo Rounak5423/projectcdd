@@ -292,6 +292,9 @@ class SimulationStatusResponse(BaseModel):
     year: int
     day: int
     formatted_time: str
+    vitals: Optional[Dict[str, Any]] = None
+    trace_graph: Optional[Dict[str, Any]] = None
+    delta: Optional[Dict[str, Any]] = None
 
 
 # ---------------------------------------------------------------------------

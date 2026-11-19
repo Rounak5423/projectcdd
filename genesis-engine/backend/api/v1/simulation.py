@@ -108,7 +108,12 @@ async def advance_simulation(id: str, req: SimulationAdvanceRequest):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-    return await get_simulation_status(target_id)
+    status_resp = await get_simulation_status(target_id)
+    if isinstance(res, dict):
+        status_resp.vitals = res.get("vitals")
+        status_resp.trace_graph = res.get("trace_graph")
+        status_resp.delta = res
+    return status_resp
 
 
 @router.get("/worlds/{id}/simulation/status", response_model=SimulationStatusResponse)

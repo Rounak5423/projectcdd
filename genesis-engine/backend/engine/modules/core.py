@@ -443,6 +443,35 @@ class AuthoritativeSimulationCore:
             protest_intensity=gov_summary["protest_intensity"]
         )
 
+        # STEP 10: Causal Coupling & Vital Signs Synchronization
+        try:
+            from engine.causal import global_causal_engine
+            causal_step_res = global_causal_engine.step(
+                world_id=self.world_id,
+                current_tick=self.tick,
+                year=self.year,
+                day=self.day,
+                population=pop_summary["population"],
+                food_stock=self.resources_module.food_stock,
+                food_production=self.resources_module.food_production,
+                water_stock=self.resources_module.water_stock,
+                water_production=self.resources_module.water_production,
+                energy_stock=self.resources_module.energy_stock,
+                energy_production=self.resources_module.energy_production,
+                pollution_level=env_summary["composite_pollution_index"],
+                civic_stability=gov_summary["public_trust"],
+                happiness=pop_summary["average_happiness"],
+                hospital_capacity=hosp_capacity,
+                residential_capacity=res_capacity,
+                unemployment_rate=pop_summary["unemployment_rate"],
+                ticks_passed=ticks,
+                mean_health=pop_summary["average_health"],
+            )
+            self.last_causal_vitals = causal_step_res.get("vitals")
+            self.last_causal_trace = causal_step_res.get("trace_graph")
+        except Exception:
+            pass
+
         # Monotonic Version Increment
         old_version = self.version
         self.version += 1
