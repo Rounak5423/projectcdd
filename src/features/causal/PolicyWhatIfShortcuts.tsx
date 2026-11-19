@@ -10,6 +10,8 @@ import {
   ShieldCheck,
   ArrowRight,
   TrendingUp,
+  Crown,
+  Coins,
 } from 'lucide-react';
 import { soundFx } from '../../services/soundFx';
 
@@ -26,7 +28,7 @@ interface InterventionPreset {
   cost: string;
   projectedImpacts: string[];
   description: string;
-  buttonClass: string;
+  accentColor: string;
 }
 
 export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
@@ -40,59 +42,59 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
   const presets: InterventionPreset[] = [
     {
       id: 'emergency_food',
-      title: 'Emergency Grain Reserves Release',
+      title: 'Release Imperial Grain Reserves',
       category: 'Nutrition & Famine Relief',
-      icon: <Utensils className="w-5 h-5 text-amber-400" />,
-      cost: '500 Materials + 200 GRC',
-      description: 'Mobilize strategic national stockpiles to supply 5,000 units of emergency food immediately.',
+      icon: <Utensils className="w-5 h-5 text-[#f59e0b]" />,
+      cost: '500 Materials + 200 Imperial Credits',
+      description: 'Mobilize strategic national granaries to disburse 5,000 units of emergency rations across distressed quarters.',
       projectedImpacts: [
-        'Eliminates starvation hazard within 1 cycle',
-        'Improves citizen happiness by +12%',
-        'De-escalates food-driven civil grievances',
+        'Eliminates starvation hazard across citizen quarters within 1 cycle',
+        'Improves citizen morale and happiness by +12%',
+        'De-escalates food-driven civil grievances and riot risks',
       ],
-      buttonClass: 'bg-amber-600 hover:bg-amber-500 text-white',
+      accentColor: 'from-amber-600 to-amber-700',
     },
     {
       id: 'expand_hospital',
-      title: 'Deploy Field Hospitals & Mobile Triage',
-      category: 'Healthcare Infrastructure',
-      icon: <Building className="w-5 h-5 text-blue-400" />,
-      cost: '1,200 Materials + 350 GRC',
-      description: 'Rapidly construct secondary emergency clinical pavilions, adding +2,000 acute hospital beds.',
+      title: 'Deploy Field Infirmaries & Trauma Triage',
+      category: 'Imperial Healthcare Protocol',
+      icon: <Building className="w-5 h-5 text-[#60a5fa]" />,
+      cost: '1,200 Materials + 350 Imperial Credits',
+      description: 'Rapidly erect emergency clinical wards and trauma pavilions, adding +2,000 acute hospital beds.',
       projectedImpacts: [
-        'Drops bed occupancy back below 100%',
-        'Reduces hospital overflow deaths to zero',
-        'Restores full triage protocol for trauma victims',
+        'Drops municipal bed occupancy back safely below 100%',
+        'Reduces clinical overflow deaths to zero',
+        'Restores triage protocols for wounded and afflicted citizens',
       ],
-      buttonClass: 'bg-blue-600 hover:bg-blue-500 text-white',
+      accentColor: 'from-blue-600 to-blue-700',
     },
     {
       id: 'emergency_water',
-      title: 'Emergency Desalination & Aqueduct Surge',
+      title: 'Surge Aqueducts & Clean Springs',
       category: 'Hydration & Sanitation',
-      icon: <Droplets className="w-5 h-5 text-cyan-400" />,
-      cost: '800 Materials + 150 GRC',
-      description: 'Run deep-aquifer pumps and coastal desalination plants at maximum output (+6,000 water units).',
+      icon: <Droplets className="w-5 h-5 text-[#38bdf8]" />,
+      cost: '800 Materials + 150 Imperial Credits',
+      description: 'Open emergency floodgates, activate deep aquifer cisterns, and deploy cleansing caravans (+6,000 water units).',
       projectedImpacts: [
-        'Halts acute dehydration mortality',
-        'Re-establishes clean municipal water access',
-        'Recovers biological vitality index by +15%',
+        'Halts acute dehydration mortality immediately',
+        'Re-establishes clean municipal water access for all districts',
+        'Recovers civilization vitality and hygiene index by +15%',
       ],
-      buttonClass: 'bg-cyan-600 hover:bg-cyan-500 text-white',
+      accentColor: 'from-cyan-600 to-cyan-700',
     },
     {
       id: 'civic_accord',
-      title: 'Civic De-Escalation & Citizen Accord',
-      category: 'Governance & Stability',
-      icon: <ShieldCheck className="w-5 h-5 text-emerald-400" />,
-      cost: '400 GRC Council Allocation',
-      description: 'Convene district representatives, implement temporary tax moratorium, and meet key protest demands.',
+      title: 'Proclaim Imperial Civic Accord',
+      category: 'Crown Governance & Concord',
+      icon: <ShieldCheck className="w-5 h-5 text-[#2ecc71]" />,
+      cost: '400 Imperial Credits Council Allocation',
+      description: 'Convene district elders, declare a temporary tax holiday, and address key grievance petitions.',
       projectedImpacts: [
-        'Reduces protest intensity by -40%',
-        'Restores civic stability index above 0.70',
-        'Prevents critical infrastructure strikes',
+        'Reduces civil protest intensity and strike risk by -40%',
+        'Restores realm civic stability index above 0.70',
+        'Prevents sabotage and strikes on vital public infrastructure',
       ],
-      buttonClass: 'bg-emerald-600 hover:bg-emerald-500 text-white',
+      accentColor: 'from-emerald-600 to-emerald-700',
     },
   ];
 
@@ -105,21 +107,21 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
     try {
       await onExecutePolicy(activePreset.id);
       soundFx.playSuccess();
-      setLastActionResult(`Successfully enacted: ${activePreset.title}`);
+      setLastActionResult(`Decree enacted: ${activePreset.title}`);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Intervention execution failed.');
+      setErrorMessage(err.message || 'Decree execution failed.');
     }
   };
 
   return (
-    <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-5 shadow-lg">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-[#141b16] border border-[#2b392d] rounded-xl p-5 shadow-lg">
+      <div className="flex items-center justify-between mb-5 pb-3 border-b border-[#2b392d]/60">
         <div>
-          <h3 className="text-sm font-semibold text-white tracking-wide flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-cyan-400" />
-            CAUSAL POLICY INTERVENTIONS (WHAT-IF SCENARIOS)
+          <h3 className="font-cinzel text-sm font-bold text-white tracking-wide flex items-center gap-2">
+            <Sliders className="w-4 h-4 text-[#c5a66a]" />
+            CAUSAL POLICY INTERVENTIONS & WHAT-IF DIRECTIVES
           </h3>
-          <p className="text-xs text-slate-400">Enact targeted governance levers to test and break destructive causal loops.</p>
+          <p className="text-xs text-[#8fa879] mt-0.5">Enact targeted governance decrees to neutralize destructive causal feedback loops.</p>
         </div>
       </div>
 
@@ -135,18 +137,18 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
                   soundFx.playClick();
                   setSelectedPresetId(preset.id);
                 }}
-                className={`w-full text-left p-3 rounded-lg border transition-all cursor-pointer flex items-center gap-3 ${
+                className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer flex items-center gap-3.5 ${
                   isSelected
-                    ? 'border-cyan-500/80 bg-cyan-950/20 text-white ring-1 ring-cyan-500/50'
-                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    ? 'border-[#c5a66a] bg-[#1a251d] text-white ring-1 ring-[#c5a66a]/70 shadow-md shadow-[#c5a66a]/10'
+                    : 'border-[#2b392d] bg-[#18221b] text-[#8e9c8c] hover:border-[#3d5040] hover:text-[#e7d8c5]'
                 }`}
               >
-                <div className="p-2 rounded-md bg-slate-900 border border-slate-800 shrink-0">
+                <div className="p-2.5 rounded-lg bg-[#141b16] border border-[#2b392d] shrink-0">
                   {preset.icon}
                 </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold text-white truncate">{preset.title}</div>
-                  <div className="text-[10px] text-slate-400 font-mono truncate">{preset.category}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-cinzel text-xs font-bold text-white truncate">{preset.title}</div>
+                  <div className="text-[10px] text-[#8fa879] font-mono truncate mt-0.5">{preset.category}</div>
                 </div>
               </button>
             );
@@ -154,31 +156,32 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
         </div>
 
         {/* Selected Preset Details & Projections */}
-        <div className="lg:col-span-2 bg-slate-950/60 rounded-xl p-5 border border-slate-800/80 flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-[#18221b] rounded-xl p-5 border border-[#2b392d] flex flex-col justify-between">
           <div>
-            <div className="flex items-start justify-between mb-2">
+            <div className="flex items-start justify-between mb-3 gap-3">
               <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#c5a66a] font-bold">
                   {activePreset.category}
                 </span>
-                <h4 className="text-base font-bold text-white mt-0.5">{activePreset.title}</h4>
+                <h4 className="font-cinzel text-base font-bold text-white mt-1">{activePreset.title}</h4>
               </div>
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                Cost: {activePreset.cost}
+              <span className="text-xs font-mono px-2.5 py-1 rounded bg-[#141b16] text-[#c5a66a] border border-[#2b392d] shrink-0 flex items-center gap-1.5">
+                <Coins className="w-3.5 h-3.5 text-[#c5a66a]" />
+                {activePreset.cost}
               </span>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed mb-4">{activePreset.description}</p>
+            <p className="text-xs text-[#a5b59e] leading-relaxed mb-4">{activePreset.description}</p>
 
-            <div className="bg-slate-900/90 rounded-lg p-3.5 border border-slate-800 mb-4">
-              <span className="text-xs font-semibold text-slate-200 block mb-2 flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                PROJECTED DOWNSTREAM CAUSAL OUTCOMES:
+            <div className="bg-[#141b16] rounded-xl p-4 border border-[#2b392d] mb-4">
+              <span className="font-cinzel text-xs font-bold text-white block mb-2.5 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-[#2ecc71]" />
+                PROJECTED DOWNSTREAM CAUSAL SHIFTS
               </span>
-              <ul className="space-y-1.5">
+              <ul className="space-y-2">
                 {activePreset.projectedImpacts.map((impact, idx) => (
-                  <li key={idx} className="text-xs text-slate-300 flex items-center gap-2">
-                    <ArrowRight className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <li key={idx} className="text-xs text-[#dcd2c4] flex items-center gap-2">
+                    <ArrowRight className="w-3.5 h-3.5 text-[#c5a66a] shrink-0" />
                     <span>{impact}</span>
                   </li>
                 ))}
@@ -188,15 +191,15 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
 
           <div>
             {lastActionResult && (
-              <div className="mb-3 p-2.5 rounded bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 text-xs flex items-center gap-2 font-mono">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div className="mb-3 p-3 rounded-lg bg-[#122b1a] border border-[#1e502c] text-[#86efac] text-xs flex items-center gap-2 font-mono">
+                <CheckCircle2 className="w-4 h-4 text-[#2ecc71] shrink-0" />
                 <span>{lastActionResult}</span>
               </div>
             )}
 
             {errorMessage && (
-              <div className="mb-3 p-2.5 rounded bg-rose-950/50 border border-rose-800/80 text-rose-200 text-xs flex items-center gap-2 font-mono">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <div className="mb-3 p-3 rounded-lg bg-[#2d1214] border border-[#5e1c20] text-[#fca5a5] text-xs flex items-center gap-2 font-mono">
+                <AlertCircle className="w-4 h-4 text-[#f87171] shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
@@ -204,12 +207,12 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
             <button
               onClick={handleExecute}
               disabled={isExecuting}
-              className={`w-full py-2.5 px-4 rounded-lg font-semibold text-xs tracking-wider uppercase transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
-                activePreset.buttonClass
-              } ${isExecuting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-full py-3 px-5 rounded-lg font-cinzel font-bold text-xs tracking-wider uppercase transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer border border-[#c5a66a] bg-gradient-to-r from-[#c5a66a] to-[#d4af37] text-[#0f1411] hover:brightness-110 active:scale-[0.99] ${
+                isExecuting ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              <Play className="w-4 h-4 fill-current" />
-              {isExecuting ? 'Executing Intervention...' : 'Enact Causal Policy Directive'}
+              <Crown className="w-4 h-4" />
+              {isExecuting ? 'Proclaiming Imperial Decree...' : 'Proclaim Imperial Decree'}
             </button>
           </div>
         </div>
@@ -217,4 +220,3 @@ export const PolicyWhatIfShortcuts: React.FC<PolicyWhatIfShortcutsProps> = ({
     </div>
   );
 };
-

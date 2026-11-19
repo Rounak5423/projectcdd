@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Activity,
   HeartPulse,
@@ -183,24 +183,24 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
   };
 
   return (
-    <div className="flex-1 w-full h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Top Header Bar */}
-      <header className="shrink-0 px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-md">
+    <div className="flex-1 w-full h-full flex flex-col bg-[#0f1411] text-[#eae3d2] overflow-hidden font-sans">
+      {/* Top Imperial Header Bar */}
+      <header className="shrink-0 px-6 py-4 bg-[#141b16] border-b border-[#2b392d] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 text-[10px] font-mono rounded bg-cyan-950/80 text-cyan-400 border border-cyan-800/80 uppercase tracking-wider font-semibold">
-              GENESIS Causal Telemetry
+            <span className="px-2.5 py-0.5 text-[9px] font-mono rounded-full bg-[#202921] text-[#c5a66a] border border-[#594d2d] uppercase tracking-widest font-bold">
+              ROYAL OBSERVATORY · CAUSAL MATRIX
             </span>
-            <span className="text-xs text-slate-400 font-mono">
-              World: <span className="text-white font-bold">{worldId}</span>
+            <span className="text-xs text-[#8e9c8c] font-mono">
+              Realm: <span className="text-[#f3f5ee] font-bold">{worldId}</span>
             </span>
-            <span className="text-xs text-slate-500 font-mono">
-              · Year {year} · Day {day} · Tick {tick}
+            <span className="text-xs text-[#6e7b6d] font-mono">
+              · Year {year} · Day {day} · Cycle {tick}
             </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2.5 mt-1">
-            <Activity className="w-6 h-6 text-cyan-400" />
-            CAUSAL SYSTEM INTELLIGENCE & VITAL SIGNS
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#f3f5ee] flex items-center gap-2.5 mt-1 font-cinzel">
+            <Activity className="w-6 h-6 text-[#c5a66a]" />
+            ROYAL CAUSAL INTELLIGENCE & CITIZEN VITALS
           </h1>
         </div>
 
@@ -212,19 +212,19 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
               fetchData();
             }}
             disabled={isLoading}
-            className="p-2 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300 hover:text-white hover:border-slate-500 transition cursor-pointer"
-            title="Refresh Causal Telemetry"
+            className="p-2 rounded-lg bg-[#1b241d] border border-[#2e3e30] text-[#a5ad9d] hover:text-[#c5a66a] hover:border-[#c5a66a]/50 transition cursor-pointer"
+            title="Refresh Imperial Causal Telemetry"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-cyan-400' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#c5a66a]' : ''}`} />
           </button>
 
           <button
             onClick={handleManualAdvance}
             disabled={isAdvancing}
-            className="px-3.5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs tracking-wider uppercase flex items-center gap-2 shadow-lg shadow-cyan-950/50 transition cursor-pointer disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#c5a66a] to-[#a07c40] hover:from-[#d4b77d] hover:to-[#b28c4b] text-[#0d130e] font-bold text-xs tracking-wider uppercase flex items-center gap-2 shadow-md shadow-[#c5a66a]/20 transition cursor-pointer disabled:opacity-50 font-cinzel"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
-            <span>{isAdvancing ? 'Stepping...' : 'Step Sim (+1 Tick)'}</span>
+            <span>{isAdvancing ? 'Simulating...' : 'Advance Cycle (+1 Tick)'}</span>
           </button>
 
           {onClose && (
@@ -233,8 +233,8 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
                 soundFx.playClick();
                 onClose();
               }}
-              className="p-2 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-500 transition cursor-pointer"
-              title="Close Causal Insights"
+              className="p-2 rounded-lg bg-[#1b241d] border border-[#2e3e30] text-[#8e9c8c] hover:text-[#f3f5ee] hover:border-[#c5a66a]/50 transition cursor-pointer"
+              title="Close Causal Observatory"
             >
               <X className="w-5 h-5" />
             </button>
@@ -244,12 +244,12 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
 
       {/* Main Two-Column Layout with Dedicated Left Navigation Sidebar */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        {/* Dedicated Causal Insights Sidebar */}
-        <aside className="w-64 shrink-0 bg-slate-900/60 border-r border-slate-800/80 flex flex-col justify-between p-4 overflow-y-auto custom-scrollbar">
+        {/* Dedicated Imperial Causal Insights Sidebar */}
+        <aside className="w-64 shrink-0 bg-[#121814] border-r border-[#2b392d] flex flex-col justify-between p-4 overflow-y-auto custom-scrollbar select-none">
           <div className="space-y-4">
             <div>
-              <span className="text-[10px] font-mono tracking-widest uppercase text-slate-400 font-bold block mb-2 px-2">
-                TELEMETRY MODULES
+              <span className="text-[10px] font-mono tracking-widest uppercase text-[#8e9c8c] font-bold block mb-2 px-2 font-cinzel">
+                OBSERVATORY MODULES
               </span>
               <nav className="space-y-1">
                 <button
@@ -259,16 +259,16 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                     activeTab === 'vitals'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-md shadow-cyan-950/30 font-bold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
+                      ? 'bg-[#202921] text-[#f3f5ee] border-l-2 border-[#c5a66a] shadow-sm font-bold'
+                      : 'text-[#8e9c8c] hover:text-[#eae3d2] hover:bg-[#18211b] border-l-2 border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <HeartPulse className={`w-4 h-4 ${activeTab === 'vitals' ? 'text-cyan-400 animate-pulse' : 'text-slate-400'}`} />
+                    <HeartPulse className={`w-4 h-4 ${activeTab === 'vitals' ? 'text-[#c5a66a] animate-pulse' : 'text-[#8e9c8c]'}`} />
                     <span>Vital Signs & Mortality</span>
                   </div>
                   {latestVitals && (
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span className="w-2 h-2 rounded-full bg-[#2ecc71]" />
                   )}
                 </button>
 
@@ -279,13 +279,13 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                     activeTab === 'graph'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-md shadow-cyan-950/30 font-bold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
+                      ? 'bg-[#202921] text-[#f3f5ee] border-l-2 border-[#c5a66a] shadow-sm font-bold'
+                      : 'text-[#8e9c8c] hover:text-[#eae3d2] hover:bg-[#18211b] border-l-2 border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <GitCommit className={`w-4 h-4 ${activeTab === 'graph' ? 'text-cyan-400' : 'text-slate-400'}`} />
-                    <span>Cause & Effect Graph</span>
+                    <GitCommit className={`w-4 h-4 ${activeTab === 'graph' ? 'text-[#c5a66a]' : 'text-[#8e9c8c]'}`} />
+                    <span>Cause & Effect Flow</span>
                   </div>
                 </button>
 
@@ -296,15 +296,15 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                     activeTab === 'events'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-md shadow-cyan-950/30 font-bold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
+                      ? 'bg-[#202921] text-[#f3f5ee] border-l-2 border-[#c5a66a] shadow-sm font-bold'
+                      : 'text-[#8e9c8c] hover:text-[#eae3d2] hover:bg-[#18211b] border-l-2 border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Bell className={`w-4 h-4 ${activeTab === 'events' ? 'text-cyan-400' : 'text-slate-400'}`} />
-                    <span>Crisis & Incidents</span>
+                    <Bell className={`w-4 h-4 ${activeTab === 'events' ? 'text-[#c5a66a]' : 'text-[#8e9c8c]'}`} />
+                    <span>Crises & Incidents</span>
                   </div>
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-[#1d261f] text-[#c5a66a] border border-[#3b4c3e]">
                     {events.length}
                   </span>
                 </button>
@@ -316,40 +316,40 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                     activeTab === 'policy'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-md shadow-cyan-950/30 font-bold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
+                      ? 'bg-[#202921] text-[#f3f5ee] border-l-2 border-[#c5a66a] shadow-sm font-bold'
+                      : 'text-[#8e9c8c] hover:text-[#eae3d2] hover:bg-[#18211b] border-l-2 border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Sliders className={`w-4 h-4 ${activeTab === 'policy' ? 'text-cyan-400' : 'text-slate-400'}`} />
+                    <Sliders className={`w-4 h-4 ${activeTab === 'policy' ? 'text-[#c5a66a]' : 'text-[#8e9c8c]'}`} />
                     <span>Policy What-If</span>
                   </div>
-                  <Sparkles size={13} className="text-cyan-400" />
+                  <Sparkles size={13} className="text-[#c5a66a]" />
                 </button>
               </nav>
             </div>
 
             {/* Causal Diagnostics Card in Sidebar */}
-            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/90 text-[11px] font-mono space-y-2">
-              <span className="text-[10px] text-cyan-400 font-bold tracking-wider uppercase block">
-                ENGINE COUPLING MATRIX
+            <div className="p-3.5 rounded-xl bg-[#161f18] border border-[#2b392d] text-[11px] font-mono space-y-2 shadow-inner">
+              <span className="text-[10px] text-[#c5a66a] font-bold tracking-wider uppercase block font-cinzel">
+                KINGDOM COUPLING MATRIX
               </span>
-              <div className="flex justify-between text-slate-400">
-                <span>Active World:</span>
-                <span className="text-white font-semibold truncate max-w-[100px]">{worldId}</span>
+              <div className="flex justify-between text-[#8e9c8c]">
+                <span>Monitored Realm:</span>
+                <span className="text-[#f3f5ee] font-semibold truncate max-w-[100px]">{worldId}</span>
               </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Simulation Tick:</span>
-                <span className="text-cyan-300 font-semibold">{tick}</span>
+              <div className="flex justify-between text-[#8e9c8c]">
+                <span>Simulation Cycle:</span>
+                <span className="text-[#c5a66a] font-semibold">{tick}</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-[#8e9c8c]">
                 <span>Vitals History:</span>
-                <span className="text-emerald-400 font-semibold">{vitalsHistory.length} frames</span>
+                <span className="text-[#8fa879] font-semibold">{vitalsHistory.length} snapshots</span>
               </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Causal Engine:</span>
-                <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+              <div className="flex justify-between text-[#8e9c8c]">
+                <span>Observatory Engine:</span>
+                <span className="text-[#2ecc71] font-semibold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2ecc71] animate-ping inline-block" />
                   Coupled
                 </span>
               </div>
@@ -357,20 +357,20 @@ export const CausalInsightsPage: React.FC<CausalInsightsPageProps> = ({
           </div>
 
           {/* Quick Step Trigger */}
-          <div className="pt-4 border-t border-slate-800/80">
+          <div className="pt-4 border-t border-[#2b392d]">
             <button
               onClick={handleManualAdvance}
               disabled={isAdvancing}
-              className="w-full py-2 px-3 rounded-lg bg-cyan-950/50 hover:bg-cyan-900/50 border border-cyan-800/60 text-cyan-300 hover:text-cyan-100 font-mono text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+              className="w-full py-2 px-3 rounded-lg bg-[#1c251e] hover:bg-[#253228] border border-[#3c4e3e] text-[#c5a66a] hover:text-[#f3f5ee] font-mono text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
             >
               <Play className="w-3 h-3 fill-current" />
-              <span>Step Simulation</span>
+              <span>Advance Kingdom Cycle</span>
             </button>
           </div>
         </aside>
 
         {/* Main Panel Viewport */}
-        <main className="flex-1 min-w-0 overflow-y-auto p-6 custom-scrollbar">
+        <main className="flex-1 min-w-0 overflow-y-auto p-6 custom-scrollbar bg-[#0d120f]">
           {activeTab === 'vitals' && (
             <VitalSignsPanel vitalsHistory={vitalsHistory} latestVitals={latestVitals} />
           )}
