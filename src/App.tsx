@@ -195,8 +195,18 @@ function GameApp() {
         setIsShortcutsOpen(!isShortcutsOpen);
       }
     };
+    const handleCivoraNavigate = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        handleNavigate(customEvent.detail);
+      }
+    };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('civora-navigate', handleCivoraNavigate);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('civora-navigate', handleCivoraNavigate);
+    };
   }, [
     togglePlay,
     setSpeed,

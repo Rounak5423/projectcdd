@@ -301,7 +301,7 @@ function TopbarComponent({
           </button>
 
           {/* Real-time WebSocket Connection Status Indicator */}
-          <ConnectionStatusBadge worldId={civilization?.id || 'aurora-prime'} />
+          <ConnectionStatusBadge className="hidden sm:inline-flex" worldId={civilization?.id || 'aurora-prime'} />
 
           {/* ML Cluster Health & Drift Telemetry Badge */}
           <MLModelStatusBadge />

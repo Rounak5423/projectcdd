@@ -57,6 +57,7 @@ const baseNavigation: NavSection[] = [
       { name: 'Council of Advisors', icon: Crown, badge: '6' },
       { name: 'Technology Tree', icon: GitBranch },
       { name: 'Policy Laboratory', icon: FlaskConical },
+      { name: 'Causal Insights', icon: Activity, badge: 'ML' },
       { name: 'Research Observatory', icon: Compass },
       { name: 'Civil Defense', icon: ShieldAlert },
     ],

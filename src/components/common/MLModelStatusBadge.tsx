@@ -91,6 +91,16 @@ export const MLModelStatusBadge: React.FC<{ className?: string }> = ({ className
               <span className="text-cyan-300">{health.ml_enabled ? 'ENABLED' : 'FALLBACK'}</span>
             </div>
           </div>
+
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              window.dispatchEvent(new CustomEvent('civora-navigate', { detail: 'Causal Insights' }));
+            }}
+            className="mt-2.5 w-full py-1.5 px-2 text-center rounded bg-[#1e2a21] hover:bg-[#27372b] border border-[#3b4e3e] text-[#dfb74a] text-[10px] uppercase font-bold tracking-wider transition-colors cursor-pointer"
+          >
+            Open Causal Insights →
+          </button>
         </div>
       )}
     </div>
