@@ -2912,7 +2912,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         name: newCiv.name,
         climate: newCiv.climateType,
         technology_level: newCiv.era,
-        initial_population: 10,
+        initial_population: 150,
         grid_size: 32,
       })
       .then((res) => {
@@ -2929,7 +2929,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     triggerToast({
       type: 'info',
       title: `🌱 Welcome to ${newCiv.name}!`,
-      subtitle: `Your 10 founding pioneers have landed on ${newCiv.terrainType}. Build your colony from the ground up!`,
+      subtitle: `Your 150 founding citizens have arrived on ${newCiv.terrainType}. Build your colony from the ground up!`,
       icon: '🚀',
     });
   };
@@ -2938,6 +2938,9 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     // 1. Save currently active world before switching
     saveGameStateToStorage(latestStateRef.current);
 
+    const targetMeta = savedWorlds.find((w) => w.id === civId) || alternateWorlds.find((w) => w.id === civId);
+    const targetCivLevel = targetMeta?.level || 1;
+
     // 2. Fetch authoritative state from backend if available
     civilizationApi.getWorldState(civId).then((res) => {
       if (res.success && res.data) {
@@ -2945,7 +2948,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
         if (Array.isArray(state.buildings) && state.buildings.length > 0) {
           const mappedBuildings: PlacedBuilding[] = state.buildings.map((b: any) => ({
             id: b.id,
-            catalogId: b.catalogId || `bld-${b.type?.toLowerCase() || 'generic'}`,
+            catalogId: b.catalogId || (b.type?.toLowerCase() === 'government' ? 'bld-gov-citadel' : `bld-${b.type?.toLowerCase() || 'generic'}`),
             name: b.name || 'Structure',
             category: (b.type || 'Services') as any,
             level: b.level || 1,
@@ -2961,18 +2964,30 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
             workersAssigned: Number.isFinite(b.current_workers) ? b.current_workers : 0,
             workersNeeded: Number.isFinite(b.capacity) ? b.capacity : 10,
             isOperational: b.status === 'active',
-            modelType: b.type?.toLowerCase() || 'residential_house',
+            modelType: b.type?.toLowerCase() === 'government' ? 'citadel' : (b.type?.toLowerCase() || 'residential_house'),
             currentOccupants: b.current_occupants || 0,
             maxOccupants: b.capacity || 10,
             currentWorkers: b.current_workers || 0,
             maxWorkers: b.capacity || 10,
           }));
-          setPlacedBuildings(mappedBuildings);
+
+          if (targetCivLevel <= 1) {
+            const onlyCitadel = mappedBuildings.filter(
+              (b) => b.category === 'government' || b.modelType === 'citadel'
+            );
+            setPlacedBuildings(
+              onlyCitadel.length > 0
+                ? onlyCitadel.map((b) => ({ ...b, level: 1 }))
+                : initialPlacedBuildings
+            );
+          } else {
+            setPlacedBuildings(mappedBuildings);
+          }
         }
         if (state.metrics) {
           setResources((prev) => ({
             ...prev,
-            population: state.metrics.population ?? prev.population,
+            population: targetCivLevel <= 1 ? (state.metrics.population ?? 150) : (state.metrics.population ?? prev.population),
             gdp: state.metrics.gdp ?? prev.gdp,
             food: state.metrics.food ?? prev.food,
             water: state.metrics.water ?? prev.water,
@@ -2989,15 +3004,36 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
     // 3. Check if target world has saved state in storage
     const savedForTarget = loadGameStateForWorld(civId);
     if (savedForTarget) {
+      const civLevel = savedForTarget.civilization.level || 1;
+      let targetBlds = savedForTarget.placedBuildings || initialPlacedBuildings;
+
+      // Ensure every map starting at Level 1 starts with only Level 1 structures and no stale demo landmarks
+      if (civLevel <= 1) {
+        const hasStaleDemo = targetBlds.some(
+          (b) => (b.level && b.level > 1) || b.catalogId === 'bld-sci-fusion' || b.catalogId === 'bld-gov-palace'
+        );
+        if (hasStaleDemo) {
+          targetBlds = initialPlacedBuildings;
+        }
+      }
+
+      targetBlds = targetBlds.map((b) => ({
+        ...b,
+        level: civLevel <= 1 ? 1 : Math.max(1, Math.min(b.level || 1, civLevel, b.maxLevel || 5)),
+      }));
+
       setCivilization(savedForTarget.civilization);
-      setPlacedBuildings(savedForTarget.placedBuildings);
-      setResources(savedForTarget.resources);
+      setPlacedBuildings(targetBlds);
+      setResources({
+        ...savedForTarget.resources,
+        population: civLevel <= 1 ? (savedForTarget.resources.population || 150) : savedForTarget.resources.population,
+      });
       setRates(savedForTarget.rates);
       setDistricts(savedForTarget.districts);
-      setCitizens(savedForTarget.citizens);
+      setCitizens(savedForTarget.citizens && savedForTarget.citizens.length >= 50 ? savedForTarget.citizens : initialCitizens);
       setDetailedAgents(
         savedForTarget.detailedAgents ||
-        createInitialDetailedAgents(savedForTarget.citizens, savedForTarget.civilization.level)
+        createInitialDetailedAgents(savedForTarget.citizens || initialCitizens, savedForTarget.civilization.level)
       );
       setTechnologies(savedForTarget.technologies || initialTechnologies);
       setPolicies(savedForTarget.policies || initialPolicies);
@@ -3007,7 +3043,10 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       if (savedForTarget.missions) setMissions(savedForTarget.missions);
       if (savedForTarget.chronicle) setChronicle(savedForTarget.chronicle);
 
-      saveGameStateToStorage(savedForTarget);
+      saveGameStateToStorage({
+        ...savedForTarget,
+        placedBuildings: targetBlds,
+      });
       triggerToast({
         type: 'info',
         title: `🏛️ World Loaded: ${savedForTarget.civilization.name}`,
@@ -3017,7 +3056,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const target = savedWorlds.find((w) => w.id === civId) || alternateWorlds.find((w) => w.id === civId);
+    const target = targetMeta;
     if (target) {
       setCivilization(target);
       setPlacedBuildings(initialPlacedBuildings);

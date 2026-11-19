@@ -50,8 +50,8 @@ export default function WorldCreationStudioPage({
     climateType: 'Temperate',
     waterAvailability: 'Abundant',
     resourceRichness: 'Bountiful',
-    startingPopulation: 10,
-    initialWealth: 500,
+    startingPopulation: 150,
+    initialWealth: 1250,
     techEra: 'Foundational',
     governanceModel: 'Direct Frontier Council',
     environmentalProtectionLevel: 'Balanced Stewardship',
@@ -514,16 +514,16 @@ export default function WorldCreationStudioPage({
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-[#9da99b]">Founding Pioneer Crew</span>
+                    <span className="text-[#9da99b]">Founding Citizen Settlement</span>
                     <span className="font-mono text-[#c6a76a] font-bold">
-                      {form.startingPopulation} Pioneers (Named Colonists)
+                      {form.startingPopulation} Citizens (Named Colonists)
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { count: 10, label: '10 Pioneers', sub: 'Standard Founding Cohort' },
-                      { count: 15, label: '15 Pioneers', sub: 'Extended Expedition' },
-                      { count: 20, label: '20 Pioneers', sub: 'Frontier Vanguard' },
+                      { count: 150, label: '150 Citizens', sub: 'Founding Settler Cohort' },
+                      { count: 175, label: '175 Citizens', sub: 'Extended Expedition' },
+                      { count: 200, label: '200 Citizens', sub: 'Frontier Vanguard' },
                     ].map((opt) => (
                       <button
                         key={opt.count}

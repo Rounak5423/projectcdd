@@ -51,57 +51,36 @@ async def create_world(
             genesis_research_credits, happiness, environmental_health, pollution
         ) VALUES (
             ?, ?, 0.02, 50000.0, 0.01, 1.0, 32000.0, 0.15, 0.90, 0.10,
-            ?, 20.0, ?, 25.0, ?, 15.0, ?, 10.0, 100.0, 5.0,
-            500.0, 0.88, 0.95, 0.02
+            ?, -65.0, ?, -70.0, ?, 15.0, ?, 10.0, 0.0, 0.0,
+            1250.0, 0.90, 0.95, 0.02
         )
         """, (world_id, req.initial_population, food_init, water_init, energy_init, materials_init))
 
         # Progression
         conn.execute("""
         INSERT INTO progression (world_id, xp, level, title, thriving_score, grc_balance)
-        VALUES (?, 0, 1, 'Pioneer Settlement', 0.85, 500.0)
+        VALUES (?, 0, 1, 'Pioneer Settlement', 0.85, 1250.0)
         """, (world_id,))
 
-        # Initial starter Frontier Colony Outpost
+        # Initial starter Frontier Colony Outpost (Level 1 Citadel on dead land)
         center = req.grid_size / 2.0
         outpost_id = f"bld_{uuid.uuid4().hex[:8]}"
         conn.execute("""
         INSERT INTO buildings (
             id, world_id, name, type, level, x, y, z, width, length, height,
             orientation, status, capacity, current_occupants, current_workers, construction_cost, upgrade_cost, effects
-        ) VALUES (?, ?, 'Frontier Colony Outpost', 'Government', 1, ?, ?, 0.0, 3.0, 3.0, 3.0, 0.0, 'active', 50, 0, 0, '{}', '{}', '{}')
+        ) VALUES (?, ?, 'Frontier Colony Outpost', 'Government', 1, ?, ?, 0.0, 3.0, 3.0, 3.0, 0.0, 'active', 150, 0, 0, '{}', '{}', '{}')
         """, (outpost_id, world_id, center, center))
 
-        # Initial residential habitation blocks sized to house initial population
-        import math
+        # Spawn all initial founding citizens (150 settlers) sheltered at the initial outpost
         from engine.demographics import spawn_citizens_for_world
-        
         target_pop = max(1, req.initial_population)
-        block_capacity = 100
-        num_blocks = max(1, math.ceil(target_pop / float(block_capacity)))
-        per_block_cap = math.ceil(target_pop / float(num_blocks))
 
-        res_building_ids = []
-        for b_idx in range(num_blocks):
-            res_id = f"bld_hab_{b_idx+1}_{uuid.uuid4().hex[:6]}"
-            angle = (2.0 * math.pi * b_idx) / max(1, num_blocks)
-            bx = round(center + 3.5 * math.cos(angle), 1)
-            bz = round(center + 3.5 * math.sin(angle), 1)
-            bname = f"Pioneer Habitation Module {chr(65 + b_idx)}"
-            conn.execute("""
-            INSERT INTO buildings (
-                id, world_id, name, type, level, x, y, z, width, length, height,
-                orientation, status, capacity, current_occupants, current_workers, construction_cost, upgrade_cost, effects
-            ) VALUES (?, ?, ?, 'Residential', 1, ?, ?, 0.0, 2.5, 2.5, 3.5, 0.0, 'active', ?, 0, 0, '{}', '{}', '{}')
-            """, (res_id, world_id, bname, bx, bz, per_block_cap))
-            res_building_ids.append(res_id)
-
-        # Spawn all initial citizens into residential buildings
         spawn_citizens_for_world(
             conn=conn,
             world_id=world_id,
             count=target_pop,
-            residential_building_ids=res_building_ids,
+            residential_building_ids=[outpost_id],
             work_building_ids=[outpost_id],
             center_x=center,
             center_y=center
