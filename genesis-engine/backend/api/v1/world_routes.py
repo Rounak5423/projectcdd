@@ -125,3 +125,22 @@ async def run_world_counterfactual(
         horizon_ticks=horizon_ticks
     )
 
+
+@router.get("/worlds/{id}/entities/{entity_id}/explain")
+async def explain_world_entity(id: str, entity_id: str):
+    """
+    Returns authoritative explainability payload for any active vehicle or pedestrian.
+    Includes active trip contract, route, current state machine status, reason code,
+    and the physical rule that last determined its speed.
+    """
+    canon_id = _resolve_world_id(id)
+    sim = get_unified_simulation(canon_id)
+    explanation = sim.movement_module.explain_entity(entity_id)
+    if not explanation:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Entity '{entity_id}' not found in active movement state of world '{canon_id}'"
+        )
+    return explanation.to_dict()
+
+

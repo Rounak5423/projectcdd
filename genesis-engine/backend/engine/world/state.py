@@ -143,6 +143,10 @@ class VehicleEntity(BaseModel):
     dwell_ticks_remaining: int = 0
     origin_building_id: Optional[str] = None
     dest_building_id: Optional[str] = None
+    owner_id: Optional[str] = None
+    trip_id: Optional[str] = None
+    reason_code: str = "free_flow"
+    last_rule_applied: str = "cruising at speed limit"
 
 
 class PedestrianEntity(BaseModel):
@@ -161,6 +165,10 @@ class PedestrianEntity(BaseModel):
     purpose: str = "work"
     origin_building_id: Optional[str] = None
     dest_building_id: Optional[str] = None
+    owner_id: Optional[str] = None
+    trip_id: Optional[str] = None
+    reason_code: str = "free_flow"
+    last_rule_applied: str = "cruising at speed limit"
     current_edge_id: Optional[str] = None
     route_node_ids: List[str] = Field(default_factory=list)
     progress_pct: float = 0.0
