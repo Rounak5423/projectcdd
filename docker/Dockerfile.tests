@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt pytest-asyncio numpy psu
 
 # Copy node manifests and install Playwright runner dependencies
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci && npx playwright install --with-deps chromium
 
 # Copy test suites, scripts, and source code
 COPY frontend/e2e /app/frontend/e2e

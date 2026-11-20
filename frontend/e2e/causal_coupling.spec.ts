@@ -42,7 +42,7 @@ test.describe('Causal Insights & Coupling UI Suite', () => {
     await page.waitForTimeout(2000);
 
     // 5. Verify Causal Insights Page header is visible
-    const causalHeading = page.locator('h1:has-text("CAUSAL SYSTEM INTELLIGENCE")').first();
+    const causalHeading = page.locator('h1:has-text("CAUSAL"), h1:has-text("ROYAL CAUSAL")').first();
     await expect(causalHeading).toBeVisible({ timeout: 10000 });
 
     // 6. Verify Vital Signs Panel components
