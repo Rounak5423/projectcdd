@@ -131,6 +131,8 @@ services:
     environment:
       - BACKEND_URL=http://backend:8000
       - FRONTEND_URL=http://frontend:8080
+      - ENVIRONMENT=test
+      - CI=true
     volumes:
       - genesis_db_data:/app/db:ro
 
