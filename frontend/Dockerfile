@@ -29,6 +29,9 @@ RUN npm run build
 # ------------------------------------------------------------------------------
 FROM nginx:1.27-alpine AS runner
 
+# Upgrade OS packages to apply security patches
+RUN apk update && apk upgrade --no-cache
+
 # Create non-root system group & user if not matching default
 RUN addgroup -g 10001 -S genesis && \
     adduser -u 10001 -D -S -G genesis genesis

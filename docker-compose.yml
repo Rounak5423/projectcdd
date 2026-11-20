@@ -32,6 +32,8 @@ services:
       - genesis_ml_runs:/app/ml/runs
       - genesis_ml_data:/app/ml/data
       - genesis_uploads:/app/uploads
+      - ./scripts:/app/scripts:ro
+      - ./docs:/app/docs:ro
     tmpfs:
       - /tmp:exec,mode=1777
     deploy:
@@ -43,7 +45,7 @@ services:
           cpus: '0.25'
           memory: 256M
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health').read()"]
       interval: 10s
       timeout: 3s
       retries: 3

@@ -2,44 +2,37 @@ name: CIVORA CI Pipeline
 
 on:
   push:
-    branches: [ main, rounak, Divyamsh, 'feat/**', 'fix/**' ]
+    branches: [ Divyamsh, main ]
+    tags: [ 'v*.*.*', 'v*' ]
   pull_request:
-    branches: [ main, rounak, Divyamsh ]
+    branches: [ Divyamsh, main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate-frontend:
-    name: Frontend Build & Typecheck
+  # ----------------------------------------------------------------------------
+  # 1. Authoritative Backend Test Suite & Invariant Verification
+  # ----------------------------------------------------------------------------
+  backend-test:
+    name: Backend Tests & Simulation Invariants
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: TypeScript & Vite Production Build
-        run: npm run build
-
-  validate-backend:
-    name: Backend Test Suite & Diagnostics
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
           cache: 'pip'
 
-      - name: Install Python Dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r genesis-engine/backend/requirements.txt
@@ -48,11 +41,279 @@ jobs:
       - name: Run Backend Regression Test Suite
         env:
           ENVIRONMENT: test
+          CI: 'true'
           GENESIS_JWT_SECRET: test_ci_jwt_secret_key_minimum_32_characters_for_testing
         run: |
           cd genesis-engine/backend
           pytest tests/ -v
 
+      - name: Validate Map Topologies & Elevation Invariants
+        run: |
+          cd genesis-engine/backend
+          python -m engine.validate_maps
+
+      - name: Execute 30-Minute Movement Soak Test
+        run: |
+          python scripts/soak_test_movement.py
+
       - name: Verify SQLite Online Backup Utility
         run: |
           python genesis-engine/backend/db/backup.py create
+
+  # ----------------------------------------------------------------------------
+  # 2. Frontend Typecheck & Production Vite Build
+  # ----------------------------------------------------------------------------
+  frontend-test:
+    name: Frontend Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Static Type Checking
+        run: npx tsc --noEmit
+
+      - name: Production Vite Build
+        run: npm run build
+
+  # ----------------------------------------------------------------------------
+  # 3. Docker Container Build & Compose Integration Smoke Test
+  # ----------------------------------------------------------------------------
+  docker-build:
+    name: Container Build & Compose Smoke Test
+    needs: [ backend-test, frontend-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare Test Environment File
+        run: |
+          cp .env.example .env
+          sed -i 's/ENVIRONMENT=production/ENVIRONMENT=development/g' .env
+
+      - name: Build Backend Image (GHA Cache)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./genesis-engine/backend
+          file: ./genesis-engine/backend/Dockerfile
+          load: true
+          tags: |
+            genesis-backend:latest
+            genesis-backend:2.5.0
+            genesis-backend:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build Frontend Image (GHA Cache)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./frontend/Dockerfile
+          load: true
+          tags: |
+            genesis-frontend:latest
+            genesis-frontend:2.5.0
+            genesis-frontend:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Launch Production Compose Stack
+        run: |
+          docker compose up -d --wait
+          docker compose ps
+
+      - name: Verify Gateway Health Probes
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/api/v1/health >/dev/null 2>&1; then
+              echo "Production stack is healthy!"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Stack failed to become healthy within 60s"
+          docker compose logs
+          exit 1
+
+      - name: Execute Live Gateway Smoke Test
+        run: |
+          echo "Testing Admin Authentication..."
+          curl -sf -X POST http://localhost:3000/api/v1/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"admin","password":"AdminPassword123!"}' >/dev/null
+
+          echo "Testing Player Authentication..."
+          curl -sf -X POST http://localhost:3000/api/v1/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"player1","password":"UserPassword123!"}' >/dev/null
+
+          echo "Testing World State Read..."
+          curl -sf http://localhost:3000/api/v1/worlds/aurora-prime >/dev/null
+          echo "All gateway smoke tests passed!"
+
+      - name: Tear Down Stack
+        if: always()
+        run: docker compose down -v
+
+  # ----------------------------------------------------------------------------
+  # 4. Container Vulnerability & Security Scan (Trivy)
+  # ----------------------------------------------------------------------------
+  security-scan:
+    name: Trivy Security Scan
+    needs: [ docker-build ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Load Backend Image from Cache
+        uses: docker/build-push-action@v5
+        with:
+          context: ./genesis-engine/backend
+          file: ./genesis-engine/backend/Dockerfile
+          load: true
+          tags: genesis-backend:2.5.0
+          cache-from: type=gha,scope=backend
+
+      - name: Load Frontend Image from Cache
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./frontend/Dockerfile
+          load: true
+          tags: genesis-frontend:2.5.0
+          cache-from: type=gha,scope=frontend
+
+      - name: Run Trivy Vulnerability Scan (Backend)
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: genesis-backend:2.5.0
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy Vulnerability Scan (Frontend)
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: genesis-frontend:2.5.0
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  # ----------------------------------------------------------------------------
+  # 5. Playwright End-to-End Test Suite (Non-Blocking Merging)
+  # ----------------------------------------------------------------------------
+  playwright-e2e:
+    name: Playwright E2E Integration Suite
+    needs: [ docker-build ]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers with System Dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Production Stack via Compose
+        run: |
+          cp .env.example .env
+          sed -i 's/ENVIRONMENT=production/ENVIRONMENT=development/g' .env
+          docker compose up -d --wait
+
+      - name: Run Playwright Tests Against Gateway
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          BASE_URL: http://localhost:3000
+        run: npx playwright test
+
+      - name: Upload Test Results on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+      - name: Clean Up Stack
+        if: always()
+        run: docker compose down -v
+
+  # ----------------------------------------------------------------------------
+  # 6. Publish Production Images to GitHub Container Registry (Tags / Main Only)
+  # ----------------------------------------------------------------------------
+  publish-ghcr:
+    name: Publish Images to GHCR
+    needs: [ security-scan, docker-build ]
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Backend to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: ./genesis-engine/backend
+          file: ./genesis-engine/backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/backend:latest
+
+      - name: Build & Push Frontend to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/frontend:latest

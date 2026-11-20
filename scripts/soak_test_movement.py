@@ -24,8 +24,10 @@ import time
 import math
 from typing import Dict, List, Any, Tuple
 
-# Add backend to path
+# Add backend to path (host repository or container /app layout)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "genesis-engine", "backend")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, "/app")
 
 from engine.world.map_topology import get_all_map_topologies
 from engine.world.road_network import UnifiedRoadNetwork

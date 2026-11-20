@@ -5,6 +5,11 @@
 // ===========================================================================
 
 const getAuthBaseUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    if (import.meta.env.PROD || window.location.port !== '5173') {
+      return '/api/v1/auth';
+    }
+  }
   if (import.meta.env.VITE_AUTH_URL) {
     return import.meta.env.VITE_AUTH_URL;
   }
@@ -12,14 +17,7 @@ const getAuthBaseUrl = (): string => {
     const base = import.meta.env.VITE_API_URL.replace(/\/$/, '');
     return base.endsWith('/api/v1') ? `${base}/auth` : `${base}/api/v1/auth`;
   }
-  if (typeof window !== 'undefined') {
-    if (import.meta.env.PROD || window.location.port === '8000' || !window.location.port) {
-      return '/api/v1/auth';
-    }
-    const host = window.location.hostname || '127.0.0.1';
-    return `http://${host}:8000/api/v1/auth`;
-  }
-  return 'http://127.0.0.1:8000/api/v1/auth';
+  return '/api/v1/auth';
 };
 
 export interface AuthUser {

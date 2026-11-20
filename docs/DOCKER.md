@@ -123,9 +123,17 @@ Or directly with Docker Compose:
 docker compose up -d
 ```
 
-### Step 3: Access Application
+### Step 3: Access Application & Default Credentials
 - **Main Web Application:** [http://localhost:3000](http://localhost:3000)
-- **Health Probe:** [http://localhost:3000/health](http://localhost:3000/health)
+- **Health Probes:**
+  - Gateway: [http://localhost:3000/health](http://localhost:3000/health)
+  - API Health: [http://localhost:3000/api/v1/health](http://localhost:3000/api/v1/health)
+
+#### Default Pre-Seeded User Accounts (Development Mode):
+| Role | Username | Default Password | Permissions |
+| :--- | :--- | :--- | :--- |
+| **Administrator** | `admin` | `AdminPassword123!` | Full control, policy override, world resets, diagnostics |
+| **Player / Citizen** | `player1` | `UserPassword123!` | Standard player gameplay, building, research |
 
 Verify container health:
 ```bash
@@ -210,13 +218,29 @@ make reset-db
 
 ## 7. Running Automated Tests in Containers
 
-GENESIS includes a dedicated test container service (profile `tests`) built on Microsoft Playwright that executes all verification suites against the live running container stack:
+### Direct In-Container Test Execution (Fastest & Standard)
+Execute the verification suites directly inside the running backend container:
+
+```bash
+# 1. Complete Pytest Suite (219 tests)
+docker compose exec backend pytest tests/ -v
+
+# 2. Map & Topology Invariant Validation (all 5 maps)
+docker compose exec backend python -m engine.validate_maps
+
+# 3. 30-Minute Movement & Invariant Soak Test
+docker compose exec backend python scripts/soak_test_movement.py
+
+# 4. Online SQLite Backup Validation
+docker compose exec backend python db/backup.py create
+```
+
+### Dedicated E2E Stack Test Profile
+GENESIS also provides a dedicated test container service (profile `tests`) built on Microsoft Playwright that executes verification against the live container stack:
 
 ```bash
 make test
-```
-Or directly:
-```bash
+# or
 docker compose --profile tests run --rm tests
 ```
 
@@ -269,6 +293,41 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile ml run 
 ---
 
 ## 10. Troubleshooting & Frequently Asked Questions
+
+### Port Conflicts (Port 3000 or 8000 Already in Use)
+- **Symptom:** `Error response from daemon: driver failed programming external connectivity: Bind for 0.0.0.0:3000 failed: port is already allocated`.
+- **Cause:** A local dev server (like Vite or Node) or another container is occupying port 3000 or 8000.
+- **Fix:** Identify and stop the occupying process:
+  ```bash
+  # Check what process is on port 3000
+  lsof -i :3000
+  # Kill the conflicting PID
+  kill -9 <PID>
+  # Alternatively, change FRONTEND_PORT in .env (e.g. FRONTEND_PORT=3001)
+  ```
+
+### SQLite WAL Lock / Concurrency Errors
+- **Symptom:** `database is locked` or `sqlite3.OperationalError: cannot operate on a closed database`.
+- **Cause:** Multiple worker processes attempting concurrent writes to SQLite WAL, or database located on an unsupported network filesystem (NFS/CIFS) that lacks POSIX locking.
+- **Fix:**
+  1. The backend **must run exactly 1 worker process** (`--workers 1`). Do not configure multiple replicas or workers.
+  2. Always use Docker local named volumes (`genesis_db_data`), never network mounts.
+  3. If stale lock files remain after a crash:
+     ```bash
+     docker compose stop backend
+     # Restarting will cleanly recover WAL frames
+     docker compose start backend
+     ```
+
+### Volume Cleanup & Fresh Reset
+- **Symptom:** Need to completely reset all simulation databases and volume state.
+- **Fix:**
+  ```bash
+  # Stop containers and purge all named volumes
+  docker compose down -v
+  # Restart clean
+  docker compose up -d
+  ```
 
 ### WebSocket disconnects or fails to connect
 - **Cause:** Proxy timeout or misconfigured host header.

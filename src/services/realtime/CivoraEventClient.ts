@@ -129,15 +129,15 @@ export class CivoraEventClient {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let wsUrl: string;
 
-    if (import.meta.env.VITE_WS_URL) {
+    if (typeof window !== 'undefined' && (import.meta.env.PROD || window.location.port !== '5173')) {
+      wsUrl = `${protocol}//${window.location.host}/ws/world/${encodeURIComponent(worldId)}`;
+    } else if (import.meta.env.VITE_WS_URL) {
       const customWs = import.meta.env.VITE_WS_URL;
       if (customWs.startsWith('ws://') || customWs.startsWith('wss://')) {
         wsUrl = `${customWs.replace(/\/$/, '')}/ws/world/${encodeURIComponent(worldId)}`;
       } else {
         wsUrl = `${protocol}//${customWs.replace(/^\/+/, '').replace(/\/$/, '')}/ws/world/${encodeURIComponent(worldId)}`;
       }
-    } else if (import.meta.env.PROD || window.location.port === '8000' || !window.location.port) {
-      wsUrl = `${protocol}//${window.location.host}/ws/world/${encodeURIComponent(worldId)}`;
     } else {
       const host = `${window.location.hostname || '127.0.0.1'}:8000`;
       wsUrl = `${protocol}//${host}/ws/world/${encodeURIComponent(worldId)}`;

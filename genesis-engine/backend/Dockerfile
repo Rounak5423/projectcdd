@@ -69,7 +69,7 @@ EXPOSE 8000
 
 # Health check against real FastAPI readiness/health endpoint
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health').read()" || exit 1
 
 # Graceful shutdown: SIGTERM allows FastAPI lifespan to flush SQLite WAL and scheduler
 STOPSIGNAL SIGTERM

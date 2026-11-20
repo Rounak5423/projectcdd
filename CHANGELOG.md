@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.10.0] - 2026-11-20 (Production Containerization, Gateway Decoupling & Hardened CI)
+
+### Containerization & Infrastructure
+- **Authoritative Backend Container (`genesis-engine/backend/Dockerfile`):** Multi-stage build on pinned `python:3.12-slim`, non-root execution (`genesis` UID/GID 10001), strict single-worker uvicorn server (`--workers 1`) to guarantee SQLite WAL consistency, and built-in Python health probe calling `/api/v1/health`.
+- **Frontend Reverse Proxy Gateway (`frontend/Dockerfile`, `frontend/nginx.conf`):** Multi-stage build with Node 22 LTS builder and hardened Nginx 1.27 Alpine runtime with `apk upgrade` security patches. Configured SPA fallback, relative reverse proxy for `/api/`, WebSocket upgrading proxy for `/ws/` (86400s timeout), gzip compression, and security headers.
+- **Docker Compose Orchestration (`docker-compose.yml`, `.env.example`):** Multi-container stack on private `genesis-internal` bridge network; SQLite WAL persistence on local named volume `genesis_db_data`; read-only bind mounts for scripts and contract docs; container health dependency graphs (`condition: service_healthy`).
+- **Build & Lifecycle Automation (`Makefile`):** Added cross-platform commands (`make build`, `make up`, `make down`, `make logs`, `make test`, `make clean`, `make backup-db`, `make restore-db`).
+- **Optimized Context Filtering (`.dockerignore`, `genesis-engine/backend/.dockerignore`):** Excluded build caches, virtual environments, datasets, and secret env files from build contexts.
+
+### Client Gateway & Portability
+- **Dynamic Relative Gateway Endpoints (`src/services/civilizationApi.ts`, `src/services/authApi.ts`):** Enabled relative `/api/v1` paths in production to eliminate hardcoded host/port rebuild requirements across environments.
+- **Dynamic WebSocket Connection (`src/services/realtime/CivoraEventClient.ts`):** Resolved WebSocket endpoint via window host and protocol (`ws:`/`wss:`).
+- **Runtime Defect Safeguards (`src/components/game/TutorialModal.tsx`, `src/components/cs2/CS2InfoViewsPanel.tsx`):** Clamped step indices and added safe fallback defaults preventing `undefined is not an object (evaluating 'current.icon')` exceptions in client viewports.
+- **Container Path Portability (`scripts/soak_test_movement.py`):** Extended Python path resolution to automatically support `/app` container root alongside host development directories.
+
+### GitHub Actions CI/CD Pipeline
+- **Unified Pipeline (`.github/workflows/ci.yml`):** Consolidated into a single pipeline with minimal permissions (`contents: read`), concurrency cancellation, and 6 parallel/staged jobs:
+  1. `backend-test`: Python 3.12, pytest suite (219 tests), map validation (5 maps), soak test, backup utility check.
+  2. `frontend-test`: Node 22 LTS, `npm ci`, static typecheck (`tsc --noEmit`), production Vite build.
+  3. `docker-build`: Buildx with GitHub Actions cache, Compose smoke test, gateway health check, auth logins (`admin`, `player1`), world state validation.
+  4. `security-scan`: Trivy security scan on backend and frontend images (`severity: CRITICAL,HIGH`).
+  5. `playwright-e2e`: Playwright browser suite with `continue-on-error: true` and artifact uploads on failure.
+  6. `publish-ghcr`: Automatic publishing to GitHub Container Registry on `v*` tags and `main`.
+- **Removed Deprecated Workflow:** Deleted redundant `.github/workflows/docker-ci.yml`.
+
+### Documentation
+- **Docker Operations Manual (`docs/DOCKER.md`):** Documented default credentials (`admin`/`AdminPassword123!`, `player1`/`UserPassword123!`), container test commands, SQLite WAL locking mechanics, port conflict remediation, and volume recovery.
+- **Repository README (`README.md`):** Added CI pipeline status badge and 3-line quickstart command block.
+
+---
+
 ## [2.9.0] - 2026-11-19 (Gates A, B, C: Full Movement Logic Rebuild & Invariant Verification)
 
 ### Authoritative Movement Contracts & Time Model Decoupling (Gate A)

@@ -26,9 +26,12 @@ db/*.db-shm
 !.env.example
 
 # Large datasets & training runs (mounted via Docker volumes)
-ml/data/raw/
+ml/data/
 ml/runs/
 datasets/
+
+# Documentation
+docs/
 
 # OS and editor files
 .DS_Store

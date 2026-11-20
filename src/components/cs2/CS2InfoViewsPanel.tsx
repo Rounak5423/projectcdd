@@ -191,9 +191,9 @@ export default function CS2InfoViewsPanel() {
         <div className="w-[320px] bg-[#14181b]/95 border border-[#3b4750] rounded-xl p-3.5 text-[#ede8dc] shadow-2xl backdrop-blur-md animate-in fade-in duration-150 space-y-3">
           <div className="flex items-center justify-between border-b border-[#242c32] pb-2">
             <div className="flex items-center gap-2">
-              {currentView ? (
+              {currentView && currentView.icon ? (
                 <>
-                  <currentView.icon size={16} style={{ color: currentView.color }} />
+                  <currentView.icon size={16} style={{ color: currentView.color || '#c29b38' }} />
                   <div>
                     <h3 className="text-xs font-bold leading-tight uppercase font-mono tracking-wide">
                       {currentView.label}

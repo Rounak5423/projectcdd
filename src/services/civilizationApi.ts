@@ -15,17 +15,16 @@ import {
 
 // Base URL for FastAPI backend service (supports relative URLs via Vite proxy and custom VITE_API_URL)
 const getApiBaseUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    // In production or behind Nginx reverse proxy gateway, use same-origin relative path
+    if (import.meta.env?.PROD || window.location.port !== '5173') {
+      return '/api/v1';
+    }
+  }
   if (import.meta.env?.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  if (typeof window !== 'undefined') {
-    if (import.meta.env?.PROD || window.location.port === '8000' || !window.location.port) {
-      return '/api/v1';
-    }
-    const host = window.location.hostname || '127.0.0.1';
-    return `http://${host}:8000/api/v1`;
-  }
-  return 'http://127.0.0.1:8000/api/v1';
+  return '/api/v1';
 };
 
 const API_BASE_URL = getApiBaseUrl();

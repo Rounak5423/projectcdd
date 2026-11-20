@@ -30,10 +30,13 @@ genesis-engine/backend/db/*.db-shm
 
 # Datasets and training artifacts
 datasets/
-ml/data/raw/
+ml/data/
 ml/runs/
-genesis-engine/backend/ml/data/raw/
+genesis-engine/backend/ml/data/
 genesis-engine/backend/ml/runs/
+
+# Documentation
+docs/
 
 # Secrets and local environments
 .env

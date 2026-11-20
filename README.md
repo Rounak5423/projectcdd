@@ -1,6 +1,15 @@
 # GENESIS Engine: The Artificial Civilisation Engine
 
+[![CIVORA CI Pipeline](https://github.com/divyamsh8/CIVORA/actions/workflows/ci.yml/badge.svg?branch=Divyamsh)](https://github.com/divyamsh8/CIVORA/actions/workflows/ci.yml)
+
 > An interactive world simulation, policy laboratory, and 3D WebGL command center implementing agent-based socio-economic modeling, Cities: Skylines II-grade simulation depth, and the empirical study of the **AI Dependency Paradox**.
+
+### ⚡ Run with Docker (3-Line Quickstart)
+```bash
+cp .env.example .env            # 1. Setup environment
+docker compose up -d            # 2. Start full stack (or `make up`)
+open http://localhost:3000      # 3. Access WebGL Command Center (admin / AdminPassword123!)
+```
 
 ---
 
