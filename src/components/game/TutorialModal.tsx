@@ -21,6 +21,12 @@ export default function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
+    if (isOpen) {
+      setCurrentStep(0);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -129,8 +135,12 @@ export default function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
     },
   ];
 
-  const current = steps[currentStep];
-  const Icon = current.icon;
+  const safeStep = Math.max(0, Math.min(currentStep, steps.length - 1));
+  const current = steps[safeStep] || steps[0];
+  const Icon = current?.icon || Compass;
+  const currentColor = current?.color || '#dfb74a';
+  const currentBadge = current?.badge || 'Urban Simulation Command Center';
+  const currentTitle = current?.title || 'Tutorial';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md select-none animate-fadeIn">
@@ -140,16 +150,16 @@ export default function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
-              style={{ backgroundColor: `${current.color}20`, borderColor: `${current.color}60`, borderWidth: 1 }}
+              style={{ backgroundColor: `${currentColor}20`, borderColor: `${currentColor}60`, borderWidth: 1 }}
             >
-              <Icon className="w-5 h-5" style={{ color: current.color }} />
+              <Icon className="w-5 h-5" style={{ color: currentColor }} />
             </div>
             <div>
               <span className="text-[10px] font-mono tracking-widest uppercase text-[#8f9d94] block">
-                {current.badge} • Step {currentStep + 1} of {steps.length}
+                {currentBadge} • Step {safeStep + 1} of {steps.length}
               </span>
               <h3 className="text-base font-bold font-serif text-[#faecd0]">
-                {current.title}
+                {currentTitle}
               </h3>
             </div>
           </div>
@@ -167,7 +177,7 @@ export default function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
 
         {/* Content Body */}
         <div className="p-6 min-h-[220px]">
-          {current.content}
+          {current?.content}
         </div>
 
         {/* Footer Navigation */}
@@ -182,18 +192,18 @@ export default function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
                   setCurrentStep(i);
                 }}
                 className={`h-2 rounded-full transition-all ${
-                  i === currentStep ? 'w-6 bg-[#dfb74a]' : 'w-2 bg-[#2a3c30] hover:bg-[#405847]'
+                  i === safeStep ? 'w-6 bg-[#dfb74a]' : 'w-2 bg-[#2a3c30] hover:bg-[#405847]'
                 }`}
               />
             ))}
           </div>
 
           <div className="flex items-center gap-2">
-            {currentStep > 0 && (
+            {safeStep > 0 && (
               <button
                 onClick={() => {
                   soundFx.playClick();
-                  setCurrentStep((s) => s - 1);
+                  setCurrentStep((s) => Math.max(0, s - 1));
                 }}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#2a3c30] text-[#a0aba3] hover:text-white text-xs font-semibold hover:bg-[#18261e] transition"
               >
@@ -202,11 +212,11 @@ export default function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
               </button>
             )}
 
-            {currentStep < steps.length - 1 ? (
+            {safeStep < steps.length - 1 ? (
               <button
                 onClick={() => {
                   soundFx.playClick();
-                  setCurrentStep((s) => s + 1);
+                  setCurrentStep((s) => Math.min(steps.length - 1, s + 1));
                 }}
                 className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-black text-xs font-bold shadow-md hover:from-amber-400 hover:to-amber-500 transition"
               >

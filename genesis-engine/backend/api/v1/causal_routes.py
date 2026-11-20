@@ -1,4 +1,4 @@
-﻿"""
+"""
 Causal Coupling API Endpoints.
 Provides causal diagnostics, vital signs time-series, causal dependency graphs,
 and interactive system dynamics intervention / controlled shock simulations.
