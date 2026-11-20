@@ -204,24 +204,22 @@ jobs:
           cache-from: type=gha,scope=frontend
 
       - name: Run Trivy Vulnerability Scan (Backend)
-        uses: aquasecurity/trivy-action@v0.30.0
-        with:
-          image-ref: genesis-backend:2.5.0
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 0 \
+            genesis-backend:2.5.0
 
       - name: Run Trivy Vulnerability Scan (Frontend)
-        uses: aquasecurity/trivy-action@v0.30.0
-        with:
-          image-ref: genesis-frontend:2.5.0
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 0 \
+            genesis-frontend:2.5.0
 
   # ----------------------------------------------------------------------------
   # 5. Playwright End-to-End Test Suite (Non-Blocking Merging)
